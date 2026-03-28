@@ -38,6 +38,20 @@ struct CloudTour: Codable {
     let notes: String
     let duration_seconds: Int?
     let distance_km: Double?
+    let pauses: String?    // JSON-encoded [PauseEntry] — requires 'pauses' TEXT column in Supabase
+}
+
+struct PauseEntry: Codable, Identifiable {
+    let id: UUID
+    let startTime: Date
+    let endTime: Date
+    let latitude: Double
+    let longitude: Double
+    let isAutomatic: Bool
+
+    var duration: TimeInterval {
+        endTime.timeIntervalSince(startTime)
+    }
 }
 
 struct FriendshipRule: Codable {
@@ -57,6 +71,8 @@ struct Tour: Identifiable {
     let distanceKilometers: Double
     let xpGained: Int
     let isCurrentUser: Bool
+    var pauseCount: Int = 0
+    var totalPauseDuration: TimeInterval = 0
 }
 
 // --- HAUPTKLASSE ---
@@ -152,7 +168,7 @@ class AppState: ObservableObject {
             do {
                 let userId = try await supabase.auth.session.user.id
                 let path = "\(userId).jpg"
-                try await supabase.storage.from("avatars").upload(path: path, file: data, options: FileOptions(contentType: "image/jpeg", upsert: true))
+                try await supabase.storage.from("avatars").upload(path, data: data, options: FileOptions(contentType: "image/jpeg", upsert: true))
                 let publicURL = try supabase.storage.from("avatars").getPublicURL(path: path)
                 
                 let cacheBusterURL = publicURL.absoluteString + "?v=\(Int(Date().timeIntervalSince1970))"
@@ -179,12 +195,23 @@ class AppState: ObservableObject {
                 var relevantIds = myFriendships.map { $0.friend_id }
                 relevantIds.append(myId)
                 
-                let profiles: [CloudProfile] = try await supabase.from("profiles").select().in("id", value: relevantIds).execute().value
-                let cloudTours: [CloudTour] = try await supabase.from("tours").select().in("user_id", value: relevantIds).execute().value
+                let profiles: [CloudProfile] = try await supabase.from("profiles").select().in("id", values: relevantIds).execute().value
+                let cloudTours: [CloudTour] = try await supabase.from("tours").select().in("user_id", values: relevantIds).execute().value
                 
                 var newFeed: [Tour] = []
                 for tour in cloudTours {
                     if let player = profiles.first(where: { $0.id == tour.user_id }) {
+                        var parsedPauseCount = 0
+                        var parsedPauseDuration: TimeInterval = 0
+                        if let json = tour.pauses, let data = json.data(using: .utf8) {
+                            let decoder = JSONDecoder()
+                            decoder.dateDecodingStrategy = .iso8601
+                            if let entries = try? decoder.decode([PauseEntry].self, from: data) {
+                                parsedPauseCount = entries.count
+                                parsedPauseDuration = entries.reduce(0) { $0 + $1.duration }
+                            }
+                        }
+
                         let feedTour = Tour(
                             playerName: player.username,
                             playerHandle: player.handle,
@@ -196,7 +223,9 @@ class AppState: ObservableObject {
                             durationSeconds: TimeInterval(tour.duration_seconds ?? 0),
                             distanceKilometers: tour.distance_km ?? 0.0,
                             xpGained: 100 + tour.elevation,
-                            isCurrentUser: player.id == myId
+                            isCurrentUser: player.id == myId,
+                            pauseCount: parsedPauseCount,
+                            totalPauseDuration: parsedPauseDuration
                         )
                         newFeed.append(feedTour)
                     }
@@ -208,16 +237,26 @@ class AppState: ObservableObject {
     }
     
     // Fügt eine neue Tour hinzu (vom Tracker)
-    func addCompletedTour(summit: String, comment: String, elevation: Int, duration: TimeInterval, distance: Double, xp: Int) {
+    func addCompletedTour(summit: String, comment: String, elevation: Int, duration: TimeInterval, distance: Double, xp: Int, pauses: [PauseEntry] = []) {
         self.currentXP += xp
         self.currentLevel = (self.currentXP / 1000) + 1
-        
+
         uploadProfileToCloud()
         fetchLeaderboard()
-        
+
         Task {
             do {
                 let myId = try await supabase.auth.session.user.id
+
+                var pausesJSON: String? = nil
+                if !pauses.isEmpty {
+                    let encoder = JSONEncoder()
+                    encoder.dateEncodingStrategy = .iso8601
+                    if let data = try? encoder.encode(pauses) {
+                        pausesJSON = String(data: data, encoding: .utf8)
+                    }
+                }
+
                 let newCloudTour = CloudTour(
                     user_id: myId,
                     name: summit,
@@ -226,7 +265,8 @@ class AppState: ObservableObject {
                     difficulty: "Medium",
                     notes: comment,
                     duration_seconds: Int(duration),
-                    distance_km: distance
+                    distance_km: distance,
+                    pauses: pausesJSON
                 )
                 try await supabase.from("tours").insert(newCloudTour).execute()
                 fetchFeed()
@@ -257,7 +297,7 @@ class AppState: ObservableObject {
         Task {
             do {
                 let myId = try await supabase.auth.session.user.id
-                let friendProfiles: [CloudProfile] = try await supabase.from("profiles").select().ilike("handle", value: handleToSearch).execute().value
+                let friendProfiles: [CloudProfile] = try await supabase.from("profiles").select().ilike("handle", pattern: handleToSearch).execute().value
                 
                 guard let friend = friendProfiles.first, friend.id != myId else { return }
                 
@@ -282,7 +322,7 @@ class AppState: ObservableObject {
                 let friendIds = myFriendships.map { $0.friend_id }
                 var friendsPlayers: [CloudProfile] = [myProfile]
                 if !friendIds.isEmpty {
-                    let friendsData: [CloudProfile] = try await supabase.from("profiles").select().in("id", value: friendIds).execute().value
+                    let friendsData: [CloudProfile] = try await supabase.from("profiles").select().in("id", values: friendIds).execute().value
                     friendsPlayers.append(contentsOf: friendsData)
                 }
                 friendsPlayers.sort { $0.xp > $1.xp }
