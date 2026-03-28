@@ -38,7 +38,7 @@ struct Mountain: Identifiable, Hashable, Codable {
     
     // Sagt der App, welche Felder im JSON stehen
     enum CodingKeys: String, CodingKey {
-        case name, elevation, difficulty, country, region, description, isPrestigePeak, imageUrl
+        case id, name, elevation, difficulty, country, region, description, isPrestigePeak, imageUrl
         case photographer_name, photographer_link, latitude, longitude    }
 
     var elevationFormatted: String {
