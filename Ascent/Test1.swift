@@ -1,4 +1,3 @@
-//Hhllo Guten Tag
 //  Test1.swift
 //  Ascent
 //
