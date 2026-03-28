@@ -1,4 +1,3 @@
-//nigga
 //  Test1.swift
 //  Ascent
 //
