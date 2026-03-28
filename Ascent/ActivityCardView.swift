@@ -94,6 +94,9 @@ struct ActivityCardView: View {
             HStack(spacing: 10) {
                 StatBlock(icon: "chart.bar.fill", value: "+\(tour.elevationGainMeters)m", isXP: false)
                 StatBlock(icon: "clock.fill", value: formattedDuration, isXP: false)
+                if tour.pauseCount > 0 {
+                    StatBlock(icon: "pause.circle.fill", value: "\(tour.pauseCount) pauses", isXP: false)
+                }
                 StatBlock(icon: "", value: "+\(tour.xpGained) XP", isXP: true)
             }
         }
