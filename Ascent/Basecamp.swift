@@ -2,36 +2,35 @@ import SwiftUI
 
 // =========================================
 // === DATEI: BasecampView.swift ===
-// === Das ULTIMATIVE Basecamp (Alles vereint) ===
+// === Social Dashboard mit Discovery ===
 // =========================================
 
 struct BasecampView: View {
     @EnvironmentObject var appState: AppState
     @State private var showXPDetails = false
-    
-    // Berechnet die echten Höhenmeter für das "Iron Legs" Objective
-    // WICHTIG: Nutzt jetzt die neue Variable 'elevationGainMeters'
+    @State private var showTracker = false
+    @State private var mountainToTrack: Mountain? = nil
+
     var totalElevation: Int {
         appState.recentTours.filter { $0.isCurrentUser }.reduce(0) { $0 + $1.elevationGainMeters }
     }
-    
-    // Zählt, wie viele Touren DU selbst gemacht hast
+
     var totalOwnTours: Int {
         appState.recentTours.filter { $0.isCurrentUser }.count
     }
-    
+
     var ironLegsProgress: CGFloat {
         min(CGFloat(totalElevation) / 5000.0, 1.0)
     }
-    
+
     var body: some View {
         ZStack {
             Color(red: 0.05, green: 0.05, blue: 0.08).ignoresSafeArea()
-            
+
             ScrollView(showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 35) {
-                    
-                    // === HEADER ===
+                VStack(alignment: .leading, spacing: 30) {
+
+                    // === HEADER mit Level-Badge ===
                     HStack {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("BASECAMP").font(.caption).fontWeight(.bold).foregroundColor(.gray).tracking(1.5)
@@ -41,58 +40,49 @@ struct BasecampView: View {
                             }
                         }
                         Spacer()
-                        
-                        // Dein eigenes Cloud-Profilbild im Header
-                        if let urlString = appState.avatarURL, let url = URL(string: urlString) {
-                            AsyncImage(url: url) { phase in
-                                if let image = phase.image {
-                                    image.resizable().scaledToFill()
-                                } else {
-                                    Circle().fill(Color.gray.opacity(0.2)) // Lade-Platzhalter
-                                }
+
+                        HStack(spacing: 12) {
+                            Button(action: { showXPDetails = true }) {
+                                LevelBadge(level: appState.currentLevel, progress: Double(appState.currentLevelProgressXP) / Double(appState.xpNeededForNextLevel))
                             }
-                            .frame(width: 50, height: 50).clipShape(Circle())
-                            .overlay(Circle().stroke(Color.gray.opacity(0.3), lineWidth: 1))
-                        } else {
-                            Circle().stroke(Color.gray.opacity(0.3), lineWidth: 1).frame(width: 50, height: 50)
-                                .overlay(Image(systemName: "person.fill").foregroundColor(.gray))
+
+                            if let urlString = appState.avatarURL, let url = URL(string: urlString) {
+                                AsyncImage(url: url) { phase in
+                                    if let image = phase.image {
+                                        image.resizable().scaledToFill()
+                                    } else {
+                                        Circle().fill(Color.gray.opacity(0.2))
+                                    }
+                                }
+                                .frame(width: 50, height: 50).clipShape(Circle())
+                                .overlay(Circle().stroke(Color.gray.opacity(0.3), lineWidth: 1))
+                            } else {
+                                Circle().stroke(Color.gray.opacity(0.3), lineWidth: 1).frame(width: 50, height: 50)
+                                    .overlay(Image(systemName: "person.fill").foregroundColor(.gray))
+                            }
                         }
                     }
                     .padding(.horizontal, 20).padding(.top, 20)
-                    
-                    // === LEVEL KARTE ===
-                    Button(action: { showXPDetails = true }) {
+
+                    // === DISCOVER ===
+                    if !appState.recommendedPeaks.isEmpty {
                         VStack(alignment: .leading, spacing: 15) {
-                            HStack(alignment: .top) {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("Alpinist Rank").font(.title3).fontWeight(.bold).foregroundColor(.white)
-                                    Text("Level \(appState.currentLevel)").font(.subheadline).foregroundColor(Color(red: 0.85, green: 0.65, blue: 0.13))
-                                }
-                                Spacer()
-                                HStack(alignment: .firstTextBaseline, spacing: 2) {
-                                    Text("\(appState.currentLevelProgressXP)").font(.title2).fontWeight(.bold).foregroundColor(.white)
-                                    Text("XP").font(.caption).foregroundColor(.gray)
-                                }
-                            }
-                            
-                            VStack(alignment: .trailing, spacing: 8) {
-                                GeometryReader { geometry in
-                                    ZStack(alignment: .leading) {
-                                        Capsule().fill(Color.white.opacity(0.1)).frame(height: 6)
-                                        Capsule().fill(Color(red: 0.85, green: 0.65, blue: 0.13))
-                                            .frame(width: geometry.size.width * CGFloat(appState.currentLevelProgressXP) / CGFloat(appState.xpNeededForNextLevel), height: 6)
+                            Text("Discover").font(.title3).fontWeight(.bold).foregroundColor(.white).padding(.horizontal, 20)
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 15) {
+                                    Spacer().frame(width: 5)
+                                    ForEach(appState.recommendedPeaks) { mountain in
+                                        DiscoveryCard(mountain: mountain) {
+                                            mountainToTrack = mountain
+                                            showTracker = true
+                                        }
                                     }
+                                    Spacer().frame(width: 5)
                                 }
-                                .frame(height: 6)
-                                Text("\(appState.xpNeededForNextLevel - appState.currentLevelProgressXP) XP TO PEAK").font(.caption2).fontWeight(.bold).foregroundColor(.gray)
                             }
                         }
-                        .padding(20).background(Color(red: 0.12, green: 0.12, blue: 0.15)).cornerRadius(20)
-                        .shadow(color: .black.opacity(0.3), radius: 10, y: 5)
                     }
-                    .buttonStyle(PlainButtonStyle())
-                    .padding(.horizontal, 20)
-                    
+
                     // === WEEKLY OBJECTIVES ===
                     VStack(alignment: .leading, spacing: 15) {
                         Text("Weekly Objectives").font(.title3).fontWeight(.bold).foregroundColor(.white).padding(.horizontal, 20)
@@ -106,11 +96,11 @@ struct BasecampView: View {
                             }
                         }
                     }
-                    
-                    // === RECENT ACTIVITY (FEED) ===
+
+                    // === SOCIAL FEED ===
                     VStack(alignment: .leading, spacing: 15) {
                         Text("Recent Activity").font(.title3).fontWeight(.bold).foregroundColor(.white)
-                        
+
                         if appState.recentTours.isEmpty {
                             VStack(spacing: 12) {
                                 Image(systemName: "figure.climbing").font(.system(size: 40)).foregroundColor(.gray.opacity(0.5))
@@ -119,7 +109,6 @@ struct BasecampView: View {
                             }
                             .frame(maxWidth: .infinity).padding(30).background(Color(red: 0.12, green: 0.12, blue: 0.15)).cornerRadius(20)
                         } else {
-                            // === HIER SIND DIE NEUEN KARTEN! ===
                             LazyVStack(spacing: 20) {
                                 ForEach(appState.recentTours) { tour in
                                     ActivityCardView(tour: tour)
@@ -128,19 +117,99 @@ struct BasecampView: View {
                         }
                     }
                     .padding(.horizontal, 20)
-                    
+
                     Spacer().frame(height: 120)
                 }
             }
         }
-        .onAppear { appState.fetchFeed() }
+        .onAppear {
+            appState.fetchFeed()
+            appState.fetchRecommendedPeaks()
+        }
         .sheet(isPresented: $showXPDetails) {
             XPDetailView().presentationDetents([.medium, .large]).preferredColorScheme(.dark)
+        }
+        .fullScreenCover(isPresented: $showTracker) {
+            LiveRecordView(targetMountain: mountainToTrack)
         }
     }
 }
 
-// === Hilfs-Views (XP Popup & Objective Cards) ===
+// === LEVEL BADGE ===
+struct LevelBadge: View {
+    let level: Int
+    let progress: Double
+
+    private let gold = Color(red: 0.85, green: 0.65, blue: 0.13)
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .stroke(Color.white.opacity(0.1), lineWidth: 3)
+                .frame(width: 42, height: 42)
+            Circle()
+                .trim(from: 0, to: progress)
+                .stroke(gold, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                .frame(width: 42, height: 42)
+                .rotationEffect(.degrees(-90))
+            Text("\(level)")
+                .font(.system(size: 14, weight: .black, design: .rounded))
+                .foregroundColor(gold)
+        }
+    }
+}
+
+// === DISCOVERY CARD ===
+struct DiscoveryCard: View {
+    let mountain: Mountain
+    var onTap: () -> Void
+
+    private let gold = Color(red: 0.85, green: 0.65, blue: 0.13)
+
+    var body: some View {
+        Button(action: onTap) {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Image(systemName: mountain.isPrestigePeak ? "crown.fill" : "mountain.2.fill")
+                        .font(.system(size: 16))
+                        .foregroundColor(mountain.isPrestigePeak ? gold : .white)
+                    Spacer()
+                    Text(mountain.difficulty.rawValue.uppercased())
+                        .font(.system(size: 9, weight: .black))
+                        .foregroundColor(.black)
+                        .padding(.horizontal, 8).padding(.vertical, 3)
+                        .background(mountain.difficulty.color)
+                        .cornerRadius(4)
+                }
+
+                Text(mountain.name)
+                    .font(.subheadline).fontWeight(.bold).foregroundColor(.white)
+                    .lineLimit(1)
+
+                Text("\(mountain.elevation)m · \(mountain.region)")
+                    .font(.caption2).foregroundColor(.gray)
+                    .lineLimit(1)
+
+                if mountain.isPrestigePeak {
+                    Text("PRESTIGE PEAK")
+                        .font(.system(size: 8, weight: .black))
+                        .foregroundColor(gold).tracking(1)
+                }
+            }
+            .padding(14)
+            .frame(width: 165, height: 130)
+            .background(Color(red: 0.12, green: 0.12, blue: 0.15))
+            .cornerRadius(16)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(mountain.isPrestigePeak ? gold.opacity(0.3) : Color.clear, lineWidth: 1)
+            )
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+}
+
+// === XP DETAIL POPUP ===
 struct XPDetailView: View {
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var appState: AppState
@@ -159,7 +228,6 @@ struct XPDetailView: View {
                 }
                 .padding(.vertical, 20)
                 HStack(spacing: 20) {
-                    // Update auf elevationGainMeters
                     StatColumn(title: "Elevation", value: "\(appState.recentTours.filter{$0.isCurrentUser}.reduce(0){$0 + $1.elevationGainMeters})", unit: "m")
                     Divider().background(Color.gray.opacity(0.3)).frame(height: 50)
                     StatColumn(title: "Missions", value: "\(appState.recentTours.filter{$0.isCurrentUser}.count)", unit: "total")
