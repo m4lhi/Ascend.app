@@ -30,15 +30,21 @@ class MountainManager: ObservableObject {
     @Published var nearbyMountains: [Mountain] = []
     @Published var nearbyPOIs: [PointOfInterest] = []
 
-    // Loads all mountains (initial fetch)
+    // Loads mountains ordered by prestige and elevation (limit 200)
     func fetchMountainsFromDatabase() async {
         do {
-            let fetchedMountains: [Mountain] = try await supabase
+            let fetched: [Mountain] = try await supabase
                 .from("mountains")
                 .select()
+                .order("elevation", ascending: false)
+                .limit(100)
                 .execute()
                 .value
-            self.mountains = fetchedMountains
+            // Client-side sort: prestige peaks first, then by elevation
+            self.mountains = fetched.sorted {
+                if $0.isPrestigePeak != $1.isPrestigePeak { return $0.isPrestigePeak }
+                return $0.elevation > $1.elevation
+            }
             print("✅ Successfully loaded \(mountains.count) mountains from Supabase!")
         } catch {
             print("❌ Error fetching mountains from Supabase: \(error)")
@@ -87,6 +93,23 @@ class MountainManager: ObservableObject {
             self.nearbyPOIs = results
         } catch {
             print("❌ Nearby POIs error: \(error)")
+        }
+    }
+
+    // Top 10 mountains for search suggestions (prestige first, then by elevation)
+    func fetchTopMountains() async {
+        do {
+            let results: [Mountain] = try await supabase
+                .from("mountains")
+                .select()
+                .order("isPrestigePeak", ascending: false)
+                .order("elevation", ascending: false)
+                .limit(10)
+                .execute()
+                .value
+            self.mountains = results
+        } catch {
+            print("❌ Top mountains error: \(error)")
         }
     }
 
