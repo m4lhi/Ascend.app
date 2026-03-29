@@ -89,6 +89,22 @@ struct ActivityCardView: View {
             .font(.subheadline)
             .lineSpacing(4)
 
+            // === TOUR PHOTO ===
+            if let photoURL = tour.photoURL, let url = URL(string: photoURL) {
+                AsyncImage(url: url) { phase in
+                    if let image = phase.image {
+                        image.resizable().scaledToFill()
+                            .frame(maxWidth: .infinity).frame(height: 200)
+                            .clipped().cornerRadius(12)
+                    } else if phase.error != nil {
+                        EmptyView()
+                    } else {
+                        RoundedRectangle(cornerRadius: 12).fill(Color.white.opacity(0.05))
+                            .frame(height: 200).overlay(ProgressView().tint(.white))
+                    }
+                }
+            }
+
             // === STATS ===
             HStack(spacing: 10) {
                 StatBlock(icon: "chart.bar.fill", value: "+\(tour.elevationGainMeters)m", isXP: false)

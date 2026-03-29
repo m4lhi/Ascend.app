@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 
 // =========================================
 // === DATEI: BasecampView.swift ===
@@ -10,17 +11,31 @@ struct BasecampView: View {
     @State private var showXPDetails = false
     @State private var showTracker = false
     @State private var mountainToTrack: Mountain? = nil
+    @State private var heroBannerIndex = 0
+    @State private var showObjectiveDetail = false
+    @State private var selectedObjective: (title: String, icon: String, current: Int, target: Int, unit: String)?
 
-    var totalElevation: Int {
-        appState.recentTours.filter { $0.isCurrentUser }.reduce(0) { $0 + $1.elevationGainMeters }
-    }
-
-    var totalOwnTours: Int {
-        appState.recentTours.filter { $0.isCurrentUser }.count
-    }
+    private let bannerTimer = Timer.publish(every: 4, on: .main, in: .common).autoconnect()
 
     var ironLegsProgress: CGFloat {
-        min(CGFloat(totalElevation) / 5000.0, 1.0)
+        min(CGFloat(appState.weeklyElevation) / 5000.0, 1.0)
+    }
+
+    private let gold = Color(red: 0.85, green: 0.65, blue: 0.13)
+
+    @ViewBuilder
+    func bannerGradient(isPrestige: Bool) -> some View {
+        ZStack {
+            LinearGradient(
+                colors: isPrestige
+                    ? [gold.opacity(0.4), Color(red: 0.08, green: 0.08, blue: 0.12)]
+                    : [Color.blue.opacity(0.3), Color(red: 0.08, green: 0.08, blue: 0.12)],
+                startPoint: .topLeading, endPoint: .bottomTrailing
+            )
+            Image(systemName: isPrestige ? "crown.fill" : "mountain.2.fill")
+                .font(.system(size: 70)).foregroundColor(.white.opacity(0.07))
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     var body: some View {
@@ -64,6 +79,83 @@ struct BasecampView: View {
                     }
                     .padding(.horizontal, 20).padding(.top, 20)
 
+                    // === HERO BANNER ===
+                    if !appState.recommendedPeaks.isEmpty {
+                        let peak = appState.recommendedPeaks[heroBannerIndex % appState.recommendedPeaks.count]
+                        let gold = Color(red: 0.85, green: 0.65, blue: 0.13)
+                        Button {
+                            mountainToTrack = peak
+                            showTracker = true
+                        } label: {
+                            ZStack(alignment: .bottomLeading) {
+                                if let urlString = peak.imageUrl, !urlString.isEmpty, let url = URL(string: urlString) {
+                                    AsyncImage(url: url) { phase in
+                                        if let image = phase.image {
+                                            image.resizable().scaledToFill()
+                                        } else {
+                                            bannerGradient(isPrestige: peak.isPrestigePeak)
+                                        }
+                                    }
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity).clipped()
+                                } else {
+                                    bannerGradient(isPrestige: peak.isPrestigePeak)
+                                }
+                                LinearGradient(colors: [.clear, .black.opacity(0.75)], startPoint: .center, endPoint: .bottom)
+                                VStack(alignment: .leading, spacing: 5) {
+                                    Text(peak.isPrestigePeak ? "PRESTIGE PEAK" : "RECOMMENDED")
+                                        .font(.system(size: 9, weight: .black))
+                                        .foregroundColor(peak.isPrestigePeak ? gold : .cyan)
+                                        .tracking(1.5)
+                                    Text(peak.name)
+                                        .font(.title2).fontWeight(.bold).foregroundColor(.white)
+                                    Text("\(peak.elevation)m · \(peak.region)")
+                                        .font(.caption).foregroundColor(.white.opacity(0.75))
+                                }
+                                .padding(18)
+                            }
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                        .frame(height: 200)
+                        .cornerRadius(20)
+                        .clipped()
+                        .padding(.horizontal, 20)
+                        .onReceive(bannerTimer) { _ in
+                            withAnimation(.easeInOut(duration: 0.5)) {
+                                heroBannerIndex = (heroBannerIndex + 1) % appState.recommendedPeaks.count
+                            }
+                        }
+
+                        // Dot indicators
+                        HStack(spacing: 6) {
+                            ForEach(0..<min(appState.recommendedPeaks.count, 5), id: \.self) { i in
+                                Circle()
+                                    .fill(i == heroBannerIndex % appState.recommendedPeaks.count ? gold : Color.white.opacity(0.3))
+                                    .frame(width: i == heroBannerIndex % appState.recommendedPeaks.count ? 8 : 5, height: 5)
+                                    .animation(.spring(response: 0.3), value: heroBannerIndex)
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+
+                    // === SUGGESTED ROUTES (Amazon Prime style, database peaks) ===
+                    if !appState.suggestedRoutes.isEmpty {
+                        VStack(alignment: .leading, spacing: 15) {
+                            Text("Suggested Routes").font(.title3).fontWeight(.bold).foregroundColor(.white).padding(.horizontal, 20)
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 15) {
+                                    Spacer().frame(width: 5)
+                                    ForEach(appState.suggestedRoutes) { mountain in
+                                        SuggestedRouteCard(mountain: mountain) {
+                                            mountainToTrack = mountain
+                                            showTracker = true
+                                        }
+                                    }
+                                    Spacer().frame(width: 5)
+                                }
+                            }
+                        }
+                    }
+
                     // === DISCOVER ===
                     if !appState.recommendedPeaks.isEmpty {
                         VStack(alignment: .leading, spacing: 15) {
@@ -83,14 +175,22 @@ struct BasecampView: View {
                         }
                     }
 
-                    // === WEEKLY OBJECTIVES ===
+                    // === WEEKLY OBJECTIVES (tappable, week-filtered) ===
                     VStack(alignment: .leading, spacing: 15) {
                         Text("Weekly Objectives").font(.title3).fontWeight(.bold).foregroundColor(.white).padding(.horizontal, 20)
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 15) {
                                 Spacer().frame(width: 5)
-                                ObjectiveCard(icon: "figure.walk", title: "Iron Legs", progress: "\(totalElevation)M / 5,000M", percent: ironLegsProgress)
-                                ObjectiveCard(icon: "mountain.2.fill", title: "Explorer", progress: "\(totalOwnTours)/3 PEAKS", percent: min(CGFloat(totalOwnTours) / 3.0, 1.0))
+                                ObjectiveCard(icon: "figure.walk", title: "Iron Legs", progress: "\(appState.weeklyElevation)M / 5,000M", percent: ironLegsProgress)
+                                    .onTapGesture {
+                                        selectedObjective = ("Iron Legs", "figure.walk", appState.weeklyElevation, 5000, "meters")
+                                        showObjectiveDetail = true
+                                    }
+                                ObjectiveCard(icon: "mountain.2.fill", title: "Explorer", progress: "\(appState.weeklyTourCount)/3 PEAKS", percent: min(CGFloat(appState.weeklyTourCount) / 3.0, 1.0))
+                                    .onTapGesture {
+                                        selectedObjective = ("Explorer", "mountain.2.fill", appState.weeklyTourCount, 3, "peaks")
+                                        showObjectiveDetail = true
+                                    }
                                 ObjectiveCard(icon: "lock.fill", title: "Altitude", progress: "LOCKED", percent: 0.0)
                                 Spacer().frame(width: 5)
                             }
@@ -101,7 +201,7 @@ struct BasecampView: View {
                     VStack(alignment: .leading, spacing: 15) {
                         Text("Recent Activity").font(.title3).fontWeight(.bold).foregroundColor(.white)
 
-                        if appState.recentTours.isEmpty {
+                        if appState.recentTours.isEmpty && !appState.isLoadingMoreFeed {
                             VStack(spacing: 12) {
                                 Image(systemName: "figure.climbing").font(.system(size: 40)).foregroundColor(.gray.opacity(0.5))
                                 Text("Your journey begins here.").font(.headline).foregroundColor(.white)
@@ -112,6 +212,16 @@ struct BasecampView: View {
                             LazyVStack(spacing: 20) {
                                 ForEach(appState.recentTours) { tour in
                                     ActivityCardView(tour: tour)
+                                        .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                                        .onAppear {
+                                            if tour.id == appState.recentTours.last?.id {
+                                                appState.loadMoreFeed()
+                                            }
+                                        }
+                                }
+
+                                if appState.isLoadingMoreFeed {
+                                    ProgressView().tint(.white).padding()
                                 }
                             }
                         }
@@ -129,9 +239,188 @@ struct BasecampView: View {
         .sheet(isPresented: $showXPDetails) {
             XPDetailView().presentationDetents([.medium, .large]).preferredColorScheme(.dark)
         }
+        .sheet(isPresented: $showObjectiveDetail) {
+            if let obj = selectedObjective {
+                ObjectiveDetailView(title: obj.title, icon: obj.icon, current: obj.current, target: obj.target, unit: obj.unit)
+                    .presentationDetents([.medium, .large])
+                    .preferredColorScheme(.dark)
+            }
+        }
         .fullScreenCover(isPresented: $showTracker) {
             LiveRecordView(targetMountain: mountainToTrack)
         }
+    }
+}
+
+// === HERO BANNER VIEW (kept for reference, currently inlined in BasecampView) ===
+struct HeroBannerView: View {
+    let items: [HeroBannerItem]
+    @Binding var index: Int
+    var onTap: (Mountain?) -> Void
+
+    private let gold = Color(red: 0.85, green: 0.65, blue: 0.13)
+
+    var body: some View {
+        if items.isEmpty { EmptyView() } else {
+            VStack(spacing: 10) {
+                let item = items[min(index, items.count - 1)]
+                HeroBannerSlide(item: item) { onTap(item.mountain) }
+                    .id(item.id)
+                    .frame(height: 200)
+                    .cornerRadius(20)
+                    .clipped()
+                    .transition(.asymmetric(
+                        insertion: .move(edge: .trailing).combined(with: .opacity),
+                        removal: .move(edge: .leading).combined(with: .opacity)
+                    ))
+
+                // Dot indicators
+                HStack(spacing: 6) {
+                    ForEach(0..<items.count, id: \.self) { i in
+                        Circle()
+                            .fill(i == index ? gold : Color.white.opacity(0.3))
+                            .frame(width: i == index ? 8 : 5, height: i == index ? 8 : 5)
+                            .animation(.spring(response: 0.3), value: index)
+                    }
+                }
+            }
+        }
+    }
+}
+
+struct HeroBannerSlide: View {
+    let item: HeroBannerItem
+    var onTap: () -> Void
+
+    private let gold = Color(red: 0.85, green: 0.65, blue: 0.13)
+
+    private var badgeColor: Color {
+        item.badge == "PRESTIGE PEAK" ? gold : .cyan
+    }
+
+    private var gradientColors: [Color] {
+        item.badge == "PRESTIGE PEAK"
+            ? [gold.opacity(0.4), Color(red: 0.08, green: 0.08, blue: 0.12)]
+            : [Color.blue.opacity(0.3), Color(red: 0.08, green: 0.08, blue: 0.12)]
+    }
+
+    var body: some View {
+        Button(action: onTap) {
+            ZStack(alignment: .bottomLeading) {
+                // Background: photo or gradient
+                if let urlString = item.imageURL, let url = URL(string: urlString) {
+                    AsyncImage(url: url) { phase in
+                        if let image = phase.image {
+                            image.resizable().scaledToFill()
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                .clipped()
+                        } else {
+                            gradientBackground
+                        }
+                    }
+                } else {
+                    gradientBackground
+                }
+
+                LinearGradient(colors: [.clear, .black.opacity(0.75)], startPoint: .center, endPoint: .bottom)
+
+                VStack(alignment: .leading, spacing: 5) {
+                    if let badge = item.badge {
+                        Text(badge)
+                            .font(.system(size: 9, weight: .black))
+                            .foregroundColor(badgeColor)
+                            .tracking(1.5)
+                            .padding(.horizontal, 8).padding(.vertical, 3)
+                            .background(badgeColor.opacity(0.15))
+                            .cornerRadius(4)
+                    }
+                    Text(item.title)
+                        .font(.title2).fontWeight(.bold).foregroundColor(.white)
+                        .shadow(radius: 2)
+                    Text(item.subtitle)
+                        .font(.caption).foregroundColor(.white.opacity(0.75))
+                }
+                .padding(18)
+            }
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+
+    private var gradientBackground: some View {
+        ZStack {
+            LinearGradient(colors: gradientColors, startPoint: .topLeading, endPoint: .bottomTrailing)
+            Image(systemName: item.badge == "PRESTIGE PEAK" ? "crown.fill" : "mountain.2.fill")
+                .font(.system(size: 70))
+                .foregroundColor(.white.opacity(0.06))
+        }
+    }
+}
+
+// === SUGGESTED ROUTE CARD (database mountains) ===
+struct SuggestedRouteCard: View {
+    let mountain: Mountain
+    var onTap: () -> Void
+
+    @State private var isPressed = false
+    private let gold = Color(red: 0.85, green: 0.65, blue: 0.13)
+
+    var body: some View {
+        Button(action: onTap) {
+            VStack(alignment: .leading, spacing: 8) {
+                // Mountain photo or gradient placeholder
+                if let urlString = mountain.imageUrl, let url = URL(string: urlString) {
+                    AsyncImage(url: url) { phase in
+                        if let image = phase.image {
+                            image.resizable().scaledToFill()
+                        } else {
+                            RoundedRectangle(cornerRadius: 10).fill(Color.white.opacity(0.05))
+                        }
+                    }
+                    .frame(width: 185, height: 90).clipped().cornerRadius(10)
+                } else {
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(LinearGradient(colors: [.blue.opacity(0.2), .purple.opacity(0.1)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                        .frame(width: 185, height: 90)
+                        .overlay(
+                            Image(systemName: "mountain.2.fill").font(.title2).foregroundColor(.white.opacity(0.3))
+                        )
+                }
+
+                Text(mountain.name)
+                    .font(.subheadline).fontWeight(.bold).foregroundColor(.white)
+                    .lineLimit(1)
+
+                HStack(spacing: 6) {
+                    Text("\(mountain.elevation)m").font(.caption2).foregroundColor(.gray)
+                    Text("·").foregroundColor(.gray)
+                    Text(mountain.region).font(.caption2).foregroundColor(.gray).lineLimit(1)
+                    Spacer()
+                    Text(mountain.difficulty.rawValue.uppercased())
+                        .font(.system(size: 8, weight: .black))
+                        .foregroundColor(.black)
+                        .padding(.horizontal, 6).padding(.vertical, 2)
+                        .background(mountain.difficulty.color)
+                        .cornerRadius(3)
+                }
+
+                if mountain.isPrestigePeak {
+                    HStack(spacing: 4) {
+                        Image(systemName: "crown.fill").font(.system(size: 8)).foregroundColor(gold)
+                        Text("PRESTIGE").font(.system(size: 8, weight: .black)).foregroundColor(gold).tracking(0.5)
+                    }
+                }
+            }
+            .padding(10)
+            .frame(width: 205)
+            .background(Color(red: 0.12, green: 0.12, blue: 0.15))
+            .cornerRadius(16)
+            .scaleEffect(isPressed ? 0.95 : 1.0)
+            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isPressed)
+        }
+        .buttonStyle(PlainButtonStyle())
+        .onLongPressGesture(minimumDuration: .infinity, pressing: { pressing in
+            isPressed = pressing
+        }, perform: {})
     }
 }
 
@@ -164,6 +453,7 @@ struct DiscoveryCard: View {
     let mountain: Mountain
     var onTap: () -> Void
 
+    @State private var isPressed = false
     private let gold = Color(red: 0.85, green: 0.65, blue: 0.13)
 
     var body: some View {
@@ -204,8 +494,13 @@ struct DiscoveryCard: View {
                 RoundedRectangle(cornerRadius: 16)
                     .stroke(mountain.isPrestigePeak ? gold.opacity(0.3) : Color.clear, lineWidth: 1)
             )
+            .scaleEffect(isPressed ? 0.95 : 1.0)
+            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isPressed)
         }
         .buttonStyle(PlainButtonStyle())
+        .onLongPressGesture(minimumDuration: .infinity, pressing: { pressing in
+            isPressed = pressing
+        }, perform: {})
     }
 }
 
@@ -213,6 +508,15 @@ struct DiscoveryCard: View {
 struct XPDetailView: View {
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var appState: AppState
+
+    private var regionText: String {
+        let region = appState.userRegion
+        if region.isEmpty || region == "Unknown" {
+            return "Keep climbing to rank up!"
+        }
+        return "Alpinist in \(region)"
+    }
+
     var body: some View {
         ZStack {
             Color(red: 0.08, green: 0.08, blue: 0.1).ignoresSafeArea()
@@ -224,7 +528,7 @@ struct XPDetailView: View {
                 }
                 VStack(spacing: 8) {
                     Text("\(appState.currentXP) XP").font(.system(size: 48, weight: .black, design: .rounded)).foregroundColor(.white)
-                    Text("Top 15% in Bavaria").font(.subheadline).foregroundColor(.green)
+                    Text(regionText).font(.subheadline).foregroundColor(.green)
                 }
                 .padding(.vertical, 20)
                 HStack(spacing: 20) {
