@@ -5,8 +5,10 @@ import Combine
 
 // =========================================
 // === DATEI: ExploreView.swift ===
-// === Map mit Commence Mission Button ===
+// === Strava-style 3D Map with Discovery ===
 // =========================================
+
+// MARK: - Location Manager
 
 class ExploreLocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private let manager = CLLocationManager()
@@ -15,6 +17,7 @@ class ExploreLocationManager: NSObject, ObservableObject, CLLocationManagerDeleg
     override init() {
         super.init()
         manager.delegate = self
+        manager.desiredAccuracy = kCLLocationAccuracyHundredMeters
         manager.requestWhenInUseAuthorization()
         manager.startUpdatingLocation()
     }
@@ -26,219 +29,189 @@ class ExploreLocationManager: NSObject, ObservableObject, CLLocationManagerDeleg
     }
 }
 
+// MARK: - ExploreView
+
 struct ExploreView: View {
     @StateObject private var mountainManager = MountainManager()
     @StateObject private var locationManager = ExploreLocationManager()
 
+    // Map state
     @State private var cameraPosition: MapCameraPosition = .automatic
-    @State private var selectedMountain: Mountain? = nil
     @State private var selectedMarkerTag: UUID? = nil
+    @State private var selectedMountain: Mountain? = nil
 
-    @State private var isSearching = false
+    // Search state
+    @FocusState private var isSearchFocused: Bool
+    @State private var isSearchActive = false
     @State private var searchText = ""
+    @State private var searchTask: Task<Void, Never>? = nil
+
+    // Filter state
     @State private var selectedDifficulty: Difficulty? = nil
+
+    // Nearby state
     @State private var showNearby = false
     @State private var nearbyRadiusKm: Double = 25
 
-    // Debounce
-    @State private var searchTask: Task<Void, Never>? = nil
+    // 3D toggle
+    @State private var is3DMode = true
 
-    // === Variablen, um den Tracker zu öffnen ===
+    // Zoom-based marker visibility
+    @State private var currentZoomLevel: ZoomLevel = .medium
+
+    // Discovery
+    @State private var discoveryRegionName = ""
+
+    // Tracker
     @State private var showTracker = false
     @State private var mountainToTrack: Mountain? = nil
 
+    private let gold = Color(red: 0.85, green: 0.65, blue: 0.13)
+
+    // Zoom levels for marker visibility
+    enum ZoomLevel {
+        case far      // > 100km span → prestige only
+        case medium   // 20–100km span → all mountains
+        case close    // < 20km span → mountains + POIs
+    }
+
+    // MARK: - Computed Properties
+
     var mapMountains: [Mountain] {
-        var source: [Mountain]
-        if showNearby {
-            source = mountainManager.nearbyMountains
-            // Client-side filters on top of spatial results
-            if !searchText.isEmpty {
-                source = source.filter {
-                    $0.name.localizedCaseInsensitiveContains(searchText) ||
-                    $0.region.localizedCaseInsensitiveContains(searchText)
-                }
-            }
-            if let diff = selectedDifficulty {
-                source = source.filter { $0.difficulty == diff }
-            }
-        } else {
-            source = mountainManager.mountains
+        var source = showNearby ? mountainManager.nearbyMountains : mountainManager.mountains
+        if let diff = selectedDifficulty {
+            source = source.filter { $0.difficulty == diff }
         }
         return source.filter { $0.latitude != nil && $0.longitude != nil }
     }
 
+    /// Mountains filtered by current zoom level — capped to prevent memory overload
+    var visibleMountains: [Mountain] {
+        switch currentZoomLevel {
+        case .far:
+            return Array(mapMountains.filter { $0.isPrestigePeak }.prefix(20))
+        case .medium:
+            return Array(mapMountains.prefix(50))
+        case .close:
+            return Array(mapMountains.prefix(80))
+        }
+    }
+
+    var showPOIs: Bool {
+        showNearby && currentZoomLevel == .close
+    }
+
+    // MARK: - Body
+
     var body: some View {
         ZStack(alignment: .top) {
 
-            Map(position: $cameraPosition, selection: $selectedMarkerTag) {
-                ForEach(mapMountains, id: \.id) { mountain in
-                    Marker(mountain.name, coordinate: CLLocationCoordinate2D(latitude: mountain.latitude!, longitude: mountain.longitude!))
-                        .tint(mountain.elevation > 2500 ? Color.orange : Color.cyan)
-                        .tag(mountain.id)
-                }
+            // === 1. FULL-SCREEN 3D MAP ===
+            mapLayer
 
-                // POI annotations (visible in nearby mode)
-                if showNearby {
-                    ForEach(mountainManager.nearbyPOIs) { poi in
-                        Annotation(poi.name, coordinate: CLLocationCoordinate2D(latitude: poi.latitude, longitude: poi.longitude)) {
-                            Image(systemName: poiIcon(for: poi.type))
-                                .font(.system(size: 10, weight: .bold))
-                                .foregroundColor(.white)
-                                .frame(width: 24, height: 24)
-                                .background(poiColor(for: poi.type))
-                                .clipShape(Circle())
-                        }
-                    }
-                }
-            }
-            .preferredColorScheme(.dark)
-            .environment(\.colorScheme, .dark)
+            // === 2. TOP GRADIENT ===
+            LinearGradient(
+                colors: [.black.opacity(0.75), .black.opacity(0.3), .clear],
+                startPoint: .top, endPoint: .bottom
+            )
+            .frame(height: 180)
             .ignoresSafeArea()
+            .allowsHitTesting(false)
 
-            LinearGradient(colors: [.black.opacity(0.8), .clear], startPoint: .top, endPoint: .bottom)
-                .frame(height: 180)
-                .ignoresSafeArea()
-                .allowsHitTesting(false)
+            // === 3. TOP CONTROLS ===
+            VStack(spacing: 8) {
+                searchBar
+                filterChips
 
-            VStack(alignment: .leading, spacing: 10) {
-                // --- Search bar ---
-                HStack {
-                    if isSearching {
-                        HStack {
-                            Image(systemName: "magnifyingglass").foregroundColor(.gray)
-                            TextField("Search peaks or regions...", text: $searchText)
-                                .foregroundColor(.white)
-                                .autocapitalization(.none)
-
-                            Button(action: {
-                                withAnimation(.spring()) {
-                                    searchText = ""
-                                    selectedDifficulty = nil
-                                    isSearching = false
-                                    Task { await mountainManager.fetchMountainsFromDatabase() }
-                                }
-                            }) {
-                                Image(systemName: "xmark.circle.fill").foregroundColor(.gray)
-                            }
-                        }
-                        .padding(10).background(Color.white.opacity(0.15)).cornerRadius(12)
-                        .transition(.move(edge: .leading).combined(with: .opacity))
-
-                    } else {
-                        HStack {
-                            Button(action: {
-                                withAnimation(.spring()) { isSearching = true }
-                            }) {
-                                Image(systemName: "magnifyingglass").font(.title2).fontWeight(.bold).foregroundColor(.white)
-                            }
-                            Text("Quest Board").font(.title2).fontWeight(.bold).foregroundColor(.white)
-                        }
-                        .transition(.opacity)
-                    }
-                    Spacer()
+                if isSearchActive {
+                    searchSuggestionsView
                 }
 
-                // --- Difficulty filter chips ---
-                if isSearching {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 8) {
-                            DifficultyChip(label: "All", color: .white, isSelected: selectedDifficulty == nil) {
-                                selectedDifficulty = nil
-                            }
-                            ForEach(Difficulty.allCases, id: \.self) { diff in
-                                DifficultyChip(label: diff.rawValue, color: diff.color, isSelected: selectedDifficulty == diff) {
-                                    selectedDifficulty = diff
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // --- Nearby toggle ---
-                HStack(spacing: 12) {
-                    Button(action: { withAnimation(.spring()) { showNearby.toggle() } }) {
-                        HStack(spacing: 6) {
-                            Image(systemName: showNearby ? "location.fill" : "location")
-                                .font(.system(size: 12, weight: .bold))
-                            Text("Nearby")
-                                .font(.system(size: 12, weight: .bold))
-                        }
-                        .foregroundColor(showNearby ? .black : .white)
-                        .padding(.horizontal, 12).padding(.vertical, 6)
-                        .background(showNearby ? Color(red: 0.85, green: 0.65, blue: 0.13) : Color.white.opacity(0.15))
-                        .cornerRadius(8)
-                    }
-
-                    if showNearby {
-                        Picker("", selection: $nearbyRadiusKm) {
-                            Text("10 km").tag(10.0)
-                            Text("25 km").tag(25.0)
-                            Text("50 km").tag(50.0)
-                        }
-                        .pickerStyle(.segmented)
-                        .frame(width: 180)
-                        .transition(.opacity)
-                    }
-                }
-
-                // --- Result count ---
-                if !isSearching {
-                    Text("\(mapMountains.count) Missions loaded").font(.subheadline).foregroundColor(.green)
-                } else if !searchText.isEmpty {
-                    Text("\(mapMountains.count) Results found").font(.subheadline).foregroundColor(.orange)
-                }
+                Spacer()
             }
-            .padding(.horizontal, 20).padding(.top, 10)
+            .padding(.horizontal, 16)
+            .padding(.top, 10)
 
-            // --- Mountain detail card ---
+            // === 4. BOTTOM: Discovery or Detail Card ===
             VStack {
                 Spacer()
+
                 if let mountain = selectedMountain {
-                    MissionDetailCard(mountain: mountain, onDismiss: {
-                        withAnimation(.spring()) {
-                            selectedMountain = nil
-                            selectedMarkerTag = nil
-                        }
-                    }, onCommence: {
-                        mountainToTrack = mountain
-                        showTracker = true
-                    })
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                    .padding(.bottom, 150)
+                    detailCard(for: mountain)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                } else if !isSearchActive {
+                    discoverySheet
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
             }
-            .ignoresSafeArea(edges: .bottom)
+            .animation(.spring(response: 0.4, dampingFraction: 0.85), value: selectedMountain?.id)
+
+            // === 5. FLOATING MAP CONTROLS (Nearby left, 3D right) ===
+            if !isSearchActive && selectedMountain == nil {
+                VStack {
+                    Spacer()
+                    HStack(alignment: .bottom) {
+                        nearbyControls
+                        Spacer()
+                        mapModeButton
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 280)
+                }
+            }
+
+            // === 6. 3D BUTTON (always visible top-right when detail/search active) ===
+            if isSearchActive || selectedMountain != nil {
+                VStack {
+                    Spacer()
+                    HStack {
+                        Spacer()
+                        mapModeButton
+                    }
+                    .padding(.trailing, 16)
+                    .padding(.bottom, selectedMountain != nil ? 420 : 100)
+                }
+            }
         }
         .task {
             await mountainManager.fetchMountainsFromDatabase()
-            zoomToClosestMountain(userLoc: locationManager.userLocation)
-        }
-        .onChange(of: locationManager.userLocation) { newLocation in
-            if !isSearching && !showNearby {
-                zoomToClosestMountain(userLoc: newLocation)
+            if let loc = locationManager.userLocation {
+                flyToUserArea(location: loc)
+                await reverseGeocode(loc)
             }
         }
-        // Debounced search (300ms) on text input
-        .onChange(of: searchText) { _ in
+        .onChange(of: locationManager.userLocation) { _, newLoc in
+            if let loc = newLoc, selectedMountain == nil, !isSearchActive {
+                flyToUserArea(location: loc)
+                Task { await reverseGeocode(loc) }
+            }
+        }
+        .onChange(of: isSearchFocused) { _, focused in
+            withAnimation(.spring()) { isSearchActive = focused }
+            if focused {
+                // Load top suggestions immediately when search opens
+                Task { await mountainManager.fetchTopMountains() }
+            }
+        }
+        .onChange(of: searchText) { _, _ in
             performDebouncedSearch()
         }
-        // Immediate refresh on difficulty change
-        .onChange(of: selectedDifficulty) { _ in
+        .onChange(of: selectedDifficulty) { _, _ in
             Task { await refreshResults() }
         }
-        // Immediate refresh on nearby toggle
-        .onChange(of: showNearby) { _ in
+        .onChange(of: showNearby) { _, _ in
             Task { await refreshResults() }
         }
-        // Debounced refresh on radius change
-        .onChange(of: nearbyRadiusKm) { _ in
+        .onChange(of: nearbyRadiusKm) { _, _ in
             performDebouncedSearch()
         }
-        // Map marker selection → show detail card
-        .onChange(of: selectedMarkerTag) { newTag in
+        .onChange(of: selectedMarkerTag) { _, newTag in
             withAnimation(.spring()) {
                 if let tag = newTag {
                     selectedMountain = mapMountains.first { $0.id == tag }
+                    if let m = selectedMountain, let lat = m.latitude, let lon = m.longitude {
+                        flyTo(lat: lat, lon: lon, distance: 8000)
+                    }
                 } else {
                     selectedMountain = nil
                 }
@@ -249,18 +222,584 @@ struct ExploreView: View {
         }
     }
 
-    // --- Debounce helper ---
-    private func performDebouncedSearch() {
+    // MARK: - Map Layer
+
+    @ViewBuilder
+    var mapLayer: some View {
+        Map(position: $cameraPosition, selection: $selectedMarkerTag) {
+            UserAnnotation()
+
+            ForEach(visibleMountains, id: \.id) { mountain in
+                if mountain.isPrestigePeak {
+                    Marker(
+                        mountain.name,
+                        systemImage: "crown.fill",
+                        coordinate: CLLocationCoordinate2D(
+                            latitude: mountain.latitude!,
+                            longitude: mountain.longitude!
+                        )
+                    )
+                    .tint(gold)
+                    .tag(mountain.id)
+                } else {
+                    Marker(
+                        mountain.name,
+                        systemImage: "mountain.2.fill",
+                        coordinate: CLLocationCoordinate2D(
+                            latitude: mountain.latitude!,
+                            longitude: mountain.longitude!
+                        )
+                    )
+                    .tint(difficultyColor(mountain.difficulty))
+                    .tag(mountain.id)
+                }
+            }
+
+            // POI annotations — only when zoomed in close
+            if showPOIs {
+                ForEach(mountainManager.nearbyPOIs) { poi in
+                    Annotation(poi.name, coordinate: CLLocationCoordinate2D(
+                        latitude: poi.latitude, longitude: poi.longitude
+                    )) {
+                        Image(systemName: poiIcon(for: poi.type))
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(.white)
+                            .frame(width: 26, height: 26)
+                            .background(poiColor(for: poi.type))
+                            .clipShape(Circle())
+                            .shadow(color: .black.opacity(0.3), radius: 2, y: 1)
+                    }
+                }
+            }
+        }
+        .mapStyle(.hybrid(elevation: is3DMode ? .realistic : .flat))
+        .onMapCameraChange(frequency: .onEnd) { context in
+            let span = context.region.span
+            let spanKm = span.latitudeDelta * 111 // rough km conversion
+            withAnimation(.easeInOut(duration: 0.2)) {
+                if spanKm > 100 {
+                    currentZoomLevel = .far
+                } else if spanKm > 20 {
+                    currentZoomLevel = .medium
+                } else {
+                    currentZoomLevel = .close
+                }
+            }
+        }
+        .ignoresSafeArea()
+    }
+
+    // MARK: - Search Bar (Frosted Glass)
+
+    @ViewBuilder
+    var searchBar: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "magnifyingglass")
+                .foregroundColor(.gray)
+                .font(.system(size: 16, weight: .medium))
+
+            TextField("Search peaks or regions…", text: $searchText)
+                .focused($isSearchFocused)
+                .foregroundColor(.white)
+                .autocorrectionDisabled()
+                .textInputAutocapitalization(.never)
+
+            if isSearchActive || !searchText.isEmpty {
+                Button {
+                    withAnimation(.spring()) {
+                        searchText = ""
+                        isSearchFocused = false
+                        isSearchActive = false
+                        selectedDifficulty = nil
+                    }
+                    Task { await mountainManager.fetchMountainsFromDatabase() }
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(.gray)
+                }
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(Color.white.opacity(0.12), lineWidth: 0.5)
+        )
+    }
+
+    // MARK: - Filter Chips
+
+    @ViewBuilder
+    var filterChips: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                DifficultyChip(label: "All", color: gold, isSelected: selectedDifficulty == nil) {
+                    selectedDifficulty = nil
+                }
+                ForEach(Difficulty.allCases, id: \.self) { diff in
+                    DifficultyChip(
+                        label: diff.rawValue,
+                        color: difficultyColor(diff),
+                        isSelected: selectedDifficulty == diff
+                    ) {
+                        selectedDifficulty = diff
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Search Suggestions Dropdown
+
+    @ViewBuilder
+    var searchSuggestionsView: some View {
+        let suggestions = Array(mapMountains.prefix(10))
+
+        VStack(spacing: 0) {
+            // Result count header
+            if !searchText.isEmpty {
+                HStack {
+                    Text("\(mapMountains.count) results")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(.gray)
+                    Spacer()
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(Color.white.opacity(0.03))
+            } else {
+                HStack {
+                    Text("Top Peaks")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(gold)
+                    Spacer()
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(Color.white.opacity(0.03))
+            }
+
+            if suggestions.isEmpty {
+                VStack(spacing: 8) {
+                    Image(systemName: "mountain.2")
+                        .font(.title2).foregroundColor(.gray.opacity(0.4))
+                    Text("No peaks found")
+                        .font(.caption).foregroundColor(.gray)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 24)
+            } else {
+                ScrollView {
+                    VStack(spacing: 0) {
+                        ForEach(Array(suggestions.enumerated()), id: \.element.id) { index, mountain in
+                            Button { selectMountain(mountain) } label: {
+                                HStack(spacing: 12) {
+                                    Circle()
+                                        .fill(difficultyColor(mountain.difficulty))
+                                        .frame(width: 8, height: 8)
+
+                                    Image(systemName: mountain.isPrestigePeak ? "crown.fill" : "mountain.2.fill")
+                                        .foregroundColor(mountain.isPrestigePeak ? gold : .gray)
+                                        .frame(width: 20)
+
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(mountain.name)
+                                            .font(.system(size: 14, weight: .semibold))
+                                            .foregroundColor(.white)
+                                        Text("\(mountain.region) · \(mountain.elevation)m")
+                                            .font(.system(size: 11))
+                                            .foregroundColor(.gray)
+                                    }
+
+                                    Spacer()
+
+                                    Text(mountain.difficulty.rawValue)
+                                        .font(.system(size: 10, weight: .bold))
+                                        .foregroundColor(difficultyColor(mountain.difficulty))
+                                }
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 10)
+                            }
+                            if index < suggestions.count - 1 {
+                                Divider().background(Color.white.opacity(0.06))
+                            }
+                        }
+                    }
+                }
+                .frame(maxHeight: 320)
+            }
+        }
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(Color.white.opacity(0.1), lineWidth: 0.5)
+        )
+    }
+
+    // MARK: - Nearby Controls
+
+    @ViewBuilder
+    var nearbyControls: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Button {
+                withAnimation(.spring()) { showNearby.toggle() }
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: showNearby ? "location.fill" : "location")
+                        .font(.system(size: 12, weight: .bold))
+                    Text("Nearby")
+                        .font(.system(size: 12, weight: .bold))
+                }
+                .foregroundColor(showNearby ? .black : .white)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(showNearby ? gold : Color.black.opacity(0.7))
+                .clipShape(Capsule())
+                .overlay(
+                    Capsule()
+                        .stroke(Color.white.opacity(showNearby ? 0 : 0.2), lineWidth: 0.5)
+                )
+            }
+
+            if showNearby {
+                HStack(spacing: 6) {
+                    ForEach([10.0, 25.0, 50.0], id: \.self) { radius in
+                        Button {
+                            nearbyRadiusKm = radius
+                        } label: {
+                            Text("\(Int(radius))km")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundColor(nearbyRadiusKm == radius ? .black : .white)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(nearbyRadiusKm == radius ? gold : Color.black.opacity(0.7))
+                                .clipShape(Capsule())
+                        }
+                    }
+                }
+                .transition(.opacity.combined(with: .scale(scale: 0.8)))
+            }
+        }
+    }
+
+    // MARK: - 2D / 3D Toggle
+
+    @ViewBuilder
+    var mapModeButton: some View {
+        Button {
+            withAnimation(.spring()) {
+                is3DMode.toggle()
+                // Re-apply current camera with new pitch
+                if let loc = locationManager.userLocation {
+                    let coord = cameraPosition.camera?.centerCoordinate ?? loc.coordinate
+                    let dist = cameraPosition.camera?.distance ?? 30000
+                    cameraPosition = .camera(MapCamera(
+                        centerCoordinate: coord,
+                        distance: dist,
+                        heading: 0,
+                        pitch: is3DMode ? 45 : 0
+                    ))
+                }
+            }
+        } label: {
+            Text(is3DMode ? "2D" : "3D")
+                .font(.system(size: 14, weight: .black, design: .rounded))
+                .foregroundColor(is3DMode ? .white : .black)
+                .frame(width: 44, height: 44)
+                .background(is3DMode ? Color.black.opacity(0.7) : gold)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.white.opacity(is3DMode ? 0.2 : 0), lineWidth: 0.5)
+                )
+        }
+    }
+
+    // MARK: - Discovery Sheet (Bottom Cards)
+
+    @ViewBuilder
+    var discoverySheet: some View {
+        let cards = Array(mapMountains.prefix(10))
+        if !cards.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Discover \(discoveryRegionName.isEmpty ? "Nearby" : discoveryRegionName)")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 16)
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 10) {
+                        Spacer().frame(width: 6)
+                        ForEach(cards, id: \.id) { mountain in
+                            ExploreDiscoveryCard(
+                                mountain: mountain,
+                                userLocation: locationManager.userLocation,
+                                compact: true
+                            ) {
+                                selectMountain(mountain)
+                            }
+                        }
+                        Spacer().frame(width: 6)
+                    }
+                }
+            }
+            .padding(.vertical, 10)
+            .background(
+                LinearGradient(
+                    colors: [.clear, .black.opacity(0.6), .black.opacity(0.85)],
+                    startPoint: .top, endPoint: .bottom
+                )
+            )
+            .padding(.bottom, 90)
+        }
+    }
+
+    // MARK: - Detail Card (Bottom Sheet)
+
+    @ViewBuilder
+    func detailCard(for mountain: Mountain) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // === Image Header ===
+            ZStack(alignment: .topTrailing) {
+                if let urlStr = mountain.imageUrl, !urlStr.isEmpty, let url = URL(string: urlStr) {
+                    AsyncImage(url: url) { phase in
+                        if let img = phase.image {
+                            img.resizable().scaledToFill()
+                        } else {
+                            goldGradientPlaceholder
+                        }
+                    }
+                    .frame(height: 150)
+                    .clipped()
+                } else {
+                    goldGradientPlaceholder
+                        .frame(height: 150)
+                }
+
+                LinearGradient(
+                    colors: [.clear, Color(red: 0.08, green: 0.08, blue: 0.1)],
+                    startPoint: .center, endPoint: .bottom
+                )
+
+                // Close button
+                Button {
+                    withAnimation(.spring()) {
+                        selectedMountain = nil
+                        selectedMarkerTag = nil
+                    }
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 28))
+                        .foregroundStyle(.white.opacity(0.7), .black.opacity(0.4))
+                }
+                .padding(12)
+            }
+
+            // === Content ===
+            VStack(alignment: .leading, spacing: 14) {
+                // Title row
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(mountain.name)
+                            .font(.title2).fontWeight(.bold).foregroundColor(.white)
+                        Text("\(mountain.region), \(mountain.country)")
+                            .font(.subheadline).foregroundColor(.gray)
+                    }
+                    Spacer()
+                    VStack(alignment: .trailing, spacing: 4) {
+                        Text(mountain.difficulty.rawValue.uppercased())
+                            .font(.system(size: 10, weight: .black))
+                            .foregroundColor(.black)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 4)
+                            .background(difficultyColor(mountain.difficulty))
+                            .clipShape(Capsule())
+
+                        if mountain.isPrestigePeak {
+                            HStack(spacing: 3) {
+                                Image(systemName: "crown.fill")
+                                    .font(.system(size: 8))
+                                Text("PRESTIGE")
+                                    .font(.system(size: 8, weight: .black))
+                            }
+                            .foregroundColor(gold)
+                        }
+                    }
+                }
+
+                // Stats row
+                HStack(spacing: 0) {
+                    DetailStat(icon: "arrow.up.right", value: "\(mountain.elevation)m", label: "Elevation")
+                    DetailStat(icon: "chart.line.uptrend.xyaxis", value: "~\(mountain.elevation / 2)m", label: "Est. Gain")
+                    DetailStat(icon: "clock", value: estimatedDuration(for: mountain), label: "Est. Time")
+                    if let userLoc = locationManager.userLocation,
+                       let lat = mountain.latitude, let lon = mountain.longitude {
+                        let dist = userLoc.distance(from: CLLocation(latitude: lat, longitude: lon)) / 1000
+                        DetailStat(icon: "location", value: String(format: "%.0fkm", dist), label: "Away")
+                    }
+                }
+
+                // Description
+                if !mountain.description.isEmpty {
+                    Text(mountain.description)
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                        .lineLimit(2)
+                }
+
+                // Commence Mission button
+                Button {
+                    HapticManager.shared.heavy()
+                    mountainToTrack = mountain
+                    showTracker = true
+                } label: {
+                    HStack {
+                        Image(systemName: "play.fill")
+                        Text("Commence Mission")
+                    }
+                    .font(.headline).fontWeight(.bold)
+                    .foregroundColor(.black)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(gold)
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                }
+
+                // Photo credit
+                if let photographer = mountain.photographer_name, !photographer.isEmpty {
+                    Text("Photo: \(photographer)")
+                        .font(.system(size: 9)).foregroundColor(.gray.opacity(0.6))
+                }
+            }
+            .padding(20)
+        }
+        .background(Color(red: 0.08, green: 0.08, blue: 0.1))
+        .clipShape(RoundedRectangle(cornerRadius: 24))
+        .shadow(color: .black.opacity(0.5), radius: 20, y: -5)
+        .padding(.horizontal, 12)
+        .padding(.bottom, 100)
+    }
+
+    // MARK: - Helpers
+
+    @ViewBuilder
+    var goldGradientPlaceholder: some View {
+        LinearGradient(
+            colors: [gold.opacity(0.3), Color(red: 0.08, green: 0.08, blue: 0.1)],
+            startPoint: .topLeading, endPoint: .bottomTrailing
+        )
+        .overlay(
+            Image(systemName: "mountain.2.fill")
+                .font(.system(size: 40))
+                .foregroundColor(.white.opacity(0.1))
+        )
+    }
+
+    func difficultyColor(_ diff: Difficulty) -> Color {
+        switch diff {
+        case .easy: return .green
+        case .medium: return .yellow
+        case .hard: return .orange
+        case .extreme: return .red
+        }
+    }
+
+    func estimatedDuration(for mountain: Mountain) -> String {
+        let hours = Double(mountain.elevation) / 800.0
+        if hours < 1 { return "\(Int(hours * 60))min" }
+        return String(format: "%.0f-%.0fh", hours, hours * 1.3)
+    }
+
+    func poiIcon(for type: String) -> String {
+        switch type {
+        case "viewpoint": return "eye.fill"
+        case "hut":       return "house.fill"
+        case "water":     return "drop.fill"
+        case "summit":    return "mountain.2.fill"
+        default:          return "mappin"
+        }
+    }
+
+    func poiColor(for type: String) -> Color {
+        switch type {
+        case "viewpoint": return .green
+        case "hut":       return .brown
+        case "water":     return .blue
+        case "summit":    return .purple
+        default:          return .gray
+        }
+    }
+
+    func selectMountain(_ mountain: Mountain) {
+        withAnimation(.spring()) {
+            selectedMountain = mountain
+            selectedMarkerTag = mountain.id
+            isSearchFocused = false
+            isSearchActive = false
+            searchText = ""
+        }
+        if let lat = mountain.latitude, let lon = mountain.longitude {
+            flyTo(lat: lat, lon: lon, distance: 8000)
+        }
+    }
+
+    func flyTo(lat: Double, lon: Double, distance: Double) {
+        withAnimation(.easeInOut(duration: 1.5)) {
+            cameraPosition = .camera(MapCamera(
+                centerCoordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon),
+                distance: distance,
+                heading: 0,
+                pitch: is3DMode ? 45 : 0
+            ))
+        }
+    }
+
+    func flyToUserArea(location: CLLocation) {
+        let mountains = mapMountains
+        guard !mountains.isEmpty else {
+            withAnimation(.easeInOut(duration: 2.0)) {
+                cameraPosition = .camera(MapCamera(
+                    centerCoordinate: location.coordinate,
+                    distance: 50000, heading: 0, pitch: 45
+                ))
+            }
+            return
+        }
+
+        if let closest = mountains.min(by: {
+            let l1 = CLLocation(latitude: $0.latitude!, longitude: $0.longitude!)
+            let l2 = CLLocation(latitude: $1.latitude!, longitude: $1.longitude!)
+            return location.distance(from: l1) < location.distance(from: l2)
+        }), let lat = closest.latitude, let lon = closest.longitude {
+            let midLat = (location.coordinate.latitude + lat) / 2
+            let midLon = (location.coordinate.longitude + lon) / 2
+            let dist = location.distance(from: CLLocation(latitude: lat, longitude: lon))
+
+            withAnimation(.easeInOut(duration: 2.0)) {
+                cameraPosition = .camera(MapCamera(
+                    centerCoordinate: CLLocationCoordinate2D(latitude: midLat, longitude: midLon),
+                    distance: max(dist * 3, 30000),
+                    heading: 0,
+                    pitch: 45
+                ))
+            }
+        }
+    }
+
+    // 300ms debounce for search and radius inputs
+    func performDebouncedSearch() {
         searchTask?.cancel()
         searchTask = Task {
-            try? await Task.sleep(nanoseconds: 300_000_000) // 300ms
+            try? await Task.sleep(nanoseconds: 300_000_000)
             guard !Task.isCancelled else { return }
             await refreshResults()
         }
     }
 
-    // --- Executes the appropriate query based on current filter state ---
-    private func refreshResults() async {
+    func refreshResults() async {
         if showNearby, let loc = locationManager.userLocation {
             await mountainManager.fetchNearbyMountains(
                 latitude: loc.coordinate.latitude,
@@ -272,43 +811,23 @@ struct ExploreView: View {
                 longitude: loc.coordinate.longitude,
                 radiusKm: nearbyRadiusKm
             )
+        } else if !searchText.isEmpty || selectedDifficulty != nil {
+            await mountainManager.searchMountains(query: searchText, difficulty: selectedDifficulty)
         } else {
             await mountainManager.clearNearby()
-            await mountainManager.searchMountains(query: searchText, difficulty: selectedDifficulty)
+            await mountainManager.fetchMountainsFromDatabase()
         }
     }
 
-    func zoomToClosestMountain(userLoc: CLLocation?) {
-        guard let userLoc = userLoc, !mapMountains.isEmpty else { return }
-        if let closestMountain = mapMountains.min(by: { m1, m2 in
-            let loc1 = CLLocation(latitude: m1.latitude!, longitude: m1.longitude!)
-            let loc2 = CLLocation(latitude: m2.latitude!, longitude: m2.longitude!)
-            return userLoc.distance(from: loc1) < userLoc.distance(from: loc2)
-        }), let lat = closestMountain.latitude, let lon = closestMountain.longitude {
-            withAnimation(.easeInOut(duration: 2.0)) {
-                cameraPosition = .region(MKCoordinateRegion(center: CLLocationCoordinate2D(latitude: lat, longitude: lon), span: MKCoordinateSpan(latitudeDelta: 1.5, longitudeDelta: 1.5)))
+    func reverseGeocode(_ location: CLLocation) async {
+        let geocoder = CLGeocoder()
+        do {
+            let placemarks = try await geocoder.reverseGeocodeLocation(location)
+            if let p = placemarks.first {
+                discoveryRegionName = p.locality ?? p.administrativeArea ?? p.country ?? ""
             }
-        }
-    }
-
-    // --- POI icon/color helpers ---
-    func poiIcon(for type: String) -> String {
-        switch type {
-        case "viewpoint": return "eye.fill"
-        case "summit": return "mountain.2.fill"
-        case "hut": return "house.fill"
-        case "water": return "drop.fill"
-        default: return "mappin"
-        }
-    }
-
-    func poiColor(for type: String) -> Color {
-        switch type {
-        case "viewpoint": return .green
-        case "summit": return .purple
-        case "hut": return .brown
-        case "water": return .blue
-        default: return .gray
+        } catch {
+            print("⚠️ Geocoding error: \(error)")
         }
     }
 }
@@ -316,6 +835,7 @@ struct ExploreView: View {
 // =========================================
 // === DIFFICULTY CHIP ===
 // =========================================
+
 struct DifficultyChip: View {
     let label: String
     var color: Color = .white
@@ -327,7 +847,8 @@ struct DifficultyChip: View {
             Text(label)
                 .font(.system(size: 12, weight: .bold))
                 .foregroundColor(isSelected ? .black : .white)
-                .padding(.horizontal, 12).padding(.vertical, 6)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
                 .background(isSelected ? color : Color.white.opacity(0.15))
                 .cornerRadius(8)
         }
@@ -335,64 +856,126 @@ struct DifficultyChip: View {
 }
 
 // =========================================
-// === HILFS-VIEW: DIE MISSION CARD ===
+// === DISCOVERY CARD (matches app style) ===
 // =========================================
-struct MissionDetailCard: View {
-    let mountain: Mountain
-    let onDismiss: () -> Void
-    let onCommence: () -> Void
 
-    var isElite: Bool { mountain.elevation > 2500 }
-    var prestigePoints: Int { mountain.elevation / 10 }
-    var mockConquerors: Int { max(10, 5000 - mountain.elevation) / 10 }
+struct ExploreDiscoveryCard: View {
+    let mountain: Mountain
+    let userLocation: CLLocation?
+    var compact: Bool = false
+    let onTap: () -> Void
+
+    @State private var isPressed = false
+    private let gold = Color(red: 0.85, green: 0.65, blue: 0.13)
+
+    private var cardWidth: CGFloat { compact ? 160 : 205 }
+    private var imageHeight: CGFloat { compact ? 65 : 90 }
+
+    private var distanceText: String? {
+        guard let loc = userLocation,
+              let lat = mountain.latitude,
+              let lon = mountain.longitude else { return nil }
+        let d = loc.distance(from: CLLocation(latitude: lat, longitude: lon)) / 1000
+        return String(format: "%.0f km", d)
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("\(mountain.name) Ascent").font(.title2).fontWeight(.bold).foregroundColor(.white)
-                    Text(mountain.region).font(.subheadline).foregroundColor(.gray)
+        Button(action: onTap) {
+            VStack(alignment: .leading, spacing: compact ? 5 : 8) {
+                // Mountain photo or gradient placeholder
+                if let urlString = mountain.imageUrl, !urlString.isEmpty, let url = URL(string: urlString) {
+                    AsyncImage(url: url) { phase in
+                        if let image = phase.image {
+                            image.resizable().scaledToFill()
+                        } else {
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(LinearGradient(colors: [gold.opacity(0.15), Color(red: 0.12, green: 0.12, blue: 0.15)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                                .overlay(ProgressView().tint(.white).scaleEffect(0.6))
+                        }
+                    }
+                    .frame(width: cardWidth - 16, height: imageHeight).clipped().cornerRadius(8)
+                } else {
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(LinearGradient(colors: [gold.opacity(0.15), Color(red: 0.12, green: 0.12, blue: 0.15)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                        .frame(width: cardWidth - 16, height: imageHeight)
+                        .overlay(
+                            Image(systemName: "mountain.2.fill").font(compact ? .body : .title2).foregroundColor(.white.opacity(0.2))
+                        )
                 }
-                Spacer()
-                if isElite {
-                    Text("ELITE MISSION").font(.system(size: 10, weight: .black)).padding(.horizontal, 10).padding(.vertical, 6)
-                        .background(Color(red: 0.85, green: 0.65, blue: 0.13)).foregroundColor(.black).cornerRadius(6)
-                }
-            }
 
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                StatBox(value: "\(mountain.elevation)m", label: "PEAK ELEVATION")
-                StatBox(value: "+\(prestigePoints)", label: "PRESTIGE POINTS", valueColor: Color(red: 0.4, green: 0.8, blue: 0.9))
-                StatBox(value: "\(mockConquerors)", label: "CONQUERORS")
-                StatBox(value: isElite ? "Gold" : "Silver", label: "BADGE TIER")
-            }
+                Text(mountain.name)
+                    .font(compact ? .caption : .subheadline).fontWeight(.bold).foregroundColor(.white)
+                    .lineLimit(1)
 
-            Button(action: {
-                let impactMed = UIImpactFeedbackGenerator(style: .heavy)
-                impactMed.impactOccurred()
-                onCommence()
-            }) {
-                HStack {
-                    Image(systemName: "play.fill")
-                    Text("Commence Mission")
+                HStack(spacing: 4) {
+                    Text("\(mountain.elevation)m").font(.system(size: compact ? 9 : 11)).foregroundColor(.gray)
+                    if !compact {
+                        Text("·").foregroundColor(.gray)
+                        Text(mountain.region).font(.caption2).foregroundColor(.gray).lineLimit(1)
+                    }
+                    Spacer()
+                    Text(mountain.difficulty.rawValue.uppercased())
+                        .font(.system(size: compact ? 7 : 8, weight: .black))
+                        .foregroundColor(.black)
+                        .padding(.horizontal, 5).padding(.vertical, 2)
+                        .background(mountain.difficulty.color)
+                        .cornerRadius(3)
                 }
-                .font(.headline).fontWeight(.bold).foregroundColor(.black).frame(maxWidth: .infinity)
-                .padding(.vertical, 16).background(Color.white).cornerRadius(16)
+
+                if !compact {
+                    HStack(spacing: 6) {
+                        if mountain.isPrestigePeak {
+                            HStack(spacing: 4) {
+                                Image(systemName: "crown.fill").font(.system(size: 8)).foregroundColor(gold)
+                                Text("PRESTIGE").font(.system(size: 8, weight: .black)).foregroundColor(gold).tracking(0.5)
+                            }
+                        }
+                        Spacer()
+                        if let dist = distanceText {
+                            HStack(spacing: 3) {
+                                Image(systemName: "location.fill").font(.system(size: 7))
+                                Text(dist).font(.system(size: 9, weight: .semibold))
+                            }
+                            .foregroundColor(gold.opacity(0.8))
+                        }
+                    }
+                }
             }
+            .padding(8)
+            .frame(width: cardWidth)
+            .background(Color(red: 0.12, green: 0.12, blue: 0.15))
+            .cornerRadius(compact ? 12 : 16)
+            .scaleEffect(isPressed ? 0.95 : 1.0)
+            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isPressed)
         }
-        .padding(25).background(Color(red: 0.08, green: 0.08, blue: 0.1)).cornerRadius(30)
-        .overlay(Button(action: onDismiss) { Image(systemName: "xmark.circle.fill").font(.title2).foregroundStyle(.gray, .white.opacity(0.1)) }.padding(20), alignment: .topTrailing)
-        .padding(.horizontal, 15).shadow(color: .black.opacity(0.6), radius: 25, y: 10)
+        .buttonStyle(PlainButtonStyle())
+        .onLongPressGesture(minimumDuration: .infinity, pressing: { pressing in
+            isPressed = pressing
+        }, perform: {})
     }
 }
 
-struct StatBox: View {
-    let value: String; let label: String; var valueColor: Color = .white
+// =========================================
+// === DETAIL STAT ===
+// =========================================
+
+struct DetailStat: View {
+    let icon: String
+    let value: String
+    let label: String
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(value).font(.headline).fontWeight(.bold).foregroundColor(valueColor)
-            Text(label).font(.system(size: 9, weight: .bold)).foregroundColor(.gray)
+        VStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.system(size: 12))
+                .foregroundColor(.gray)
+            Text(value)
+                .font(.system(size: 13, weight: .bold))
+                .foregroundColor(.white)
+            Text(label)
+                .font(.system(size: 9, weight: .medium))
+                .foregroundColor(.gray)
         }
-        .frame(maxWidth: .infinity, alignment: .leading).padding(12).background(Color.white.opacity(0.05)).cornerRadius(12)
+        .frame(maxWidth: .infinity)
     }
 }
