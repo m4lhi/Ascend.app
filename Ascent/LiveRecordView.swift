@@ -283,6 +283,11 @@ class LiveGPSManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
 }
 
+// =========================================
+// === REDESIGNED: Premium Tracker UI ===
+// === Full-screen map, glassmorphism panel ===
+// =========================================
+
 struct LiveRecordView: View {
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var appState: AppState
@@ -301,110 +306,84 @@ struct LiveRecordView: View {
     )))
 
     @State private var showSaveForm = false
+    @State private var showElevationProfile = false
+    @State private var panelCollapsed = false
+    @State private var sliderResetToken = UUID()
+
+    private let gold = Color(red: 0.85, green: 0.65, blue: 0.13)
+
+    // Elevation progress — fills per 500m milestone
+    private var elevationProgress: Double {
+        guard gpsManager.elevationGain > 0 else { return 0 }
+        if let target = targetMountain {
+            return min(gpsManager.elevationGain / Double(target.elevation), 1.0)
+        }
+        return gpsManager.elevationGain.truncatingRemainder(dividingBy: 500.0) / 500.0
+    }
+
+    private var liveXP: Int { 100 + Int(gpsManager.elevationGain) }
 
     private var statusLabel: String {
         if isRunning && gpsManager.isAutoPaused { return "AUTO-PAUSED" }
         if isRunning { return "RECORDING" }
-        return targetMountain?.name.uppercased() ?? "FREERIDE"
+        if timeElapsed > 0 { return "PAUSED" }
+        return targetMountain?.name.uppercased() ?? "READY"
     }
 
-    private var statusColor: Color {
-        if isRunning && gpsManager.isAutoPaused { return .orange }
+    private var statusDotColor: Color {
+        if gpsManager.isAutoPaused { return .orange }
         if isRunning { return .red }
         return .gray
     }
 
     var body: some View {
         ZStack {
-            Color(red: 0.05, green: 0.05, blue: 0.08).ignoresSafeArea()
+            // === LAYER 1: Full-screen satellite map ===
+            Map(position: $cameraPosition) {
+                UserAnnotation()
+                if !gpsManager.routePoints.isEmpty {
+                    MapPolyline(coordinates: gpsManager.routePoints)
+                        .stroke(gold, style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round))
+                }
+            }
+            .mapStyle(.imagery(elevation: .realistic))
+            .ignoresSafeArea()
 
+            // === LAYER 2: Darkening overlay ===
+            Color.black.opacity(0.25).ignoresSafeArea()
+
+            // === LAYER 3: Top gradient for legibility ===
             VStack {
-                HStack {
-                    if isRunning {
-                        Circle()
-                            .fill(gpsManager.isAutoPaused ? Color.orange : Color.red)
-                            .frame(width: 10, height: 10)
-                            .shadow(color: gpsManager.isAutoPaused ? .orange : .red, radius: 5)
-                            .opacity(blinkToggle ? 1.0 : 0.3)
-                            .animation(.easeInOut, value: blinkToggle)
-                    }
-                    Text(statusLabel)
-                        .font(.caption).fontWeight(.bold).foregroundColor(statusColor).tracking(2)
-
-                    Spacer()
-                    Button(action: { dismiss() }) { Image(systemName: "xmark.circle.fill").font(.system(size: 32)).foregroundColor(.white.opacity(0.5)) }
-                }
-                .padding(.horizontal, 25).padding(.top, 20)
-
-                Spacer().frame(height: 30)
-
-                Text(timeString(from: timeElapsed)).font(.system(size: 64, weight: .light, design: .monospaced)).foregroundColor(.white)
-
-                Map(position: $cameraPosition) {
-                    UserAnnotation()
-                    if !gpsManager.routePoints.isEmpty {
-                        MapPolyline(coordinates: gpsManager.routePoints)
-                            .stroke(Color(red: 0.85, green: 0.65, blue: 0.13), style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round))
-                    }
-                }
-                .preferredColorScheme(.dark).frame(height: 250).cornerRadius(25).padding(.horizontal, 25).padding(.top, 20)
-                .shadow(color: .black.opacity(0.3), radius: 15, y: 10)
-
-                HStack(spacing: 50) {
-                    VStack(spacing: 8) {
-                        Text("\(Int(gpsManager.elevationGain))m").font(.title2).fontWeight(.bold).foregroundColor(.white)
-                        Text("ELEVATION").font(.caption).fontWeight(.bold).foregroundColor(.gray)
-                    }
-                    VStack(spacing: 8) {
-                        Text(String(format: "%.1f km", gpsManager.distance / 1000)).font(.title2).fontWeight(.bold).foregroundColor(.white)
-                        Text("DISTANCE").font(.caption).fontWeight(.bold).foregroundColor(.gray)
-                    }
-                }
-                .padding(.vertical, 30)
-
-                // Live elevation profile (appears once recording has ≥ 2 GPS points)
-                if gpsManager.rawRoute.count >= 2 {
-                    ElevationProfileChart(locations: gpsManager.rawRoute)
-                        .frame(height: 80)
-                        .padding(.horizontal, 25)
-                }
-
+                LinearGradient(colors: [.black.opacity(0.75), .black.opacity(0.3), .clear],
+                               startPoint: .top, endPoint: .bottom)
+                    .frame(height: 200).ignoresSafeArea()
                 Spacer()
+            }
 
-                HStack(spacing: 30) {
-                    if !isRunning && timeElapsed > 0 {
-                        Button(action: endMission) {
-                            Image(systemName: "stop.fill").font(.title).foregroundColor(.white).frame(width: 70, height: 70)
-                                .background(Color.red).clipShape(Circle()).shadow(color: .red.opacity(0.5), radius: 10, y: 5)
-                        }
-                    }
+            // === LAYER 4: Bottom gradient for panel ===
+            VStack {
+                Spacer()
+                LinearGradient(colors: [.clear, .black.opacity(0.6)],
+                               startPoint: .top, endPoint: .bottom)
+                    .frame(height: 300).ignoresSafeArea()
+            }
 
-                    Button(action: {
-                        let impact = UIImpactFeedbackGenerator(style: .medium)
-                        impact.impactOccurred()
-                        isRunning.toggle()
-                        if isRunning {
-                            gpsManager.logManualResume()
-                            gpsManager.startTracking()
-                        } else {
-                            gpsManager.stopTracking()
-                            gpsManager.logManualPause()
-                        }
-                    }) {
-                        Image(systemName: isRunning ? "pause.fill" : "play.fill").font(.system(size: 32, weight: .black)).foregroundColor(.black)
-                            .frame(width: 90, height: 90).background(Color(red: 0.85, green: 0.65, blue: 0.13)).clipShape(Circle())
-                            .shadow(color: Color(red: 0.85, green: 0.65, blue: 0.13).opacity(0.5), radius: 15, y: 5)
-                    }
-                }
-                .padding(.bottom, 60)
+            // === LAYER 5: Content ===
+            VStack(spacing: 0) {
+                topBar
+                Spacer()
+                dataPanel
             }
         }
+        .preferredColorScheme(.dark)
         .onReceive(timer) { _ in
             blinkToggle.toggle()
             if isRunning && !gpsManager.isAutoPaused { timeElapsed += 1 }
         }
-        .sheet(isPresented: $showSaveForm) {
-            // Wir übergeben jetzt den KOMPLETTEN Berg an das Formular
+        .sheet(isPresented: $showSaveForm, onDismiss: {
+            // Reset slider so it's not stuck if user discards save
+            sliderResetToken = UUID()
+        }) {
             MissionSaveView(
                 targetMountain: targetMountain,
                 elevationMeters: Int(gpsManager.elevationGain),
@@ -417,16 +396,413 @@ struct LiveRecordView: View {
         }
     }
 
+    // MARK: - Top Bar with XP Progress
+
+    private var topBar: some View {
+        VStack(spacing: 14) {
+            // Row: Close — Status — XP
+            HStack {
+                Button(action: { dismiss() }) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(.white)
+                        .frame(width: 40, height: 40)
+                        .background(.ultraThinMaterial, in: Circle())
+                }
+
+                Spacer()
+
+                // Status pill
+                HStack(spacing: 6) {
+                    if isRunning {
+                        Circle().fill(statusDotColor)
+                            .frame(width: 7, height: 7)
+                            .opacity(blinkToggle ? 1 : 0.2)
+                            .animation(.easeInOut(duration: 0.6), value: blinkToggle)
+                    }
+                    Text(statusLabel)
+                        .font(.system(size: 10, weight: .black))
+                        .foregroundColor(.white).tracking(2)
+                }
+                .padding(.horizontal, 14).padding(.vertical, 8)
+                .background(.ultraThinMaterial, in: Capsule())
+
+                Spacer()
+
+                // Live XP badge
+                VStack(spacing: 0) {
+                    Text("+\(liveXP)")
+                        .font(.system(size: 12, weight: .black, design: .rounded))
+                        .foregroundColor(gold)
+                    Text("XP")
+                        .font(.system(size: 7, weight: .black))
+                        .foregroundColor(gold.opacity(0.6))
+                }
+                .frame(width: 40, height: 40)
+                .background(.ultraThinMaterial, in: Circle())
+            }
+
+            // Elevation XP progress bar
+            VStack(spacing: 6) {
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(Color.white.opacity(0.12)).frame(height: 5)
+                        Capsule()
+                            .fill(LinearGradient(colors: [gold.opacity(0.6), gold],
+                                                 startPoint: .leading, endPoint: .trailing))
+                            .frame(width: max(6, geo.size.width * elevationProgress), height: 5)
+                            .animation(.spring(response: 1.0, dampingFraction: 0.7), value: elevationProgress)
+                    }
+                }
+                .frame(height: 5)
+
+                HStack {
+                    if let mt = targetMountain {
+                        Text(mt.name.uppercased())
+                            .font(.system(size: 8, weight: .black))
+                            .foregroundColor(.white.opacity(0.4)).tracking(1.5)
+                    } else {
+                        Text("ELEVATION XP")
+                            .font(.system(size: 8, weight: .black))
+                            .foregroundColor(.white.opacity(0.4)).tracking(1.5)
+                    }
+                    Spacer()
+                    Text("\(Int(gpsManager.elevationGain))m")
+                        .font(.system(size: 9, weight: .bold, design: .rounded))
+                        .foregroundColor(gold.opacity(0.9))
+                }
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 58)
+    }
+
+    // MARK: - Data Panel (Glassmorphism)
+
+    private var dataPanel: some View {
+        VStack(spacing: 0) {
+            // Drag handle
+            Capsule()
+                .fill(Color.white.opacity(0.3))
+                .frame(width: 36, height: 5)
+                .padding(.top, 10)
+                .padding(.bottom, 6)
+
+            VStack(spacing: 20) {
+                if panelCollapsed {
+                    // === COMPACT MODE: Key stats inline + controls ===
+                    HStack(spacing: 16) {
+                        // Elevation compact
+                        HStack(alignment: .lastTextBaseline, spacing: 3) {
+                            Text("\(Int(gpsManager.elevationGain))")
+                                .font(.system(size: 34, weight: .black, design: .rounded))
+                                .foregroundColor(gold)
+                                .contentTransition(.numericText())
+                                .animation(.spring(response: 0.4, dampingFraction: 0.85), value: Int(gpsManager.elevationGain))
+                            Text("Hm")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundColor(gold.opacity(0.6))
+                        }
+
+                        Spacer()
+
+                        // Time compact
+                        Text(timeString(from: timeElapsed))
+                            .font(.system(size: 20, weight: .bold, design: .monospaced))
+                            .foregroundColor(.white)
+
+                        // Distance compact
+                        HStack(alignment: .lastTextBaseline, spacing: 2) {
+                            Text(String(format: "%.1f", gpsManager.distance / 1000))
+                                .font(.system(size: 20, weight: .bold, design: .rounded))
+                                .foregroundColor(.white)
+                            Text("km")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundColor(.white.opacity(0.5))
+                        }
+                    }
+
+                    // Compact controls
+                    if timeElapsed == 0 && !isRunning {
+                        Button(action: startRecording) {
+                            HStack(spacing: 12) {
+                                Image(systemName: "play.fill")
+                                    .font(.system(size: 18, weight: .black))
+                                Text("START MISSION")
+                                    .font(.system(size: 14, weight: .black)).tracking(2)
+                            }
+                            .foregroundColor(.black)
+                            .frame(maxWidth: .infinity).frame(height: 56)
+                            .background(gold)
+                            .cornerRadius(28)
+                            .shadow(color: gold.opacity(0.4), radius: 16, y: 6)
+                        }
+                    } else {
+                        HStack(spacing: 12) {
+                            Button(action: togglePause) {
+                                Image(systemName: isRunning ? "pause.fill" : "play.fill")
+                                    .font(.system(size: 20, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .frame(width: 56, height: 56)
+                                    .background(.ultraThinMaterial, in: Circle())
+                                    .overlay(Circle().stroke(Color.white.opacity(0.1), lineWidth: 1))
+                            }
+                            SlideToFinishControl(onComplete: endMission)
+                                .id(sliderResetToken)
+                        }
+                    }
+                } else {
+                    // === EXPANDED MODE: Full stats ===
+
+                    // === PRIMARY: Elevation Gain ===
+                    VStack(spacing: 2) {
+                        HStack(alignment: .lastTextBaseline, spacing: 4) {
+                            Text("\(Int(gpsManager.elevationGain))")
+                                .font(.system(size: 86, weight: .black, design: .rounded))
+                                .foregroundColor(gold)
+                                .contentTransition(.numericText())
+                                .animation(.spring(response: 0.4, dampingFraction: 0.85), value: Int(gpsManager.elevationGain))
+                            Text("Hm")
+                                .font(.system(size: 24, weight: .bold))
+                                .foregroundColor(gold.opacity(0.6))
+                                .padding(.bottom, 10)
+                        }
+                        Text("ELEVATION GAIN")
+                            .font(.system(size: 9, weight: .black))
+                            .foregroundColor(.white.opacity(0.35)).tracking(3)
+                    }
+
+                    // Divider
+                    Rectangle().fill(Color.white.opacity(0.08)).frame(height: 1).padding(.horizontal, 10)
+
+                    // === SECONDARY: Time + Distance ===
+                    HStack(spacing: 0) {
+                        VStack(spacing: 5) {
+                            Text(timeString(from: timeElapsed))
+                                .font(.system(size: 32, weight: .bold, design: .monospaced))
+                                .foregroundColor(.white)
+                            Text("DURATION")
+                                .font(.system(size: 8, weight: .black))
+                                .foregroundColor(.white.opacity(0.35)).tracking(2)
+                        }
+                        .frame(maxWidth: .infinity)
+
+                        Rectangle().fill(Color.white.opacity(0.1)).frame(width: 1, height: 44)
+
+                        VStack(spacing: 5) {
+                            HStack(alignment: .lastTextBaseline, spacing: 3) {
+                                Text(String(format: "%.2f", gpsManager.distance / 1000))
+                                    .font(.system(size: 32, weight: .bold, design: .rounded))
+                                    .foregroundColor(.white)
+                                Text("km")
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .foregroundColor(.white.opacity(0.5))
+                            }
+                            Text("DISTANCE")
+                                .font(.system(size: 8, weight: .black))
+                                .foregroundColor(.white.opacity(0.35)).tracking(2)
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+
+                    // === OPTIONAL: Mini elevation profile ===
+                    if gpsManager.rawRoute.count >= 2 && showElevationProfile {
+                        ElevationProfileChart(locations: gpsManager.rawRoute)
+                            .frame(height: 60)
+                            .transition(.opacity.combined(with: .move(edge: .bottom)))
+                    }
+
+                    // === CONTROLS ===
+                    if timeElapsed == 0 && !isRunning {
+                        Button(action: startRecording) {
+                            HStack(spacing: 12) {
+                                Image(systemName: "play.fill")
+                                    .font(.system(size: 18, weight: .black))
+                                Text("START MISSION")
+                                    .font(.system(size: 14, weight: .black)).tracking(2)
+                            }
+                            .foregroundColor(.black)
+                            .frame(maxWidth: .infinity).frame(height: 56)
+                            .background(gold)
+                            .cornerRadius(28)
+                            .shadow(color: gold.opacity(0.4), radius: 16, y: 6)
+                        }
+                    } else {
+                        HStack(spacing: 12) {
+                            Button(action: togglePause) {
+                                Image(systemName: isRunning ? "pause.fill" : "play.fill")
+                                    .font(.system(size: 20, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .frame(width: 56, height: 56)
+                                    .background(.ultraThinMaterial, in: Circle())
+                                    .overlay(Circle().stroke(Color.white.opacity(0.1), lineWidth: 1))
+                            }
+
+                            if gpsManager.rawRoute.count >= 2 {
+                                Button(action: {
+                                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                        showElevationProfile.toggle()
+                                    }
+                                }) {
+                                    Image(systemName: "chart.line.uptrend.xyaxis")
+                                        .font(.system(size: 16, weight: .bold))
+                                        .foregroundColor(showElevationProfile ? gold : .white)
+                                        .frame(width: 56, height: 56)
+                                        .background(.ultraThinMaterial, in: Circle())
+                                        .overlay(Circle().stroke(Color.white.opacity(0.1), lineWidth: 1))
+                                }
+                            }
+
+                            SlideToFinishControl(onComplete: endMission)
+                                .id(sliderResetToken)
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, 22)
+            .padding(.top, 8)
+            .padding(.bottom, 38)
+        }
+        .background(
+            RoundedRectangle(cornerRadius: 36)
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 36)
+                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                )
+                .shadow(color: .black.opacity(0.4), radius: 30, y: -10)
+        )
+        .gesture(
+            DragGesture(minimumDistance: 20)
+                .onEnded { value in
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                        if value.translation.height > 40 {
+                            panelCollapsed = true
+                        } else if value.translation.height < -40 {
+                            panelCollapsed = false
+                        }
+                    }
+                }
+        )
+        .padding(.horizontal, 12)
+        .padding(.bottom, 30)
+    }
+
+    // MARK: - Actions (connected to existing backend)
+
+    private func startRecording() {
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        isRunning = true
+        gpsManager.logManualResume()
+        gpsManager.startTracking()
+    }
+
+    private func togglePause() {
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        isRunning.toggle()
+        if isRunning {
+            gpsManager.logManualResume()
+            gpsManager.startTracking()
+        } else {
+            gpsManager.stopTracking()
+            gpsManager.logManualPause()
+        }
+    }
+
     func timeString(from seconds: Int) -> String {
         let h = seconds / 3600; let m = (seconds % 3600) / 60; let s = seconds % 60
-        return String(format: "%02d:%02d:%02d", h, m, s)
+        if h > 0 { return String(format: "%02d:%02d:%02d", h, m, s) }
+        return String(format: "%02d:%02d", m, s)
     }
 
     func endMission() {
         isRunning = false
         gpsManager.stopTracking()
-        gpsManager.finalizeSession() // apply post-hoc smoothing before the save form reads elevationGain
+        gpsManager.finalizeSession()
         showSaveForm = true
+    }
+}
+
+// =========================================
+// === Slide-to-Finish Safety Control ===
+// === Prevents accidental tour ending ===
+// =========================================
+
+struct SlideToFinishControl: View {
+    var onComplete: () -> Void
+
+    @State private var dragOffset: CGFloat = 0
+    @State private var isCompleted = false
+
+    private let thumbSize: CGFloat = 48
+    private let trackHeight: CGFloat = 56
+    private let gold = Color(red: 0.85, green: 0.65, blue: 0.13)
+
+    var body: some View {
+        GeometryReader { geo in
+            let maxDrag = geo.size.width - thumbSize - 8
+
+            ZStack(alignment: .leading) {
+                // Track background
+                RoundedRectangle(cornerRadius: 28)
+                    .fill(Color.red.opacity(0.08))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 28)
+                            .stroke(Color.red.opacity(0.15), lineWidth: 1)
+                    )
+                    .overlay(
+                        Text("SLIDE TO FINISH")
+                            .font(.system(size: 9, weight: .black))
+                            .foregroundColor(.white.opacity(max(0.35 - (dragOffset / maxDrag) * 0.35, 0)))
+                            .tracking(2)
+                    )
+
+                // Progress fill
+                RoundedRectangle(cornerRadius: 28)
+                    .fill(Color.red.opacity(0.15))
+                    .frame(width: dragOffset + thumbSize + 8)
+
+                // Thumb
+                ZStack {
+                    Circle()
+                        .fill(Color(red: 0.25, green: 0.06, blue: 0.06))
+                        .frame(width: thumbSize, height: thumbSize)
+                    Circle()
+                        .stroke(Color.red.opacity(0.5), lineWidth: 1.5)
+                        .frame(width: thumbSize, height: thumbSize)
+                    Image(systemName: "flag.checkered")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundColor(.red)
+                }
+                .offset(x: 4 + dragOffset)
+                .shadow(color: Color.red.opacity(0.3), radius: 10)
+                .gesture(
+                    DragGesture()
+                        .onChanged { value in
+                            guard !isCompleted else { return }
+                            dragOffset = min(max(0, value.translation.width), maxDrag)
+                        }
+                        .onEnded { _ in
+                            guard !isCompleted else { return }
+                            if dragOffset > maxDrag * 0.8 {
+                                isCompleted = true
+                                UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                    dragOffset = maxDrag
+                                }
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                                    onComplete()
+                                }
+                            } else {
+                                withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
+                                    dragOffset = 0
+                                }
+                            }
+                        }
+                )
+            }
+        }
+        .frame(height: trackHeight)
     }
 }
 

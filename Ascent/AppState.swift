@@ -358,6 +358,7 @@ class AppState: ObservableObject {
                     }
                 }
 
+                print("📡 Feed loaded: \(cloudTours.count) cloud tours → \(pageTours.count) display tours (profiles matched: \(profiles.count))")
                 await MainActor.run {
                     self.recentTours.append(contentsOf: pageTours)
                     self.feedPage += 1
@@ -380,43 +381,86 @@ class AppState: ObservableObject {
         fetchLeaderboard()
 
         Task {
+            let myId: UUID
             do {
-                let myId = try await supabase.auth.session.user.id
+                myId = try await supabase.auth.session.user.id
+            } catch {
+                print("❌ Fehler beim Auth: \(error)")
+                return
+            }
 
-                var pausesJSON: String? = nil
-                if !pauses.isEmpty {
-                    let encoder = JSONEncoder()
-                    encoder.dateEncodingStrategy = .iso8601
-                    if let data = try? encoder.encode(pauses) {
-                        pausesJSON = String(data: data, encoding: .utf8)
+            var pausesJSON: String? = nil
+            if !pauses.isEmpty {
+                let encoder = JSONEncoder()
+                encoder.dateEncodingStrategy = .iso8601
+                if let data = try? encoder.encode(pauses) {
+                    pausesJSON = String(data: data, encoding: .utf8)
+                }
+            }
+
+            // Resize photo early (before network calls) so it's ready
+            var compressedPhoto: Data? = nil
+            if let photoData, let uiImage = UIImage(data: photoData) {
+                let maxDim: CGFloat = 800
+                let scale = min(maxDim / max(uiImage.size.width, uiImage.size.height), 1.0)
+                let newSize = CGSize(width: uiImage.size.width * scale, height: uiImage.size.height * scale)
+                let renderer = UIGraphicsImageRenderer(size: newSize)
+                let resized = renderer.image { _ in uiImage.draw(in: CGRect(origin: .zero, size: newSize)) }
+                compressedPhoto = resized.jpegData(compressionQuality: 0.6)
+                print("📸 Photo prepared (\((compressedPhoto?.count ?? 0) / 1024)KB)")
+            }
+
+            // Upload photo first (retry), then insert tour with photo_url
+            var photoURL: String? = nil
+            if let compressed = compressedPhoto {
+                let photoPath = "\(myId)/\(UUID().uuidString).jpg"
+                for attempt in 1...3 {
+                    do {
+                        try await supabase.storage.from("tour-photos").upload(photoPath, data: compressed, options: FileOptions(contentType: "image/jpeg"))
+                        let publicURL = try supabase.storage.from("tour-photos").getPublicURL(path: photoPath)
+                        photoURL = publicURL.absoluteString
+                        print("📸 Photo uploaded (attempt \(attempt))")
+                        break
+                    } catch {
+                        print("⚠️ Photo upload attempt \(attempt) failed: \(error.localizedDescription)")
+                        if attempt < 3 {
+                            try? await Task.sleep(nanoseconds: UInt64(attempt) * 2_000_000_000)
+                        }
                     }
                 }
+            }
 
-                // Upload photo if provided
-                var photoURL: String? = nil
-                if let photoData {
-                    let photoPath = "\(myId)/\(UUID().uuidString).jpg"
-                    try await supabase.storage.from("tour-photos").upload(photoPath, data: photoData, options: FileOptions(contentType: "image/jpeg"))
-                    let publicURL = try supabase.storage.from("tour-photos").getPublicURL(path: photoPath)
-                    photoURL = publicURL.absoluteString
+            // Insert tour (with photo_url if upload succeeded) — retry up to 3 times
+            let newCloudTour = CloudTour(
+                id: nil,
+                user_id: myId,
+                name: summit,
+                elevation: elevation,
+                date: Date(),
+                difficulty: "Medium",
+                notes: comment,
+                duration_seconds: Int(duration),
+                distance_km: distance,
+                pauses: pausesJSON,
+                photo_url: photoURL
+            )
+
+            for attempt in 1...3 {
+                do {
+                    try await supabase.from("tours").insert(newCloudTour).execute()
+                    print("✅ Tour erfolgreich hochgeladen: \(summit) (attempt \(attempt))")
+                    try? await Task.sleep(nanoseconds: 500_000_000)
+                    await MainActor.run { fetchFeed() }
+                    return
+                } catch {
+                    print("⚠️ Tour insert attempt \(attempt) failed: \(error.localizedDescription)")
+                    if attempt < 3 {
+                        try? await Task.sleep(nanoseconds: UInt64(attempt) * 2_000_000_000)
+                    } else {
+                        print("❌ Tour konnte nach 3 Versuchen nicht gespeichert werden")
+                    }
                 }
-
-                let newCloudTour = CloudTour(
-                    id: nil,
-                    user_id: myId,
-                    name: summit,
-                    elevation: elevation,
-                    date: Date(),
-                    difficulty: "Medium",
-                    notes: comment,
-                    duration_seconds: Int(duration),
-                    distance_km: distance,
-                    pauses: pausesJSON,
-                    photo_url: photoURL
-                )
-                try await supabase.from("tours").insert(newCloudTour).execute()
-                fetchFeed()
-            } catch { print("❌ Fehler beim Tour hochladen: \(error)") }
+            }
         }
     }
 
