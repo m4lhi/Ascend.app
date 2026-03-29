@@ -4,6 +4,7 @@ import Combine
 import CoreLocation
 import CoreMotion
 import Charts
+import PhotosUI
 
 // =========================================
 // === DATEI: LiveRecordView.swift ===
@@ -446,6 +447,8 @@ struct MissionSaveView: View {
 
     @State private var summitName: String = ""
     @State private var storyComment: String = ""
+    @State private var photoItem: PhotosPickerItem? = nil
+    @State private var photoData: Data? = nil
 
     // === DER GIPFEL-CHECK ===
     // (Wir sagen einfach: Wenn er mindestens 80% der Höhenmeter des Berges geschafft hat, gilt es als geschafft!)
@@ -502,6 +505,27 @@ struct MissionSaveView: View {
                         .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.gray.opacity(0.2), lineWidth: 1))
                 }
 
+                Section(header: Text("Tour Photo")) {
+                    if let photoData, let uiImage = UIImage(data: photoData) {
+                        Image(uiImage: uiImage)
+                            .resizable().scaledToFill()
+                            .frame(height: 180).clipped().cornerRadius(12)
+                    }
+                    PhotosPicker(selection: $photoItem, matching: .images) {
+                        HStack {
+                            Image(systemName: "photo.on.rectangle.angled")
+                            Text(photoData == nil ? "Add Photo" : "Change Photo")
+                        }
+                    }
+                    .onChange(of: photoItem) { newItem in
+                        Task {
+                            if let data = try? await newItem?.loadTransferable(type: Data.self) {
+                                await MainActor.run { self.photoData = data }
+                            }
+                        }
+                    }
+                }
+
                 Section(header: Text("Live Tracker Stats")) {
                     HStack { Text("Elevation:"); Spacer(); Text("\(elevationMeters) m").foregroundColor(.gray) }
                     HStack { Text("Duration:"); Spacer(); Text(formattedDuration).foregroundColor(.gray) }
@@ -546,7 +570,8 @@ struct MissionSaveView: View {
                             duration: durationSeconds,
                             distance: distanceKm,
                             xp: xpGained,
-                            pauses: pauseLog
+                            pauses: pauseLog,
+                            photoData: photoData
                         )
                         dismiss()
                         onDismissTracker()

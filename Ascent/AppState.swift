@@ -40,6 +40,7 @@ struct CloudTour: Codable {
     let duration_seconds: Int?
     let distance_km: Double?
     let pauses: String?
+    let photo_url: String?
 }
 
 struct PauseEntry: Codable, Identifiable {
@@ -73,6 +74,7 @@ struct Tour: Identifiable {
     let distanceKilometers: Double
     let xpGained: Int
     let isCurrentUser: Bool
+    var photoURL: String? = nil
     var pauseCount: Int = 0
     var totalPauseDuration: TimeInterval = 0
     var fistBumpCount: Int = 0
@@ -112,6 +114,17 @@ struct CommentDisplay: Identifiable {
     let isCurrentUser: Bool
 }
 
+// --- HERO BANNER MODEL ---
+
+struct HeroBannerItem: Identifiable {
+    let id = UUID()
+    let title: String
+    let subtitle: String
+    let imageURL: String?
+    let badge: String?       // e.g. "PRESTIGE PEAK", "TRENDING", "COMMUNITY"
+    let mountain: Mountain?  // nil for community highlights
+}
+
 // --- HAUPTKLASSE ---
 
 @MainActor
@@ -137,9 +150,26 @@ class AppState: ObservableObject {
 
     // Discovery
     @Published var recommendedPeaks: [Mountain] = []
+    @Published var heroBannerItems: [HeroBannerItem] = []
+    @Published var suggestedRoutes: [Mountain] = []
+
+    // Pagination
+    @Published var isLoadingMoreFeed: Bool = false
+    @Published var hasMoreFeed: Bool = true
+    private var feedPage: Int = 0
+    private let feedPageSize: Int = 10
+    private let feedMaxItems: Int = 50
 
     var currentLevelProgressXP: Int { currentXP % 1000 }
     var xpNeededForNextLevel: Int { 1000 }
+
+    // Weekly objectives helpers
+    var weeklyTours: [Tour] {
+        guard let weekInterval = Calendar.current.dateInterval(of: .weekOfYear, for: Date()) else { return [] }
+        return recentTours.filter { $0.isCurrentUser && weekInterval.contains($0.date) }
+    }
+    var weeklyElevation: Int { weeklyTours.reduce(0) { $0 + $1.elevationGainMeters } }
+    var weeklyTourCount: Int { weeklyTours.count }
     
     // Dummy-Abzeichen für das UI
     @Published var badges: [ConquestBadge] = [
@@ -225,8 +255,25 @@ class AppState: ObservableObject {
 
     // --- TOUR FUNKTIONEN ---
     
-    // Holt alle Touren für den Feed (mit Social-Daten)
+    // Holt die erste Seite des Feeds (Reset)
     func fetchFeed() {
+        feedPage = 0
+        hasMoreFeed = true
+        recentTours = []
+        loadFeedPage()
+    }
+
+    // Lädt die nächste Seite für Infinite Scroll (max 50 items)
+    func loadMoreFeed() {
+        guard !isLoadingMoreFeed && hasMoreFeed && recentTours.count < feedMaxItems else { return }
+        loadFeedPage()
+    }
+
+    // Interne Pagination-Logik
+    private func loadFeedPage() {
+        guard !isLoadingMoreFeed else { return }
+        isLoadingMoreFeed = true
+
         Task {
             do {
                 let myId = try await supabase.auth.session.user.id
@@ -236,7 +283,17 @@ class AppState: ObservableObject {
                 relevantIds.append(myId)
 
                 let profiles: [CloudProfile] = try await supabase.from("profiles").select().in("id", values: relevantIds).execute().value
-                let cloudTours: [CloudTour] = try await supabase.from("tours").select().in("user_id", values: relevantIds).execute().value
+
+                let rangeStart = feedPage * feedPageSize
+                let rangeEnd = rangeStart + feedPageSize - 1
+
+                let cloudTours: [CloudTour] = try await supabase.from("tours")
+                    .select()
+                    .in("user_id", values: relevantIds)
+                    .order("date", ascending: false)
+                    .range(from: rangeStart, to: rangeEnd)
+                    .execute()
+                    .value
 
                 // Alle tour IDs sammeln für Social-Queries
                 let tourIds = cloudTours.compactMap { $0.id }
@@ -260,7 +317,7 @@ class AppState: ObservableObject {
                     myBookmarks = Set(bookmarkRows.map { $0.tour_id })
                 }
 
-                var newFeed: [Tour] = []
+                var pageTours: [Tour] = []
                 for tour in cloudTours {
                     if let player = profiles.first(where: { $0.id == tour.user_id }) {
                         var parsedPauseCount = 0
@@ -289,6 +346,7 @@ class AppState: ObservableObject {
                             distanceKilometers: tour.distance_km ?? 0.0,
                             xpGained: 100 + tour.elevation,
                             isCurrentUser: player.id == myId,
+                            photoURL: tour.photo_url,
                             pauseCount: parsedPauseCount,
                             totalPauseDuration: parsedPauseDuration,
                             fistBumpCount: tourBumps.count,
@@ -296,17 +354,25 @@ class AppState: ObservableObject {
                             commentCount: tour.id != nil ? allCommentCounts[tour.id!] ?? 0 : 0,
                             isBookmarked: tour.id != nil ? myBookmarks.contains(tour.id!) : false
                         )
-                        newFeed.append(feedTour)
+                        pageTours.append(feedTour)
                     }
                 }
-                newFeed.sort { $0.date > $1.date }
-                await MainActor.run { self.recentTours = newFeed }
-            } catch { print("❌ Fehler beim Feed laden: \(error)") }
+
+                await MainActor.run {
+                    self.recentTours.append(contentsOf: pageTours)
+                    self.feedPage += 1
+                    self.hasMoreFeed = cloudTours.count == self.feedPageSize
+                    self.isLoadingMoreFeed = false
+                }
+            } catch {
+                print("❌ Fehler beim Feed laden: \(error)")
+                await MainActor.run { self.isLoadingMoreFeed = false }
+            }
         }
     }
 
     // Fügt eine neue Tour hinzu (vom Tracker)
-    func addCompletedTour(summit: String, comment: String, elevation: Int, duration: TimeInterval, distance: Double, xp: Int, pauses: [PauseEntry] = []) {
+    func addCompletedTour(summit: String, comment: String, elevation: Int, duration: TimeInterval, distance: Double, xp: Int, pauses: [PauseEntry] = [], photoData: Data? = nil) {
         self.currentXP += xp
         self.currentLevel = (self.currentXP / 1000) + 1
 
@@ -326,6 +392,15 @@ class AppState: ObservableObject {
                     }
                 }
 
+                // Upload photo if provided
+                var photoURL: String? = nil
+                if let photoData {
+                    let photoPath = "\(myId)/\(UUID().uuidString).jpg"
+                    try await supabase.storage.from("tour-photos").upload(photoPath, data: photoData, options: FileOptions(contentType: "image/jpeg"))
+                    let publicURL = try supabase.storage.from("tour-photos").getPublicURL(path: photoPath)
+                    photoURL = publicURL.absoluteString
+                }
+
                 let newCloudTour = CloudTour(
                     id: nil,
                     user_id: myId,
@@ -336,7 +411,8 @@ class AppState: ObservableObject {
                     notes: comment,
                     duration_seconds: Int(duration),
                     distance_km: distance,
-                    pauses: pausesJSON
+                    pauses: pausesJSON,
+                    photo_url: photoURL
                 )
                 try await supabase.from("tours").insert(newCloudTour).execute()
                 fetchFeed()
@@ -501,17 +577,54 @@ class AppState: ObservableObject {
     func fetchRecommendedPeaks() {
         Task {
             do {
-                let peaks: [Mountain] = try await supabase
+                // 1. Lade alle Berge von Supabase.
+                // HINWEIS: Wir lassen die datenbankseitige Sortierung (.order) weg,
+                // da Postgres bei CamelCase-Namen (isPrestigePeak) oft abstürzt, wenn man sie nicht in Quotes setzt.
+                // Das Limit sichert uns gegen zu große Datenmengen ab.
+                let allPeaks: [Mountain] = try await supabase
                     .from("mountains")
                     .select()
-                    .order("isPrestigePeak", ascending: false)
-                    .order("elevation", ascending: false)
-                    .limit(10)
+                    .limit(50)
                     .execute()
                     .value
-                await MainActor.run { self.recommendedPeaks = peaks }
+
+                // 2. Sortiere und wähle zufällige Berge für die Anzeige LOKAL aus
+                let displayPeaks = Array(allPeaks.shuffled().prefix(10))
+                let routeSuggestions = Array(allPeaks.shuffled().prefix(8))
+
+                // 3. Baue die Elemente für das Hero Banner zusammen
+                var bannerItems: [HeroBannerItem] = []
+                for peak in allPeaks.filter({ $0.isPrestigePeak }).shuffled().prefix(3) {
+                    bannerItems.append(HeroBannerItem(
+                        title: peak.name,
+                        subtitle: "\(peak.elevation)m · \(peak.region)",
+                        imageURL: (peak.imageUrl?.isEmpty == false) ? peak.imageUrl : nil,
+                        badge: "PRESTIGE PEAK",
+                        mountain: peak
+                    ))
+                }
+                for peak in allPeaks.filter({ !$0.isPrestigePeak }).shuffled().prefix(3) {
+                    bannerItems.append(HeroBannerItem(
+                        title: peak.name,
+                        subtitle: "\(peak.elevation)m · \(peak.region)",
+                        imageURL: (peak.imageUrl?.isEmpty == false) ? peak.imageUrl : nil,
+                        badge: "RECOMMENDED",
+                        mountain: peak
+                    ))
+                }
+                let finalBanner = Array(bannerItems.shuffled().prefix(5))
+
+                // 4. Update der UI auf dem Main-Thread
+                await MainActor.run {
+                    self.recommendedPeaks = displayPeaks
+                    self.suggestedRoutes = routeSuggestions
+                    self.heroBannerItems = finalBanner
+                    print("✅ Erfolgreich \(allPeaks.count) Berge von Supabase geladen!")
+                }
             } catch {
-                print("❌ Fehler beim Laden der empfohlenen Peaks: \(error)")
+                // 5. Falls es weiterhin fehlschlägt, loggen wir den exakten Grund in die Konsole
+                print("❌ Fehler beim Laden der Peaks von Supabase: \(error)")
+                print("💡 Tipp: Wenn dies passiert, weichen die Spalten in Supabase wahrscheinlich vom 'Mountain' Modell ab (z.B. imageUrl vs image_url oder falscher Datentyp).")
             }
         }
     }
