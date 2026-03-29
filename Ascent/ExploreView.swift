@@ -56,6 +56,9 @@ struct ExploreView: View {
     // 3D toggle
     @State private var is3DMode = true
 
+    // Zoom-based marker visibility
+    @State private var currentZoomLevel: ZoomLevel = .medium
+
     // Discovery
     @State private var discoveryRegionName = ""
 
@@ -65,6 +68,13 @@ struct ExploreView: View {
 
     private let gold = Color(red: 0.85, green: 0.65, blue: 0.13)
 
+    // Zoom levels for marker visibility
+    enum ZoomLevel {
+        case far      // > 100km span → prestige only
+        case medium   // 20–100km span → all mountains
+        case close    // < 20km span → mountains + POIs
+    }
+
     // MARK: - Computed Properties
 
     var mapMountains: [Mountain] {
@@ -73,6 +83,22 @@ struct ExploreView: View {
             source = source.filter { $0.difficulty == diff }
         }
         return source.filter { $0.latitude != nil && $0.longitude != nil }
+    }
+
+    /// Mountains filtered by current zoom level — capped to prevent memory overload
+    var visibleMountains: [Mountain] {
+        switch currentZoomLevel {
+        case .far:
+            return Array(mapMountains.filter { $0.isPrestigePeak }.prefix(20))
+        case .medium:
+            return Array(mapMountains.prefix(50))
+        case .close:
+            return Array(mapMountains.prefix(80))
+        }
+    }
+
+    var showPOIs: Bool {
+        showNearby && currentZoomLevel == .close
     }
 
     // MARK: - Body
@@ -203,7 +229,7 @@ struct ExploreView: View {
         Map(position: $cameraPosition, selection: $selectedMarkerTag) {
             UserAnnotation()
 
-            ForEach(mapMountains, id: \.id) { mountain in
+            ForEach(visibleMountains, id: \.id) { mountain in
                 if mountain.isPrestigePeak {
                     Marker(
                         mountain.name,
@@ -218,6 +244,7 @@ struct ExploreView: View {
                 } else {
                     Marker(
                         mountain.name,
+                        systemImage: "mountain.2.fill",
                         coordinate: CLLocationCoordinate2D(
                             latitude: mountain.latitude!,
                             longitude: mountain.longitude!
@@ -228,8 +255,8 @@ struct ExploreView: View {
                 }
             }
 
-            // POI annotations in nearby mode
-            if showNearby {
+            // POI annotations — only when zoomed in close
+            if showPOIs {
                 ForEach(mountainManager.nearbyPOIs) { poi in
                     Annotation(poi.name, coordinate: CLLocationCoordinate2D(
                         latitude: poi.latitude, longitude: poi.longitude
@@ -246,6 +273,19 @@ struct ExploreView: View {
             }
         }
         .mapStyle(.hybrid(elevation: is3DMode ? .realistic : .flat))
+        .onMapCameraChange(frequency: .onEnd) { context in
+            let span = context.region.span
+            let spanKm = span.latitudeDelta * 111 // rough km conversion
+            withAnimation(.easeInOut(duration: 0.2)) {
+                if spanKm > 100 {
+                    currentZoomLevel = .far
+                } else if spanKm > 20 {
+                    currentZoomLevel = .medium
+                } else {
+                    currentZoomLevel = .close
+                }
+            }
+        }
         .ignoresSafeArea()
     }
 
@@ -482,21 +522,22 @@ struct ExploreView: View {
 
     @ViewBuilder
     var discoverySheet: some View {
-        let cards = Array(mapMountains.prefix(12))
+        let cards = Array(mapMountains.prefix(10))
         if !cards.isEmpty {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 8) {
                 Text("Discover \(discoveryRegionName.isEmpty ? "Nearby" : discoveryRegionName)")
-                    .font(.system(size: 18, weight: .bold))
+                    .font(.system(size: 14, weight: .bold))
                     .foregroundColor(.white)
-                    .padding(.horizontal, 20)
+                    .padding(.horizontal, 16)
 
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 14) {
+                    HStack(spacing: 10) {
                         Spacer().frame(width: 6)
                         ForEach(cards, id: \.id) { mountain in
                             ExploreDiscoveryCard(
                                 mountain: mountain,
-                                userLocation: locationManager.userLocation
+                                userLocation: locationManager.userLocation,
+                                compact: true
                             ) {
                                 selectMountain(mountain)
                             }
@@ -505,10 +546,10 @@ struct ExploreView: View {
                     }
                 }
             }
-            .padding(.vertical, 16)
+            .padding(.vertical, 10)
             .background(
                 LinearGradient(
-                    colors: [.clear, .black.opacity(0.8), .black.opacity(0.95)],
+                    colors: [.clear, .black.opacity(0.6), .black.opacity(0.85)],
                     startPoint: .top, endPoint: .bottom
                 )
             )
@@ -627,24 +668,10 @@ struct ExploreView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 14))
                 }
 
-                // Thumbnail row
-                if let urlStr = mountain.imageUrl, !urlStr.isEmpty, let url = URL(string: urlStr) {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 8) {
-                            ForEach(0..<3, id: \.self) { _ in
-                                AsyncImage(url: url) { phase in
-                                    if let img = phase.image {
-                                        img.resizable().scaledToFill()
-                                    } else {
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .fill(Color.white.opacity(0.05))
-                                    }
-                                }
-                                .frame(width: 80, height: 55)
-                                .clipShape(RoundedRectangle(cornerRadius: 8))
-                            }
-                        }
-                    }
+                // Photo credit
+                if let photographer = mountain.photographer_name, !photographer.isEmpty {
+                    Text("Photo: \(photographer)")
+                        .font(.system(size: 9)).foregroundColor(.gray.opacity(0.6))
                 }
             }
             .padding(20)
@@ -835,10 +862,14 @@ struct DifficultyChip: View {
 struct ExploreDiscoveryCard: View {
     let mountain: Mountain
     let userLocation: CLLocation?
+    var compact: Bool = false
     let onTap: () -> Void
 
     @State private var isPressed = false
     private let gold = Color(red: 0.85, green: 0.65, blue: 0.13)
+
+    private var cardWidth: CGFloat { compact ? 160 : 205 }
+    private var imageHeight: CGFloat { compact ? 65 : 90 }
 
     private var distanceText: String? {
         guard let loc = userLocation,
@@ -850,66 +881,70 @@ struct ExploreDiscoveryCard: View {
 
     var body: some View {
         Button(action: onTap) {
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: compact ? 5 : 8) {
                 // Mountain photo or gradient placeholder
                 if let urlString = mountain.imageUrl, !urlString.isEmpty, let url = URL(string: urlString) {
                     AsyncImage(url: url) { phase in
                         if let image = phase.image {
                             image.resizable().scaledToFill()
                         } else {
-                            RoundedRectangle(cornerRadius: 10)
+                            RoundedRectangle(cornerRadius: 8)
                                 .fill(LinearGradient(colors: [gold.opacity(0.15), Color(red: 0.12, green: 0.12, blue: 0.15)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                                .overlay(ProgressView().tint(.white).scaleEffect(0.7))
+                                .overlay(ProgressView().tint(.white).scaleEffect(0.6))
                         }
                     }
-                    .frame(width: 185, height: 90).clipped().cornerRadius(10)
+                    .frame(width: cardWidth - 16, height: imageHeight).clipped().cornerRadius(8)
                 } else {
-                    RoundedRectangle(cornerRadius: 10)
+                    RoundedRectangle(cornerRadius: 8)
                         .fill(LinearGradient(colors: [gold.opacity(0.15), Color(red: 0.12, green: 0.12, blue: 0.15)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                        .frame(width: 185, height: 90)
+                        .frame(width: cardWidth - 16, height: imageHeight)
                         .overlay(
-                            Image(systemName: "mountain.2.fill").font(.title2).foregroundColor(.white.opacity(0.2))
+                            Image(systemName: "mountain.2.fill").font(compact ? .body : .title2).foregroundColor(.white.opacity(0.2))
                         )
                 }
 
                 Text(mountain.name)
-                    .font(.subheadline).fontWeight(.bold).foregroundColor(.white)
+                    .font(compact ? .caption : .subheadline).fontWeight(.bold).foregroundColor(.white)
                     .lineLimit(1)
 
-                HStack(spacing: 6) {
-                    Text("\(mountain.elevation)m").font(.caption2).foregroundColor(.gray)
-                    Text("·").foregroundColor(.gray)
-                    Text(mountain.region).font(.caption2).foregroundColor(.gray).lineLimit(1)
+                HStack(spacing: 4) {
+                    Text("\(mountain.elevation)m").font(.system(size: compact ? 9 : 11)).foregroundColor(.gray)
+                    if !compact {
+                        Text("·").foregroundColor(.gray)
+                        Text(mountain.region).font(.caption2).foregroundColor(.gray).lineLimit(1)
+                    }
                     Spacer()
                     Text(mountain.difficulty.rawValue.uppercased())
-                        .font(.system(size: 8, weight: .black))
+                        .font(.system(size: compact ? 7 : 8, weight: .black))
                         .foregroundColor(.black)
-                        .padding(.horizontal, 6).padding(.vertical, 2)
+                        .padding(.horizontal, 5).padding(.vertical, 2)
                         .background(mountain.difficulty.color)
                         .cornerRadius(3)
                 }
 
-                HStack(spacing: 6) {
-                    if mountain.isPrestigePeak {
-                        HStack(spacing: 4) {
-                            Image(systemName: "crown.fill").font(.system(size: 8)).foregroundColor(gold)
-                            Text("PRESTIGE").font(.system(size: 8, weight: .black)).foregroundColor(gold).tracking(0.5)
+                if !compact {
+                    HStack(spacing: 6) {
+                        if mountain.isPrestigePeak {
+                            HStack(spacing: 4) {
+                                Image(systemName: "crown.fill").font(.system(size: 8)).foregroundColor(gold)
+                                Text("PRESTIGE").font(.system(size: 8, weight: .black)).foregroundColor(gold).tracking(0.5)
+                            }
                         }
-                    }
-                    Spacer()
-                    if let dist = distanceText {
-                        HStack(spacing: 3) {
-                            Image(systemName: "location.fill").font(.system(size: 7))
-                            Text(dist).font(.system(size: 9, weight: .semibold))
+                        Spacer()
+                        if let dist = distanceText {
+                            HStack(spacing: 3) {
+                                Image(systemName: "location.fill").font(.system(size: 7))
+                                Text(dist).font(.system(size: 9, weight: .semibold))
+                            }
+                            .foregroundColor(gold.opacity(0.8))
                         }
-                        .foregroundColor(gold.opacity(0.8))
                     }
                 }
             }
-            .padding(10)
-            .frame(width: 205)
+            .padding(8)
+            .frame(width: cardWidth)
             .background(Color(red: 0.12, green: 0.12, blue: 0.15))
-            .cornerRadius(16)
+            .cornerRadius(compact ? 12 : 16)
             .scaleEffect(isPressed ? 0.95 : 1.0)
             .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isPressed)
         }

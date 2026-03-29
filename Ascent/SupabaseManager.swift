@@ -37,7 +37,7 @@ class MountainManager: ObservableObject {
                 .from("mountains")
                 .select()
                 .order("elevation", ascending: false)
-                .limit(200)
+                .limit(100)
                 .execute()
                 .value
             // Client-side sort: prestige peaks first, then by elevation

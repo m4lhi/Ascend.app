@@ -20,7 +20,7 @@ enum Difficulty: String, CaseIterable, Codable {
 
 // === 2. MOUNTAIN MODEL (Jetzt Codable) ===
 struct Mountain: Identifiable, Hashable, Codable {
-    var id = UUID() // Wird automatisch generiert, muss nicht ins JSON!
+    var id: UUID
     let name: String
     let elevation: Int
     let difficulty: Difficulty
@@ -28,18 +28,49 @@ struct Mountain: Identifiable, Hashable, Codable {
     let region: String
     let description: String
     let isPrestigePeak: Bool
-    // === NEU: BILD-URL (Optional) ===
     let imageUrl: String?
     var photographer_name: String?
     var photographer_link: String?
-    // NEU: Optionale Koordinaten (Optional, weil manche Berge vielleicht noch keine haben) [cite: 2026-03-07]
     let latitude: Double?
     let longitude: Double?
-    
+
     // Sagt der App, welche Felder im JSON stehen
     enum CodingKeys: String, CodingKey {
-        case id, name, elevation, difficulty, country, region, description, isPrestigePeak, imageUrl
-        case photographer_name, photographer_link, latitude, longitude    }
+        case id, name, elevation, difficulty, country, region, description
+        case isPrestigePeak, imageUrl
+        case photographer_name, photographer_link, latitude, longitude
+    }
+
+    // === SAFE DECODE: Fängt NULL-Werte aus Supabase sicher ab ===
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id                = try c.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+        name              = try c.decodeIfPresent(String.self, forKey: .name) ?? "Unknown"
+        elevation         = try c.decodeIfPresent(Int.self, forKey: .elevation) ?? 0
+        difficulty        = try c.decodeIfPresent(Difficulty.self, forKey: .difficulty) ?? .medium
+        country           = try c.decodeIfPresent(String.self, forKey: .country) ?? ""
+        region            = try c.decodeIfPresent(String.self, forKey: .region) ?? ""
+        description       = try c.decodeIfPresent(String.self, forKey: .description) ?? ""
+        isPrestigePeak    = try c.decodeIfPresent(Bool.self, forKey: .isPrestigePeak) ?? false
+        imageUrl          = try c.decodeIfPresent(String.self, forKey: .imageUrl)
+        photographer_name = try c.decodeIfPresent(String.self, forKey: .photographer_name)
+        photographer_link = try c.decodeIfPresent(String.self, forKey: .photographer_link)
+        latitude          = try c.decodeIfPresent(Double.self, forKey: .latitude)
+        longitude         = try c.decodeIfPresent(Double.self, forKey: .longitude)
+    }
+
+    // Manueller Init für Code-Stellen die Mountain direkt erstellen
+    init(id: UUID = UUID(), name: String, elevation: Int, difficulty: Difficulty,
+         country: String, region: String, description: String, isPrestigePeak: Bool,
+         imageUrl: String? = nil, photographer_name: String? = nil,
+         photographer_link: String? = nil, latitude: Double? = nil, longitude: Double? = nil) {
+        self.id = id; self.name = name; self.elevation = elevation
+        self.difficulty = difficulty; self.country = country; self.region = region
+        self.description = description; self.isPrestigePeak = isPrestigePeak
+        self.imageUrl = imageUrl; self.photographer_name = photographer_name
+        self.photographer_link = photographer_link
+        self.latitude = latitude; self.longitude = longitude
+    }
 
     var elevationFormatted: String {
         "\(elevation)m"
