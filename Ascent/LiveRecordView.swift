@@ -20,7 +20,6 @@ class LiveGPSManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     @Published var currentLocation: CLLocation?
     @Published var routePoints: [CLLocationCoordinate2D] = []
     
-    // 🟢 NEU: Eine Sperre, damit er nicht vor dem Klick auf "Start" zählt
     @Published var isRecording: Bool = false
     
     private(set) var rawRoute: [CLLocation] = []
@@ -63,12 +62,11 @@ class LiveGPSManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         manager.showsBackgroundLocationIndicator = true
         manager.requestWhenInUseAuthorization()
         
-        // Wir starten das GPS für die Karte und die Routenberechnung
         manager.startUpdatingLocation()
     }
 
     func startTracking() {
-        isRecording = true // 🟢 Gibt die Aufzeichnung frei
+        isRecording = true
         manager.startUpdatingLocation()
         lastLocation = nil
         if isAltimeterAvailable && !altimeterStarted {
@@ -81,7 +79,7 @@ class LiveGPSManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
 
     func stopTracking() {
-        isRecording = false // 🟢 Stoppt die Aufzeichnung
+        isRecording = false
         manager.stopUpdatingLocation()
     }
 
@@ -198,9 +196,8 @@ class LiveGPSManager: NSObject, ObservableObject, CLLocationManagerDelegate {
 
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let newLocation = locations.last else { return }
-        currentLocation = newLocation // Aktualisiert sofort deinen blauen Punkt auf der Karte
+        currentLocation = newLocation
 
-        // 🟢 FIX: Wenn wir nicht aufnehmen, brechen wir hier ab! Es wird weder Distanz noch Höhe gezählt.
         guard isRecording else { return }
 
         recentLocations.append(newLocation)
@@ -274,7 +271,8 @@ struct LiveRecordView: View {
     @State private var blinkToggle: Bool = false
     let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
-    @State private var cameraPosition: MapCameraPosition = .userLocation(fallback: .automatic)
+    // 🟢 FIX 1: Kamera auf .automatic gesetzt, damit sie das Bounding-Rect akzeptiert
+    @State private var cameraPosition: MapCameraPosition = .automatic
 
     @State private var showSaveForm = false
     @State private var showElevationProfile = false
@@ -407,6 +405,7 @@ struct LiveRecordView: View {
         }
     }
 
+    // 🟢 FIX 2: Bessere Routenberechnung und Kamera-Führung (Fallback zur Luftlinie)
     private func calculateRouteToMountain(from userLoc: CLLocationCoordinate2D, to dest: CLLocationCoordinate2D) {
         let userCLLoc = CLLocation(latitude: userLoc.latitude, longitude: userLoc.longitude)
         let destCLLoc = CLLocation(latitude: dest.latitude, longitude: dest.longitude)
@@ -423,22 +422,41 @@ struct LiveRecordView: View {
 
         let directions = MKDirections(request: request)
         directions.calculate { response, error in
-            guard let route = response?.routes.first else { return }
-            withAnimation(.easeInOut(duration: 2.0)) {
-                self.plannedRoute = route
-                
-                if !isRunning {
-                    let rect = route.polyline.boundingMapRect
-                    let paddedRect = MKMapRect(
-                        x: rect.origin.x - rect.size.width * 0.2,
-                        y: rect.origin.y - rect.size.height * 0.2,
-                        width: rect.size.width * 1.4,
-                        height: rect.size.height * 1.4
-                    )
-                    self.cameraPosition = .rect(paddedRect)
+            if let route = response?.routes.first {
+                // ERFOLG: Apple hat einen Wanderweg gefunden
+                withAnimation(.easeInOut(duration: 2.0)) {
+                    self.plannedRoute = route
+                    if !isRunning {
+                        self.cameraPosition = .rect(padMapRect(route.polyline.boundingMapRect))
+                    }
+                }
+            } else {
+                // FALLBACK: Apple hat versagt. Wir zoomen auf die Luftlinie!
+                withAnimation(.easeInOut(duration: 2.0)) {
+                    if !isRunning {
+                        let p1 = MKMapPoint(userLoc)
+                        let p2 = MKMapPoint(dest)
+                        let rect = MKMapRect(
+                            x: min(p1.x, p2.x),
+                            y: min(p1.y, p2.y),
+                            width: abs(p1.x - p2.x),
+                            height: abs(p1.y - p2.y)
+                        )
+                        self.cameraPosition = .rect(padMapRect(rect))
+                    }
                 }
             }
         }
+    }
+    
+    // Hilfsfunktion: Gibt der Kamera-Ansicht einen kleinen Rand, damit nichts abgeschnitten wird
+    private func padMapRect(_ rect: MKMapRect) -> MKMapRect {
+        return MKMapRect(
+            x: rect.origin.x - rect.size.width * 0.3,
+            y: rect.origin.y - rect.size.height * 0.3,
+            width: rect.size.width * 1.6,
+            height: rect.size.height * 1.6
+        )
     }
 
     // MARK: - Top Bar
@@ -718,6 +736,7 @@ struct LiveRecordView: View {
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         isRunning = true
         
+        // 🟢 Kamera zoomt sanft auf dich heran, wenn du startest
         if let userLoc = gpsManager.currentLocation {
             withAnimation(.easeInOut(duration: 1.0)) {
                 cameraPosition = .camera(MapCamera(centerCoordinate: userLoc.coordinate, distance: 3000))
