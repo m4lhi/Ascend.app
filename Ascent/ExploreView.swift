@@ -118,6 +118,14 @@ struct ExploreView: View {
         return source.filter { $0.latitude != nil && $0.longitude != nil }
     }
 
+    var visibleMountains: [Mountain] {
+        switch currentZoomLevel {
+        case .far:    return Array(mapMountains.prefix(50))
+        case .medium: return Array(mapMountains.prefix(150))
+        case .close:  return Array(mapMountains.prefix(400))
+        }
+    }
+
     var body: some View {
         ZStack(alignment: .top) {
             mapLayer
@@ -231,11 +239,10 @@ struct ExploreView: View {
 
     @ViewBuilder
     var mapLayer: some View {
-        // 🟢 FIX: MapCameraBounds verhindert zu weites Herauszoomen (max. 6000 km)
         Map(position: $cameraPosition, bounds: MapCameraBounds(maximumDistance: 6_000_000), selection: $selectedMarkerTag) {
             UserAnnotation()
 
-            ForEach(mapMountains, id: \.id) { mountain in
+            ForEach(visibleMountains, id: \.id) { mountain in
                 if isRouteCreationMode {
                     if let idx = routeMountains.firstIndex(where: { $0.id == mountain.id }) {
                         Annotation("\(idx + 1)", coordinate: CLLocationCoordinate2D(latitude: mountain.latitude!, longitude: mountain.longitude!)) {
@@ -251,12 +258,34 @@ struct ExploreView: View {
                             .tint(.white.opacity(0.7))
                             .tag(mountain.id)
                     }
-                } else if mountain.isPrestigePeak {
+                }
+                // 🟢 NEU: Highlight-Annotation, wenn dieser Berg angeklickt wurde!
+                else if selectedMountain?.id == mountain.id {
+                    Annotation(mountain.name, coordinate: CLLocationCoordinate2D(latitude: mountain.latitude!, longitude: mountain.longitude!)) {
+                        VStack(spacing: 0) {
+                            Text(mountain.name)
+                                .font(.system(size: 13, weight: .bold))
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(gold)
+                                .foregroundColor(.black)
+                                .cornerRadius(10)
+                                .shadow(color: .black.opacity(0.4), radius: 5, y: 3)
+                            
+                            Image(systemName: "triangle.fill")
+                                .font(.system(size: 12))
+                                .foregroundColor(gold)
+                                .rotationEffect(.degrees(180))
+                                .offset(y: -2)
+                        }
+                    }
+                    .tag(mountain.id)
+                }
+                else if mountain.isPrestigePeak {
                     Marker(mountain.name, systemImage: "crown.fill", coordinate: CLLocationCoordinate2D(latitude: mountain.latitude!, longitude: mountain.longitude!))
                         .tint(gold)
                         .tag(mountain.id)
                 } else {
-                    // Zeigt bei den kleinen Bergen den Namen nur beim reinzoomen, sonst nur den Marker
                     Marker(mountain.name, systemImage: "mountain.2.fill", coordinate: CLLocationCoordinate2D(latitude: mountain.latitude!, longitude: mountain.longitude!))
                         .tint(difficultyColor(mountain.difficulty))
                         .tag(mountain.id)
@@ -286,7 +315,6 @@ struct ExploreView: View {
             let region = context.region
             let spanKm = region.span.latitudeDelta * 111
             
-            // Definiere das Zoomlevel basierend auf der Ansicht
             let newZoom: ZoomLevel
             if spanKm > 100 { newZoom = .far }
             else if spanKm > 20 { newZoom = .medium }
@@ -397,10 +425,10 @@ struct ExploreView: View {
 
     @ViewBuilder
     var searchSuggestionsView: some View {
-        let suggestions = Array(mapMountains.prefix(10))
+        let suggestions = Array(visibleMountains.prefix(10))
         VStack(spacing: 0) {
             if !searchText.isEmpty {
-                HStack { Text("\(mapMountains.count) results").font(.system(size: 11, weight: .semibold)).foregroundColor(.gray); Spacer() }
+                HStack { Text("\(visibleMountains.count) results").font(.system(size: 11, weight: .semibold)).foregroundColor(.gray); Spacer() }
                     .padding(.horizontal, 14).padding(.vertical, 8).background(Color.white.opacity(0.03))
             }
 
@@ -515,8 +543,8 @@ struct ExploreView: View {
     @ViewBuilder
     var discoverySheet: some View {
         let nearbyCards: [Mountain] = {
-            guard let loc = locationManager.userLocation else { return Array(mapMountains.prefix(10)) }
-            return mapMountains.sorted { m1, m2 in
+            guard let loc = locationManager.userLocation else { return Array(visibleMountains.prefix(10)) }
+            return visibleMountains.sorted { m1, m2 in
                 let loc1 = CLLocation(latitude: m1.latitude ?? 0, longitude: m1.longitude ?? 0)
                 let loc2 = CLLocation(latitude: m2.latitude ?? 0, longitude: m2.longitude ?? 0)
                 return loc.distance(from: loc1) < loc.distance(from: loc2)
@@ -590,27 +618,41 @@ struct ExploreView: View {
         }.padding(.horizontal, 16)
     }
 
+    // 🟢 NEU: Die Detail-Karte ist schlanker und hat keinen leeren Block mehr!
     @ViewBuilder
     func detailCard(for mountain: Mountain) -> some View {
         VStack(alignment: .leading, spacing: 0) {
+            
+            // 🟢 FIX: Der ZStack (Bild + Farbverlauf) ist jetzt fest auf 120 Höhe beschränkt.
             ZStack(alignment: .topTrailing) {
                 if let urlStr = mountain.imageUrl, !urlStr.isEmpty, let url = URL(string: urlStr) {
                     AsyncImage(url: url) { phase in
-                        if let img = phase.image { img.resizable().scaledToFill() } else { imagePlaceholder }
-                    }.frame(height: 140).clipped()
-                } else { imagePlaceholder }
+                        if let img = phase.image {
+                            img.resizable().scaledToFill()
+                        } else {
+                            imagePlaceholder
+                        }
+                    }.frame(height: 120).clipped()
+                } else {
+                    imagePlaceholder
+                }
 
                 LinearGradient(colors: [.clear, Color(red: 0.1, green: 0.1, blue: 0.12)], startPoint: .center, endPoint: .bottom)
+                    .frame(height: 120) // Verhindert das unendliche Ausdehnen!
 
-                Button { withAnimation(.spring()) { selectedMountain = nil; selectedMarkerTag = nil; selectedRouteToShow = nil } } label: {
+                Button {
+                    withAnimation(.spring()) { selectedMountain = nil; selectedMarkerTag = nil; selectedRouteToShow = nil }
+                } label: {
                     Image(systemName: "xmark.circle.fill").font(.system(size: 26)).foregroundStyle(.white.opacity(0.8), .black.opacity(0.5))
                 }.padding(12)
             }
+            .frame(height: 120)
 
-            VStack(alignment: .leading, spacing: 14) {
+            // 🟢 KOMPAKTERES INFO-MENÜ
+            VStack(alignment: .leading, spacing: 12) {
                 HStack(alignment: .top) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(mountain.name).font(.title3).fontWeight(.bold).foregroundColor(.white)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(mountain.name).font(.headline).fontWeight(.bold).foregroundColor(.white)
                         Text("\(mountain.region), \(mountain.country)").font(.caption).foregroundColor(.gray)
                     }
                     Spacer()
@@ -632,14 +674,16 @@ struct ExploreView: View {
                     }
                 }
 
-                if !mountain.description.isEmpty { Text(mountain.description).font(.caption2).foregroundColor(.gray).lineLimit(2) }
+                if !mountain.description.isEmpty {
+                    Text(mountain.description).font(.caption2).foregroundColor(.gray).lineLimit(2)
+                }
 
                 Button { HapticManager.shared.heavy(); mountainToTrack = mountain; showTracker = true } label: {
-                    HStack { Image(systemName: "play.fill"); Text("Commence Mission") }.font(.subheadline).fontWeight(.bold).foregroundColor(.black).frame(maxWidth: .infinity).padding(.vertical, 12).background(gold).clipShape(RoundedRectangle(cornerRadius: 12))
+                    HStack { Image(systemName: "play.fill"); Text("Commence Mission") }.font(.subheadline).fontWeight(.bold).foregroundColor(.black).frame(maxWidth: .infinity).padding(.vertical, 10).background(gold).clipShape(RoundedRectangle(cornerRadius: 12))
                 }
             }.padding(16)
         }
-        .background(Color(red: 0.1, green: 0.1, blue: 0.12)).clipShape(RoundedRectangle(cornerRadius: 24))
+        .background(Color(red: 0.1, green: 0.1, blue: 0.12)).clipShape(RoundedRectangle(cornerRadius: 20))
         .shadow(color: .black.opacity(0.4), radius: 15, y: 5)
         .padding(.horizontal, 16)
         .padding(.bottom, 120)
@@ -648,7 +692,7 @@ struct ExploreView: View {
     @ViewBuilder
     var imagePlaceholder: some View {
         ZStack {
-            Color(red: 0.15, green: 0.15, blue: 0.18).frame(height: 140)
+            Color(red: 0.15, green: 0.15, blue: 0.18).frame(height: 120)
             Image(systemName: "mountain.2.fill").font(.system(size: 30)).foregroundColor(.white.opacity(0.1))
         }
     }

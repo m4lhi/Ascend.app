@@ -11,7 +11,6 @@ import PhotosUI
 // === Tracker mit Smartem Gipfel-Check ===
 // =========================================
 
-
 class LiveGPSManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private let manager = CLLocationManager()
     private let altimeter = CMAltimeter()
@@ -20,41 +19,34 @@ class LiveGPSManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     @Published var elevationGain: Double = 0.0
     @Published var currentLocation: CLLocation?
     @Published var routePoints: [CLLocationCoordinate2D] = []
-    private(set) var rawRoute: [CLLocation] = [] // Preserved raw GPS fixes — never overwritten
+    private(set) var rawRoute: [CLLocation] = []
     private var lastLocation: CLLocation?
 
-    // CMAltimeter state (Prompt 1 — unchanged)
     private let isAltimeterAvailable = CMAltimeter.isRelativeAltitudeAvailable()
     private var altimeterRelativeAltitude: Double? = nil
-    private var altimeterBaseline: Double? = nil    // GPS altitude at session start
+    private var altimeterBaseline: Double? = nil
     private var altimeterStarted = false
 
-    // Smoothing buffer (Prompt 1 — unchanged, window: 5 samples)
     private var altitudeBuffer: [Double] = []
     private let smoothingWindow = 5
 
-    // Noise threshold state (Prompt 1 — unchanged, 5 m in 10 s window)
     private var windowStartTime: Date = Date()
     private var windowStartAltitude: Double? = nil
     private let noiseThresholdMeters: Double = 5.0
     private let noiseWindowSeconds: Double = 10.0
 
-    // --- Auto-pause state ---
     @Published var isAutoPaused: Bool = false
     @Published var pauseLog: [PauseEntry] = []
     @Published var totalPauseDuration: TimeInterval = 0
 
-    // Speed-based auto-pause detection
     private var lowSpeedStart: Date? = nil
-    private let autoPauseSpeedThreshold: Double = 0.5  // km/h
-    private let autoPauseDelay: TimeInterval = 8.0     // seconds
+    private let autoPauseSpeedThreshold: Double = 0.5
+    private let autoPauseDelay: TimeInterval = 8.0
 
-    // GPS drift detection buffer (last 10 points)
     private var recentLocations: [CLLocation] = []
     private let driftBufferSize = 10
-    private let driftStddevThreshold: Double = 5.0     // meters
+    private let driftStddevThreshold: Double = 5.0
 
-    // Active pause tracking (shared between auto and manual pauses)
     private var currentPauseStart: Date? = nil
     private var currentPauseCoordinate: CLLocationCoordinate2D? = nil
 
@@ -66,12 +58,14 @@ class LiveGPSManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         manager.allowsBackgroundLocationUpdates = true
         manager.showsBackgroundLocationIndicator = true
         manager.requestWhenInUseAuthorization()
+        
+        // Wir starten das Updating direkt leicht im Hintergrund, um sofort einen Fix zu haben
+        manager.startUpdatingLocation()
     }
 
     func startTracking() {
         manager.startUpdatingLocation()
-        lastLocation = nil // Don't accumulate distance from pre-pause point
-        // Start altimeter once per session; pause/play must not reset the baseline.
+        lastLocation = nil
         if isAltimeterAvailable && !altimeterStarted {
             altimeterStarted = true
             altimeter.startRelativeAltitudeUpdates(to: .main) { [weak self] data, _ in
@@ -81,14 +75,11 @@ class LiveGPSManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         }
     }
 
-    // Pauses GPS collection without disturbing the altimeter baseline.
     func stopTracking() {
         manager.stopUpdatingLocation()
     }
 
-    // Records the start of a manual pause.
     func logManualPause() {
-        // If auto-paused when the user manually pauses, close the auto-pause first
         if isAutoPaused {
             closeCurrentPause(isAutomatic: true)
             isAutoPaused = false
@@ -97,17 +88,13 @@ class LiveGPSManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         currentPauseCoordinate = currentLocation?.coordinate
     }
 
-    // Records the end of a manual pause.
     func logManualResume() {
         closeCurrentPause(isAutomatic: false)
-        lowSpeedStart = nil           // Fresh auto-pause detection after manual resume
-        recentLocations.removeAll()   // Clear drift buffer so old points don't trigger false pause
+        lowSpeedStart = nil
+        recentLocations.removeAll()
     }
 
-    // Called once when the session truly ends (before the save form is shown).
-    // Stops the altimeter and applies post-hoc smoothing to produce the final elevation value.
     func finalizeSession() {
-        // Close any ongoing pause (auto or manual)
         if isAutoPaused {
             closeCurrentPause(isAutomatic: true)
             isAutoPaused = false
@@ -121,8 +108,6 @@ class LiveGPSManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         }
         applyPostHocSmoothing()
     }
-
-    // --- Pause bookkeeping ---
 
     private func closeCurrentPause(isAutomatic: Bool) {
         guard let start = currentPauseStart else { return }
@@ -141,10 +126,6 @@ class LiveGPSManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         currentPauseCoordinate = nil
     }
 
-    // --- Elevation helpers (Prompt 1 — unchanged) ---
-
-    // Returns the best available altitude for a GPS fix.
-    // Uses barometric (CMAltimeter) when available; falls back to GPS altitude.
     private func effectiveAltitude(for location: CLLocation) -> Double {
         if isAltimeterAvailable,
            let relAlt = altimeterRelativeAltitude,
@@ -154,15 +135,12 @@ class LiveGPSManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         return location.altitude
     }
 
-    // Pushes a sample into the 5-sample moving-average buffer and returns the smoothed value.
     private func smoothed(altitude: Double) -> Double {
         altitudeBuffer.append(altitude)
         if altitudeBuffer.count > smoothingWindow { altitudeBuffer.removeFirst() }
         return altitudeBuffer.reduce(0, +) / Double(altitudeBuffer.count)
     }
 
-    // Recalculates elevationGain using a 5-sample moving average over the preserved raw GPS trail.
-    // rawRoute is never modified here — it always holds the original GPS fixes.
     private func applyPostHocSmoothing() {
         guard rawRoute.count >= 2 else { return }
         let rawAltitudes = rawRoute.map { $0.altitude }
@@ -180,9 +158,6 @@ class LiveGPSManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         elevationGain = smoothedGain
     }
 
-    // --- Auto-pause detection ---
-
-    /// Stationary if GPS drift stddev < 5 m (regardless of speed) OR speed < 0.5 km/h.
     private func isStationary(speed speedKmh: Double) -> Bool {
         if recentLocations.count >= driftBufferSize {
             let stddev = locationStddev(recentLocations.suffix(driftBufferSize))
@@ -191,7 +166,6 @@ class LiveGPSManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         return speedKmh < autoPauseSpeedThreshold
     }
 
-    /// Standard deviation of distances from the centroid of the given locations.
     private func locationStddev(_ locations: ArraySlice<CLLocation>) -> Double {
         let count = Double(locations.count)
         guard count > 0 else { return 0 }
@@ -213,24 +187,19 @@ class LiveGPSManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private func exitAutoPause() {
         closeCurrentPause(isAutomatic: true)
         isAutoPaused = false
-        lastLocation = nil // Don't accumulate drift-distance on resume
+        lastLocation = nil
     }
-
-    // --- Main GPS delegate ---
 
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let newLocation = locations.last else { return }
         currentLocation = newLocation
 
-        // Always update the drift-detection buffer (needed to detect exit from pause too)
         recentLocations.append(newLocation)
         if recentLocations.count > driftBufferSize { recentLocations.removeFirst() }
 
-        // Auto-pause entry / exit
         let speedKmh = max(newLocation.speed * 3.6, 0)
 
         if isAutoPaused {
-            // Exit auto-pause on speed only (more responsive than drift which has buffer lag)
             if speedKmh >= autoPauseSpeedThreshold {
                 lowSpeedStart = nil
                 exitAutoPause()
@@ -248,19 +217,16 @@ class LiveGPSManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             }
         }
 
-        // Skip all metric accumulation while auto-paused
         guard !isAutoPaused else { return }
 
         routePoints.append(newLocation.coordinate)
-        rawRoute.append(newLocation) // always preserve the raw GPS fix
+        rawRoute.append(newLocation)
 
-        // Anchor the altimeter baseline to the first GPS fix of this session
         if altimeterBaseline == nil { altimeterBaseline = newLocation.altitude }
 
         let effAlt = effectiveAltitude(for: newLocation)
         let smoothAlt = smoothed(altitude: effAlt)
 
-        // Noise threshold: only accumulate gain if ≥ 5 m within a 10 s window
         if windowStartAltitude == nil {
             windowStartAltitude = smoothAlt
             windowStartTime = Date()
@@ -285,7 +251,6 @@ class LiveGPSManager: NSObject, ObservableObject, CLLocationManagerDelegate {
 
 // =========================================
 // === REDESIGNED: Premium Tracker UI ===
-// === Full-screen map, glassmorphism panel ===
 // =========================================
 
 struct LiveRecordView: View {
@@ -300,19 +265,19 @@ struct LiveRecordView: View {
     @State private var blinkToggle: Bool = false
     let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
-    @State private var cameraPosition: MapCameraPosition = .userLocation(fallback: .region(MKCoordinateRegion(
-        center: CLLocationCoordinate2D(latitude: 47.421, longitude: 10.984),
-        span: MKCoordinateSpan(latitudeDelta: 0.02, longitudeDelta: 0.02)
-    )))
+    @State private var cameraPosition: MapCameraPosition = .userLocation(fallback: .automatic)
 
     @State private var showSaveForm = false
     @State private var showElevationProfile = false
     @State private var panelCollapsed = false
     @State private var sliderResetToken = UUID()
+    
+    // 🟢 ROUTEN-PLANUNG STATE
+    @State private var plannedRoute: MKRoute? = nil
+    @State private var hasCalculatedRoute = false
 
     private let gold = Color(red: 0.85, green: 0.65, blue: 0.13)
 
-    // Elevation progress — fills per 500m milestone
     private var elevationProgress: Double {
         guard gpsManager.elevationGain > 0 else { return 0 }
         if let target = targetMountain {
@@ -341,13 +306,39 @@ struct LiveRecordView: View {
             // === LAYER 1: Full-screen satellite map ===
             Map(position: $cameraPosition) {
                 UserAnnotation()
+                
+                // 🟢 1. DIE GEPLANTE ROUTE ZUM BERG
+                if let route = plannedRoute {
+                    MapPolyline(route)
+                        .stroke(.cyan.opacity(0.8), style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round, dash: [8, 8]))
+                } else if let target = targetMountain, let lat = target.latitude, let lon = target.longitude, let userLoc = gpsManager.currentLocation, !isRunning {
+                    // Fallback Peilung, wenn Apple Maps keinen Wanderweg findet
+                    MapPolyline(coordinates: [userLoc.coordinate, CLLocationCoordinate2D(latitude: lat, longitude: lon)])
+                        .stroke(.white.opacity(0.6), style: StrokeStyle(lineWidth: 3, dash: [5, 5]))
+                }
+                
+                // 🟢 2. ZIEL-MARKER
+                if let target = targetMountain, let lat = target.latitude, let lon = target.longitude {
+                    Marker(target.name, systemImage: "mountain.2.fill", coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon))
+                        .tint(gold)
+                }
+                
+                // 🟢 3. DEIN TATSÄCHLICH GEGANGENER WEG (Überschreibt die geplante Route)
                 if !gpsManager.routePoints.isEmpty {
                     MapPolyline(coordinates: gpsManager.routePoints)
-                        .stroke(gold, style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round))
+                        .stroke(gold, style: StrokeStyle(lineWidth: 6, lineCap: .round, lineJoin: .round))
                 }
             }
             .mapStyle(.imagery(elevation: .realistic))
             .ignoresSafeArea()
+            .onChange(of: gpsManager.currentLocation) { _, newLoc in
+                // Sobald wir GPS haben, berechnen wir 1x den Weg zum Gipfel
+                guard let loc = newLoc, let target = targetMountain, !hasCalculatedRoute,
+                      let targetLat = target.latitude, let targetLon = target.longitude else { return }
+                
+                hasCalculatedRoute = true
+                calculateRouteToMountain(from: loc.coordinate, to: CLLocationCoordinate2D(latitude: targetLat, longitude: targetLon))
+            }
 
             // === LAYER 2: Darkening overlay ===
             Color.black.opacity(0.25).ignoresSafeArea()
@@ -381,7 +372,6 @@ struct LiveRecordView: View {
             if isRunning && !gpsManager.isAutoPaused { timeElapsed += 1 }
         }
         .sheet(isPresented: $showSaveForm, onDismiss: {
-            // Reset slider so it's not stuck if user discards save
             sliderResetToken = UUID()
         }) {
             MissionSaveView(
@@ -396,11 +386,28 @@ struct LiveRecordView: View {
         }
     }
 
-    // MARK: - Top Bar with XP Progress
+    // 🟢 ROUTENBERECHNUNG (Apple Maps)
+    private func calculateRouteToMountain(from userLoc: CLLocationCoordinate2D, to dest: CLLocationCoordinate2D) {
+        let request = MKDirections.Request()
+        request.source = MKMapItem(placemark: MKPlacemark(coordinate: userLoc))
+        request.destination = MKMapItem(placemark: MKPlacemark(coordinate: dest))
+        request.transportType = .walking // Suche nach Wanderwegen/Fußwegen
 
+        let directions = MKDirections(request: request)
+        directions.calculate { response, error in
+            guard let route = response?.routes.first else {
+                print("Kein offizieller Weg gefunden. Zeichne Luftlinien-Peilung.")
+                return
+            }
+            withAnimation {
+                self.plannedRoute = route
+            }
+        }
+    }
+
+    // MARK: - Top Bar with XP Progress
     private var topBar: some View {
         VStack(spacing: 14) {
-            // Row: Close — Status — XP
             HStack {
                 Button(action: { dismiss() }) {
                     Image(systemName: "xmark")
@@ -412,7 +419,6 @@ struct LiveRecordView: View {
 
                 Spacer()
 
-                // Status pill
                 HStack(spacing: 6) {
                     if isRunning {
                         Circle().fill(statusDotColor)
@@ -429,7 +435,6 @@ struct LiveRecordView: View {
 
                 Spacer()
 
-                // Live XP badge
                 VStack(spacing: 0) {
                     Text("+\(liveXP)")
                         .font(.system(size: 12, weight: .black, design: .rounded))
@@ -442,7 +447,6 @@ struct LiveRecordView: View {
                 .background(.ultraThinMaterial, in: Circle())
             }
 
-            // Elevation XP progress bar
             VStack(spacing: 6) {
                 GeometryReader { geo in
                     ZStack(alignment: .leading) {
@@ -477,11 +481,9 @@ struct LiveRecordView: View {
         .padding(.top, 58)
     }
 
-    // MARK: - Data Panel (Glassmorphism)
-
+    // MARK: - Data Panel
     private var dataPanel: some View {
         VStack(spacing: 0) {
-            // Drag handle
             Capsule()
                 .fill(Color.white.opacity(0.3))
                 .frame(width: 36, height: 5)
@@ -490,9 +492,7 @@ struct LiveRecordView: View {
 
             VStack(spacing: 20) {
                 if panelCollapsed {
-                    // === COMPACT MODE: Key stats inline + controls ===
                     HStack(spacing: 16) {
-                        // Elevation compact
                         HStack(alignment: .lastTextBaseline, spacing: 3) {
                             Text("\(Int(gpsManager.elevationGain))")
                                 .font(.system(size: 34, weight: .black, design: .rounded))
@@ -506,12 +506,10 @@ struct LiveRecordView: View {
 
                         Spacer()
 
-                        // Time compact
                         Text(timeString(from: timeElapsed))
                             .font(.system(size: 20, weight: .bold, design: .monospaced))
                             .foregroundColor(.white)
 
-                        // Distance compact
                         HStack(alignment: .lastTextBaseline, spacing: 2) {
                             Text(String(format: "%.1f", gpsManager.distance / 1000))
                                 .font(.system(size: 20, weight: .bold, design: .rounded))
@@ -522,7 +520,6 @@ struct LiveRecordView: View {
                         }
                     }
 
-                    // Compact controls
                     if timeElapsed == 0 && !isRunning {
                         Button(action: startRecording) {
                             HStack(spacing: 12) {
@@ -552,9 +549,6 @@ struct LiveRecordView: View {
                         }
                     }
                 } else {
-                    // === EXPANDED MODE: Full stats ===
-
-                    // === PRIMARY: Elevation Gain ===
                     VStack(spacing: 2) {
                         HStack(alignment: .lastTextBaseline, spacing: 4) {
                             Text("\(Int(gpsManager.elevationGain))")
@@ -572,10 +566,8 @@ struct LiveRecordView: View {
                             .foregroundColor(.white.opacity(0.35)).tracking(3)
                     }
 
-                    // Divider
                     Rectangle().fill(Color.white.opacity(0.08)).frame(height: 1).padding(.horizontal, 10)
 
-                    // === SECONDARY: Time + Distance ===
                     HStack(spacing: 0) {
                         VStack(spacing: 5) {
                             Text(timeString(from: timeElapsed))
@@ -605,14 +597,12 @@ struct LiveRecordView: View {
                         .frame(maxWidth: .infinity)
                     }
 
-                    // === OPTIONAL: Mini elevation profile ===
                     if gpsManager.rawRoute.count >= 2 && showElevationProfile {
                         ElevationProfileChart(locations: gpsManager.rawRoute)
                             .frame(height: 60)
                             .transition(.opacity.combined(with: .move(edge: .bottom)))
                     }
 
-                    // === CONTROLS ===
                     if timeElapsed == 0 && !isRunning {
                         Button(action: startRecording) {
                             HStack(spacing: 12) {
@@ -688,11 +678,17 @@ struct LiveRecordView: View {
         .padding(.bottom, 30)
     }
 
-    // MARK: - Actions (connected to existing backend)
-
     private func startRecording() {
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         isRunning = true
+        
+        // 🟢 Kamera-Zoom: Zentriert sich auf den Tracker
+        if let userLoc = gpsManager.currentLocation {
+            withAnimation(.easeInOut(duration: 1.0)) {
+                cameraPosition = .camera(MapCamera(centerCoordinate: userLoc.coordinate, distance: 3000))
+            }
+        }
+        
         gpsManager.logManualResume()
         gpsManager.startTracking()
     }
@@ -725,9 +721,7 @@ struct LiveRecordView: View {
 
 // =========================================
 // === Slide-to-Finish Safety Control ===
-// === Prevents accidental tour ending ===
 // =========================================
-
 struct SlideToFinishControl: View {
     var onComplete: () -> Void
 
@@ -743,7 +737,6 @@ struct SlideToFinishControl: View {
             let maxDrag = geo.size.width - thumbSize - 8
 
             ZStack(alignment: .leading) {
-                // Track background
                 RoundedRectangle(cornerRadius: 28)
                     .fill(Color.red.opacity(0.08))
                     .overlay(
@@ -757,12 +750,10 @@ struct SlideToFinishControl: View {
                             .tracking(2)
                     )
 
-                // Progress fill
                 RoundedRectangle(cornerRadius: 28)
                     .fill(Color.red.opacity(0.15))
                     .frame(width: dragOffset + thumbSize + 8)
 
-                // Thumb
                 ZStack {
                     Circle()
                         .fill(Color(red: 0.25, green: 0.06, blue: 0.06))
@@ -826,14 +817,11 @@ struct MissionSaveView: View {
     @State private var photoItem: PhotosPickerItem? = nil
     @State private var photoData: Data? = nil
 
-    // === DER GIPFEL-CHECK ===
-    // (Wir sagen einfach: Wenn er mindestens 80% der Höhenmeter des Berges geschafft hat, gilt es als geschafft!)
     var isVerifiedSummit: Bool {
         guard let mountain = targetMountain else { return false }
         return elevationMeters >= Int(Double(mountain.elevation) * 0.8)
     }
 
-    // Basis XP + Bonus XP wenn verifiziert
     var xpGained: Int {
         let baseXP = 100 + elevationMeters
         return isVerifiedSummit ? baseXP + 500 : baseXP
@@ -849,7 +837,6 @@ struct MissionSaveView: View {
     var body: some View {
         NavigationView {
             Form {
-                // === DIE NEUE VERIFIKATIONS-ANZEIGE ===
                 if let mountain = targetMountain {
                     Section {
                         HStack {
@@ -977,7 +964,6 @@ struct MissionSaveView: View {
 
 // =========================================
 // === ELEVATION PROFILE CHART ===
-// === Live chart during tracking ===
 // =========================================
 
 struct ElevationProfileChart: View {
