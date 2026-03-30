@@ -57,6 +57,19 @@ struct AscendProgressView: View {
                             .padding(.horizontal, 25)
                             .padding(.top, 15)
                             
+                            // RANK ROADMAP
+                            VStack(alignment: .leading, spacing: 20) {
+                                Text("Tier Progression")
+                                    .font(.title2)
+                                    .fontWeight(.black)
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 25)
+                                
+                                RankRoadmapView(currentLevel: profile.ascend_level)
+                                    .padding(.horizontal, 25)
+                            }
+                            .padding(.top, 10)
+                            
                         } else {
                             // Loading state or nil state
                             ProgressView().tint(.white)
@@ -370,6 +383,186 @@ struct AscendProgressBar: View {
             // If they are exactly subtier 1, we fill segment 1 fully, and maybe animate segment 2 halfway
             // Since we don't have exact remainder XP in this view, we'll just fill fully for completed subtiers
             // and leave the current subtier halfway (for visual effect) - or you can bind this to actual xp progress.
+        }
+    }
+}
+
+// =========================================
+// === EXTENDED RANK ROADMAP VIEW ===
+// =========================================
+
+struct RankRoadmapView: View {
+    let currentLevel: Int
+    
+    // Grabbing the massive array of achievements generated
+    let nodes = AscendRoadmapData.shared.nodes
+    
+    var body: some View {
+        ScrollViewReader { proxy in
+            LazyVStack(spacing: 0) {
+                ForEach(nodes) { node in
+                    AchievementNodeView(node: node, currentLevel: currentLevel)
+                        .id(node.levelReq)
+                }
+            }
+            .padding(.top, 10)
+            .onAppear {
+                // Auto scroll to current level with slight delay for layout
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    withAnimation {
+                        proxy.scrollTo(currentLevel, anchor: .center)
+                    }
+                }
+            }
+        }
+    }
+}
+
+struct AchievementNodeView: View {
+    let node: RoadmapNode
+    let currentLevel: Int
+    
+    @State private var phase: Double = 0.0
+    
+    var body: some View {
+        let isUnlocked = currentLevel >= node.levelReq
+        let isCurrent = currentLevel == node.levelReq
+        
+        HStack(alignment: .top, spacing: 20) {
+            // Vertical Timeline Line & Dot
+            VStack(spacing: 0) {
+                ZStack {
+                    Circle()
+                        .fill(isUnlocked ? node.tierColor : Color.white.opacity(0.1))
+                        .frame(width: node.isMajorMilestone ? 20 : 12, height: node.isMajorMilestone ? 20 : 12)
+                        .shadow(color: isUnlocked ? node.tierColor.opacity(0.8) : .clear, radius: 8)
+                        .overlay(
+                            Circle()
+                                .stroke(Color(red: 0.05, green: 0.05, blue: 0.08), lineWidth: 3) // cutout
+                        )
+                    
+                    if isCurrent {
+                        Circle()
+                            .stroke(node.tierColor, lineWidth: 2)
+                            .frame(width: node.isMajorMilestone ? 30 : 20, height: node.isMajorMilestone ? 30 : 20)
+                            .opacity(0.6 + (sin(phase) * 0.4))
+                            .scaleEffect(1.0 + (sin(phase) * 0.2))
+                    }
+                }
+                
+                // Don't draw path line for the very last item in the entire game
+                if node.levelReq != 1000 {
+                    Rectangle()
+                        .fill(isUnlocked ? node.tierColor.opacity(0.6) : Color.white.opacity(0.1))
+                        .frame(width: 2)
+                        .frame(height: node.isMajorMilestone ? 100 : 70) // Path length
+                        .overlay(
+                            // Optional glowing flow effect for unlocked path
+                                Rectangle()
+                                .fill(LinearGradient(colors: [.white, .clear], startPoint: .top, endPoint: .bottom))
+                                    .frame(width: 2)
+                                    .opacity(isUnlocked && currentLevel > node.levelReq ? 0.3 : 0)
+                        )
+                }
+            }
+            
+            // Content Card
+            HStack(spacing: 15) {
+                if node.isMajorMilestone {
+                    // Major Milestone uses the huge 3D Gem
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .fill(isUnlocked ? node.tierColor.opacity(0.15) : Color.white.opacity(0.03))
+                            .frame(width: 60, height: 60)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                    .stroke(isUnlocked ? node.tierColor.opacity(0.5) : Color.white.opacity(0.05), lineWidth: 1)
+                            )
+                        
+                        GemView(isActive: isUnlocked, color: node.tierColor, isObsidian: node.isObsidian)
+                            .scaleEffect(0.6)
+                            .shadow(color: isUnlocked ? node.tierColor.opacity(0.5) : .clear, radius: 10 + (sin(phase) * 5))
+                    }
+                } else {
+                    // Minor milestones use a smaller icon
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(Color.white.opacity(0.03))
+                            .frame(width: 40, height: 40)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .stroke(isUnlocked ? node.tierColor.opacity(0.3) : Color.white.opacity(0.05), lineWidth: 1)
+                            )
+                        
+                        Image(systemName: node.icon)
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(isUnlocked ? .white : .gray.opacity(0.4))
+                    }
+                }
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Text(node.title)
+                            .font(node.isMajorMilestone ? .headline : .subheadline)
+                            .fontWeight(node.isMajorMilestone ? .bold : .semibold)
+                            .foregroundColor(isUnlocked ? .white : .gray.opacity(0.6))
+                        
+                        if isCurrent {
+                            Text("Current")
+                                .font(.system(size: node.isMajorMilestone ? 10 : 9, weight: .bold))
+                                .foregroundColor(node.tierColor)
+                                .padding(.horizontal, 6).padding(.vertical, 2)
+                                .background(node.tierColor.opacity(0.2))
+                                .clipShape(Capsule())
+                        }
+                    }
+                    
+                    HStack(spacing: 6) {
+                        Text(node.subtitle)
+                            .font(.caption)
+                            .foregroundColor(.gray.opacity(0.5))
+                        
+                        if !isUnlocked {
+                            Image(systemName: "lock.fill")
+                                .font(.system(size: 9))
+                                .foregroundColor(node.tierColor.opacity(0.6))
+                        }
+                    }
+                }
+                
+                Spacer()
+                
+                if isUnlocked && !isCurrent {
+                    Image(systemName: "checkmark")
+                        .font(.footnote)
+                        .foregroundColor(.green.opacity(0.8))
+                        .padding(.trailing, 5)
+                } else if !isUnlocked {
+                    Text("Lvl \(node.levelReq)")
+                        .font(.caption2)
+                        .fontWeight(.semibold)
+                        .foregroundColor(node.tierColor.opacity(0.6))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(node.tierColor.opacity(0.05))
+                        .clipShape(Capsule())
+                }
+            }
+            .padding(node.isMajorMilestone ? 15 : 10)
+            .background(isCurrent ? node.tierColor.opacity(0.05) : Color.white.opacity(0.02))
+            .clipShape(RoundedRectangle(cornerRadius: node.isMajorMilestone ? 16 : 12, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: node.isMajorMilestone ? 16 : 12, style: .continuous)
+                    .stroke(isCurrent ? node.tierColor.opacity(0.3) : Color.clear, lineWidth: 1)
+            )
+            .offset(y: node.isMajorMilestone ? -25 : -15) // Align card with the dot center
+        }
+        .onAppear {
+            if isCurrent {
+                withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true)) {
+                    phase = .pi
+                }
+            }
         }
     }
 }
