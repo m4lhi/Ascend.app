@@ -5,7 +5,7 @@ import Combine
 
 // =========================================
 // === DATEI: ExploreView.swift ===
-// === 3D Terrain Map with Discovery ===
+// === 2D Terrain Map with Discovery ===
 // =========================================
 
 // MARK: - Location Manager
@@ -36,19 +36,13 @@ class ExploreLocationManager: NSObject, ObservableObject, CLLocationManagerDeleg
         manager.requestLocation()
         manager.startUpdatingLocation()
     }
-
-    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        print("⚠️ Location error: \(error.localizedDescription)")
-    }
 }
 
-// MARK: - Map Layer Type
+// MARK: - Map Layer Type (Vereinfacht)
 enum MapLayerType: String, CaseIterable, Identifiable {
     case standard = "Standard"
     case satellite = "Satellite"
-    case terrain = "Terrain"
     case night = "Night"
-    case elevation = "Elevation"
 
     var id: String { rawValue }
 
@@ -56,9 +50,7 @@ enum MapLayerType: String, CaseIterable, Identifiable {
         switch self {
         case .standard:  return "map"
         case .satellite: return "globe.americas.fill"
-        case .terrain:   return "mountain.2.fill"
         case .night:     return "moon.stars.fill"
-        case .elevation: return "chart.bar.fill"
         }
     }
 
@@ -66,9 +58,7 @@ enum MapLayerType: String, CaseIterable, Identifiable {
         switch self {
         case .standard:  return "Default map"
         case .satellite: return "Hybrid with labels"
-        case .terrain:   return "Elevation emphasis"
         case .night:     return "Dark map style"
-        case .elevation: return "Color-coded height"
         }
     }
 }
@@ -82,7 +72,7 @@ struct ExploreView: View {
     @State private var cameraPosition: MapCameraPosition = .automatic
     @State private var selectedMarkerTag: UUID? = nil
     @State private var selectedMountain: Mountain? = nil
-
+    @State private var showLocationDeniedAlert = false
     // Search state
     @FocusState private var isSearchFocused: Bool
     @State private var isSearchActive = false
@@ -97,15 +87,9 @@ struct ExploreView: View {
     @State private var showNearby = false
     @State private var nearbyRadiusKm: Double = 25
 
-    // 3D toggle
-    @State private var is3DMode = true
-
     // Map layers
     @State private var currentMapLayer: MapLayerType = .satellite
     @State private var showLayersSheet = false
-
-    // My Location
-    @State private var showLocationDeniedAlert = false
 
     // Route creation mode
     @State private var isRouteCreationMode = false
@@ -117,22 +101,16 @@ struct ExploreView: View {
 
     // Zoom-based marker visibility
     @State private var currentZoomLevel: ZoomLevel = .medium
-
-    // Discovery
-    @State private var discoveryRegionName = ""
+    enum ZoomLevel { case far, medium, close }
 
     // Tracker
     @State private var showTracker = false
     @State private var mountainToTrack: Mountain? = nil
 
     // Selected route to show on map
-    @State private var selectedRouteToShow: NearbyRoute? = nil
+    @State private var selectedRouteToShow: SavedRoute? = nil
 
     private let gold = Color(red: 0.85, green: 0.65, blue: 0.13)
-
-    enum ZoomLevel {
-        case far, medium, close
-    }
 
     // MARK: - Computed Properties
     var mapMountains: [Mountain] {
@@ -144,23 +122,20 @@ struct ExploreView: View {
     }
 
     var visibleMountains: [Mountain] {
-        // Strenges Limit für die Karte, um bei 70k Bergen Lags zu verhindern
         switch currentZoomLevel {
-        case .far:    return Array(mapMountains.filter { $0.isPrestigePeak }.prefix(30))
-        case .medium: return Array(mapMountains.prefix(100))
-        case .close:  return Array(mapMountains.prefix(200))
+        case .far:    return Array(mapMountains.filter { $0.isPrestigePeak }.prefix(50))
+        case .medium: return Array(mapMountains.prefix(150))
+        case .close:  return Array(mapMountains.prefix(400))
         }
     }
-
-    var showPOIs: Bool { showNearby && currentZoomLevel == .close }
 
     // MARK: - Body
     var body: some View {
         ZStack(alignment: .top) {
-            // === 1. FULL-SCREEN 3D MAP ===
+            // === 1. MAP ===
             mapLayer
 
-            // === 2. TOP GRADIENT (Damit Text oben lesbar bleibt) ===
+            // === 2. TOP GRADIENT ===
             LinearGradient(
                 colors: [.black.opacity(0.8), .black.opacity(0.3), .clear],
                 startPoint: .top, endPoint: .bottom
@@ -169,7 +144,7 @@ struct ExploreView: View {
             .ignoresSafeArea()
             .allowsHitTesting(false)
 
-            // === 3. TOP CONTROLS (Search & Filters) ===
+            // === 3. TOP CONTROLS ===
             VStack(spacing: 8) {
                 searchBar
                 toolbarRow
@@ -183,15 +158,13 @@ struct ExploreView: View {
             .padding(.horizontal, 16)
             .padding(.top, 10)
 
-            // === 4. SCHWEBENDE KARTEN-BUTTONS (Rechts, zentriert) ===
-            // So stören sie weder die Bottom-Sheets noch die Tab-Bar
+            // === 4. SCHWEBENDE KARTEN-BUTTONS ===
             VStack {
                 Spacer()
                 HStack {
                     Spacer()
                     VStack(spacing: 12) {
                         FloatingMapButton(icon: "square.3.layers.3d") { showLayersSheet = true }
-                        FloatingMapButton(icon: is3DMode ? "view.2d" : "view.3d", isActive: is3DMode) { toggle3D() }
                         FloatingMapButton(icon: "location.fill") { flyToMyLocation() }
                     }
                     .padding(.trailing, 12)
@@ -199,39 +172,32 @@ struct ExploreView: View {
                 Spacer()
             }
 
-            // === 5. BOTTOM SHEETS (Abgesetzt als schwebende Inseln) ===
-            if isRouteCreationMode {
-                VStack {
-                    Spacer()
+            // === 5. BOTTOM SHEETS (Abgesetzt über der Tab-Bar) ===
+            VStack {
+                Spacer()
+                if isRouteCreationMode {
                     routeCreationPanel
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                } else if let mountain = selectedMountain {
+                    detailCard(for: mountain)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                } else if !isSearchActive {
+                    discoverySheet
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
-                .transition(.move(edge: .bottom).combined(with: .opacity))
-            } else {
-                VStack {
-                    Spacer()
-                    if let mountain = selectedMountain {
-                        detailCard(for: mountain)
-                            .transition(.move(edge: .bottom).combined(with: .opacity))
-                    } else if !isSearchActive {
-                        discoverySheet
-                            .transition(.move(edge: .bottom).combined(with: .opacity))
-                    }
-                }
-                .animation(.spring(response: 0.4, dampingFraction: 0.85), value: selectedMountain?.id)
             }
+            .animation(.spring(response: 0.4, dampingFraction: 0.8), value: isRouteCreationMode)
+            .animation(.spring(response: 0.4, dampingFraction: 0.8), value: selectedMountain?.id)
         }
+        // FIX: Verhindert, dass die Tab-Bar von der Tastatur hochgedrückt wird!
+        .ignoresSafeArea(.keyboard, edges: .bottom)
         .task {
-            await mountainManager.fetchMountainsFromDatabase()
             await mountainManager.fetchSavedRoutes()
-            if let loc = locationManager.userLocation {
-                flyToUserArea(location: loc)
-                await reverseGeocode(loc)
-            }
+            if let loc = locationManager.userLocation { flyToUserArea(location: loc) }
         }
         .onChange(of: locationManager.userLocation) { _, newLoc in
             if let loc = newLoc, selectedMountain == nil, !isSearchActive {
                 flyToUserArea(location: loc)
-                Task { await reverseGeocode(loc) }
             }
         }
         .onChange(of: isSearchFocused) { _, focused in
@@ -312,30 +278,40 @@ struct ExploreView: View {
                 }
                 MapPolyline(coordinates: coords).stroke(gold, lineWidth: 3)
             }
-
+            
+            // Route anzeigen, wenn aus "My Routes" ausgewählt
             if let route = selectedRouteToShow {
-                let coords = route.mountains.compactMap { m -> CLLocationCoordinate2D? in
+                let routeMountainsList = route.mountainIds.compactMap { id in mountainManager.mountains.first { $0.id == id } }
+                let coords = routeMountainsList.compactMap { m -> CLLocationCoordinate2D? in
                     guard let lat = m.latitude, let lon = m.longitude else { return nil }
                     return CLLocationCoordinate2D(latitude: lat, longitude: lon)
                 }
-                MapPolyline(coordinates: coords).stroke(gold, lineWidth: 3)
+                MapPolyline(coordinates: coords).stroke(gold, lineWidth: 4)
             }
         }
         .mapStyle(mapStyleForCurrentLayer)
-        // DIESER PADDING FIXT DEN KOMPASS! Er wird unterhalb der Suchleiste gezeichnet.
         .safeAreaPadding(.top, 160)
         .onMapCameraChange(frequency: .onEnd) { context in
-            let span = context.region.span
-            let spanKm = span.latitudeDelta * 111
+            let region = context.region
+            let spanKm = region.span.latitudeDelta * 111
             
-            withAnimation(.easeInOut(duration: 0.2)) {
-                if spanKm > 100 {
-                    currentZoomLevel = .far
-                } else if spanKm > 20 {
-                    currentZoomLevel = .medium
-                } else {
-                    currentZoomLevel = .close
-                }
+            let newZoom: ZoomLevel
+            if spanKm > 100 { newZoom = .far }
+            else if spanKm > 20 { newZoom = .medium }
+            else { newZoom = .close }
+            
+            withAnimation(.easeInOut(duration: 0.2)) { currentZoomLevel = newZoom }
+            
+            // BUFFER ERHÖHT (2.0): Damit beim Scrollen schneller neue Berge aus der DB geladen werden
+            let latDelta = region.span.latitudeDelta * 2.0
+            let lonDelta = region.span.longitudeDelta * 2.0
+            let minLat = region.center.latitude - (latDelta / 2)
+            let maxLat = region.center.latitude + (latDelta / 2)
+            let minLon = region.center.longitude - (lonDelta / 2)
+            let maxLon = region.center.longitude + (lonDelta / 2)
+            
+            Task {
+                await mountainManager.fetchMountainsInBounds(minLat: minLat, maxLat: maxLat, minLon: minLon, maxLon: maxLon, zoomLevel: newZoom)
             }
         }
         .ignoresSafeArea()
@@ -343,11 +319,9 @@ struct ExploreView: View {
 
     var mapStyleForCurrentLayer: MapStyle {
         switch currentMapLayer {
-        case .standard:  return .standard(elevation: is3DMode ? .realistic : .flat)
-        case .satellite: return .hybrid(elevation: is3DMode ? .realistic : .flat)
-        case .terrain:   return .standard(elevation: .realistic)
-        case .night:     return .standard(elevation: is3DMode ? .realistic : .flat)
-        case .elevation: return .hybrid(elevation: is3DMode ? .realistic : .flat)
+        case .standard:  return .standard(elevation: .flat)
+        case .satellite: return .hybrid(elevation: .flat)
+        case .night:     return .standard(elevation: .flat)
         }
     }
 
@@ -356,7 +330,7 @@ struct ExploreView: View {
     var searchBar: some View {
         HStack(spacing: 10) {
             Image(systemName: "magnifyingglass").foregroundColor(.gray).font(.system(size: 16, weight: .medium))
-            TextField("Search peaks or regions…", text: $searchText)
+            TextField("Search peaks, regions or countries…", text: $searchText)
                 .focused($isSearchFocused).foregroundColor(.white).autocorrectionDisabled().textInputAutocapitalization(.never)
 
             if isSearchActive || !searchText.isEmpty {
@@ -436,10 +410,10 @@ struct ExploreView: View {
     // MARK: - Search Suggestions
     @ViewBuilder
     var searchSuggestionsView: some View {
-        let suggestions = Array(mapMountains.prefix(10))
+        let suggestions = Array(visibleMountains.prefix(10))
         VStack(spacing: 0) {
             if !searchText.isEmpty {
-                HStack { Text("\(mapMountains.count) results").font(.system(size: 11, weight: .semibold)).foregroundColor(.gray); Spacer() }
+                HStack { Text("\(visibleMountains.count) results").font(.system(size: 11, weight: .semibold)).foregroundColor(.gray); Spacer() }
                     .padding(.horizontal, 14).padding(.vertical, 8).background(Color.white.opacity(0.03))
             }
 
@@ -506,9 +480,7 @@ struct ExploreView: View {
         switch layer {
         case .standard: return LinearGradient(colors: [.gray.opacity(0.3), .gray.opacity(0.15)], startPoint: .topLeading, endPoint: .bottomTrailing)
         case .satellite: return LinearGradient(colors: [.green.opacity(0.3), .blue.opacity(0.2)], startPoint: .topLeading, endPoint: .bottomTrailing)
-        case .terrain: return LinearGradient(colors: [.brown.opacity(0.3), .green.opacity(0.2)], startPoint: .topLeading, endPoint: .bottomTrailing)
         case .night: return LinearGradient(colors: [.indigo.opacity(0.4), .black.opacity(0.3)], startPoint: .topLeading, endPoint: .bottomTrailing)
-        case .elevation: return LinearGradient(colors: [.green.opacity(0.3), .red.opacity(0.3)], startPoint: .bottom, endPoint: .top)
         }
     }
 
@@ -540,16 +512,8 @@ struct ExploreView: View {
                 }
             }
 
-            if routeMountains.count >= 2 {
-                let stats = calculateRouteStats(routeMountains)
-                HStack(spacing: 0) {
-                    DetailStat(icon: "point.topleft.down.to.point.bottomright.curvepath", value: String(format: "%.1fkm", stats.distance), label: "Distance")
-                    DetailStat(icon: "arrow.up.right", value: "\(stats.elevation)m", label: "Elevation")
-                    DetailStat(icon: "clock", value: "\(stats.durationMin)min", label: "Est. Time")
-                    DetailStat(icon: "mountain.2.fill", value: "\(routeMountains.count)", label: "Peaks")
-                }
-            }
-
+            // Distanz/Höhe/Dauer wurden entfernt, um Verwirrung zu vermeiden!
+            
             HStack(spacing: 12) {
                 Button { withAnimation(.spring()) { isRouteCreationMode = false; routeMountains = []; routeName = "" } } label: {
                     Text("Cancel").font(.system(size: 14, weight: .bold)).foregroundColor(.white).frame(maxWidth: .infinity).padding(.vertical, 12).background(Color.white.opacity(0.15)).cornerRadius(12)
@@ -562,18 +526,24 @@ struct ExploreView: View {
         .padding(16).background(.ultraThinMaterial).clipShape(RoundedRectangle(cornerRadius: 24))
         .overlay(RoundedRectangle(cornerRadius: 24).stroke(gold.opacity(0.3), lineWidth: 0.5))
         .padding(.horizontal, 16)
-        .padding(.bottom, 100) // Schwebend über Tab-Bar
+        .padding(.bottom, 120) // FIX: Viel Platz zur Tab-Bar
     }
 
-    // MARK: - Discovery Sheet (Neues Slick-Design)
+    // MARK: - Discovery Sheet
     @ViewBuilder
     var discoverySheet: some View {
-        let nearbyCards = Array(mapMountains.prefix(10))
-        let routes = mountainManager.nearbyRoutes
+        let nearbyCards: [Mountain] = {
+            guard let loc = locationManager.userLocation else { return Array(visibleMountains.prefix(10)) }
+            return visibleMountains.sorted { m1, m2 in
+                let loc1 = CLLocation(latitude: m1.latitude ?? 0, longitude: m1.longitude ?? 0)
+                let loc2 = CLLocation(latitude: m2.latitude ?? 0, longitude: m2.longitude ?? 0)
+                return loc.distance(from: loc1) < loc.distance(from: loc2)
+            }.prefix(10).map { $0 }
+        }()
+
         let savedRoutes = mountainManager.savedRoutes
 
         VStack(alignment: .leading, spacing: 0) {
-            // Ein eleganter Drag-Handle in der Mitte
             HStack { Spacer(); Capsule().fill(Color.white.opacity(0.4)).frame(width: 40, height: 4); Spacer() }
                 .padding(.top, 12).padding(.bottom, 8).contentShape(Rectangle())
                 .onTapGesture { withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { discoverySheetExpanded.toggle() } }
@@ -594,29 +564,8 @@ struct ExploreView: View {
                         }
                     }
 
-                    if (!routes.isEmpty || showRoutesFilter) && (discoverySheetExpanded || nearbyCards.isEmpty) {
-                        discoverySectionHeader(title: "Nearby Routes", icon: "point.topleft.down.to.point.bottomright.curvepath")
-                        if routes.isEmpty {
-                            HStack { Spacer(); VStack(spacing: 6) { Image(systemName: "map.fill").font(.title2).foregroundColor(.gray.opacity(0.4)); Text("Enable Nearby to see routes").font(.caption).foregroundColor(.gray) }; Spacer() }.padding(.vertical, 16)
-                        } else {
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 12) {
-                                    Spacer().frame(width: 4)
-                                    ForEach(routes) { route in
-                                        RouteCard(route: route) {
-                                            withAnimation(.spring()) {
-                                                selectedRouteToShow = route
-                                                if let first = route.mountains.first, let lat = first.latitude, let lon = first.longitude { flyTo(lat: lat, lon: lon, distance: 12000) }
-                                            }
-                                        }
-                                    }
-                                    Spacer().frame(width: 4)
-                                }
-                            }
-                        }
-                    }
-
-                    if (discoverySheetExpanded || showRoutesFilter) {
+                    // Die Fake "Nearby Routes" wurden komplett entfernt. Nur noch User-Routen!
+                    if (discoverySheetExpanded || showRoutesFilter || nearbyCards.isEmpty) {
                         discoverySectionHeader(title: "My Routes", icon: "bookmark.fill")
                         if savedRoutes.isEmpty {
                             HStack { Spacer(); VStack(spacing: 6) { Image(systemName: "map").font(.title2).foregroundColor(.gray.opacity(0.3)); Text("No saved routes yet.").font(.caption).foregroundColor(.gray) }; Spacer() }.padding(.vertical, 16)
@@ -625,7 +574,12 @@ struct ExploreView: View {
                                 HStack(spacing: 12) {
                                     Spacer().frame(width: 4)
                                     ForEach(savedRoutes) { route in
-                                        SavedRouteCard(route: route, onTap: { showSavedRouteOnMap(route) }, onDelete: { Task { await mountainManager.deleteRoute(id: route.id) } })
+                                        SavedRouteCard(route: route, onTap: {
+                                            selectedRouteToShow = route
+                                            if let firstId = route.mountainIds.first, let firstM = mountainManager.mountains.first(where: { $0.id == firstId }), let lat = firstM.latitude, let lon = firstM.longitude {
+                                                flyTo(lat: lat, lon: lon, distance: 12000)
+                                            }
+                                        }, onDelete: { Task { await mountainManager.deleteRoute(id: route.id) } })
                                     }
                                     Spacer().frame(width: 4)
                                 }
@@ -634,13 +588,13 @@ struct ExploreView: View {
                     }
                 }.padding(.bottom, 16)
             }
-            .frame(maxHeight: discoverySheetExpanded ? 350 : 130) // Kompakte Höhe
+            .frame(maxHeight: discoverySheetExpanded ? 350 : 130)
         }
-        .background(.ultraThinMaterial.opacity(0.95)) // Eleganter Glas-Effekt statt harter Schwarzton
+        .background(.ultraThinMaterial.opacity(0.95))
         .clipShape(RoundedRectangle(cornerRadius: 24))
         .shadow(color: .black.opacity(0.3), radius: 15, y: 5)
-        .padding(.horizontal, 16) // Lässt Platz am Rand (Floating Island)
-        .padding(.bottom, 100) // Gibt der Tab-Bar genug Luft zum Atmen
+        .padding(.horizontal, 16)
+        .padding(.bottom, 120) // FIX: Viel Platz zur Tab-Bar
     }
 
     @ViewBuilder
@@ -655,16 +609,16 @@ struct ExploreView: View {
         }.padding(.horizontal, 16)
     }
 
-    // MARK: - Detail Card (Slick Design)
+    // MARK: - Detail Card (SCHWARZER BLOCK GEFIXT & ANIMIERT)
     @ViewBuilder
     func detailCard(for mountain: Mountain) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             ZStack(alignment: .topTrailing) {
                 if let urlStr = mountain.imageUrl, !urlStr.isEmpty, let url = URL(string: urlStr) {
                     AsyncImage(url: url) { phase in
-                        if let img = phase.image { img.resizable().scaledToFill() } else { goldGradientPlaceholder }
+                        if let img = phase.image { img.resizable().scaledToFill() } else { imagePlaceholder }
                     }.frame(height: 140).clipped()
-                } else { goldGradientPlaceholder.frame(height: 140) }
+                } else { imagePlaceholder }
 
                 LinearGradient(colors: [.clear, Color(red: 0.1, green: 0.1, blue: 0.12)], startPoint: .center, endPoint: .bottom)
 
@@ -708,29 +662,19 @@ struct ExploreView: View {
         .background(Color(red: 0.1, green: 0.1, blue: 0.12)).clipShape(RoundedRectangle(cornerRadius: 24))
         .shadow(color: .black.opacity(0.4), radius: 15, y: 5)
         .padding(.horizontal, 16)
-        .padding(.bottom, 100) // Schwebend über Tab-Bar
+        .padding(.bottom, 120) // FIX: Überlappt nicht mehr mit der Tab Bar
     }
 
-    // MARK: - Helpers
-    func toggle3D() {
-        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-            is3DMode.toggle()
-            let currentCenter = cameraPosition.camera?.centerCoordinate ?? locationManager.userLocation?.coordinate ?? CLLocationCoordinate2D(latitude: 47.0, longitude: 11.0)
-            let currentDistance = cameraPosition.camera?.distance ?? 15000
-            
-            cameraPosition = .camera(MapCamera(
-                centerCoordinate: currentCenter,
-                distance: currentDistance,
-                heading: cameraPosition.camera?.heading ?? 0,
-                pitch: is3DMode ? 65 : 0
-            ))
+    // FIX: Einfacher grauer Hintergrund ersetzt den verbuggten Farbverlauf
+    @ViewBuilder
+    var imagePlaceholder: some View {
+        ZStack {
+            Color(red: 0.15, green: 0.15, blue: 0.18).frame(height: 140)
+            Image(systemName: "mountain.2.fill").font(.system(size: 30)).foregroundColor(.white.opacity(0.1))
         }
     }
 
-    @ViewBuilder
-    var goldGradientPlaceholder: some View {
-        LinearGradient(colors: [gold.opacity(0.2), Color(red: 0.1, green: 0.1, blue: 0.12)], startPoint: .topLeading, endPoint: .bottomTrailing).overlay(Image(systemName: "mountain.2.fill").font(.system(size: 30)).foregroundColor(.white.opacity(0.05)))
-    }
+    // MARK: - Helpers
 
     func difficultyColor(_ diff: Difficulty) -> Color {
         switch diff {
@@ -738,7 +682,7 @@ struct ExploreView: View {
         case .medium: return .yellow
         case .hard: return .orange
         case .extreme: return .red
-        case .expert: return .purple // 🟢 HIER NEU HINZUGEFÜGT
+        case .expert: return .purple
         }
     }
 
@@ -749,35 +693,25 @@ struct ExploreView: View {
     }
 
     func selectMountain(_ mountain: Mountain) {
-        withAnimation(.spring()) {
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
             selectedMountain = mountain; selectedMarkerTag = mountain.id; isSearchFocused = false; isSearchActive = false; searchText = ""; selectedRouteToShow = nil
         }
         if let lat = mountain.latitude, let lon = mountain.longitude { flyToMountain(lat: lat, lon: lon) }
     }
 
     func flyToMountain(lat: Double, lon: Double) {
-        var heading: Double = 0
-        if let userLoc = locationManager.userLocation {
-            let lat1 = userLoc.coordinate.latitude * .pi / 180
-            let lon1 = userLoc.coordinate.longitude * .pi / 180
-            let lat2 = lat * .pi / 180
-            let lon2 = lon * .pi / 180
-            let y = sin(lon2 - lon1) * cos(lat2)
-            let x = cos(lat1) * sin(lat2) - sin(lat1) * cos(lat2) * cos(lon2 - lon1)
-            heading = (atan2(y, x) * 180 / .pi + 360).truncatingRemainder(dividingBy: 360)
-        }
         withAnimation(.easeInOut(duration: 1.5)) {
-            cameraPosition = .camera(MapCamera(centerCoordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon), distance: 8000, heading: heading, pitch: is3DMode ? 65 : 0))
+            cameraPosition = .camera(MapCamera(centerCoordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon), distance: 8000, heading: 0, pitch: 0))
         }
     }
 
     func flyTo(lat: Double, lon: Double, distance: Double) {
-        withAnimation(.easeInOut(duration: 1.5)) { cameraPosition = .camera(MapCamera(centerCoordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon), distance: distance, heading: 0, pitch: is3DMode ? 60 : 0)) }
+        withAnimation(.easeInOut(duration: 1.5)) { cameraPosition = .camera(MapCamera(centerCoordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon), distance: distance, heading: 0, pitch: 0)) }
     }
 
     func flyToUserArea(location: CLLocation) {
         withAnimation(.easeInOut(duration: 2.0)) {
-            cameraPosition = .camera(MapCamera(centerCoordinate: location.coordinate, distance: 15000, heading: 0, pitch: is3DMode ? 60 : 0))
+            cameraPosition = .camera(MapCamera(centerCoordinate: location.coordinate, distance: 15000, heading: 0, pitch: 0))
         }
     }
 
@@ -787,42 +721,18 @@ struct ExploreView: View {
         default:
             locationManager.requestLocation()
             if let loc = locationManager.userLocation {
-                withAnimation(.easeInOut(duration: 1.5)) { cameraPosition = .camera(MapCamera(centerCoordinate: loc.coordinate, distance: 5000, heading: 0, pitch: is3DMode ? 45 : 0)) }
+                withAnimation(.easeInOut(duration: 1.5)) { cameraPosition = .camera(MapCamera(centerCoordinate: loc.coordinate, distance: 5000, heading: 0, pitch: 0)) }
             }
         }
-    }
-
-    func calculateRouteStats(_ mountains: [Mountain]) -> (distance: Double, elevation: Int, durationMin: Int) {
-        var totalDist = 0.0
-        for i in 0..<(mountains.count - 1) {
-            if let lat1 = mountains[i].latitude, let lon1 = mountains[i].longitude, let lat2 = mountains[i+1].latitude, let lon2 = mountains[i+1].longitude {
-                let loc1 = CLLocation(latitude: lat1, longitude: lon1); let loc2 = CLLocation(latitude: lat2, longitude: lon2)
-                totalDist += loc1.distance(from: loc2) / 1000.0
-            }
-        }
-        let totalElev = mountains.reduce(0) { $0 + $1.elevation / 10 }
-        let duration = Int((totalDist / 3.5) * 60)
-        return (totalDist, totalElev, max(duration, 30))
     }
 
     func saveCreatedRoute() {
         guard routeMountains.count >= 2 else { return }
-        let stats = calculateRouteStats(routeMountains)
-        let route = SavedRoute(id: UUID(), name: routeName.isEmpty ? "\(routeMountains[0].region) Custom Route" : routeName, mountainIds: routeMountains.map { $0.id }, createdAt: Date(), totalDistanceKm: stats.distance, totalElevationGain: stats.elevation, estimatedDurationMinutes: stats.durationMin, difficulty: routeMountains.map { $0.difficulty.rawValue }.max() ?? "Medium")
+        // Da wir Distanz etc aus der UI entfernt haben, setzen wir es hier auf 0 für die Datenbank
+        let route = SavedRoute(id: UUID(), name: routeName.isEmpty ? "\(routeMountains[0].region) Route" : routeName, mountainIds: routeMountains.map { $0.id }, createdAt: Date(), totalDistanceKm: 0.0, totalElevationGain: 0, estimatedDurationMinutes: 0, difficulty: routeMountains.map { $0.difficulty.rawValue }.max() ?? "Medium")
         Task { await mountainManager.saveRoute(route) }
         HapticManager.shared.success()
         withAnimation(.spring()) { isRouteCreationMode = false; routeMountains = []; routeName = "" }
-    }
-
-    func showSavedRouteOnMap(_ route: SavedRoute) {
-        let routeMountainsList = route.mountainIds.compactMap { id in mountainManager.mountains.first { $0.id == id } }
-        guard let first = routeMountainsList.first, let lat = first.latitude, let lon = first.longitude else { return }
-        if !routeMountainsList.isEmpty {
-            withAnimation(.spring()) {
-                selectedRouteToShow = NearbyRoute(name: route.name, mountains: routeMountainsList, totalDistanceKm: route.totalDistanceKm, totalElevationGain: route.totalElevationGain, difficulty: Difficulty(rawValue: route.difficulty) ?? .medium, estimatedDurationMinutes: route.estimatedDurationMinutes)
-            }
-            flyTo(lat: lat, lon: lon, distance: 12000)
-        }
     }
 
     func performDebouncedSearch() {
@@ -841,21 +751,12 @@ struct ExploreView: View {
             await mountainManager.searchMountains(query: searchText, difficulty: selectedDifficulty)
         } else {
             await mountainManager.clearNearby()
-            await mountainManager.fetchMountainsFromDatabase()
         }
-    }
-
-    func reverseGeocode(_ location: CLLocation) async {
-        let geocoder = CLGeocoder()
-        do {
-            let placemarks = try await geocoder.reverseGeocodeLocation(location)
-            if let p = placemarks.first { discoveryRegionName = p.locality ?? p.administrativeArea ?? p.country ?? "" }
-        } catch {}
     }
 }
 
 // =========================================
-// === FLOATING MAP BUTTON (Slick Design) ===
+// === FLOATING MAP BUTTON ===
 // =========================================
 struct FloatingMapButton: View {
     let icon: String
@@ -868,7 +769,7 @@ struct FloatingMapButton: View {
             Image(systemName: icon)
                 .font(.system(size: 18, weight: .semibold))
                 .foregroundColor(isActive ? .black : .white)
-                .frame(width: 44, height: 44) // Etwas kompakter für einen edlen Look
+                .frame(width: 44, height: 44)
                 .background(isActive ? gold : Color(red: 0.1, green: 0.1, blue: 0.12).opacity(0.85))
                 .clipShape(Circle())
                 .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
@@ -881,7 +782,6 @@ struct FloatingMapButton: View {
 // =========================================
 // === RESTLICHE KOMPONENTEN ===
 // =========================================
-
 struct ToolbarButton: View {
     let icon: String; let label: String; let isActive: Bool; let action: () -> Void
     private let gold = Color(red: 0.85, green: 0.65, blue: 0.13)
@@ -905,7 +805,6 @@ struct DifficultyChip: View {
     }
 }
 
-// Kompakte Version der Explore Discovery Card
 struct ExploreDiscoveryCard: View {
     let mountain: Mountain; let userLocation: CLLocation?; var compact: Bool = false; let onTap: () -> Void
     @State private var isPressed = false; private let gold = Color(red: 0.85, green: 0.65, blue: 0.13)
@@ -926,11 +825,6 @@ struct ExploreDiscoveryCard: View {
             }.padding(8).frame(width: 156).background(Color.white.opacity(0.08)).cornerRadius(12)
         }.buttonStyle(PlainButtonStyle())
     }
-}
-
-struct RouteCard: View {
-    let route: NearbyRoute; let onTap: () -> Void
-    var body: some View { Button(action: onTap) { Text(route.name).font(.caption).fontWeight(.semibold).foregroundColor(.white).padding().background(Color.white.opacity(0.08)).cornerRadius(12) } }
 }
 
 struct SavedRouteCard: View {
