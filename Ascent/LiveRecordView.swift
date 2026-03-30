@@ -254,6 +254,7 @@ class LiveGPSManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         lastLocation = newLocation
     }
 }
+
 // =========================================
 // === REDESIGNED: Premium Tracker UI ===
 // =========================================
@@ -270,7 +271,7 @@ struct LiveRecordView: View {
     @State private var blinkToggle: Bool = false
     let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
-    @State private var cameraPosition: MapCameraPosition = .automatic
+    @State private var cameraPosition: MapCameraPosition
 
     @State private var showSaveForm = false
     @State private var showElevationProfile = false
@@ -282,6 +283,18 @@ struct LiveRecordView: View {
     @State private var isTooFarForRoute = false
 
     private let gold = Color(red: 0.85, green: 0.65, blue: 0.13)
+    
+    // 🟢 NEU: Intelligenter Start, um den "Deutschland-Zoom" zu killen
+    init(targetMountain: Mountain?) {
+        self.targetMountain = targetMountain
+        
+        // Zwingt die Kamera direkt beim Start auf den Berg! (Kein Rauszoomen mehr)
+        if let target = targetMountain, let lat = target.latitude, let lon = target.longitude {
+            _cameraPosition = State(initialValue: .camera(MapCamera(centerCoordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon), distance: 15000)))
+        } else {
+            _cameraPosition = State(initialValue: .automatic)
+        }
+    }
 
     private var elevationProgress: Double {
         guard gpsManager.elevationGain > 0 else { return 0 }
@@ -312,16 +325,10 @@ struct LiveRecordView: View {
             Map(position: $cameraPosition) {
                 UserAnnotation()
                 
+                // 🟢 ZUVERLÄSSIGE ROUTEN-ANZEIGE
                 if let routeCoords = plannedRoute, !routeCoords.isEmpty {
-                    if routeCoords.count == 2 {
-                        // Fallback Luftlinie (gestrichelt)
-                        MapPolyline(coordinates: routeCoords)
-                            .stroke(.white.opacity(0.6), style: StrokeStyle(lineWidth: 3, dash: [5, 5]))
-                    } else {
-                        // Echte OSRM Wanderroute (Blaue Linie)
-                        MapPolyline(coordinates: routeCoords)
-                            .stroke(.cyan.opacity(0.8), style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round, dash: [8, 8]))
-                    }
+                    MapPolyline(coordinates: routeCoords)
+                        .stroke(.cyan, style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round))
                 }
                 
                 if let target = targetMountain, let lat = target.latitude, let lon = target.longitude {
@@ -337,25 +344,20 @@ struct LiveRecordView: View {
             .mapStyle(.imagery(elevation: .realistic))
             .ignoresSafeArea()
             .onChange(of: gpsManager.currentLocation) { _, newLoc in
-                guard let loc = newLoc, let target = targetMountain,
+                guard let loc = newLoc, let target = targetMountain, !hasCalculatedRoute,
                       let targetLat = target.latitude, let targetLon = target.longitude else { return }
                 
                 let userCLLoc = CLLocation(latitude: loc.coordinate.latitude, longitude: loc.coordinate.longitude)
                 let destCLLoc = CLLocation(latitude: targetLat, longitude: targetLon)
                 
-                // 🟢 FIX: Wenn das GPS > 50km anzeigt (Simulator-Cache Fehler), brechen wir ab,
-                // sperren die Route aber NICHT. Sobald das Eibsee-GPS reinkommt, rechnet er los!
                 if userCLLoc.distance(from: destCLLoc) > 50000 {
                     withAnimation { self.isTooFarForRoute = true }
                     return
                 }
                 
-                // Wir sind nah genug! Berechne die Route, falls noch nicht geschehen.
-                if !hasCalculatedRoute {
-                    hasCalculatedRoute = true
-                    withAnimation { self.isTooFarForRoute = false }
-                    calculateRouteToMountain(from: loc.coordinate, to: CLLocationCoordinate2D(latitude: targetLat, longitude: targetLon))
-                }
+                hasCalculatedRoute = true
+                withAnimation { self.isTooFarForRoute = false }
+                calculateRouteToMountain(from: loc.coordinate, to: CLLocationCoordinate2D(latitude: targetLat, longitude: targetLon))
             }
 
             // === LAYER 2: Darkening overlay ===
@@ -422,8 +424,28 @@ struct LiveRecordView: View {
         }
     }
 
+    // 🟢 NEU: Intelligentes OSRM-Routing
     private func calculateRouteToMountain(from userLoc: CLLocationCoordinate2D, to dest: CLLocationCoordinate2D) {
-        let urlString = "https://routing.openstreetmap.de/routed-foot/route/v1/driving/\(userLoc.longitude),\(userLoc.latitude);\(dest.longitude),\(dest.latitude)?overview=full&geometries=geojson"
+        
+        // Schritt 1: SOFORTIGE Luftlinie und Kamera-Region setzen!
+        // Das passiert ohne Verzögerung, damit die Karte nicht leer ist.
+        withAnimation(.easeInOut(duration: 1.5)) {
+            self.plannedRoute = [userLoc, dest]
+            if !self.isRunning {
+                let centerLat = (userLoc.latitude + dest.latitude) / 2
+                let centerLon = (userLoc.longitude + dest.longitude) / 2
+                let spanLat = max(abs(userLoc.latitude - dest.latitude) * 1.5, 0.02)
+                let spanLon = max(abs(userLoc.longitude - dest.longitude) * 1.5, 0.02)
+                
+                self.cameraPosition = .region(MKCoordinateRegion(
+                    center: CLLocationCoordinate2D(latitude: centerLat, longitude: centerLon),
+                    span: MKCoordinateSpan(latitudeDelta: spanLat, longitudeDelta: spanLon)
+                ))
+            }
+        }
+
+        // Schritt 2: Lade im Hintergrund die schicke Wanderroute von OSM herunter
+        let urlString = "https://router.project-osrm.org/route/v1/foot/\(userLoc.longitude),\(userLoc.latitude);\(dest.longitude),\(dest.latitude)?overview=full&geometries=geojson"
         
         guard let url = URL(string: urlString) else { return }
 
@@ -441,49 +463,19 @@ struct LiveRecordView: View {
                         }
                     }
                     
-                    let polyline = MKPolyline(coordinates: trailCoordinates, count: trailCoordinates.count)
-                    let rect = polyline.boundingMapRect
-                    
-                    await MainActor.run {
-                        withAnimation(.easeInOut(duration: 2.0)) {
-                            self.plannedRoute = trailCoordinates // Echte Route
-                            if !self.isRunning {
-                                self.cameraPosition = .rect(self.padMapRect(rect))
+                    // Sobald geladen: Ersetze die gerade Luftlinie durch den schönen Trail!
+                    if trailCoordinates.count >= 2 {
+                        await MainActor.run {
+                            withAnimation(.easeInOut(duration: 1.0)) {
+                                self.plannedRoute = trailCoordinates
                             }
                         }
                     }
-                } else {
-                    throw URLError(.badServerResponse)
                 }
             } catch {
-                print("❌ OSRM Routing failed, using straight line: \(error.localizedDescription)")
-                
-                // FALLBACK: Wenn kein Weg gefunden wurde, nutze die Luftlinie
-                await MainActor.run {
-                    withAnimation(.easeInOut(duration: 2.0)) {
-                        self.plannedRoute = [userLoc, dest] // Luftlinie
-                        if !self.isRunning {
-                            let p1 = MKMapPoint(userLoc)
-                            let p2 = MKMapPoint(dest)
-                            let rect = MKMapRect(
-                                x: min(p1.x, p2.x), y: min(p1.y, p2.y),
-                                width: abs(p1.x - p2.x), height: abs(p1.y - p2.y)
-                            )
-                            self.cameraPosition = .rect(self.padMapRect(rect))
-                        }
-                    }
-                }
+                print("❌ OSRM Routing failed, keeping straight line: \(error.localizedDescription)")
             }
         }
-    }
-    
-    private func padMapRect(_ rect: MKMapRect) -> MKMapRect {
-        return MKMapRect(
-            x: rect.origin.x - rect.size.width * 0.3,
-            y: rect.origin.y - rect.size.height * 0.3,
-            width: rect.size.width * 1.6,
-            height: rect.size.height * 1.6
-        )
     }
 
     // MARK: - Top Bar
@@ -763,7 +755,7 @@ struct LiveRecordView: View {
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         isRunning = true
         
-        // 🟢 Sobald du auf Start drückst, zoomt die Kamera sanft auf dich und deine Route heran
+        // 🟢 Kamera zoomt sanft auf dich, wenn du die Mission startest!
         if let userLoc = gpsManager.currentLocation {
             withAnimation(.easeInOut(duration: 1.5)) {
                 cameraPosition = .camera(MapCamera(centerCoordinate: userLoc.coordinate, distance: 3000))
