@@ -139,35 +139,60 @@ struct TrophyRoomView: View {
                     
                     // === 2. LEVEL & XP FORTSCHRITT ===
                     Button(action: { showAscendRank = true }) {
-                        VStack(alignment: .leading, spacing: 12) {
-                            HStack {
-                                Text("Alpinist Rank").font(.headline).foregroundColor(.white)
-                                Spacer()
-                                if let profile = appState.ascendProfile {
-                                    Text("\(profile.ascend_tier) \(profile.ascend_subtier)").font(.headline).foregroundColor(Color(red: 0.85, green: 0.65, blue: 0.13))
-                                } else {
-                                    Text("Level \(appState.currentLevel)").font(.headline).foregroundColor(Color(red: 0.85, green: 0.65, blue: 0.13))
+                        HStack(spacing: 15) {
+                            if let profile = appState.ascendProfile {
+                                let tColor: Color = {
+                                    switch profile.ascend_tier.lowercased() {
+                                    case "bronze": return Color(red: 0.8, green: 0.45, blue: 0.15)
+                                    case "silver": return Color(red: 0.7, green: 0.75, blue: 0.8)
+                                    case "gold": return Color(red: 0.95, green: 0.8, blue: 0.2)
+                                    case "platinum": return Color(red: 0.7, green: 0.5, blue: 0.95)
+                                    case "obsidian": return Color(red: 0.2, green: 0.1, blue: 0.3)
+                                    default: return Color(red: 0.8, green: 0.45, blue: 0.15)
+                                    }
+                                }()
+                                let isObsidian = profile.ascend_tier.lowercased() == "obsidian"
+                                
+                                // The Mini Gem Display
+                                GemView(isActive: true, color: tColor, isObsidian: isObsidian)
+                                    .scaleEffect(0.9)
+                                    .frame(width: 45, height: 45)
+                                
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text("Alpinist Rank")
+                                        .font(.caption)
+                                        .foregroundColor(.gray)
+                                    
+                                    HStack(alignment: .bottom, spacing: 5) {
+                                        Text("\(profile.ascend_tier) \(String(repeating: "I", count: profile.ascend_subtier))")
+                                            .font(.headline)
+                                            .fontWeight(.bold)
+                                            .foregroundColor(isObsidian ? .white : tColor)
+                                        
+                                        Spacer()
+                                        
+                                        Text("\(Int(profile.ascend_xp)) XP")
+                                            .font(.caption)
+                                            .foregroundColor(.gray)
+                                    }
+                                    
+                                    // Progress Bar
+                                    GeometryReader { geo in
+                                        let progress = max(0, min(Double(appState.currentLevelProgressXP) / Double(max(appState.xpNeededForNextLevel, 1)), 1.0))
+                                        ZStack(alignment: .leading) {
+                                            Capsule().fill(Color.white.opacity(0.1)).frame(height: 6)
+                                            Capsule().fill(tColor)
+                                                .frame(width: progressAnimated ? geo.size.width * progress : 0, height: 6)
+                                        }
+                                    }.frame(height: 6)
                                 }
-                                Image(systemName: "chevron.right").font(.caption).foregroundColor(.gray)
+                            } else {
+                                ProgressView().tint(.white)
+                                Text("Loading Rank...").foregroundColor(.gray).padding(.leading, 10)
+                                Spacer()
                             }
                             
-                            GeometryReader { geo in
-                                ZStack(alignment: .leading) {
-                                    Capsule().fill(Color.white.opacity(0.1)).frame(height: 8)
-                                    Capsule().fill(Color(red: 0.85, green: 0.65, blue: 0.13))
-                                        .frame(width: progressAnimated ? geo.size.width * xpProgress : 0, height: 8)
-                                }
-                            }.frame(height: 8)
-                            
-                            HStack {
-                                if let profile = appState.ascendProfile {
-                                    Text("\(Int(profile.ascend_xp)) XP").font(.caption).foregroundColor(.gray)
-                                } else {
-                                    Text("\(appState.currentLevelProgressXP) XP").font(.caption).foregroundColor(.gray)
-                                }
-                                Spacer()
-                                Text("\(requiredXP) Total XP").font(.caption).foregroundColor(.gray)
-                            }
+                            Image(systemName: "chevron.right").font(.caption).foregroundColor(.gray)
                         }
                         .padding(20).background(Color(red: 0.12, green: 0.12, blue: 0.15)).cornerRadius(20).padding(.horizontal, 20)
                     }
