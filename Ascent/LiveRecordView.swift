@@ -19,6 +19,10 @@ class LiveGPSManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     @Published var elevationGain: Double = 0.0
     @Published var currentLocation: CLLocation?
     @Published var routePoints: [CLLocationCoordinate2D] = []
+    
+    // 🟢 NEU: Eine Sperre, damit er nicht vor dem Klick auf "Start" zählt
+    @Published var isRecording: Bool = false
+    
     private(set) var rawRoute: [CLLocation] = []
     private var lastLocation: CLLocation?
 
@@ -32,7 +36,7 @@ class LiveGPSManager: NSObject, ObservableObject, CLLocationManagerDelegate {
 
     private var windowStartTime: Date = Date()
     private var windowStartAltitude: Double? = nil
-    private let noiseThresholdMeters: Double = 5.0
+    private let noiseThresholdMeters: Double = 1.5
     private let noiseWindowSeconds: Double = 10.0
 
     @Published var isAutoPaused: Bool = false
@@ -40,8 +44,8 @@ class LiveGPSManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     @Published var totalPauseDuration: TimeInterval = 0
 
     private var lowSpeedStart: Date? = nil
-    private let autoPauseSpeedThreshold: Double = 0.5
-    private let autoPauseDelay: TimeInterval = 8.0
+    private let autoPauseSpeedThreshold: Double = 0.2
+    private let autoPauseDelay: TimeInterval = 10.0
 
     private var recentLocations: [CLLocation] = []
     private let driftBufferSize = 10
@@ -54,16 +58,17 @@ class LiveGPSManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         super.init()
         manager.delegate = self
         manager.desiredAccuracy = kCLLocationAccuracyBest
-        manager.distanceFilter = 5
+        manager.distanceFilter = 2
         manager.allowsBackgroundLocationUpdates = true
         manager.showsBackgroundLocationIndicator = true
         manager.requestWhenInUseAuthorization()
         
-        // Wir starten das Updating direkt leicht im Hintergrund, um sofort einen Fix zu haben
+        // Wir starten das GPS für die Karte und die Routenberechnung
         manager.startUpdatingLocation()
     }
 
     func startTracking() {
+        isRecording = true // 🟢 Gibt die Aufzeichnung frei
         manager.startUpdatingLocation()
         lastLocation = nil
         if isAltimeterAvailable && !altimeterStarted {
@@ -76,6 +81,7 @@ class LiveGPSManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
 
     func stopTracking() {
+        isRecording = false // 🟢 Stoppt die Aufzeichnung
         manager.stopUpdatingLocation()
     }
 
@@ -192,7 +198,10 @@ class LiveGPSManager: NSObject, ObservableObject, CLLocationManagerDelegate {
 
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let newLocation = locations.last else { return }
-        currentLocation = newLocation
+        currentLocation = newLocation // Aktualisiert sofort deinen blauen Punkt auf der Karte
+
+        // 🟢 FIX: Wenn wir nicht aufnehmen, brechen wir hier ab! Es wird weder Distanz noch Höhe gezählt.
+        guard isRecording else { return }
 
         recentLocations.append(newLocation)
         if recentLocations.count > driftBufferSize { recentLocations.removeFirst() }
@@ -272,9 +281,9 @@ struct LiveRecordView: View {
     @State private var panelCollapsed = false
     @State private var sliderResetToken = UUID()
     
-    // 🟢 ROUTEN-PLANUNG STATE
     @State private var plannedRoute: MKRoute? = nil
     @State private var hasCalculatedRoute = false
+    @State private var isTooFarForRoute = false
 
     private let gold = Color(red: 0.85, green: 0.65, blue: 0.13)
 
@@ -303,27 +312,23 @@ struct LiveRecordView: View {
 
     var body: some View {
         ZStack {
-            // === LAYER 1: Full-screen satellite map ===
+            // === LAYER 1: Map ===
             Map(position: $cameraPosition) {
                 UserAnnotation()
                 
-                // 🟢 1. DIE GEPLANTE ROUTE ZUM BERG
                 if let route = plannedRoute {
                     MapPolyline(route)
                         .stroke(.cyan.opacity(0.8), style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round, dash: [8, 8]))
-                } else if let target = targetMountain, let lat = target.latitude, let lon = target.longitude, let userLoc = gpsManager.currentLocation, !isRunning {
-                    // Fallback Peilung, wenn Apple Maps keinen Wanderweg findet
+                } else if let target = targetMountain, let lat = target.latitude, let lon = target.longitude, let userLoc = gpsManager.currentLocation, !isRunning && !isTooFarForRoute {
                     MapPolyline(coordinates: [userLoc.coordinate, CLLocationCoordinate2D(latitude: lat, longitude: lon)])
                         .stroke(.white.opacity(0.6), style: StrokeStyle(lineWidth: 3, dash: [5, 5]))
                 }
                 
-                // 🟢 2. ZIEL-MARKER
                 if let target = targetMountain, let lat = target.latitude, let lon = target.longitude {
                     Marker(target.name, systemImage: "mountain.2.fill", coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon))
                         .tint(gold)
                 }
                 
-                // 🟢 3. DEIN TATSÄCHLICH GEGANGENER WEG (Überschreibt die geplante Route)
                 if !gpsManager.routePoints.isEmpty {
                     MapPolyline(coordinates: gpsManager.routePoints)
                         .stroke(gold, style: StrokeStyle(lineWidth: 6, lineCap: .round, lineJoin: .round))
@@ -332,7 +337,6 @@ struct LiveRecordView: View {
             .mapStyle(.imagery(elevation: .realistic))
             .ignoresSafeArea()
             .onChange(of: gpsManager.currentLocation) { _, newLoc in
-                // Sobald wir GPS haben, berechnen wir 1x den Weg zum Gipfel
                 guard let loc = newLoc, let target = targetMountain, !hasCalculatedRoute,
                       let targetLat = target.latitude, let targetLon = target.longitude else { return }
                 
@@ -343,7 +347,7 @@ struct LiveRecordView: View {
             // === LAYER 2: Darkening overlay ===
             Color.black.opacity(0.25).ignoresSafeArea()
 
-            // === LAYER 3: Top gradient for legibility ===
+            // === LAYER 3: Top gradient ===
             VStack {
                 LinearGradient(colors: [.black.opacity(0.75), .black.opacity(0.3), .clear],
                                startPoint: .top, endPoint: .bottom)
@@ -351,7 +355,7 @@ struct LiveRecordView: View {
                 Spacer()
             }
 
-            // === LAYER 4: Bottom gradient for panel ===
+            // === LAYER 4: Bottom gradient ===
             VStack {
                 Spacer()
                 LinearGradient(colors: [.clear, .black.opacity(0.6)],
@@ -364,6 +368,23 @@ struct LiveRecordView: View {
                 topBar
                 Spacer()
                 dataPanel
+            }
+            
+            if isTooFarForRoute && !isRunning {
+                VStack {
+                    Spacer()
+                    HStack {
+                        Image(systemName: "exclamationmark.triangle.fill").foregroundColor(.orange)
+                        Text("You are too far away for route guidance.")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundColor(.white)
+                    }
+                    .padding()
+                    .background(.ultraThinMaterial)
+                    .cornerRadius(12)
+                    .padding(.bottom, 220)
+                }
+                .transition(.opacity)
             }
         }
         .preferredColorScheme(.dark)
@@ -386,26 +407,41 @@ struct LiveRecordView: View {
         }
     }
 
-    // 🟢 ROUTENBERECHNUNG (Apple Maps)
     private func calculateRouteToMountain(from userLoc: CLLocationCoordinate2D, to dest: CLLocationCoordinate2D) {
+        let userCLLoc = CLLocation(latitude: userLoc.latitude, longitude: userLoc.longitude)
+        let destCLLoc = CLLocation(latitude: dest.latitude, longitude: dest.longitude)
+
+        if userCLLoc.distance(from: destCLLoc) > 50000 {
+            withAnimation { self.isTooFarForRoute = true }
+            return
+        }
+
         let request = MKDirections.Request()
         request.source = MKMapItem(placemark: MKPlacemark(coordinate: userLoc))
         request.destination = MKMapItem(placemark: MKPlacemark(coordinate: dest))
-        request.transportType = .walking // Suche nach Wanderwegen/Fußwegen
+        request.transportType = .walking
 
         let directions = MKDirections(request: request)
         directions.calculate { response, error in
-            guard let route = response?.routes.first else {
-                print("Kein offizieller Weg gefunden. Zeichne Luftlinien-Peilung.")
-                return
-            }
-            withAnimation {
+            guard let route = response?.routes.first else { return }
+            withAnimation(.easeInOut(duration: 2.0)) {
                 self.plannedRoute = route
+                
+                if !isRunning {
+                    let rect = route.polyline.boundingMapRect
+                    let paddedRect = MKMapRect(
+                        x: rect.origin.x - rect.size.width * 0.2,
+                        y: rect.origin.y - rect.size.height * 0.2,
+                        width: rect.size.width * 1.4,
+                        height: rect.size.height * 1.4
+                    )
+                    self.cameraPosition = .rect(paddedRect)
+                }
             }
         }
     }
 
-    // MARK: - Top Bar with XP Progress
+    // MARK: - Top Bar
     private var topBar: some View {
         VStack(spacing: 14) {
             HStack {
@@ -682,7 +718,6 @@ struct LiveRecordView: View {
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         isRunning = true
         
-        // 🟢 Kamera-Zoom: Zentriert sich auf den Tracker
         if let userLoc = gpsManager.currentLocation {
             withAnimation(.easeInOut(duration: 1.0)) {
                 cameraPosition = .camera(MapCamera(centerCoordinate: userLoc.coordinate, distance: 3000))
