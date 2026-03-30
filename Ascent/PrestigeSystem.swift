@@ -19,6 +19,7 @@ extension Difficulty {
         case .medium:  return 1.5
         case .hard:    return 2.2
         case .extreme: return 3.5
+        case .expert:  return 5.0 // 🟢 HIER NEU: Höchster XP Multiplikator für Expert
         }
     }
 
@@ -28,6 +29,7 @@ extension Difficulty {
         case .medium:  return "Partly steep terrain, simple climbing sections"
         case .hard:    return "Exposed sections, via ferrata passages"
         case .extreme: return "High alpine terrain, glacier equipment required"
+        case .expert:  return "Professional mountaineering skills and extreme climbing required" // 🟢 HIER NEU
         }
     }
 }

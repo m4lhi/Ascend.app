@@ -1,12 +1,15 @@
 import Foundation
 import SwiftUI
 
+// =========================================
 // === 1. ENUMS ===
+// =========================================
 enum Difficulty: String, CaseIterable, Codable {
     case easy = "Easy"
     case medium = "Medium"
     case hard = "Hard"
     case extreme = "Extreme"
+    case expert = "Expert" // 🟢 HIER NEU HINZUGEFÜGT, um den Supabase-Crash zu fixen!
 
     var color: Color {
         switch self {
@@ -14,11 +17,14 @@ enum Difficulty: String, CaseIterable, Codable {
         case .medium:  return .blue
         case .hard:    return .orange
         case .extreme: return .red
+        case .expert:  return .purple // Neue Farbe für Expert-Berge
         }
     }
 }
 
+// =========================================
 // === 2. MOUNTAIN MODEL ===
+// =========================================
 struct Mountain: Identifiable, Hashable, Codable {
     var id: UUID
     let name: String
@@ -95,7 +101,9 @@ struct Mountain: Identifiable, Hashable, Codable {
     }
 }
 
+// =========================================
 // === PRESTIGE MODEL ===
+// =========================================
 struct UserMountainPrestige: Identifiable {
     let id = UUID()
     let mountain: Mountain
@@ -162,7 +170,9 @@ enum PrestigeTier {
     }
 }
 
+// =========================================
 // === SAVED ROUTE MODEL ===
+// =========================================
 struct SavedRoute: Identifiable, Codable {
     let id: UUID
     var name: String
@@ -185,31 +195,16 @@ struct SavedRoute: Identifiable, Codable {
     }
 }
 
-// === THE DATABASE (JSON LOADER) ===
+// =========================================
+// === THE DATABASE ===
+// =========================================
 struct MountainDatabase {
-
     static let mockUserPrestige: [UserMountainPrestige] = []
-
-    static let all: [Mountain] = loadMountains()
-
+    
+    // Die Berge werden jetzt asynchron über den MountainManager aus Supabase geladen.
+    static var all: [Mountain] = []
+    
     static var prestigePeaks: [Mountain] {
         all.filter { $0.isPrestigePeak }
-    }
-
-    private static func loadMountains() -> [Mountain] {
-        guard let url = Bundle.main.url(forResource: "mountains", withExtension: "json"),
-              let data = try? Data(contentsOf: url) else {
-            print("❌ mountains.json not found in bundle!")
-            return []
-        }
-
-        do {
-            let decoder = JSONDecoder()
-            let mountains = try decoder.decode([Mountain].self, from: data)
-            return mountains
-        } catch {
-            print("❌ JSON decode error: \(error)")
-            return []
-        }
     }
 }
