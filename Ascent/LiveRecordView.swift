@@ -271,7 +271,6 @@ struct LiveRecordView: View {
     @State private var blinkToggle: Bool = false
     let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
-    // 🟢 FIX 1: Kamera auf .automatic gesetzt, damit sie das Bounding-Rect akzeptiert
     @State private var cameraPosition: MapCameraPosition = .automatic
 
     @State private var showSaveForm = false
@@ -279,7 +278,8 @@ struct LiveRecordView: View {
     @State private var panelCollapsed = false
     @State private var sliderResetToken = UUID()
     
-    @State private var plannedRoute: MKPolyline? = nil
+    // 🟢 FIX: Array of Coordinates statt MKPolyline ist viel robuster in SwiftUI!
+    @State private var plannedRoute: [CLLocationCoordinate2D]? = nil
     @State private var hasCalculatedRoute = false
     @State private var isTooFarForRoute = false
 
@@ -314,10 +314,13 @@ struct LiveRecordView: View {
             Map(position: $cameraPosition) {
                 UserAnnotation()
                 
-                if let route = plannedRoute {
-                    MapPolyline(route)
+                // 🟢 1. OSRM WANDERROUTE (BLAU GESTRICHELT)
+                if let routeCoords = plannedRoute, !routeCoords.isEmpty {
+                    MapPolyline(coordinates: routeCoords)
                         .stroke(.cyan.opacity(0.8), style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round, dash: [8, 8]))
-                } else if let target = targetMountain, let lat = target.latitude, let lon = target.longitude, let userLoc = gpsManager.currentLocation, !isRunning && !isTooFarForRoute {
+                }
+                // 🟢 2. FALLBACK LUFTLINIE (Wenn OSRM keinen Weg findet oder lädt)
+                else if let target = targetMountain, let lat = target.latitude, let lon = target.longitude, let userLoc = gpsManager.currentLocation, !isRunning && !isTooFarForRoute {
                     MapPolyline(coordinates: [userLoc.coordinate, CLLocationCoordinate2D(latitude: lat, longitude: lon)])
                         .stroke(.white.opacity(0.6), style: StrokeStyle(lineWidth: 3, dash: [5, 5]))
                 }
@@ -405,74 +408,74 @@ struct LiveRecordView: View {
         }
     }
 
-    // 🟢 NEU: ECHTES WANDER-ROUTING ÜBER OPENSTREETMAP (OSRM)
-        private func calculateRouteToMountain(from userLoc: CLLocationCoordinate2D, to dest: CLLocationCoordinate2D) {
-            let userCLLoc = CLLocation(latitude: userLoc.latitude, longitude: userLoc.longitude)
-            let destCLLoc = CLLocation(latitude: dest.latitude, longitude: dest.longitude)
+    // 🟢 NEU: ECHTES WANDER-ROUTING ÜBER OPENSTREETMAP (OSRM FOSSGIS SERVER)
+    private func calculateRouteToMountain(from userLoc: CLLocationCoordinate2D, to dest: CLLocationCoordinate2D) {
+        let userCLLoc = CLLocation(latitude: userLoc.latitude, longitude: userLoc.longitude)
+        let destCLLoc = CLLocation(latitude: dest.latitude, longitude: dest.longitude)
 
-            // Wenn User > 50km entfernt ist: Route nicht berechnen
-            if userCLLoc.distance(from: destCLLoc) > 50000 {
-                withAnimation { self.isTooFarForRoute = true }
-                return
-            }
+        if userCLLoc.distance(from: destCLLoc) > 50000 {
+            withAnimation { self.isTooFarForRoute = true }
+            return
+        }
 
-            // Wir nutzen die kostenlose Demo-API von OSRM (Open Source Routing Machine) für Fußgänger
-            // WICHTIG: Koordinaten müssen bei OSRM als "Longitude,Latitude" übergeben werden!
-            let urlString = "https://router.project-osrm.org/route/v1/foot/\(userLoc.longitude),\(userLoc.latitude);\(dest.longitude),\(dest.latitude)?geometries=geojson"
-            
-            guard let url = URL(string: urlString) else { return }
+        // Wir nutzen den deutschen OSM-Server, der explizit Fußgänger (Wanderer) unterstützt!
+        let urlString = "https://routing.openstreetmap.de/routed-foot/route/v1/driving/\(userLoc.longitude),\(userLoc.latitude);\(dest.longitude),\(dest.latitude)?geometries=geojson"
+        
+        guard let url = URL(string: urlString) else { return }
 
-            Task {
-                do {
-                    // Lade die Wander-Route aus dem Internet herunter
-                    let (data, _) = try await URLSession.shared.data(from: url)
-                    let response = try JSONDecoder().decode(OSRMResponse.self, from: data)
+        Task {
+            do {
+                let (data, _) = try await URLSession.shared.data(from: url)
+                let osrmResponse = try JSONDecoder().decode(OSRMResponse.self, from: data)
+                
+                if let firstRoute = osrmResponse.routes.first {
+                    var trailCoordinates: [CLLocationCoordinate2D] = []
                     
-                    if let firstRoute = response.routes.first {
-                        // Konvertiere die JSON-Koordinaten in Apple Maps Koordinaten
-                        var trailCoordinates: [CLLocationCoordinate2D] = []
-                        for coord in firstRoute.geometry.coordinates {
-                            if coord.count == 2 {
-                                // OSRM liefert [Lon, Lat], Apple braucht [Lat, Lon]
-                                trailCoordinates.append(CLLocationCoordinate2D(latitude: coord[1], longitude: coord[0]))
-                            }
-                        }
-                        
-                        // Erstelle die Linie für die Karte
-                        let polyline = MKPolyline(coordinates: trailCoordinates, count: trailCoordinates.count)
-                        
-                        await MainActor.run {
-                            withAnimation(.easeInOut(duration: 2.0)) {
-                                self.plannedRoute = polyline
-                                
-                                // Zoome die Kamera so heraus, dass der ganze Wanderweg sichtbar ist
-                                if !self.isRunning {
-                                    self.cameraPosition = .rect(padMapRect(polyline.boundingMapRect))
-                                }
-                            }
+                    // OSRM liefert Koordinaten als [Longitude, Latitude] -> wir müssen sie für Apple Maps umdrehen!
+                    for coord in firstRoute.geometry.coordinates {
+                        if coord.count == 2 {
+                            trailCoordinates.append(CLLocationCoordinate2D(latitude: coord[1], longitude: coord[0]))
                         }
                     }
-                } catch {
-                    // FALLBACK: Falls das Internet weg ist oder selbst OSM keinen Weg findet, zeige die Luftlinie
+                    
+                    if trailCoordinates.isEmpty { throw URLError(.badServerResponse) }
+                    
+                    let polyline = MKPolyline(coordinates: trailCoordinates, count: trailCoordinates.count)
+                    let rect = polyline.boundingMapRect
+                    
                     await MainActor.run {
                         withAnimation(.easeInOut(duration: 2.0)) {
+                            self.plannedRoute = trailCoordinates
+                            
+                            // Zoome die Kamera so heraus, dass der ganze Wanderweg sichtbar ist
                             if !self.isRunning {
-                                let p1 = MKMapPoint(userLoc)
-                                let p2 = MKMapPoint(dest)
-                                let rect = MKMapRect(
-                                    x: min(p1.x, p2.x), y: min(p1.y, p2.y),
-                                    width: abs(p1.x - p2.x), height: abs(p1.y - p2.y)
-                                )
-                                self.cameraPosition = .rect(padMapRect(rect))
+                                self.cameraPosition = .rect(self.padMapRect(rect))
                             }
                         }
                     }
-                    print("❌ OSRM Routing Error: \(error.localizedDescription)")
+                }
+            } catch {
+                print("❌ OSRM Routing Error: \(error.localizedDescription)")
+                
+                // FALLBACK: Wenn kein Weg gefunden wurde, zoome auf die Luftlinie
+                await MainActor.run {
+                    withAnimation(.easeInOut(duration: 2.0)) {
+                        self.plannedRoute = nil
+                        if !self.isRunning {
+                            let p1 = MKMapPoint(userLoc)
+                            let p2 = MKMapPoint(dest)
+                            let rect = MKMapRect(
+                                x: min(p1.x, p2.x), y: min(p1.y, p2.y),
+                                width: abs(p1.x - p2.x), height: abs(p1.y - p2.y)
+                            )
+                            self.cameraPosition = .rect(self.padMapRect(rect))
+                        }
+                    }
                 }
             }
         }
+    }
     
-    // Hilfsfunktion: Gibt der Kamera-Ansicht einen kleinen Rand, damit nichts abgeschnitten wird
     private func padMapRect(_ rect: MKMapRect) -> MKMapRect {
         return MKMapRect(
             x: rect.origin.x - rect.size.width * 0.3,
@@ -759,7 +762,6 @@ struct LiveRecordView: View {
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         isRunning = true
         
-        // 🟢 Kamera zoomt sanft auf dich heran, wenn du startest
         if let userLoc = gpsManager.currentLocation {
             withAnimation(.easeInOut(duration: 1.0)) {
                 cameraPosition = .camera(MapCamera(centerCoordinate: userLoc.coordinate, distance: 3000))
@@ -1040,6 +1042,21 @@ struct MissionSaveView: View {
 }
 
 // =========================================
+// === OSRM WANDER-ROUTING API MODELLE ===
+// =========================================
+struct OSRMResponse: Codable {
+    let routes: [OSRMRoute]
+}
+
+struct OSRMRoute: Codable {
+    let geometry: OSRMGeometry
+}
+
+struct OSRMGeometry: Codable {
+    let coordinates: [[Double]]
+}
+
+// =========================================
 // === ELEVATION PROFILE CHART ===
 // =========================================
 
@@ -1099,18 +1116,4 @@ struct ElevationProfileChart: View {
             plotArea.background(Color.clear)
         }
     }
-}
-// =========================================
-// === OSRM WANDER-ROUTING API MODELLE ===
-// =========================================
-struct OSRMResponse: Codable {
-    let routes: [OSRMRoute]
-}
-
-struct OSRMRoute: Codable {
-    let geometry: OSRMGeometry
-}
-
-struct OSRMGeometry: Codable {
-    let coordinates: [[Double]] // Kommt als [Longitude, Latitude]
 }
