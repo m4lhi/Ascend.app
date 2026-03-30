@@ -207,37 +207,76 @@ struct GemView: View {
     var color: Color
     var isObsidian: Bool
     
+    @State private var phase: Double = 0.0
+    
     var body: some View {
         ZStack {
-            // Shadow / Glow
+            // Shadow / Glow with breathing effect
             if isActive {
                 HexagonShape()
                     .fill(isObsidian ? Color.purple : color)
-                    .blur(radius: 12)
-                    .opacity(0.5)
+                    .blur(radius: 12 + (sin(phase) * 4)) // Breath glow
+                    .opacity(0.8)
+            } else {
+                HexagonShape()
+                    .fill(color)
+                    .blur(radius: 8)
+                    .opacity(0.2)
             }
             
             HexagonShape()
-                .fill(isActive ? color : Color.white.opacity(0.1))
+                .fill(isActive ? color : color.opacity(0.15))
                 .overlay(
                     HexagonShape()
-                        .stroke(isActive ? Color.white.opacity(0.4) : Color.white.opacity(0.05), lineWidth: 1)
+                        .stroke(isActive ? Color.white.opacity(0.6) : color.opacity(0.3), lineWidth: isActive ? 2 : 1)
                 )
             
-            // Inner 3D highlights
+            // Inner 3D highlights (Animated gradient shift)
+            HexagonShape()
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(isActive ? (0.4 + (sin(phase) * 0.2)) : 0.1),
+                            Color.clear,
+                            Color.black.opacity(isActive ? 0.3 : 0.7)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .blendMode(.overlay)
+                
+            // Extra sharp bevel line
             if isActive {
                 HexagonShape()
-                    .fill(
+                    .stroke(
                         LinearGradient(
-                            colors: [Color.white.opacity(0.4), Color.clear, Color.black.opacity(0.3)],
-                            startPoint: .topLeading,
+                            colors: [.white, .clear, .black],
+                            startPoint: UnitPoint(x: 0.5 + cos(phase)*0.5, y: 0),
                             endPoint: .bottomTrailing
-                        )
+                        ),
+                        lineWidth: 1.5
                     )
-                    .blendMode(.overlay)
+                    .blendMode(.plusLighter)
+            }
+                
+            if !isActive {
+                HexagonShape()
+                    .fill(Color.black.opacity(0.4))
             }
         }
         .frame(width: 50, height: 50)
+        .rotation3DEffect(
+            .degrees(isActive ? (sin(phase) * 10) : 0),
+            axis: (x: 1.0, y: 0.5, z: 0.0)
+        )
+        .onAppear {
+            if isActive {
+                withAnimation(.easeInOut(duration: 3.0).repeatForever(autoreverses: true)) {
+                    phase = .pi
+                }
+            }
+        }
     }
 }
 
