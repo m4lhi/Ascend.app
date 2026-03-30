@@ -20,6 +20,18 @@ struct CloudProfile: Codable, Identifiable {
     var region: String?
 }
 
+struct AscendProfile: Codable {
+    let user_id: UUID
+    var ascend_xp: Double
+    var ascend_level: Int
+    var ascend_tier: String
+    var ascend_subtier: Int
+    var streak_days: Int
+    var last_activity_date: Date?
+    var prestige_mountains_completed: Int
+}
+
+
 // HIER IST DAS ABZEICHEN, DAS XCODE VERMISST HAT:
 struct ConquestBadge: Identifiable {
     let id = UUID()
@@ -142,6 +154,10 @@ class AppState: ObservableObject {
     @Published var currentXP: Int = 0
     @Published var currentLevel: Int = 1
     
+    // Ascend Progress
+    @Published var ascendProfile: AscendProfile? = nil
+
+    
     // Feeds & Leaderboards
     @Published var recentTours: [Tour] = []
     @Published var friendsLeaderboard: [CloudProfile] = []
@@ -198,6 +214,7 @@ class AppState: ObservableObject {
                 
                 fetchLeaderboard()
                 fetchFeed()
+                fetchAscendProfile()
             } catch {
                 if self.userHandle == "climber" {
                     self.userHandle = "climber_\(Int.random(in: 1000...9999))"
@@ -216,6 +233,43 @@ class AppState: ObservableObject {
                 try await supabase.from("profiles").upsert(updatedProfile).execute()
                 fetchLeaderboard()
             } catch { print("❌ Fehler beim Speichern: \(error)") }
+        }
+    }
+    
+    // Lädt das Ascend Profil (Level, Tier, XP)
+    func fetchAscendProfile() {
+        Task {
+            do {
+                let session = try await supabase.auth.session
+                let userId = session.user.id
+                
+                let result: AscendProfile = try await supabase
+                    .from("ascend_profiles")
+                    .select()
+                    .eq("user_id", value: userId)
+                    .single()
+                    .execute()
+                    .value
+                
+                await MainActor.run {
+                    self.ascendProfile = result
+                }
+            } catch {
+                print("⚠️ Fetch Ascend Profile: \(error)")
+                // Create dummy or insert if not exists
+                await MainActor.run {
+                    self.ascendProfile = AscendProfile(
+                        user_id: UUID(),
+                        ascend_xp: 0,
+                        ascend_level: 1,
+                        ascend_tier: "Bronze",
+                        ascend_subtier: 1,
+                        streak_days: 0,
+                        last_activity_date: nil,
+                        prestige_mountains_completed: 0
+                    )
+                }
+            }
         }
     }
     

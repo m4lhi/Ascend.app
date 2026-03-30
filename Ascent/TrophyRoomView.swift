@@ -56,6 +56,8 @@ struct TrophyRoomView: View {
     @State private var showEditProfile = false
     @State private var progressAnimated = false
     @State private var showSettings = false
+    @State private var showAscendRank = false
+
     
     private var requiredXP: Int { appState.xpNeededForNextLevel }
     private var xpProgress: Double {
@@ -136,28 +138,41 @@ struct TrophyRoomView: View {
                     .padding(.top, 10)
                     
                     // === 2. LEVEL & XP FORTSCHRITT ===
-                    VStack(alignment: .leading, spacing: 12) {
-                        HStack {
-                            Text("Alpinist Rank").font(.headline).foregroundColor(.white)
-                            Spacer()
-                            Text("Level \(appState.currentLevel)").font(.headline).foregroundColor(Color(red: 0.85, green: 0.65, blue: 0.13))
-                        }
-                        
-                        GeometryReader { geo in
-                            ZStack(alignment: .leading) {
-                                Capsule().fill(Color.white.opacity(0.1)).frame(height: 8)
-                                Capsule().fill(Color(red: 0.85, green: 0.65, blue: 0.13))
-                                    .frame(width: progressAnimated ? geo.size.width * xpProgress : 0, height: 8)
+                    Button(action: { showAscendRank = true }) {
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack {
+                                Text("Alpinist Rank").font(.headline).foregroundColor(.white)
+                                Spacer()
+                                if let profile = appState.ascendProfile {
+                                    Text("\(profile.ascend_tier) \(profile.ascend_subtier)").font(.headline).foregroundColor(Color(red: 0.85, green: 0.65, blue: 0.13))
+                                } else {
+                                    Text("Level \(appState.currentLevel)").font(.headline).foregroundColor(Color(red: 0.85, green: 0.65, blue: 0.13))
+                                }
+                                Image(systemName: "chevron.right").font(.caption).foregroundColor(.gray)
                             }
-                        }.frame(height: 8)
-                        
-                        HStack {
-                            Text("\(appState.currentLevelProgressXP) XP").font(.caption).foregroundColor(.gray)
-                            Spacer()
-                            Text("\(requiredXP) XP").font(.caption).foregroundColor(.gray)
+                            
+                            GeometryReader { geo in
+                                ZStack(alignment: .leading) {
+                                    Capsule().fill(Color.white.opacity(0.1)).frame(height: 8)
+                                    Capsule().fill(Color(red: 0.85, green: 0.65, blue: 0.13))
+                                        .frame(width: progressAnimated ? geo.size.width * xpProgress : 0, height: 8)
+                                }
+                            }.frame(height: 8)
+                            
+                            HStack {
+                                if let profile = appState.ascendProfile {
+                                    Text("\(Int(profile.ascend_xp)) XP").font(.caption).foregroundColor(.gray)
+                                } else {
+                                    Text("\(appState.currentLevelProgressXP) XP").font(.caption).foregroundColor(.gray)
+                                }
+                                Spacer()
+                                Text("\(requiredXP) Total XP").font(.caption).foregroundColor(.gray)
+                            }
                         }
+                        .padding(20).background(Color(red: 0.12, green: 0.12, blue: 0.15)).cornerRadius(20).padding(.horizontal, 20)
                     }
-                    .padding(20).background(Color(red: 0.12, green: 0.12, blue: 0.15)).cornerRadius(20).padding(.horizontal, 20)
+                    .buttonStyle(.plain)
+
                     
                     // === 3. ABZEICHEN ===
                     VStack(alignment: .leading, spacing: 15) {
@@ -177,8 +192,10 @@ struct TrophyRoomView: View {
         }
         .sheet(isPresented: $showEditProfile) { EditAccountView() }
         .sheet(isPresented: $showSettings) { SettingsView() }
+        .sheet(isPresented: $showAscendRank) { AscendProgressView() }
     }
 }
+
 
 // Ansicht für ein einzelnes Abzeichen
 struct BadgeCard: View {
