@@ -2,9 +2,15 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>UIBackgroundModes</key>
-	<array>
-		<string>location</string>
-	</array>
+    <key>UIBackgroundModes</key>
+    <array>
+        <string>location</string>
+    </array>
+    <key>NSLocationWhenInUseUsageDescription</key>
+    <string>Ascend needs your location to track your route, distance, and speed during missions.</string>
+    <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+    <string>Ascend needs background location access to keep recording your route even when your phone is locked in your pocket.</string>
+    <key>NSMotionUsageDescription</key>
+    <string>Ascend uses your iPhone's barometer and motion sensors to accurately calculate your exact elevation gain.</string>
 </dict>
 </plist>
