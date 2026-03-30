@@ -23,8 +23,6 @@ struct PointOfInterest: Identifiable, Codable {
     let description: String?
 }
 
-// NearbyRoute bleibt als Datenmodell erhalten, falls wir es später brauchen,
-// wird aber nicht mehr automatisch mit Fake-Daten befüllt.
 struct NearbyRoute: Identifiable {
     let id = UUID()
     let name: String
@@ -61,13 +59,15 @@ class MountainManager: ObservableObject {
             
             let visiblePeaks: [Mountain]
             
-            // LIMITS ERHÖHT: Damit in den extrem dichten deutschen Alpen keine Berge verschluckt werden
+            // 🟢 LIMITS MASSIV ERHÖHT:
+            // Damit bei einem Rauszoomen über Europa nicht nur die 4000er in den Alpen geladen werden,
+            // sondern die Liste bis zu den ~2000ern in Deutschland, Österreich & Co. reicht!
             if zoomLevel == .far {
-                visiblePeaks = try await baseQuery.limit(100).execute().value
+                visiblePeaks = try await baseQuery.limit(800).execute().value
             } else if zoomLevel == .medium {
-                visiblePeaks = try await baseQuery.limit(300).execute().value
+                visiblePeaks = try await baseQuery.limit(1500).execute().value
             } else {
-                visiblePeaks = try await baseQuery.limit(600).execute().value
+                visiblePeaks = try await baseQuery.limit(2000).execute().value
             }
             
             await MainActor.run {
@@ -78,7 +78,6 @@ class MountainManager: ObservableObject {
         }
     }
 
-    // Server-side search
     func searchMountains(query: String, difficulty: Difficulty?) async {
         do {
             let results: [Mountain]
@@ -151,8 +150,6 @@ class MountainManager: ObservableObject {
         nearbyPOIs = []
         nearbyRoutes = []
     }
-
-    // MARK: - Saved Routes (Supabase CRUD)
 
     func saveRoute(_ route: SavedRoute) async {
         do {

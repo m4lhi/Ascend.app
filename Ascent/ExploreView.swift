@@ -25,20 +25,27 @@ class ExploreLocationManager: NSObject, ObservableObject, CLLocationManagerDeleg
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let location = locations.last else { return }
         userLocation = location
-        manager.stopUpdatingLocation()
     }
 
     func locationManager(_ manager: CLLocationManager, didChangeAuthorization status: CLAuthorizationStatus) {
         authorizationStatus = status
     }
 
-    func requestLocation() {
-        manager.requestLocation()
-        manager.startUpdatingLocation()
+    // 🟢 FIX: Sicheres Abfragen der Location, ohne dass die App abstürzt
+    func requestLocationSafely() {
+        if manager.authorizationStatus == .notDetermined {
+            manager.requestWhenInUseAuthorization()
+        } else if manager.authorizationStatus == .authorizedWhenInUse || manager.authorizationStatus == .authorizedAlways {
+            manager.requestLocation()
+        }
+    }
+
+    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        print("⚠️ Location error: \(error.localizedDescription)")
     }
 }
 
-// MARK: - Map Layer Type (Vereinfacht)
+// MARK: - Map Layer Type
 enum MapLayerType: String, CaseIterable, Identifiable {
     case standard = "Standard"
     case satellite = "Satellite"
@@ -68,51 +75,40 @@ struct ExploreView: View {
     @StateObject private var mountainManager = MountainManager()
     @StateObject private var locationManager = ExploreLocationManager()
 
-    // Map state
     @State private var cameraPosition: MapCameraPosition = .automatic
     @State private var selectedMarkerTag: UUID? = nil
     @State private var selectedMountain: Mountain? = nil
-    @State private var showLocationDeniedAlert = false
-    // Search state
+
     @FocusState private var isSearchFocused: Bool
     @State private var isSearchActive = false
     @State private var searchText = ""
     @State private var searchTask: Task<Void, Never>? = nil
 
-    // Filter state
     @State private var selectedDifficulty: Difficulty? = nil
     @State private var showRoutesFilter = false
 
-    // Nearby state
     @State private var showNearby = false
     @State private var nearbyRadiusKm: Double = 25
 
-    // Map layers
     @State private var currentMapLayer: MapLayerType = .satellite
     @State private var showLayersSheet = false
 
-    // Route creation mode
+    @State private var showLocationDeniedAlert = false
     @State private var isRouteCreationMode = false
     @State private var routeMountains: [Mountain] = []
     @State private var routeName = ""
 
-    // Discovery sheet
     @State private var discoverySheetExpanded = false
 
-    // Zoom-based marker visibility
     @State private var currentZoomLevel: ZoomLevel = .medium
     enum ZoomLevel { case far, medium, close }
 
-    // Tracker
     @State private var showTracker = false
     @State private var mountainToTrack: Mountain? = nil
-
-    // Selected route to show on map
     @State private var selectedRouteToShow: SavedRoute? = nil
 
     private let gold = Color(red: 0.85, green: 0.65, blue: 0.13)
 
-    // MARK: - Computed Properties
     var mapMountains: [Mountain] {
         var source = showNearby ? mountainManager.nearbyMountains : mountainManager.mountains
         if let diff = selectedDifficulty {
@@ -121,21 +117,19 @@ struct ExploreView: View {
         return source.filter { $0.latitude != nil && $0.longitude != nil }
     }
 
+    // 🟢 ERWEITERTE SICHTBARKEIT AUF DER KARTE
     var visibleMountains: [Mountain] {
         switch currentZoomLevel {
-        case .far:    return Array(mapMountains.filter { $0.isPrestigePeak }.prefix(50))
-        case .medium: return Array(mapMountains.prefix(150))
-        case .close:  return Array(mapMountains.prefix(400))
+        case .far:    return Array(mapMountains.prefix(250))
+        case .medium: return Array(mapMountains.prefix(500))
+        case .close:  return Array(mapMountains.prefix(1500))
         }
     }
 
-    // MARK: - Body
     var body: some View {
         ZStack(alignment: .top) {
-            // === 1. MAP ===
             mapLayer
 
-            // === 2. TOP GRADIENT ===
             LinearGradient(
                 colors: [.black.opacity(0.8), .black.opacity(0.3), .clear],
                 startPoint: .top, endPoint: .bottom
@@ -144,7 +138,6 @@ struct ExploreView: View {
             .ignoresSafeArea()
             .allowsHitTesting(false)
 
-            // === 3. TOP CONTROLS ===
             VStack(spacing: 8) {
                 searchBar
                 toolbarRow
@@ -158,7 +151,6 @@ struct ExploreView: View {
             .padding(.horizontal, 16)
             .padding(.top, 10)
 
-            // === 4. SCHWEBENDE KARTEN-BUTTONS ===
             VStack {
                 Spacer()
                 HStack {
@@ -172,7 +164,6 @@ struct ExploreView: View {
                 Spacer()
             }
 
-            // === 5. BOTTOM SHEETS (Abgesetzt über der Tab-Bar) ===
             VStack {
                 Spacer()
                 if isRouteCreationMode {
@@ -189,7 +180,6 @@ struct ExploreView: View {
             .animation(.spring(response: 0.4, dampingFraction: 0.8), value: isRouteCreationMode)
             .animation(.spring(response: 0.4, dampingFraction: 0.8), value: selectedMountain?.id)
         }
-        // FIX: Verhindert, dass die Tab-Bar von der Tastatur hochgedrückt wird!
         .ignoresSafeArea(.keyboard, edges: .bottom)
         .task {
             await mountainManager.fetchSavedRoutes()
@@ -236,9 +226,13 @@ struct ExploreView: View {
         .sheet(isPresented: $showLayersSheet) {
             layersSheet.presentationDetents([.medium]).presentationDragIndicator(.visible)
         }
+        .alert("Location Access Denied", isPresented: $showLocationDeniedAlert) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text("Please enable location services for Ascend in your iPhone Settings to use this feature.")
+        }
     }
 
-    // MARK: - Map Layer
     @ViewBuilder
     var mapLayer: some View {
         Map(position: $cameraPosition, selection: $selectedMarkerTag) {
@@ -279,7 +273,6 @@ struct ExploreView: View {
                 MapPolyline(coordinates: coords).stroke(gold, lineWidth: 3)
             }
             
-            // Route anzeigen, wenn aus "My Routes" ausgewählt
             if let route = selectedRouteToShow {
                 let routeMountainsList = route.mountainIds.compactMap { id in mountainManager.mountains.first { $0.id == id } }
                 let coords = routeMountainsList.compactMap { m -> CLLocationCoordinate2D? in
@@ -302,7 +295,6 @@ struct ExploreView: View {
             
             withAnimation(.easeInOut(duration: 0.2)) { currentZoomLevel = newZoom }
             
-            // BUFFER ERHÖHT (2.0): Damit beim Scrollen schneller neue Berge aus der DB geladen werden
             let latDelta = region.span.latitudeDelta * 2.0
             let lonDelta = region.span.longitudeDelta * 2.0
             let minLat = region.center.latitude - (latDelta / 2)
@@ -325,7 +317,6 @@ struct ExploreView: View {
         }
     }
 
-    // MARK: - Search Bar
     @ViewBuilder
     var searchBar: some View {
         HStack(spacing: 10) {
@@ -349,7 +340,6 @@ struct ExploreView: View {
         .clipShape(RoundedRectangle(cornerRadius: 14)).overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.white.opacity(0.12), lineWidth: 0.5))
     }
 
-    // MARK: - Top Toolbar
     @ViewBuilder
     var toolbarRow: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -386,7 +376,6 @@ struct ExploreView: View {
         }
     }
 
-    // MARK: - Filter Chips
     @ViewBuilder
     var filterChips: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -407,7 +396,6 @@ struct ExploreView: View {
         }
     }
 
-    // MARK: - Search Suggestions
     @ViewBuilder
     var searchSuggestionsView: some View {
         let suggestions = Array(visibleMountains.prefix(10))
@@ -449,7 +437,6 @@ struct ExploreView: View {
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.white.opacity(0.1), lineWidth: 0.5))
     }
 
-    // MARK: - Layers Sheet
     @ViewBuilder
     var layersSheet: some View {
         NavigationView {
@@ -484,7 +471,6 @@ struct ExploreView: View {
         }
     }
 
-    // MARK: - Route Creation Panel
     @ViewBuilder
     var routeCreationPanel: some View {
         VStack(spacing: 12) {
@@ -512,8 +498,6 @@ struct ExploreView: View {
                 }
             }
 
-            // Distanz/Höhe/Dauer wurden entfernt, um Verwirrung zu vermeiden!
-            
             HStack(spacing: 12) {
                 Button { withAnimation(.spring()) { isRouteCreationMode = false; routeMountains = []; routeName = "" } } label: {
                     Text("Cancel").font(.system(size: 14, weight: .bold)).foregroundColor(.white).frame(maxWidth: .infinity).padding(.vertical, 12).background(Color.white.opacity(0.15)).cornerRadius(12)
@@ -526,10 +510,9 @@ struct ExploreView: View {
         .padding(16).background(.ultraThinMaterial).clipShape(RoundedRectangle(cornerRadius: 24))
         .overlay(RoundedRectangle(cornerRadius: 24).stroke(gold.opacity(0.3), lineWidth: 0.5))
         .padding(.horizontal, 16)
-        .padding(.bottom, 120) // FIX: Viel Platz zur Tab-Bar
+        .padding(.bottom, 120)
     }
 
-    // MARK: - Discovery Sheet
     @ViewBuilder
     var discoverySheet: some View {
         let nearbyCards: [Mountain] = {
@@ -564,7 +547,6 @@ struct ExploreView: View {
                         }
                     }
 
-                    // Die Fake "Nearby Routes" wurden komplett entfernt. Nur noch User-Routen!
                     if (discoverySheetExpanded || showRoutesFilter || nearbyCards.isEmpty) {
                         discoverySectionHeader(title: "My Routes", icon: "bookmark.fill")
                         if savedRoutes.isEmpty {
@@ -594,7 +576,7 @@ struct ExploreView: View {
         .clipShape(RoundedRectangle(cornerRadius: 24))
         .shadow(color: .black.opacity(0.3), radius: 15, y: 5)
         .padding(.horizontal, 16)
-        .padding(.bottom, 120) // FIX: Viel Platz zur Tab-Bar
+        .padding(.bottom, 120)
     }
 
     @ViewBuilder
@@ -609,7 +591,6 @@ struct ExploreView: View {
         }.padding(.horizontal, 16)
     }
 
-    // MARK: - Detail Card (SCHWARZER BLOCK GEFIXT & ANIMIERT)
     @ViewBuilder
     func detailCard(for mountain: Mountain) -> some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -662,10 +643,9 @@ struct ExploreView: View {
         .background(Color(red: 0.1, green: 0.1, blue: 0.12)).clipShape(RoundedRectangle(cornerRadius: 24))
         .shadow(color: .black.opacity(0.4), radius: 15, y: 5)
         .padding(.horizontal, 16)
-        .padding(.bottom, 120) // FIX: Überlappt nicht mehr mit der Tab Bar
+        .padding(.bottom, 120)
     }
 
-    // FIX: Einfacher grauer Hintergrund ersetzt den verbuggten Farbverlauf
     @ViewBuilder
     var imagePlaceholder: some View {
         ZStack {
@@ -674,7 +654,21 @@ struct ExploreView: View {
         }
     }
 
-    // MARK: - Helpers
+    // 🟢 FIX: Crash-sichere Location-Funktion!
+    func flyToMyLocation() {
+        if let loc = locationManager.userLocation {
+            withAnimation(.easeInOut(duration: 1.5)) {
+                cameraPosition = .camera(MapCamera(centerCoordinate: loc.coordinate, distance: 5000, heading: 0, pitch: 0))
+            }
+        } else {
+            // Frag erst sicher nach dem Standort oder warne den User
+            if locationManager.authorizationStatus == .denied || locationManager.authorizationStatus == .restricted {
+                showLocationDeniedAlert = true
+            } else {
+                locationManager.requestLocationSafely()
+            }
+        }
+    }
 
     func difficultyColor(_ diff: Difficulty) -> Color {
         switch diff {
@@ -715,20 +709,8 @@ struct ExploreView: View {
         }
     }
 
-    func flyToMyLocation() {
-        switch locationManager.authorizationStatus {
-        case .denied, .restricted: showLocationDeniedAlert = true
-        default:
-            locationManager.requestLocation()
-            if let loc = locationManager.userLocation {
-                withAnimation(.easeInOut(duration: 1.5)) { cameraPosition = .camera(MapCamera(centerCoordinate: loc.coordinate, distance: 5000, heading: 0, pitch: 0)) }
-            }
-        }
-    }
-
     func saveCreatedRoute() {
         guard routeMountains.count >= 2 else { return }
-        // Da wir Distanz etc aus der UI entfernt haben, setzen wir es hier auf 0 für die Datenbank
         let route = SavedRoute(id: UUID(), name: routeName.isEmpty ? "\(routeMountains[0].region) Route" : routeName, mountainIds: routeMountains.map { $0.id }, createdAt: Date(), totalDistanceKm: 0.0, totalElevationGain: 0, estimatedDurationMinutes: 0, difficulty: routeMountains.map { $0.difficulty.rawValue }.max() ?? "Medium")
         Task { await mountainManager.saveRoute(route) }
         HapticManager.shared.success()
