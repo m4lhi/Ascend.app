@@ -31,7 +31,6 @@ class ExploreLocationManager: NSObject, ObservableObject, CLLocationManagerDeleg
         authorizationStatus = status
     }
 
-    // 🟢 FIX: Sicheres Abfragen der Location, ohne dass die App abstürzt
     func requestLocationSafely() {
         if manager.authorizationStatus == .notDetermined {
             manager.requestWhenInUseAuthorization()
@@ -107,6 +106,9 @@ struct ExploreView: View {
     @State private var mountainToTrack: Mountain? = nil
     @State private var selectedRouteToShow: SavedRoute? = nil
 
+    // 🟢 FIX 1: Verhindert das ständige Zurückspringen zum User-Standort
+    @State private var hasCenteredOnUser = false
+
     private let gold = Color(red: 0.85, green: 0.65, blue: 0.13)
 
     var mapMountains: [Mountain] {
@@ -117,12 +119,14 @@ struct ExploreView: View {
         return source.filter { $0.latitude != nil && $0.longitude != nil }
     }
 
-    // 🟢 ERWEITERTE SICHTBARKEIT AUF DER KARTE
+    // 🟢 FIX 2: Deutlich strengere Limits für die Visualisierung (Rendern)
+    // Die Datenbank lädt im Hintergrund mehr, aber wir zeichnen nur die höchsten,
+    // damit die Karte lesbar bleibt und nicht ruckelt.
     var visibleMountains: [Mountain] {
         switch currentZoomLevel {
-        case .far:    return Array(mapMountains.prefix(250))
-        case .medium: return Array(mapMountains.prefix(500))
-        case .close:  return Array(mapMountains.prefix(1500))
+        case .far:    return Array(mapMountains.prefix(50))  // Nur die 50 dominantesten Berge über ganz z.B. Österreich
+        case .medium: return Array(mapMountains.prefix(150)) // 150 beim normalen Scrollen
+        case .close:  return Array(mapMountains.prefix(400)) // 400, wenn man detailliert in ein Tal zoomt
         }
     }
 
@@ -183,11 +187,16 @@ struct ExploreView: View {
         .ignoresSafeArea(.keyboard, edges: .bottom)
         .task {
             await mountainManager.fetchSavedRoutes()
-            if let loc = locationManager.userLocation { flyToUserArea(location: loc) }
+            if let loc = locationManager.userLocation, !hasCenteredOnUser {
+                flyToUserArea(location: loc)
+                hasCenteredOnUser = true
+            }
         }
         .onChange(of: locationManager.userLocation) { _, newLoc in
-            if let loc = newLoc, selectedMountain == nil, !isSearchActive {
+            // 🟢 ZENTRIERT NUR EINMAL BEIM START!
+            if let loc = newLoc, !hasCenteredOnUser {
                 flyToUserArea(location: loc)
+                hasCenteredOnUser = true
             }
         }
         .onChange(of: isSearchFocused) { _, focused in
@@ -654,14 +663,14 @@ struct ExploreView: View {
         }
     }
 
-    // 🟢 FIX: Crash-sichere Location-Funktion!
+    // 🟢 LOCATION BUTTON FIX
+    // Geht direkt zur Position, wenn die Rechte erteilt sind. Wenn nicht, fragt er an.
     func flyToMyLocation() {
         if let loc = locationManager.userLocation {
             withAnimation(.easeInOut(duration: 1.5)) {
                 cameraPosition = .camera(MapCamera(centerCoordinate: loc.coordinate, distance: 5000, heading: 0, pitch: 0))
             }
         } else {
-            // Frag erst sicher nach dem Standort oder warne den User
             if locationManager.authorizationStatus == .denied || locationManager.authorizationStatus == .restricted {
                 showLocationDeniedAlert = true
             } else {
