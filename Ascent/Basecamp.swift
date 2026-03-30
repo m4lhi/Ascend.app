@@ -14,6 +14,7 @@ struct BasecampView: View {
     @State private var heroBannerIndex = 0
     @State private var showObjectiveDetail = false
     @State private var selectedObjective: (title: String, icon: String, current: Int, target: Int, unit: String)?
+    @State private var showAllActivities = false
 
     private let bannerTimer = Timer.publish(every: 4, on: .main, in: .common).autoconnect()
 
@@ -197,9 +198,23 @@ struct BasecampView: View {
                         }
                     }
 
-                    // === SOCIAL FEED ===
+                    // === SOCIAL FEED (max 3 on dashboard) ===
                     VStack(alignment: .leading, spacing: 15) {
-                        Text("Recent Activity").font(.title3).fontWeight(.bold).foregroundColor(.white)
+                        HStack {
+                            Text("Recent Activity").font(.title3).fontWeight(.bold).foregroundColor(.white)
+                            Spacer()
+                            if appState.recentTours.count > 3 {
+                                Button(action: { showAllActivities = true }) {
+                                    HStack(spacing: 4) {
+                                        Text("Show All")
+                                            .font(.subheadline).fontWeight(.semibold)
+                                        Image(systemName: "chevron.right")
+                                            .font(.system(size: 11, weight: .semibold))
+                                    }
+                                    .foregroundColor(Color(red: 0.85, green: 0.65, blue: 0.13))
+                                }
+                            }
+                        }
 
                         if appState.recentTours.isEmpty && !appState.isLoadingMoreFeed {
                             VStack(spacing: 12) {
@@ -209,18 +224,13 @@ struct BasecampView: View {
                             }
                             .frame(maxWidth: .infinity).padding(30).background(Color(red: 0.12, green: 0.12, blue: 0.15)).cornerRadius(20)
                         } else {
-                            LazyVStack(spacing: 20) {
-                                ForEach(appState.recentTours) { tour in
+                            VStack(spacing: 20) {
+                                ForEach(Array(appState.recentTours.prefix(3))) { tour in
                                     ActivityCardView(tour: tour)
                                         .transition(.opacity.combined(with: .scale(scale: 0.95)))
-                                        .onAppear {
-                                            if tour.id == appState.recentTours.last?.id {
-                                                appState.loadMoreFeed()
-                                            }
-                                        }
                                 }
 
-                                if appState.isLoadingMoreFeed {
+                                if appState.isLoadingMoreFeed && appState.recentTours.count < 3 {
                                     ProgressView().tint(.white).padding()
                                 }
                             }
@@ -246,7 +256,12 @@ struct BasecampView: View {
                     .preferredColorScheme(.dark)
             }
         }
-        .fullScreenCover(isPresented: $showTracker) {
+        .sheet(isPresented: $showAllActivities) {
+            AllActivitiesView().preferredColorScheme(.dark)
+        }
+        .fullScreenCover(isPresented: $showTracker, onDismiss: {
+            appState.fetchFeed()
+        }) {
             LiveRecordView(targetMountain: mountainToTrack)
         }
     }
@@ -574,5 +589,59 @@ struct ObjectiveCard: View {
             .frame(height: 4).padding(.top, 5)
         }
         .padding(16).frame(width: 150, height: 140).background(Color(red: 0.12, green: 0.12, blue: 0.15)).cornerRadius(20)
+    }
+}
+
+// =========================================
+// === All Activities Full-Screen View ===
+// =========================================
+
+struct AllActivitiesView: View {
+    @EnvironmentObject var appState: AppState
+    @Environment(\.dismiss) var dismiss
+
+    var body: some View {
+        NavigationView {
+            ZStack {
+                Color(red: 0.08, green: 0.08, blue: 0.1).ignoresSafeArea()
+
+                ScrollView {
+                    LazyVStack(spacing: 20) {
+                        ForEach(appState.recentTours) { tour in
+                            ActivityCardView(tour: tour)
+                                .onAppear {
+                                    if tour.id == appState.recentTours.last?.id {
+                                        appState.loadMoreFeed()
+                                    }
+                                }
+                        }
+
+                        if appState.isLoadingMoreFeed {
+                            ProgressView().tint(.white).padding()
+                        }
+
+                        if !appState.hasMoreFeed && !appState.recentTours.isEmpty {
+                            Text("You've seen it all!")
+                                .font(.caption).foregroundColor(.gray)
+                                .padding(.top, 10)
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 10)
+                    .padding(.bottom, 40)
+                }
+            }
+            .navigationTitle("All Activities")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(action: { dismiss() }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 24))
+                            .foregroundColor(.gray)
+                    }
+                }
+            }
+        }
     }
 }
