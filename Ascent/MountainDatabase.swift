@@ -1,7 +1,7 @@
 import Foundation
 import SwiftUI
 
-// === 1. ENUMS (Jetzt Codable für JSON) ===
+// === 1. ENUMS ===
 enum Difficulty: String, CaseIterable, Codable {
     case easy = "Easy"
     case medium = "Medium"
@@ -18,7 +18,7 @@ enum Difficulty: String, CaseIterable, Codable {
     }
 }
 
-// === 2. MOUNTAIN MODEL (Jetzt Codable) ===
+// === 2. MOUNTAIN MODEL ===
 struct Mountain: Identifiable, Hashable, Codable {
     var id: UUID
     let name: String
@@ -34,14 +34,24 @@ struct Mountain: Identifiable, Hashable, Codable {
     let latitude: Double?
     let longitude: Double?
 
-    // Sagt der App, welche Felder im JSON stehen
+    // Explicit CodingKeys mapping exactly to Supabase column names (case-sensitive)
     enum CodingKeys: String, CodingKey {
-        case id, name, elevation, difficulty, country, region, description
-        case isPrestigePeak, imageUrl
-        case photographer_name, photographer_link, latitude, longitude
+        case id               = "id"
+        case name             = "name"
+        case elevation        = "elevation"
+        case difficulty       = "difficulty"
+        case country          = "country"
+        case region           = "region"
+        case description      = "description"
+        case isPrestigePeak   = "isPrestigePeak"
+        case imageUrl         = "imageUrl"
+        case photographer_name = "photographer_name"
+        case photographer_link = "photographer_link"
+        case latitude         = "latitude"
+        case longitude        = "longitude"
     }
 
-    // === SAFE DECODE: Fängt NULL-Werte aus Supabase sicher ab ===
+    // Safe decode: catches NULL values from Supabase
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         id                = try c.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
@@ -59,7 +69,7 @@ struct Mountain: Identifiable, Hashable, Codable {
         longitude         = try c.decodeIfPresent(Double.self, forKey: .longitude)
     }
 
-    // Manueller Init für Code-Stellen die Mountain direkt erstellen
+    // Manual init for code that creates Mountain directly
     init(id: UUID = UUID(), name: String, elevation: Int, difficulty: Difficulty,
          country: String, region: String, description: String, isPrestigePeak: Bool,
          imageUrl: String? = nil, photographer_name: String? = nil,
@@ -85,7 +95,7 @@ struct Mountain: Identifiable, Hashable, Codable {
     }
 }
 
-// === PRESTIGE MODEL (Bleibt wie es ist) ===
+// === PRESTIGE MODEL ===
 struct UserMountainPrestige: Identifiable {
     let id = UUID()
     let mountain: Mountain
@@ -97,7 +107,7 @@ struct UserMountainPrestige: Identifiable {
 
 enum PrestigeTier {
     case none, bronze, silver, gold, platinum, elite
-    
+
     var label: String {
         switch self {
         case .none: return "Unranked"
@@ -108,7 +118,7 @@ enum PrestigeTier {
         case .elite: return "Elite"
         }
     }
-    
+
     var icon: String {
         switch self {
         case .none: return "circle.dashed"
@@ -117,7 +127,7 @@ enum PrestigeTier {
         case .elite: return "crown.fill"
         }
     }
-    
+
     var color: Color {
         switch self {
         case .none: return DesignSystem.Colors.tertiaryText
@@ -128,7 +138,7 @@ enum PrestigeTier {
         case .elite: return DesignSystem.Colors.prestige
         }
     }
-    
+
     var minimumScore: Int {
         switch self {
         case .none: return 0
@@ -139,7 +149,7 @@ enum PrestigeTier {
         case .elite: return 100
         }
     }
-    
+
     var next: PrestigeTier? {
         switch self {
         case .none: return .bronze
@@ -152,34 +162,53 @@ enum PrestigeTier {
     }
 }
 
-// =========================================
+// === SAVED ROUTE MODEL ===
+struct SavedRoute: Identifiable, Codable {
+    let id: UUID
+    var name: String
+    var mountainIds: [UUID]
+    var createdAt: Date
+    var totalDistanceKm: Double
+    var totalElevationGain: Int
+    var estimatedDurationMinutes: Int
+    var difficulty: String
+
+    enum CodingKeys: String, CodingKey {
+        case id                       = "id"
+        case name                     = "name"
+        case mountainIds              = "mountain_ids"
+        case createdAt                = "created_at"
+        case totalDistanceKm          = "total_distance_km"
+        case totalElevationGain       = "total_elevation_gain"
+        case estimatedDurationMinutes = "estimated_duration_minutes"
+        case difficulty               = "difficulty"
+    }
+}
+
 // === THE DATABASE (JSON LOADER) ===
-// =========================================
 struct MountainDatabase {
-    
+
     static let mockUserPrestige: [UserMountainPrestige] = []
 
-    // Lädt die Berge jetzt automatisch aus der JSON-Datei!
     static let all: [Mountain] = loadMountains()
 
     static var prestigePeaks: [Mountain] {
         all.filter { $0.isPrestigePeak }
     }
-    
-    // Die magische Lade-Funktion
+
     private static func loadMountains() -> [Mountain] {
         guard let url = Bundle.main.url(forResource: "mountains", withExtension: "json"),
               let data = try? Data(contentsOf: url) else {
-            print("❌ FEHLER: mountains.json nicht gefunden!")
+            print("❌ mountains.json not found in bundle!")
             return []
         }
-        
+
         do {
             let decoder = JSONDecoder()
             let mountains = try decoder.decode([Mountain].self, from: data)
             return mountains
         } catch {
-            print("❌ FEHLER beim Lesen der JSON: \(error)")
+            print("❌ JSON decode error: \(error)")
             return []
         }
     }
