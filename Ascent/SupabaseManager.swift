@@ -46,37 +46,64 @@ class MountainManager: ObservableObject {
         // Wird dynamisch über fetchMountainsInBounds geladen
     }
 
-    // === ANTI-LAG Bounding Box Query ===
-    func fetchMountainsInBounds(minLat: Double, maxLat: Double, minLon: Double, maxLon: Double, zoomLevel: ExploreView.ZoomLevel) async {
-        do {
-            let baseQuery = supabase.from("mountains")
-                .select()
-                .gte("latitude", value: minLat)
-                .lte("latitude", value: maxLat)
-                .gte("longitude", value: minLon)
-                .lte("longitude", value: maxLon)
-                .order("elevation", ascending: false)
-            
-            let visiblePeaks: [Mountain]
-            
-            // 🟢 LIMITS MASSIV ERHÖHT:
-            // Damit bei einem Rauszoomen über Europa nicht nur die 4000er in den Alpen geladen werden,
-            // sondern die Liste bis zu den ~2000ern in Deutschland, Österreich & Co. reicht!
-            if zoomLevel == .far {
-                visiblePeaks = try await baseQuery.limit(800).execute().value
-            } else if zoomLevel == .medium {
-                visiblePeaks = try await baseQuery.limit(1500).execute().value
-            } else {
-                visiblePeaks = try await baseQuery.limit(2000).execute().value
+    // === ANTI-LAG & LEVEL OF DETAIL Query ===
+        func fetchMountainsInBounds(minLat: Double, maxLat: Double, minLon: Double, maxLon: Double, zoomLevel: ExploreView.ZoomLevel) async {
+            do {
+                let baseQuery = supabase.from("mountains")
+                    .select()
+                    .gte("latitude", value: minLat)
+                    .lte("latitude", value: maxLat)
+                    .gte("longitude", value: minLon)
+                    .lte("longitude", value: maxLon)
+                
+                let visiblePeaks: [Mountain]
+                
+                if zoomLevel == .far {
+                    // 1. Lade eine größere Auswahl (100 Berge)
+                    let rawPeaks: [Mountain] = try await baseQuery
+                        .order("isPrestigePeak", ascending: false)
+                        .order("elevation", ascending: false)
+                        .limit(100)
+                        .execute().value
+                    
+                    // 2. 🟢 REGIONAL-FILTER: Behalte nur EINEN Berg pro Region!
+                    var seenRegions = Set<String>()
+                    visiblePeaks = rawPeaks.filter { peak in
+                        // Manche Berge haben evtl. leere Region-Strings, behandle diese als "Unknown"
+                        let regionName = peak.region.isEmpty ? "Unknown" : peak.region
+                        
+                        if seenRegions.contains(regionName) {
+                            return false // Wir haben schon ein Highlight für diese Region -> Überspringen
+                        } else {
+                            seenRegions.insert(regionName)
+                            return true // Das ist der höchste Berg dieser Region -> Behalten
+                        }
+                    }
+                    // 3. Schneide die Liste am Ende auf 15 geografisch verteilte Highlights ab
+                    .prefix(15).map { $0 }
+                    
+                } else if zoomLevel == .medium {
+                    // REGION-ANSICHT: Zeigt die wichtigsten ~60 Berge einer Region
+                    visiblePeaks = try await baseQuery
+                        .order("isPrestigePeak", ascending: false)
+                        .order("elevation", ascending: false)
+                        .limit(60)
+                        .execute().value
+                } else {
+                    // DETAIL-ANSICHT (Nah): Zeigt alle Berge im Umkreis (bis zu 500)
+                    visiblePeaks = try await baseQuery
+                        .order("elevation", ascending: false)
+                        .limit(500)
+                        .execute().value
+                }
+                
+                await MainActor.run {
+                    self.mountains = visiblePeaks
+                }
+            } catch {
+                print("❌ Fehler beim Laden der Bounding Box: \(error)")
             }
-            
-            await MainActor.run {
-                self.mountains = visiblePeaks
-            }
-        } catch {
-            print("❌ Fehler beim Laden der Bounding Box: \(error)")
         }
-    }
 
     func searchMountains(query: String, difficulty: Difficulty?) async {
         do {

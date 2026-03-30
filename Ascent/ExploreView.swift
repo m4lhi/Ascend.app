@@ -106,7 +106,6 @@ struct ExploreView: View {
     @State private var mountainToTrack: Mountain? = nil
     @State private var selectedRouteToShow: SavedRoute? = nil
 
-    // 🟢 FIX 1: Verhindert das ständige Zurückspringen zum User-Standort
     @State private var hasCenteredOnUser = false
 
     private let gold = Color(red: 0.85, green: 0.65, blue: 0.13)
@@ -117,17 +116,6 @@ struct ExploreView: View {
             source = source.filter { $0.difficulty == diff }
         }
         return source.filter { $0.latitude != nil && $0.longitude != nil }
-    }
-
-    // 🟢 FIX 2: Deutlich strengere Limits für die Visualisierung (Rendern)
-    // Die Datenbank lädt im Hintergrund mehr, aber wir zeichnen nur die höchsten,
-    // damit die Karte lesbar bleibt und nicht ruckelt.
-    var visibleMountains: [Mountain] {
-        switch currentZoomLevel {
-        case .far:    return Array(mapMountains.prefix(50))  // Nur die 50 dominantesten Berge über ganz z.B. Österreich
-        case .medium: return Array(mapMountains.prefix(150)) // 150 beim normalen Scrollen
-        case .close:  return Array(mapMountains.prefix(400)) // 400, wenn man detailliert in ein Tal zoomt
-        }
     }
 
     var body: some View {
@@ -193,7 +181,6 @@ struct ExploreView: View {
             }
         }
         .onChange(of: locationManager.userLocation) { _, newLoc in
-            // 🟢 ZENTRIERT NUR EINMAL BEIM START!
             if let loc = newLoc, !hasCenteredOnUser {
                 flyToUserArea(location: loc)
                 hasCenteredOnUser = true
@@ -244,10 +231,11 @@ struct ExploreView: View {
 
     @ViewBuilder
     var mapLayer: some View {
-        Map(position: $cameraPosition, selection: $selectedMarkerTag) {
+        // 🟢 FIX: MapCameraBounds verhindert zu weites Herauszoomen (max. 6000 km)
+        Map(position: $cameraPosition, bounds: MapCameraBounds(maximumDistance: 6_000_000), selection: $selectedMarkerTag) {
             UserAnnotation()
 
-            ForEach(visibleMountains, id: \.id) { mountain in
+            ForEach(mapMountains, id: \.id) { mountain in
                 if isRouteCreationMode {
                     if let idx = routeMountains.firstIndex(where: { $0.id == mountain.id }) {
                         Annotation("\(idx + 1)", coordinate: CLLocationCoordinate2D(latitude: mountain.latitude!, longitude: mountain.longitude!)) {
@@ -268,6 +256,7 @@ struct ExploreView: View {
                         .tint(gold)
                         .tag(mountain.id)
                 } else {
+                    // Zeigt bei den kleinen Bergen den Namen nur beim reinzoomen, sonst nur den Marker
                     Marker(mountain.name, systemImage: "mountain.2.fill", coordinate: CLLocationCoordinate2D(latitude: mountain.latitude!, longitude: mountain.longitude!))
                         .tint(difficultyColor(mountain.difficulty))
                         .tag(mountain.id)
@@ -297,6 +286,7 @@ struct ExploreView: View {
             let region = context.region
             let spanKm = region.span.latitudeDelta * 111
             
+            // Definiere das Zoomlevel basierend auf der Ansicht
             let newZoom: ZoomLevel
             if spanKm > 100 { newZoom = .far }
             else if spanKm > 20 { newZoom = .medium }
@@ -407,10 +397,10 @@ struct ExploreView: View {
 
     @ViewBuilder
     var searchSuggestionsView: some View {
-        let suggestions = Array(visibleMountains.prefix(10))
+        let suggestions = Array(mapMountains.prefix(10))
         VStack(spacing: 0) {
             if !searchText.isEmpty {
-                HStack { Text("\(visibleMountains.count) results").font(.system(size: 11, weight: .semibold)).foregroundColor(.gray); Spacer() }
+                HStack { Text("\(mapMountains.count) results").font(.system(size: 11, weight: .semibold)).foregroundColor(.gray); Spacer() }
                     .padding(.horizontal, 14).padding(.vertical, 8).background(Color.white.opacity(0.03))
             }
 
@@ -525,8 +515,8 @@ struct ExploreView: View {
     @ViewBuilder
     var discoverySheet: some View {
         let nearbyCards: [Mountain] = {
-            guard let loc = locationManager.userLocation else { return Array(visibleMountains.prefix(10)) }
-            return visibleMountains.sorted { m1, m2 in
+            guard let loc = locationManager.userLocation else { return Array(mapMountains.prefix(10)) }
+            return mapMountains.sorted { m1, m2 in
                 let loc1 = CLLocation(latitude: m1.latitude ?? 0, longitude: m1.longitude ?? 0)
                 let loc2 = CLLocation(latitude: m2.latitude ?? 0, longitude: m2.longitude ?? 0)
                 return loc.distance(from: loc1) < loc.distance(from: loc2)
@@ -663,8 +653,6 @@ struct ExploreView: View {
         }
     }
 
-    // 🟢 LOCATION BUTTON FIX
-    // Geht direkt zur Position, wenn die Rechte erteilt sind. Wenn nicht, fragt er an.
     func flyToMyLocation() {
         if let loc = locationManager.userLocation {
             withAnimation(.easeInOut(duration: 1.5)) {
