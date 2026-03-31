@@ -811,30 +811,23 @@ struct AchievementDetailSheet: View {
                     .frame(width: 36, height: 4)
                     .padding(.top, 12)
                 
-                // Badge
+                // Badge (Interactive 3D)
                 ZStack {
-                    Circle()
-                        .fill(
-                            achievement.isUnlocked
-                                ? achievement.category.color.opacity(0.12)
-                                : Color.white.opacity(0.03)
-                        )
-                        .frame(width: 100, height: 100)
-                    
+                    // Background Glow für freigeschaltete Badges
                     if achievement.isUnlocked {
                         Circle()
-                            .fill(achievement.category.color.opacity(0.06))
-                            .frame(width: 130, height: 130)
-                        
-                        Image(systemName: achievement.icon)
-                            .font(.system(size: 44))
-                            .foregroundColor(achievement.category.color)
-                            .shadow(color: achievement.category.color.opacity(0.5), radius: 12)
-                    } else {
-                        Image(systemName: achievement.icon)
-                            .font(.system(size: 44))
-                            .foregroundColor(.gray.opacity(0.2))
+                            .fill(achievement.category.color.opacity(0.08))
+                            .frame(width: 140, height: 140)
+                            .blur(radius: 20)
                     }
+                    
+                    // Die 3D Münze
+                    Achievement3DView(
+                        iconName: achievement.icon,
+                        badgeColor: achievement.category.color,
+                        isUnlocked: achievement.isUnlocked
+                    )
+                    .frame(width: 220, height: 220)
                 }
                 
                 VStack(spacing: 8) {
