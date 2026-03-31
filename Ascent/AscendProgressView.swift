@@ -394,173 +394,269 @@ struct AscendProgressBar: View {
 struct RankRoadmapView: View {
     let currentLevel: Int
     
-    // Grabbing the massive array of achievements generated
-    let nodes = AscendRoadmapData.shared.nodes
+    // Grabbing the massive hierarchical array of tiers generated
+    let tiers = AscendRoadmapData.shared.tiers
+    
+    @State private var selectedTier: RankTier? = nil
     
     var body: some View {
         ScrollViewReader { proxy in
             LazyVStack(spacing: 0) {
-                ForEach(nodes) { node in
-                    AchievementNodeView(node: node, currentLevel: currentLevel)
-                        .id(node.levelReq)
+                ForEach(tiers) { tier in
+                    RankTierNodeView(tier: tier, currentLevel: currentLevel)
+                        .id(tier.startLvl)
+                        .onTapGesture {
+                            selectedTier = tier
+                        }
                 }
             }
             .padding(.top, 10)
             .onAppear {
-                // Auto scroll to current level with slight delay for layout
+                // Auto scroll to current tier
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    let currentOrLastTier = tiers.last(where: { currentLevel >= $0.startLvl })?.startLvl ?? 1
                     withAnimation {
-                        proxy.scrollTo(currentLevel, anchor: .center)
+                        proxy.scrollTo(currentOrLastTier, anchor: .center)
                     }
                 }
             }
         }
+        .sheet(item: $selectedTier) { tier in
+            RankGallerySheet(tier: tier, currentLevel: currentLevel)
+        }
     }
 }
 
-struct AchievementNodeView: View {
-    let node: RoadmapNode
+struct RankTierNodeView: View {
+    let tier: RankTier
     let currentLevel: Int
     
     @State private var phase: Double = 0.0
     
     var body: some View {
-        let isUnlocked = currentLevel >= node.levelReq
-        let isCurrent = currentLevel == node.levelReq
+        let isUnlocked = currentLevel >= tier.startLvl
+        let isCurrentTier = currentLevel >= tier.startLvl && currentLevel <= tier.endLvl
         
         HStack(alignment: .top, spacing: 20) {
             // Vertical Timeline Line & Dot
             VStack(spacing: 0) {
                 ZStack {
                     Circle()
-                        .fill(isUnlocked ? node.tierColor : Color.white.opacity(0.1))
-                        .frame(width: node.isMajorMilestone ? 20 : 12, height: node.isMajorMilestone ? 20 : 12)
-                        .shadow(color: isUnlocked ? node.tierColor.opacity(0.8) : .clear, radius: 8)
+                        .fill(isUnlocked ? tier.color : Color.white.opacity(0.1))
+                        .frame(width: 20, height: 20)
+                        .shadow(color: isUnlocked ? tier.color.opacity(0.8) : .clear, radius: 8)
                         .overlay(
                             Circle()
-                                .stroke(Color(red: 0.05, green: 0.05, blue: 0.08), lineWidth: 3) // cutout
+                                .stroke(Color(red: 0.05, green: 0.05, blue: 0.08), lineWidth: 3)
                         )
                     
-                    if isCurrent {
+                    if isCurrentTier {
                         Circle()
-                            .stroke(node.tierColor, lineWidth: 2)
-                            .frame(width: node.isMajorMilestone ? 30 : 20, height: node.isMajorMilestone ? 30 : 20)
+                            .stroke(tier.color, lineWidth: 2)
+                            .frame(width: 30, height: 30)
                             .opacity(0.6 + (sin(phase) * 0.4))
                             .scaleEffect(1.0 + (sin(phase) * 0.2))
                     }
                 }
                 
-                // Don't draw path line for the very last item in the entire game
-                if node.levelReq != 1000 {
+                // Path line
+                if tier.endLvl != 1000 {
                     Rectangle()
-                        .fill(isUnlocked ? node.tierColor.opacity(0.6) : Color.white.opacity(0.1))
+                        .fill(isUnlocked ? tier.color.opacity(0.6) : Color.white.opacity(0.1))
                         .frame(width: 2)
-                        .frame(height: node.isMajorMilestone ? 100 : 70) // Path length
+                        .frame(height: 100)
                         .overlay(
-                            // Optional glowing flow effect for unlocked path
-                                Rectangle()
+                            Rectangle()
                                 .fill(LinearGradient(colors: [.white, .clear], startPoint: .top, endPoint: .bottom))
-                                    .frame(width: 2)
-                                    .opacity(isUnlocked && currentLevel > node.levelReq ? 0.3 : 0)
+                                .frame(width: 2)
+                                .opacity(isUnlocked && currentLevel > tier.endLvl ? 0.3 : 0) // Glowing flow
                         )
                 }
             }
             
             // Content Card
             HStack(spacing: 15) {
-                if node.isMajorMilestone {
-                    // Major Milestone uses the huge 3D Gem
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .fill(isUnlocked ? node.tierColor.opacity(0.15) : Color.white.opacity(0.03))
-                            .frame(width: 60, height: 60)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                    .stroke(isUnlocked ? node.tierColor.opacity(0.5) : Color.white.opacity(0.05), lineWidth: 1)
-                            )
-                        
-                        GemView(isActive: isUnlocked, color: node.tierColor, isObsidian: node.isObsidian)
-                            .scaleEffect(0.6)
-                            .shadow(color: isUnlocked ? node.tierColor.opacity(0.5) : .clear, radius: 10 + (sin(phase) * 5))
-                    }
-                } else {
-                    // Minor milestones use a smaller icon
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(Color.white.opacity(0.03))
-                            .frame(width: 40, height: 40)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .stroke(isUnlocked ? node.tierColor.opacity(0.3) : Color.white.opacity(0.05), lineWidth: 1)
-                            )
-                        
-                        Image(systemName: node.icon)
-                            .font(.system(size: 16, weight: .bold))
-                            .foregroundColor(isUnlocked ? .white : .gray.opacity(0.4))
-                    }
+                // Major Milestone uses the huge 3D Gem
+                ZStack {
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(isUnlocked ? tier.color.opacity(0.15) : Color.white.opacity(0.03))
+                        .frame(width: 60, height: 60)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                .stroke(isUnlocked ? tier.color.opacity(0.5) : Color.white.opacity(0.05), lineWidth: 1)
+                        )
+                    
+                    GemView(isActive: isUnlocked, color: tier.color, isObsidian: tier.isObsidian)
+                        .scaleEffect(0.6)
+                        .shadow(color: isUnlocked ? tier.color.opacity(0.5) : .clear, radius: 10 + (sin(phase) * 5))
                 }
                 
                 VStack(alignment: .leading, spacing: 4) {
                     HStack {
-                        Text(node.title)
-                            .font(node.isMajorMilestone ? .headline : .subheadline)
-                            .fontWeight(node.isMajorMilestone ? .bold : .semibold)
+                        Text(tier.name)
+                            .font(.headline)
+                            .fontWeight(.bold)
                             .foregroundColor(isUnlocked ? .white : .gray.opacity(0.6))
                         
-                        if isCurrent {
+                        if isCurrentTier {
                             Text("Current")
-                                .font(.system(size: node.isMajorMilestone ? 10 : 9, weight: .bold))
-                                .foregroundColor(node.tierColor)
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundColor(tier.color)
                                 .padding(.horizontal, 6).padding(.vertical, 2)
-                                .background(node.tierColor.opacity(0.2))
+                                .background(tier.color.opacity(0.2))
                                 .clipShape(Capsule())
                         }
                     }
                     
                     HStack(spacing: 6) {
-                        Text(node.subtitle)
+                        Text("\(tier.achievements.count) Requirements")
                             .font(.caption)
                             .foregroundColor(.gray.opacity(0.5))
                         
                         if !isUnlocked {
                             Image(systemName: "lock.fill")
                                 .font(.system(size: 9))
-                                .foregroundColor(node.tierColor.opacity(0.6))
+                                .foregroundColor(tier.color.opacity(0.6))
                         }
                     }
                 }
                 
                 Spacer()
                 
-                if isUnlocked && !isCurrent {
-                    Image(systemName: "checkmark")
-                        .font(.footnote)
-                        .foregroundColor(.green.opacity(0.8))
-                        .padding(.trailing, 5)
-                } else if !isUnlocked {
-                    Text("Lvl \(node.levelReq)")
-                        .font(.caption2)
-                        .fontWeight(.semibold)
-                        .foregroundColor(node.tierColor.opacity(0.6))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(node.tierColor.opacity(0.05))
-                        .clipShape(Capsule())
-                }
+                // Chevron to indicate it's clickable
+                Image(systemName: "chevron.right")
+                    .font(.footnote)
+                    .foregroundColor(isUnlocked ? tier.color : .gray.opacity(0.4))
+                    .padding(.trailing, 5)
             }
-            .padding(node.isMajorMilestone ? 15 : 10)
-            .background(isCurrent ? node.tierColor.opacity(0.05) : Color.white.opacity(0.02))
-            .clipShape(RoundedRectangle(cornerRadius: node.isMajorMilestone ? 16 : 12, style: .continuous))
+            .padding(15)
+            .background(isCurrentTier ? tier.color.opacity(0.05) : Color.white.opacity(0.02))
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: node.isMajorMilestone ? 16 : 12, style: .continuous)
-                    .stroke(isCurrent ? node.tierColor.opacity(0.3) : Color.clear, lineWidth: 1)
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(isCurrentTier ? tier.color.opacity(0.3) : Color.clear, lineWidth: 1)
             )
-            .offset(y: node.isMajorMilestone ? -25 : -15) // Align card with the dot center
+            .offset(y: -25)
         }
         .onAppear {
-            if isCurrent {
+            if isCurrentTier {
                 withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true)) {
                     phase = .pi
+                }
+            }
+        }
+    }
+}
+
+// =========================================
+// === RANK GALLERY SHEET ===
+// =========================================
+
+struct RankGallerySheet: View {
+    let tier: RankTier
+    let currentLevel: Int
+    @Environment(\.dismiss) var dismiss
+    
+    let columns = [
+        GridItem(.adaptive(minimum: 100), spacing: 15)
+    ]
+    
+    var body: some View {
+        ZStack {
+            Color(red: 0.05, green: 0.05, blue: 0.08).ignoresSafeArea()
+            
+            // Subtle ambient background
+            Circle()
+                .fill(tier.color.opacity(0.1))
+                .blur(radius: 60)
+                .frame(width: 300, height: 300)
+                .offset(y: -200)
+            
+            VStack(spacing: 0) {
+                // Header
+                HStack {
+                    Button(action: { dismiss() }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.title2)
+                            .foregroundColor(.white.opacity(0.5))
+                            .padding()
+                    }
+                    Spacer()
+                    Text("\(tier.name) Records")
+                        .font(.headline)
+                        .fontWeight(.bold)
+                        .foregroundColor(.white)
+                    Spacer()
+                    Image(systemName: "xmark").foregroundColor(.clear).padding()
+                }
+                .padding(.top, 10)
+                
+                // Stats summary
+                let completedCount = tier.achievements.filter { currentLevel >= $0.levelReq }.count
+                let progress = Double(completedCount) / Double(max(tier.achievements.count, 1))
+                
+                VStack(spacing: 8) {
+                    Text("\(completedCount) / \(tier.achievements.count) COMPLETED")
+                        .font(.caption)
+                        .fontWeight(.bold)
+                        .foregroundColor(tier.color)
+                    
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            Capsule().fill(Color.white.opacity(0.1))
+                            Capsule().fill(tier.color)
+                                .frame(width: geo.size.width * CGFloat(progress))
+                        }
+                    }
+                    .frame(height: 6)
+                    .padding(.horizontal, 40)
+                }
+                .padding(.bottom, 25)
+                
+                // Grid of Achievements
+                ScrollView {
+                    LazyVGrid(columns: columns, spacing: 20) {
+                        ForEach(tier.achievements) { ach in
+                            let isUnlocked = currentLevel >= ach.levelReq
+                            
+                            VStack(spacing: 10) {
+                                // Badge Graphic
+                                ZStack {
+                                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                        .fill(isUnlocked ? tier.color.opacity(0.15) : Color.white.opacity(0.03))
+                                        .frame(height: 80)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                                .stroke(isUnlocked ? tier.color.opacity(0.4) : Color.white.opacity(0.05), lineWidth: 1)
+                                        )
+                                    
+                                    Image(systemName: ach.icon)
+                                        .font(.system(size: 28, weight: .light))
+                                        .foregroundColor(isUnlocked ? tier.color : .gray.opacity(0.3))
+                                        .shadow(color: isUnlocked ? tier.color.opacity(0.6) : .clear, radius: 5)
+                                }
+                                
+                                // Text
+                                VStack(spacing: 2) {
+                                    Text(ach.title)
+                                        .font(.caption)
+                                        .fontWeight(.bold)
+                                        .foregroundColor(isUnlocked ? .white : .gray.opacity(0.6))
+                                        .multilineTextAlignment(.center)
+                                        .lineLimit(2)
+                                        .minimumScaleFactor(0.8)
+                                        
+                                    Text(ach.subtitle)
+                                        .font(.system(size: 9))
+                                        .foregroundColor(isUnlocked ? tier.color.opacity(0.8) : .gray.opacity(0.4))
+                                        .lineLimit(1)
+                                }
+                            }
+                            .opacity(isUnlocked ? 1.0 : 0.6)
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 40)
                 }
             }
         }
