@@ -13,6 +13,7 @@
 		D48125762F5DFD4900E88A9F /* Realtime in Frameworks */ = {isa = PBXBuildFile; productRef = D48125752F5DFD4900E88A9F /* Realtime */; };
 		D48125782F5DFD4900E88A9F /* Storage in Frameworks */ = {isa = PBXBuildFile; productRef = D48125772F5DFD4900E88A9F /* Storage */; };
 		D481257A2F5DFD4900E88A9F /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = D48125792F5DFD4900E88A9F /* Supabase */; };
+		D4A2922D2F7C643E0036E1D1 /* SplineRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = D4A2922C2F7C643E0036E1D1 /* SplineRuntime */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -75,6 +76,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				D48125742F5DFD4900E88A9F /* PostgREST in Frameworks */,
+				D4A2922D2F7C643E0036E1D1 /* SplineRuntime in Frameworks */,
 				D48125722F5DFD4900E88A9F /* Functions in Frameworks */,
 				D481257A2F5DFD4900E88A9F /* Supabase in Frameworks */,
 				D48125702F5DFD4900E88A9F /* Auth in Frameworks */,
@@ -154,6 +156,7 @@
 				D48125752F5DFD4900E88A9F /* Realtime */,
 				D48125772F5DFD4900E88A9F /* Storage */,
 				D48125792F5DFD4900E88A9F /* Supabase */,
+				D4A2922C2F7C643E0036E1D1 /* SplineRuntime */,
 			);
 			productName = Ascent;
 			productReference = 115396282F501BD9005933A2 /* Ascent.app */;
@@ -239,6 +242,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				D481256A2F5DFC3700E88A9F /* XCRemoteSwiftPackageReference "supabase-swift" */,
+				D4A2922B2F7C637C0036E1D1 /* XCRemoteSwiftPackageReference "spline-ios" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 115396292F501BD9005933A2 /* Products */;
@@ -641,6 +645,14 @@
 				minimumVersion = 2.5.1;
 			};
 		};
+		D4A2922B2F7C637C0036E1D1 /* XCRemoteSwiftPackageReference "spline-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/splinetool/spline-ios";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.2.52;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -673,6 +685,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = D481256A2F5DFC3700E88A9F /* XCRemoteSwiftPackageReference "supabase-swift" */;
 			productName = Supabase;
+		};
+		D4A2922C2F7C643E0036E1D1 /* SplineRuntime */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D4A2922B2F7C637C0036E1D1 /* XCRemoteSwiftPackageReference "spline-ios" */;
+			productName = SplineRuntime;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
