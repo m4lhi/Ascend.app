@@ -57,7 +57,7 @@ struct LoginView: View {
                         Image(systemName: "envelope.fill").foregroundColor(.gray)
                         TextField("Email Address", text: $email)
                             .foregroundColor(.white)
-                            .autocapitalization(.none) // Wichtig für E-Mails!
+                            .textInputAutocapitalization(.never) // Wichtig für E-Mails!
                             .keyboardType(.emailAddress)
                             .autocorrectionDisabled(true)
                     }
@@ -164,8 +164,7 @@ struct LoginView: View {
         isLoading = true
         errorMessage = nil
         
-        let impactMed = UIImpactFeedbackGenerator(style: .medium)
-        impactMed.impactOccurred()
+        HapticManager.shared.medium()
         
         // Asynchroner Task für die Netzwerkabfrage
         Task {

@@ -244,9 +244,12 @@ struct ExploreView: View {
             UserAnnotation()
 
             ForEach(visibleMountains, id: \.id) { mountain in
+                // Safe coordinate — visibleMountains already filters nil, but guard defensively
+                let coord = CLLocationCoordinate2D(latitude: mountain.latitude ?? 0, longitude: mountain.longitude ?? 0)
+                
                 if isRouteCreationMode {
                     if let idx = routeMountains.firstIndex(where: { $0.id == mountain.id }) {
-                        Annotation("\(idx + 1)", coordinate: CLLocationCoordinate2D(latitude: mountain.latitude!, longitude: mountain.longitude!)) {
+                        Annotation("\(idx + 1)", coordinate: coord) {
                             ZStack {
                                 Circle().fill(gold).frame(width: 32, height: 32)
                                 Text("\(idx + 1)").font(.system(size: 14, weight: .black)).foregroundColor(.black)
@@ -255,14 +258,14 @@ struct ExploreView: View {
                         }
                         .tag(mountain.id)
                     } else {
-                        Marker(mountain.name, systemImage: "plus.circle.fill", coordinate: CLLocationCoordinate2D(latitude: mountain.latitude!, longitude: mountain.longitude!))
+                        Marker(mountain.name, systemImage: "plus.circle.fill", coordinate: coord)
                             .tint(.white.opacity(0.7))
                             .tag(mountain.id)
                     }
                 }
                 // 🟢 NEU: Highlight-Annotation, wenn dieser Berg angeklickt wurde!
                 else if selectedMountain?.id == mountain.id {
-                    Annotation(mountain.name, coordinate: CLLocationCoordinate2D(latitude: mountain.latitude!, longitude: mountain.longitude!)) {
+                    Annotation(mountain.name, coordinate: coord) {
                         VStack(spacing: 0) {
                             Text(mountain.name)
                                 .font(.system(size: 13, weight: .bold))
@@ -283,11 +286,11 @@ struct ExploreView: View {
                     .tag(mountain.id)
                 }
                 else if mountain.isPrestigePeak {
-                    Marker(mountain.name, systemImage: "crown.fill", coordinate: CLLocationCoordinate2D(latitude: mountain.latitude!, longitude: mountain.longitude!))
+                    Marker(mountain.name, systemImage: "crown.fill", coordinate: coord)
                         .tint(gold)
                         .tag(mountain.id)
                 } else {
-                    Marker(mountain.name, systemImage: "mountain.2.fill", coordinate: CLLocationCoordinate2D(latitude: mountain.latitude!, longitude: mountain.longitude!))
+                    Marker(mountain.name, systemImage: "mountain.2.fill", coordinate: coord)
                         .tint(difficultyColor(mountain.difficulty))
                         .tag(mountain.id)
                 }
