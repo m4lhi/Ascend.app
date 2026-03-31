@@ -32,7 +32,7 @@ struct ContentView: View {
         // HIER WAR DER FEHLER: Der extra X-Button ist jetzt weg!
         // Er öffnet jetzt einfach nur noch sauber die LiveRecordView.
         .fullScreenCover(isPresented: $showTracker) {
-            LiveRecordView()
+            LiveRecordView(targetMountain: nil)
         }
     }
 }
