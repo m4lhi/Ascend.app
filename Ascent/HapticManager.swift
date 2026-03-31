@@ -16,45 +16,46 @@ final class HapticManager {
     static let shared = HapticManager()
     private init() {}
 
+    // Pre-allocated generators for lower latency
+    private let lightGen = UIImpactFeedbackGenerator(style: .light)
+    private let mediumGen = UIImpactFeedbackGenerator(style: .medium)
+    private let heavyGen = UIImpactFeedbackGenerator(style: .heavy)
+    private let notificationGen = UINotificationFeedbackGenerator()
+    private let selectionGen = UISelectionFeedbackGenerator()
+
     // === Leichtes Feedback ===
     // Für: Button-Taps, kleine Interaktionen
     func light() {
-        let generator = UIImpactFeedbackGenerator(style: .light)
-        generator.impactOccurred()
+        lightGen.impactOccurred()
     }
 
     // === Mittleres Feedback ===
     // Für: Wichtige Aktionen (z.B. Tour loggen)
     func medium() {
-        let generator = UIImpactFeedbackGenerator(style: .medium)
-        generator.impactOccurred()
+        mediumGen.impactOccurred()
     }
 
     // === Starkes Feedback ===
     // Für: Prestige-Events (sehr selten verwenden!)
     func heavy() {
-        let generator = UIImpactFeedbackGenerator(style: .heavy)
-        generator.impactOccurred()
+        heavyGen.impactOccurred()
     }
 
     // === Erfolgs-Feedback ===
     // Für: Neues Level erreicht, Achievement freigeschaltet
     func success() {
-        let generator = UINotificationFeedbackGenerator()
-        generator.notificationOccurred(.success)
+        notificationGen.notificationOccurred(.success)
     }
 
     // === Fehler-Feedback ===
     // Für: Validierungsfehler, fehlgeschlagene Aktionen
     func error() {
-        let generator = UINotificationFeedbackGenerator()
-        generator.notificationOccurred(.error)
+        notificationGen.notificationOccurred(.error)
     }
 
     // === Selektion ===
     // Für: Picker-Wechsel, Tab-Wechsel
     func selection() {
-        let generator = UISelectionFeedbackGenerator()
-        generator.selectionChanged()
+        selectionGen.selectionChanged()
     }
 }

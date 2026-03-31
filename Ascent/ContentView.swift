@@ -8,29 +8,29 @@ import SwiftUI
 struct ContentView: View {
     @State private var selectedTab = 0
     @State private var showTracker = false
-    
+
     init() {
         UITabBar.appearance().isHidden = true
     }
-    
+
     var body: some View {
         ZStack(alignment: .bottom) {
-            
+
             Color(red: 0.05, green: 0.05, blue: 0.08).ignoresSafeArea()
-            
-            TabView(selection: $selectedTab) {
-                BasecampView().tag(0)
-                ExploreView().tag(1)
-                ArenaView().tag(2)
-                TrophyRoomView().tag(3)
+
+            Group {
+                switch selectedTab {
+                case 0: BasecampView()
+                case 1: ExploreView()
+                case 2: ArenaView()
+                case 3: TrophyRoomView()
+                default: BasecampView()
+                }
             }
-            .tabViewStyle(.page(indexDisplayMode: .never))
-            .ignoresSafeArea()
-            
+            .transition(.opacity)
+
             CustomTabBar(selectedTab: $selectedTab, showTracker: $showTracker)
         }
-        // HIER WAR DER FEHLER: Der extra X-Button ist jetzt weg!
-        // Er öffnet jetzt einfach nur noch sauber die LiveRecordView.
         .fullScreenCover(isPresented: $showTracker) {
             LiveRecordView(targetMountain: nil)
         }
@@ -45,7 +45,8 @@ struct CustomTabBar: View {
     var body: some View {
         ZStack(alignment: .top) {
             RoundedRectangle(cornerRadius: 40)
-                .fill(Color(red: 0.1, green: 0.1, blue: 0.12).opacity(0.98))
+                .fill(.ultraThinMaterial)
+                .environment(\.colorScheme, .dark)
                 .clipShape(RoundedRectangle(cornerRadius: 40))
                 .frame(height: 85)
                 .shadow(color: .black.opacity(0.5), radius: 20, y: 10)
@@ -61,8 +62,7 @@ struct CustomTabBar: View {
             .padding(.top, 25)
             
             Button(action: {
-                let impactMed = UIImpactFeedbackGenerator(style: .heavy)
-                impactMed.impactOccurred()
+                HapticManager.shared.heavy()
                 showTracker = true
             }) {
                 ZStack {

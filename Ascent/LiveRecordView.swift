@@ -465,7 +465,7 @@ struct LiveRecordView: View {
 
     // 🟢 BUTTON-FUNKTION: Zurück auf User zoomen
     private func centerOnUser() {
-        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        HapticManager.shared.light()
         if let userLoc = gpsManager.currentLocation {
             withAnimation(.easeInOut(duration: 1.0)) {
                 cameraPosition = .camera(MapCamera(centerCoordinate: userLoc.coordinate, distance: 3000))
@@ -475,7 +475,7 @@ struct LiveRecordView: View {
     
     // 🟢 BUTTON-FUNKTION: Ganze Route übersichtlich anzeigen
     private func viewFullRoute() {
-        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        HapticManager.shared.light()
         if let route = appleRoute {
             withAnimation(.easeInOut(duration: 1.0)) {
                 cameraPosition = .rect(padMapRect(route.polyline.boundingMapRect))
@@ -816,7 +816,7 @@ struct LiveRecordView: View {
     }
 
     private func startRecording() {
-        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        HapticManager.shared.medium()
         isRunning = true
         
         if let userLoc = gpsManager.currentLocation {
@@ -830,7 +830,7 @@ struct LiveRecordView: View {
     }
 
     private func togglePause() {
-        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        HapticManager.shared.medium()
         isRunning.toggle()
         if isRunning {
             gpsManager.logManualResume()
@@ -913,7 +913,7 @@ struct SlideToFinishControl: View {
                             guard !isCompleted else { return }
                             if dragOffset > maxDrag * 0.8 {
                                 isCompleted = true
-                                UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
+                                HapticManager.shared.heavy()
                                 withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                                     dragOffset = maxDrag
                                 }
@@ -963,11 +963,15 @@ struct MissionSaveView: View {
         return isVerifiedSummit ? baseXP + 500 : baseXP
     }
 
+    private static let durationFormatter: DateComponentsFormatter = {
+        let f = DateComponentsFormatter()
+        f.allowedUnits = [.hour, .minute, .second]
+        f.unitsStyle = .abbreviated
+        return f
+    }()
+
     var formattedDuration: String {
-        let formatter = DateComponentsFormatter()
-        formatter.allowedUnits = [.hour, .minute, .second]
-        formatter.unitsStyle = .abbreviated
-        return formatter.string(from: durationSeconds) ?? "0m"
+        Self.durationFormatter.string(from: durationSeconds) ?? "0m"
     }
 
     var body: some View {
@@ -1016,10 +1020,10 @@ struct MissionSaveView: View {
                             Text(photoData == nil ? "Add Photo" : "Change Photo")
                         }
                     }
-                    .onChange(of: photoItem) { newItem in
+                    .onChange(of: photoItem) { _, newItem in
                         Task {
                             if let data = try? await newItem?.loadTransferable(type: Data.self) {
-                                await MainActor.run { self.photoData = data }
+                                self.photoData = data
                             }
                         }
                     }

@@ -2,7 +2,7 @@ import SwiftUI
 
 // =========================================
 // === DATEI: ArenaView.swift ===
-// === Das Live-Podest (Global/Local/Friends) ===
+// === Leaderboard — Emotionally Intelligent ===
 // =========================================
 
 struct Player: Identifiable {
@@ -14,172 +14,886 @@ struct Player: Identifiable {
     let avatarURL: String?
 }
 
+// =========================================
+// MARK: - Main Arena View
+// =========================================
+
 struct ArenaView: View {
     @EnvironmentObject var appState: AppState
-    @State private var selectedScope = 0 // 0 = Global, 1 = Local, 2 = Friends
+    @State private var selectedScope = 0
     @State private var showAddFriendAlert = false
     @State private var friendHandleInput = ""
-    
-    // === NEU: Wählt automatisch die echten Cloud-Daten je nach Tab! ===
+    @State private var animateIn = false
+    @State private var podiumRevealed = false
+    @State private var rowsRevealed = false
+    @State private var headerGlow = false
+
+    private let gold = Color(red: 0.85, green: 0.65, blue: 0.13)
+    private let bg = Color(red: 0.05, green: 0.05, blue: 0.08)
+    private let cardBg = Color(red: 0.11, green: 0.11, blue: 0.14)
+
     var leaderboard: [Player] {
         let sourceArray: [CloudProfile]
-        
         switch selectedScope {
         case 0: sourceArray = appState.globalLeaderboard
         case 1: sourceArray = appState.localLeaderboard
         default: sourceArray = appState.friendsLeaderboard
         }
-        
-        return sourceArray.map { cloudProfile in
-            Player(
-                name: cloudProfile.username,
-                handle: cloudProfile.handle,
-                xp: cloudProfile.xp,
-                isCurrentUser: cloudProfile.handle == appState.userHandle,
-                avatarURL: cloudProfile.avatar_url
-            )
+        return sourceArray.map { p in
+            Player(name: p.username, handle: p.handle, xp: p.xp,
+                   isCurrentUser: p.handle == appState.userHandle,
+                   avatarURL: p.avatar_url)
         }
     }
-    
+
+    // Motivational message based on ranking
+    private var motivationalMessage: (String, String) {
+        guard let myIndex = leaderboard.firstIndex(where: { $0.isCurrentUser }) else {
+            return ("Welcome to the Arena", "Start climbing to earn your rank")
+        }
+        let rank = myIndex + 1
+        switch rank {
+        case 1:
+            return ("You're at the summit", "The view from the top is earned, not given")
+        case 2...3:
+            return ("Almost there", "The summit is within reach — keep pushing")
+        case 4...10:
+            return ("Gaining altitude", "You're climbing strong — \(rank - 1) alpinists ahead")
+        default:
+            return ("Every ascent starts here", "One step at a time — you've got this")
+        }
+    }
+
+    private var scopeSubtitle: String {
+        switch selectedScope {
+        case 0: return "\(leaderboard.count) alpinists worldwide"
+        case 1: return leaderboard.isEmpty ? "Set your region in settings" : "\(leaderboard.count) in your region"
+        default: return "\(leaderboard.count) friend\(leaderboard.count == 1 ? "" : "s")"
+        }
+    }
+
     var body: some View {
         ZStack {
-            Color(red: 0.05, green: 0.05, blue: 0.08).ignoresSafeArea()
-            
+            bg.ignoresSafeArea()
+
+            // Subtle mountain silhouette background
+            VStack {
+                MountainSilhouette()
+                    .fill(
+                        LinearGradient(
+                            colors: [gold.opacity(0.03), Color.clear],
+                            startPoint: .top, endPoint: .bottom
+                        )
+                    )
+                    .frame(height: 220)
+                    .offset(y: -20)
+                Spacer()
+            }
+            .ignoresSafeArea()
+
             VStack(spacing: 0) {
-                // === HEADER BEREICH ===
-                VStack(alignment: .leading, spacing: 15) {
+                // ============================================
+                // MARK: - HEADER
+                // ============================================
+                VStack(spacing: 16) {
                     HStack(alignment: .top) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("THE ARENA").font(.caption).fontWeight(.bold).foregroundColor(.gray).tracking(2)
-                            Text("Leaderboard").font(.system(size: 32, weight: .bold)).foregroundColor(.white)
+                        VStack(alignment: .leading, spacing: 6) {
+                            // Motivational greeting
+                            Text(motivationalMessage.0.uppercased())
+                                .font(.system(size: 11, weight: .black))
+                                .foregroundColor(gold.opacity(0.7))
+                                .tracking(2.5)
+
+                            Text("The Arena")
+                                .font(.system(size: 32, weight: .black))
+                                .foregroundStyle(
+                                    LinearGradient(
+                                        colors: [.white, .white.opacity(0.7)],
+                                        startPoint: .leading, endPoint: .trailing
+                                    )
+                                )
+
+                            Text(motivationalMessage.1)
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(.gray)
+                                .lineLimit(2)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
+                        .opacity(animateIn ? 1 : 0)
+                        .offset(y: animateIn ? 0 : 12)
+
                         Spacer()
+
                         Button(action: { showAddFriendAlert = true }) {
-                            Image(systemName: "person.badge.plus").font(.title)
-                                .foregroundColor(Color(red: 0.85, green: 0.65, blue: 0.13))
-                                .padding(10).background(Color.white.opacity(0.05)).clipShape(Circle())
+                            ZStack {
+                                Circle()
+                                    .fill(.ultraThinMaterial)
+                                    .environment(\.colorScheme, .dark)
+                                    .frame(width: 48, height: 48)
+                                    .overlay(
+                                        Circle().stroke(gold.opacity(0.2), lineWidth: 1)
+                                    )
+
+                                Image(systemName: "person.badge.plus")
+                                    .font(.system(size: 17, weight: .semibold))
+                                    .foregroundColor(gold)
+                            }
                         }
+                        .opacity(animateIn ? 1 : 0)
+                        .scaleEffect(animateIn ? 1 : 0.8)
                     }
-                    
-                    HStack(spacing: 0) {
-                        ScopeButton(title: "Global", isSelected: selectedScope == 0) { selectedScope = 0 }
-                        ScopeButton(title: "Local", isSelected: selectedScope == 1) { selectedScope = 1 }
-                        ScopeButton(title: "Friends", isSelected: selectedScope == 2) { selectedScope = 2 }
-                    }
-                    .background(Color.white.opacity(0.05)).cornerRadius(12).padding(.top, 10)
+
+                    // Animated Scope Selector
+                    AnimatedScopeSelector(
+                        selectedScope: $selectedScope,
+                        subtitle: scopeSubtitle,
+                        gold: gold
+                    )
+                    .opacity(animateIn ? 1 : 0)
+                    .offset(y: animateIn ? 0 : 8)
                 }
-                .padding(.horizontal, 25).padding(.top, 20)
-                
+                .padding(.horizontal, 20)
+                .padding(.top, 12)
+                .padding(.bottom, 12)
+
+                // ============================================
+                // MARK: - CONTENT
+                // ============================================
                 ScrollView(showsIndicators: false) {
-                    VStack(spacing: 20) {
+                    VStack(spacing: 0) {
                         if selectedScope == 2 && leaderboard.count <= 1 {
-                            VStack(spacing: 15) {
-                                Spacer().frame(height: 50)
-                                Image(systemName: "person.3.fill").font(.system(size: 50)).foregroundColor(.gray.opacity(0.5))
-                                Text("No friends yet.").font(.headline).foregroundColor(.gray)
-                                Text("Tap the + icon top right to add fellow alpinists via their @handle.").font(.caption).foregroundColor(.gray).multilineTextAlignment(.center).padding(.horizontal, 40)
-                            }
+                            EmptyFriendsView(gold: gold, onAdd: { showAddFriendAlert = true })
+                                .transition(.opacity.combined(with: .scale(scale: 0.95)))
                         } else {
-                            
-                            // === DAS SIEGER-PODEST (TOP 3) ===
+                            // === PODIUM (TOP 3) ===
                             let topThree = Array(leaderboard.prefix(3))
-                            
-                            if topThree.count >= 3 {
-                                HStack(alignment: .bottom, spacing: 15) {
-                                    PodiumCard(rank: 2, player: topThree[1])
-                                    PodiumCard(rank: 1, player: topThree[0]).offset(y: -40).zIndex(1)
-                                    PodiumCard(rank: 3, player: topThree[2])
-                                }
-                                .padding(.top, 60).padding(.horizontal, 20).padding(.bottom, 20)
-                            } else if topThree.count == 2 {
-                                HStack(alignment: .bottom, spacing: 15) {
-                                    PodiumCard(rank: 1, player: topThree[0]).zIndex(1)
-                                    PodiumCard(rank: 2, player: topThree[1])
-                                }
-                                .padding(.top, 20).padding(.horizontal, 20).padding(.bottom, 20)
-                            } else if topThree.count == 1 {
-                                PodiumCard(rank: 1, player: topThree[0]).padding(.top, 20).padding(.horizontal, 100).padding(.bottom, 20)
+
+                            if !topThree.isEmpty {
+                                PremiumPodiumView(
+                                    players: topThree,
+                                    isRevealed: podiumRevealed
+                                )
+                                .padding(.top, 16)
+                                .padding(.bottom, 28)
                             }
-                            
-                            // === DER REST VOM LEADERBOARD (AB PLATZ 4) ===
-                            let remainingPlayers = Array(leaderboard.dropFirst(3))
-                            
-                            VStack(spacing: 12) {
-                                ForEach(Array(remainingPlayers.enumerated()), id: \.element.id) { index, player in
-                                    let rank = index + 4
-                                    StandardLeaderboardRow(rank: rank, player: player)
+
+                            // === REST OF LEADERBOARD ===
+                            let remaining = Array(leaderboard.dropFirst(3))
+                            if !remaining.isEmpty {
+                                VStack(spacing: 0) {
+                                    ForEach(Array(remaining.enumerated()), id: \.element.id) { index, player in
+                                        PremiumLeaderboardRow(
+                                            rank: index + 4,
+                                            player: player,
+                                            gold: gold,
+                                            isRevealed: rowsRevealed,
+                                            delay: Double(index) * 0.05,
+                                            isFirst: index == 0,
+                                            isLast: index == remaining.count - 1
+                                        )
+
+                                        if index < remaining.count - 1 {
+                                            Rectangle()
+                                                .fill(Color.white.opacity(0.04))
+                                                .frame(height: 0.5)
+                                                .padding(.leading, 72)
+                                        }
+                                    }
                                 }
+                                .background(
+                                    RoundedRectangle(cornerRadius: 22)
+                                        .fill(cardBg)
+                                )
+                                .clipShape(RoundedRectangle(cornerRadius: 22))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 22)
+                                        .stroke(Color.white.opacity(0.06), lineWidth: 1)
+                                )
+                                .padding(.horizontal, 20)
                             }
-                            .padding(.horizontal, 20).padding(.bottom, 120)
+
+                            // === MOTIVATIONAL CATCH-UP BANNER ===
+                            if let myIndex = leaderboard.firstIndex(where: { $0.isCurrentUser }), myIndex >= 3 {
+                                MotivationalBanner(
+                                    rank: myIndex + 1,
+                                    xp: leaderboard[myIndex].xp,
+                                    nextPlayer: myIndex > 0 ? leaderboard[myIndex - 1] : nil,
+                                    gold: gold
+                                )
+                                .padding(.horizontal, 20)
+                                .padding(.top, 20)
+                                .opacity(rowsRevealed ? 1 : 0)
+                                .offset(y: rowsRevealed ? 0 : 16)
+                                .animation(.spring(response: 0.6, dampingFraction: 0.8).delay(0.4), value: rowsRevealed)
+                            }
+
+                            Spacer().frame(height: 130)
                         }
                     }
                 }
             }
         }
-        .onAppear { appState.fetchLeaderboard() }
+        .onAppear {
+            appState.fetchLeaderboard()
+            withAnimation(.spring(response: 0.7, dampingFraction: 0.85).delay(0.1)) {
+                animateIn = true
+            }
+            withAnimation(.spring(response: 0.8, dampingFraction: 0.78).delay(0.35)) {
+                podiumRevealed = true
+            }
+            withAnimation(.spring(response: 0.6, dampingFraction: 0.82).delay(0.55)) {
+                rowsRevealed = true
+            }
+        }
+        .onChange(of: selectedScope) { _, _ in
+            // Re-trigger animations on scope change
+            podiumRevealed = false
+            rowsRevealed = false
+            withAnimation(.spring(response: 0.6, dampingFraction: 0.8).delay(0.1)) {
+                podiumRevealed = true
+            }
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.82).delay(0.25)) {
+                rowsRevealed = true
+            }
+        }
         .alert("Add Alpinist", isPresented: $showAddFriendAlert) {
-            TextField("Enter @handle (e.g. climber)", text: $friendHandleInput).autocapitalization(.none).autocorrectionDisabled()
-            Button("Add") { appState.addFriend(handleToSearch: friendHandleInput); friendHandleInput = "" }
+            TextField("Enter @handle", text: $friendHandleInput)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+            Button("Add") {
+                appState.addFriend(handleToSearch: friendHandleInput)
+                friendHandleInput = ""
+            }
             Button("Cancel", role: .cancel) { friendHandleInput = "" }
-        } message: { Text("Enter the exact handle of your friend to add them to your live leaderboard.") }
-    }
-}
-
-// === Hilfs-Views (Unverändert) ===
-struct ScopeButton: View {
-    let title: String; let isSelected: Bool; let action: () -> Void
-    var body: some View {
-        Button(action: action) {
-            Text(title).font(.subheadline).fontWeight(.bold).foregroundColor(isSelected ? .black : .gray)
-                .frame(maxWidth: .infinity).padding(.vertical, 12)
-                .background(isSelected ? Color(red: 0.85, green: 0.65, blue: 0.13) : Color.clear).cornerRadius(10)
+        } message: {
+            Text("Enter the exact handle of your friend to add them to your live leaderboard.")
         }
     }
 }
 
-struct PodiumCard: View {
-    let rank: Int; let player: Player
-    var rankColor: Color {
-        switch rank { case 1: return Color(red: 0.85, green: 0.65, blue: 0.13); case 2: return Color(red: 0.75, green: 0.75, blue: 0.75); case 3: return Color(red: 0.8, green: 0.5, blue: 0.2); default: return .white }
+// =========================================
+// MARK: - Mountain Silhouette Shape
+// =========================================
+
+struct MountainSilhouette: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let w = rect.width
+        let h = rect.height
+        path.move(to: CGPoint(x: 0, y: h))
+        path.addLine(to: CGPoint(x: w * 0.15, y: h * 0.55))
+        path.addLine(to: CGPoint(x: w * 0.25, y: h * 0.65))
+        path.addLine(to: CGPoint(x: w * 0.4, y: h * 0.2))
+        path.addLine(to: CGPoint(x: w * 0.5, y: h * 0.35))
+        path.addLine(to: CGPoint(x: w * 0.65, y: h * 0.1))
+        path.addLine(to: CGPoint(x: w * 0.78, y: h * 0.45))
+        path.addLine(to: CGPoint(x: w * 0.88, y: h * 0.3))
+        path.addLine(to: CGPoint(x: w, y: h * 0.6))
+        path.addLine(to: CGPoint(x: w, y: h))
+        path.closeSubpath()
+        return path
     }
+}
+
+// =========================================
+// MARK: - Animated Scope Selector
+// =========================================
+
+struct AnimatedScopeSelector: View {
+    @Binding var selectedScope: Int
+    let subtitle: String
+    let gold: Color
+
+    @Namespace private var scopeAnimation
+
+    private let scopes: [(String, String)] = [
+        ("Globe", "globe"),
+        ("Local", "location.fill"),
+        ("Friends", "person.2.fill")
+    ]
+
     var body: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 8) {
+            HStack(spacing: 0) {
+                ForEach(0..<3, id: \.self) { index in
+                    Button {
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.78)) {
+                            selectedScope = index
+                        }
+                    } label: {
+                        HStack(spacing: 5) {
+                            Image(systemName: scopes[index].1)
+                                .font(.system(size: 10, weight: .bold))
+                            Text(scopes[index].0)
+                                .font(.system(size: 13, weight: .bold))
+                        }
+                        .foregroundColor(selectedScope == index ? .black : .gray)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 11)
+                        .background(
+                            ZStack {
+                                if selectedScope == index {
+                                    Capsule()
+                                        .fill(gold)
+                                        .matchedGeometryEffect(id: "scope_bg", in: scopeAnimation)
+                                }
+                            }
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(4)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(.ultraThinMaterial)
+                    .environment(\.colorScheme, .dark)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(Color.white.opacity(0.06), lineWidth: 1)
+            )
+
+            // Contextual subtitle
+            Text(subtitle)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(.gray.opacity(0.6))
+                .animation(.easeInOut(duration: 0.3), value: selectedScope)
+        }
+    }
+}
+
+// =========================================
+// MARK: - Premium Podium View
+// =========================================
+
+struct PremiumPodiumView: View {
+    let players: [Player]
+    var isRevealed: Bool = true
+
+    private let gold = Color(red: 0.85, green: 0.65, blue: 0.13)
+    private let silver = Color(red: 0.72, green: 0.75, blue: 0.82)
+    private let bronze = Color(red: 0.82, green: 0.52, blue: 0.22)
+
+    private func rankColor(_ rank: Int) -> Color {
+        switch rank { case 1: return gold; case 2: return silver; case 3: return bronze; default: return .gray }
+    }
+
+    var body: some View {
+        if players.count >= 3 {
+            HStack(alignment: .bottom, spacing: 6) {
+                // 2nd place — appears first in choreography
+                podiumColumn(player: players[1], rank: 2, avatarSize: 60, pillarHeight: 72)
+                    .opacity(isRevealed ? 1 : 0)
+                    .offset(y: isRevealed ? 0 : 30)
+                    .animation(.spring(response: 0.7, dampingFraction: 0.75).delay(0.0), value: isRevealed)
+
+                // 1st place — the star, appears second
+                podiumColumn(player: players[0], rank: 1, avatarSize: 78, pillarHeight: 105)
+                    .opacity(isRevealed ? 1 : 0)
+                    .offset(y: isRevealed ? 0 : 40)
+                    .animation(.spring(response: 0.7, dampingFraction: 0.75).delay(0.12), value: isRevealed)
+
+                // 3rd place — appears third
+                podiumColumn(player: players[2], rank: 3, avatarSize: 54, pillarHeight: 56)
+                    .opacity(isRevealed ? 1 : 0)
+                    .offset(y: isRevealed ? 0 : 25)
+                    .animation(.spring(response: 0.7, dampingFraction: 0.75).delay(0.06), value: isRevealed)
+            }
+            .padding(.horizontal, 14)
+        } else if players.count == 2 {
+            HStack(alignment: .bottom, spacing: 12) {
+                podiumColumn(player: players[0], rank: 1, avatarSize: 78, pillarHeight: 105)
+                podiumColumn(player: players[1], rank: 2, avatarSize: 60, pillarHeight: 72)
+            }
+            .padding(.horizontal, 40)
+            .opacity(isRevealed ? 1 : 0)
+            .offset(y: isRevealed ? 0 : 30)
+        } else if players.count == 1 {
+            podiumColumn(player: players[0], rank: 1, avatarSize: 78, pillarHeight: 105)
+                .padding(.horizontal, 80)
+                .opacity(isRevealed ? 1 : 0)
+                .offset(y: isRevealed ? 0 : 30)
+        }
+    }
+
+    @ViewBuilder
+    private func podiumColumn(player: Player, rank: Int, avatarSize: CGFloat, pillarHeight: CGFloat) -> some View {
+        let color = rankColor(rank)
+
+        VStack(spacing: 0) {
+            // Crown for #1 with glow
+            if rank == 1 {
+                ZStack {
+                    Image(systemName: "crown.fill")
+                        .font(.system(size: 24))
+                        .foregroundColor(gold.opacity(0.3))
+                        .blur(radius: 8)
+
+                    Image(systemName: "crown.fill")
+                        .font(.system(size: 22))
+                        .foregroundColor(gold)
+                }
+                .padding(.bottom, 6)
+            }
+
+            // Avatar with progress ring
             ZStack(alignment: .bottom) {
+                // Glow behind avatar for #1
+                if rank == 1 {
+                    Circle()
+                        .fill(gold.opacity(0.15))
+                        .frame(width: avatarSize + 20, height: avatarSize + 20)
+                        .blur(radius: 12)
+                }
+
+                // Avatar ring
+                Circle()
+                    .stroke(color.opacity(0.2), lineWidth: rank == 1 ? 3.5 : 2.5)
+                    .frame(width: avatarSize + 6, height: avatarSize + 6)
+
+                Circle()
+                    .trim(from: 0, to: 0.75)
+                    .stroke(
+                        color,
+                        style: StrokeStyle(lineWidth: rank == 1 ? 3.5 : 2.5, lineCap: .round)
+                    )
+                    .frame(width: avatarSize + 6, height: avatarSize + 6)
+                    .rotationEffect(.degrees(-90))
+
+                // Avatar image
                 if let urlString = player.avatarURL, let url = URL(string: urlString) {
                     AsyncImage(url: url) { phase in
-                        if let image = phase.image { image.resizable().scaledToFill() } else { Circle().fill(Color.gray.opacity(0.2)) }
-                    }.frame(width: rank == 1 ? 80 : 60, height: rank == 1 ? 80 : 60).clipShape(Circle()).overlay(Circle().stroke(rankColor, lineWidth: 3))
+                        if let image = phase.image {
+                            image.resizable().scaledToFill()
+                        } else {
+                            Circle().fill(Color.white.opacity(0.06))
+                        }
+                    }
+                    .frame(width: avatarSize, height: avatarSize)
+                    .clipShape(Circle())
                 } else {
-                    Circle().fill(Color.white.opacity(0.1)).frame(width: rank == 1 ? 80 : 60, height: rank == 1 ? 80 : 60)
-                        .overlay(Text(String(player.name.prefix(1))).fontWeight(.bold).foregroundColor(rankColor)).overlay(Circle().stroke(rankColor, lineWidth: 3))
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: [color.opacity(0.2), color.opacity(0.05)],
+                                startPoint: .topLeading, endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: avatarSize, height: avatarSize)
+                        .overlay(
+                            Text(String(player.name.prefix(1)).uppercased())
+                                .font(.system(size: avatarSize * 0.35, weight: .bold, design: .rounded))
+                                .foregroundColor(color)
+                        )
                 }
-                Text("\(rank)").font(.caption).fontWeight(.black).foregroundColor(.black).frame(width: 24, height: 24).background(rankColor).clipShape(Circle()).offset(y: 10)
-            }.padding(.bottom, 8)
-            Text(player.name).font(.subheadline).fontWeight(player.isCurrentUser ? .bold : .semibold).foregroundColor(player.isCurrentUser ? .white : .white.opacity(0.9)).lineLimit(1)
-            Text("@\(player.handle)").font(.caption2).foregroundColor(.gray).lineLimit(1)
-            Text("\(player.xp) XP").font(.headline).fontWeight(.black).foregroundColor(rankColor)
-        }.frame(maxWidth: .infinity).padding(.vertical, 20).padding(.horizontal, 5).background(RoundedRectangle(cornerRadius: 20).fill(player.isCurrentUser ? Color.white.opacity(0.1) : Color(red: 0.12, green: 0.12, blue: 0.15))).overlay(RoundedRectangle(cornerRadius: 20).stroke(rankColor.opacity(0.8), lineWidth: rank == 1 ? 2 : 1)).shadow(color: rankColor.opacity(0.15), radius: 10, y: 5)
+
+                // Rank badge
+                ZStack {
+                    Circle()
+                        .fill(color)
+                        .frame(width: 24, height: 24)
+                        .shadow(color: color.opacity(0.5), radius: 6)
+
+                    Text("\(rank)")
+                        .font(.system(size: 12, weight: .black, design: .rounded))
+                        .foregroundColor(.black)
+                }
+                .offset(y: 12)
+            }
+            .padding(.bottom, 18)
+
+            // Name with shimmer for #1
+            if rank == 1 {
+                Text(player.name)
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundColor(.white)
+                    .lineLimit(1)
+                    .modifier(ShimmerModifier(color: gold))
+            } else {
+                Text(player.name)
+                    .font(.system(size: rank == 2 ? 14 : 13, weight: .bold))
+                    .foregroundColor(.white)
+                    .lineLimit(1)
+            }
+
+            Text("@\(player.handle)")
+                .font(.system(size: 10))
+                .foregroundColor(.gray)
+                .lineLimit(1)
+                .padding(.bottom, 8)
+
+            // XP with animated feel
+            Text(formatXP(player.xp))
+                .font(.system(size: rank == 1 ? 24 : 18, weight: .black, design: .rounded))
+                .foregroundColor(color)
+            Text("XP")
+                .font(.system(size: 9, weight: .bold))
+                .foregroundColor(color.opacity(0.5))
+                .tracking(1)
+                .padding(.bottom, 10)
+
+            // Glassmorphic Pillar
+            RoundedRectangle(cornerRadius: 14)
+                .fill(.ultraThinMaterial)
+                .environment(\.colorScheme, .dark)
+                .frame(height: pillarHeight)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14)
+                        .fill(
+                            LinearGradient(
+                                colors: [color.opacity(0.2), color.opacity(0.02)],
+                                startPoint: .top, endPoint: .bottom
+                            )
+                        )
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14)
+                        .stroke(color.opacity(0.2), lineWidth: 1)
+                )
+                .shadow(color: color.opacity(rank == 1 ? 0.2 : 0.1), radius: rank == 1 ? 12 : 6, y: 4)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private func formatXP(_ xp: Int) -> String {
+        if xp >= 10000 {
+            return String(format: "%.1fk", Double(xp) / 1000.0)
+        }
+        return "\(xp)"
     }
 }
 
-struct StandardLeaderboardRow: View {
-    let rank: Int; let player: Player
+// =========================================
+// MARK: - Shimmer Modifier
+// =========================================
+
+struct ShimmerModifier: ViewModifier {
+    let color: Color
+    @State private var phase: CGFloat = 0
+
+    func body(content: Content) -> some View {
+        content
+            .overlay(
+                GeometryReader { geo in
+                    LinearGradient(
+                        colors: [
+                            .clear,
+                            color.opacity(0.3),
+                            .clear
+                        ],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                    .frame(width: geo.size.width * 0.6)
+                    .offset(x: -geo.size.width * 0.3 + phase * (geo.size.width * 1.6))
+                    .mask(content)
+                }
+            )
+            .onAppear {
+                withAnimation(.easeInOut(duration: 2.5).repeatForever(autoreverses: false)) {
+                    phase = 1
+                }
+            }
+    }
+}
+
+// =========================================
+// MARK: - Premium Leaderboard Row
+// =========================================
+
+struct PremiumLeaderboardRow: View {
+    let rank: Int
+    let player: Player
+    let gold: Color
+    var isRevealed: Bool = true
+    var delay: Double = 0
+    var isFirst: Bool = false
+    var isLast: Bool = false
+
     var body: some View {
-        HStack(spacing: 15) {
-            Text("#\(rank)").font(.headline).fontWeight(.bold).foregroundColor(.gray).frame(width: 35, alignment: .leading)
-            if let urlString = player.avatarURL, let url = URL(string: urlString) {
-                AsyncImage(url: url) { phase in
-                    if let image = phase.image { image.resizable().scaledToFill() } else { Circle().fill(Color.gray.opacity(0.2)) }
-                }.frame(width: 40, height: 40).clipShape(Circle())
-            } else {
-                Circle().fill(Color.white.opacity(0.1)).frame(width: 40, height: 40).overlay(Text(String(player.name.prefix(1))).fontWeight(.bold).foregroundColor(.gray))
+        HStack(spacing: 14) {
+            // Rank number
+            Text("\(rank)")
+                .font(.system(size: 15, weight: .bold, design: .rounded))
+                .foregroundColor(player.isCurrentUser ? gold : .white.opacity(0.4))
+                .frame(width: 30, alignment: .center)
+
+            // Avatar with mini progress ring
+            ZStack {
+                if let urlString = player.avatarURL, let url = URL(string: urlString) {
+                    AsyncImage(url: url) { phase in
+                        if let image = phase.image {
+                            image.resizable().scaledToFill()
+                        } else {
+                            Circle().fill(Color.white.opacity(0.06))
+                        }
+                    }
+                    .frame(width: 42, height: 42)
+                    .clipShape(Circle())
+                } else {
+                    Circle()
+                        .fill(Color.white.opacity(0.06))
+                        .frame(width: 42, height: 42)
+                        .overlay(
+                            Text(String(player.name.prefix(1)).uppercased())
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundColor(player.isCurrentUser ? gold : .gray)
+                        )
+                }
+
+                // Subtle progress ring
+                Circle()
+                    .trim(from: 0, to: min(Double(player.xp % 1000) / 1000.0, 1.0))
+                    .stroke(
+                        player.isCurrentUser ? gold.opacity(0.5) : Color.white.opacity(0.1),
+                        style: StrokeStyle(lineWidth: 2, lineCap: .round)
+                    )
+                    .frame(width: 48, height: 48)
+                    .rotationEffect(.degrees(-90))
             }
-            VStack(alignment: .leading, spacing: 2) {
-                Text(player.name).font(.subheadline).fontWeight(player.isCurrentUser ? .bold : .regular).foregroundColor(player.isCurrentUser ? .white : .white.opacity(0.8))
-                Text("@\(player.handle)").font(.caption2).foregroundColor(.gray)
+
+            // Name, handle & level badge
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 6) {
+                    Text(player.name)
+                        .font(.system(size: 15, weight: player.isCurrentUser ? .bold : .semibold))
+                        .foregroundColor(.white)
+                        .lineLimit(1)
+
+                    if player.isCurrentUser {
+                        Text("YOU")
+                            .font(.system(size: 8, weight: .black))
+                            .foregroundColor(.black)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 2)
+                            .background(gold)
+                            .clipShape(Capsule())
+                    }
+                }
+
+                HStack(spacing: 4) {
+                    Text("@\(player.handle)")
+                        .font(.system(size: 11))
+                        .foregroundColor(.gray)
+                        .lineLimit(1)
+
+                    // Level indicator
+                    let level = max(1, (player.xp / 1000) + 1)
+                    Text("Lv.\(level)")
+                        .font(.system(size: 9, weight: .bold, design: .rounded))
+                        .foregroundColor(RankTitle.forLevel(level).color.opacity(0.7))
+                }
             }
+
             Spacer()
-            Text("\(player.xp) XP").font(.subheadline).fontWeight(.bold).foregroundColor(player.isCurrentUser ? Color(red: 0.85, green: 0.65, blue: 0.13) : .white.opacity(0.8))
-        }.padding(15).background(player.isCurrentUser ? Color.white.opacity(0.08) : Color(red: 0.12, green: 0.12, blue: 0.15)).cornerRadius(16).overlay(RoundedRectangle(cornerRadius: 16).stroke(player.isCurrentUser ? Color(red: 0.85, green: 0.65, blue: 0.13).opacity(0.5) : Color.clear, lineWidth: 1))
+
+            // XP
+            VStack(alignment: .trailing, spacing: 2) {
+                Text("\(player.xp)")
+                    .font(.system(size: 17, weight: .bold, design: .rounded))
+                    .foregroundColor(player.isCurrentUser ? gold : .white)
+                Text("XP")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundColor(.gray.opacity(0.5))
+                    .tracking(0.5)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .background(
+            player.isCurrentUser
+                ? AnyShapeStyle(gold.opacity(0.06))
+                : AnyShapeStyle(Color.clear)
+        )
+        .overlay(alignment: .leading) {
+            // Gold left accent for current user — aligned to leading edge
+            if player.isCurrentUser {
+                UnevenRoundedRectangle(
+                    topLeadingRadius: isFirst ? 22 : 0,
+                    bottomLeadingRadius: isLast ? 22 : 0,
+                    bottomTrailingRadius: 0,
+                    topTrailingRadius: 0
+                )
+                .fill(gold)
+                .frame(width: 3.5)
+            }
+        }
+        .opacity(isRevealed ? 1 : 0)
+        .offset(x: isRevealed ? 0 : 20)
+        .animation(
+            .spring(response: 0.5, dampingFraction: 0.8).delay(delay),
+            value: isRevealed
+        )
+    }
+}
+
+// =========================================
+// MARK: - Motivational Banner
+// =========================================
+
+struct MotivationalBanner: View {
+    let rank: Int
+    let xp: Int
+    let nextPlayer: Player?
+    let gold: Color
+
+    private var xpGap: Int {
+        guard let next = nextPlayer else { return 0 }
+        return next.xp - xp
+    }
+
+    private var progress: CGFloat {
+        guard let next = nextPlayer, next.xp > 0 else { return 0.5 }
+        // How close are we? If gap is small relative to our XP, we're close
+        let totalRange = Double(next.xp)
+        return min(CGFloat(Double(xp) / totalRange), 0.95)
+    }
+
+    var body: some View {
+        VStack(spacing: 14) {
+            HStack(spacing: 10) {
+                ZStack {
+                    Circle()
+                        .fill(gold.opacity(0.12))
+                        .frame(width: 36, height: 36)
+
+                    Image(systemName: "flame.fill")
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundColor(gold)
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("You're ranked #\(rank)")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(.white)
+
+                    if let next = nextPlayer, xpGap > 0 {
+                        Text("\(xpGap) XP to overtake @\(next.handle)")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(gold.opacity(0.8))
+                    }
+                }
+
+                Spacer()
+
+                Text("\(xp) XP")
+                    .font(.system(size: 15, weight: .black, design: .rounded))
+                    .foregroundColor(gold)
+            }
+
+            // Progress bar toward next rank
+            if nextPlayer != nil && xpGap > 0 {
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Capsule()
+                            .fill(Color.white.opacity(0.06))
+                            .frame(height: 5)
+
+                        Capsule()
+                            .fill(
+                                LinearGradient(
+                                    colors: [gold.opacity(0.6), gold],
+                                    startPoint: .leading, endPoint: .trailing
+                                )
+                            )
+                            .frame(width: max(8, geo.size.width * progress), height: 5)
+                    }
+                }
+                .frame(height: 5)
+            }
+        }
+        .padding(18)
+        .background(
+            RoundedRectangle(cornerRadius: 18)
+                .fill(.ultraThinMaterial)
+                .environment(\.colorScheme, .dark)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 18)
+                .stroke(gold.opacity(0.15), lineWidth: 1)
+        )
+    }
+}
+
+// =========================================
+// MARK: - Empty Friends View
+// =========================================
+
+struct EmptyFriendsView: View {
+    let gold: Color
+    let onAdd: () -> Void
+
+    @State private var pulseScale: CGFloat = 1.0
+    @State private var floatOffset: CGFloat = 0
+
+    var body: some View {
+        VStack(spacing: 24) {
+            Spacer().frame(height: 50)
+
+            // Animated mountain + people illustration
+            ZStack {
+                // Outer glow ring
+                Circle()
+                    .fill(gold.opacity(0.04))
+                    .frame(width: 150, height: 150)
+
+                Circle()
+                    .fill(gold.opacity(0.06))
+                    .frame(width: 110, height: 110)
+
+                // Mountain icon
+                ZStack {
+                    Image(systemName: "mountain.2.fill")
+                        .font(.system(size: 44))
+                        .foregroundColor(gold.opacity(0.12))
+                        .offset(y: 8)
+
+                    Image(systemName: "person.3.fill")
+                        .font(.system(size: 32))
+                        .foregroundColor(gold.opacity(0.45))
+                        .offset(y: floatOffset)
+                }
+            }
+
+            VStack(spacing: 10) {
+                Text("The summit is better shared")
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundColor(.white)
+
+                Text("Invite fellow alpinists to compete,\ncheer each other on, and climb together.")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(.gray)
+                    .multilineTextAlignment(.center)
+                    .lineSpacing(3)
+            }
+
+            Button(action: onAdd) {
+                HStack(spacing: 8) {
+                    Image(systemName: "plus")
+                        .font(.system(size: 14, weight: .bold))
+                    Text("Add Friend")
+                        .font(.system(size: 15, weight: .bold))
+                }
+                .foregroundColor(.black)
+                .padding(.horizontal, 28)
+                .padding(.vertical, 14)
+                .background(gold)
+                .clipShape(Capsule())
+                .shadow(color: gold.opacity(0.3), radius: 12, y: 4)
+                .scaleEffect(pulseScale)
+            }
+            .padding(.top, 4)
+
+            Spacer()
+        }
+        .onAppear {
+            withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true)) {
+                pulseScale = 1.05
+            }
+            withAnimation(.easeInOut(duration: 3.0).repeatForever(autoreverses: true)) {
+                floatOffset = -6
+            }
+        }
     }
 }

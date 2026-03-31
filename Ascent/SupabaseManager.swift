@@ -107,15 +107,24 @@ class MountainManager: ObservableObject {
 
     func searchMountains(query: String, difficulty: Difficulty?) async {
         do {
+            // Sanitize input: strip PostgREST special characters to prevent filter injection
+            let safe = query
+                .replacingOccurrences(of: ",", with: "")
+                .replacingOccurrences(of: ".", with: "")
+                .replacingOccurrences(of: "\\", with: "")
+                .replacingOccurrences(of: "(", with: "")
+                .replacingOccurrences(of: ")", with: "")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            
             let results: [Mountain]
-            if !query.isEmpty && difficulty != nil {
+            if !safe.isEmpty, let diff = difficulty {
                 results = try await supabase.from("mountains").select()
-                    .or("name.ilike.%\(query)%,region.ilike.%\(query)%,country.ilike.%\(query)%")
-                    .eq("difficulty", value: difficulty!.rawValue)
+                    .or("name.ilike.%\(safe)%,region.ilike.%\(safe)%,country.ilike.%\(safe)%")
+                    .eq("difficulty", value: diff.rawValue)
                     .execute().value
-            } else if !query.isEmpty {
+            } else if !safe.isEmpty {
                 results = try await supabase.from("mountains").select()
-                    .or("name.ilike.%\(query)%,region.ilike.%\(query)%,country.ilike.%\(query)%")
+                    .or("name.ilike.%\(safe)%,region.ilike.%\(safe)%,country.ilike.%\(safe)%")
                     .execute().value
             } else if let diff = difficulty {
                 results = try await supabase.from("mountains").select()

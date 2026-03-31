@@ -32,14 +32,6 @@ struct AscendProfile: Codable {
 }
 
 
-// HIER IST DAS ABZEICHEN, DAS XCODE VERMISST HAT:
-struct ConquestBadge: Identifiable {
-    let id = UUID()
-    let title: String
-    let icon: String
-    let isUnlocked: Bool
-    let isGold: Bool
-}
 
 struct CloudTour: Codable {
     let id: UUID?
@@ -187,12 +179,7 @@ class AppState: ObservableObject {
     var weeklyElevation: Int { weeklyTours.reduce(0) { $0 + $1.elevationGainMeters } }
     var weeklyTourCount: Int { weeklyTours.count }
     
-    // Dummy-Abzeichen für das UI
-    @Published var badges: [ConquestBadge] = [
-        ConquestBadge(title: "First Peak", icon: "mountain.2.fill", isUnlocked: true, isGold: false),
-        ConquestBadge(title: "10k Elevation", icon: "arrow.up.right.circle.fill", isUnlocked: false, isGold: false),
-        ConquestBadge(title: "Elite Alpinist", icon: "crown.fill", isUnlocked: false, isGold: true)
-    ]
+
     
     // --- PROFIL FUNKTIONEN ---
     
@@ -251,24 +238,20 @@ class AppState: ObservableObject {
                     .execute()
                     .value
                 
-                await MainActor.run {
-                    self.ascendProfile = result
-                }
+                self.ascendProfile = result
             } catch {
                 print("⚠️ Fetch Ascend Profile: \(error)")
                 // Create dummy or insert if not exists
-                await MainActor.run {
-                    self.ascendProfile = AscendProfile(
-                        user_id: UUID(),
-                        ascend_xp: 0,
-                        ascend_level: 1,
-                        ascend_tier: "Bronze",
-                        ascend_subtier: 1,
-                        streak_days: 0,
-                        last_activity_date: nil,
-                        prestige_mountains_completed: 0
-                    )
-                }
+                self.ascendProfile = AscendProfile(
+                    user_id: UUID(),
+                    ascend_xp: 0,
+                    ascend_level: 1,
+                    ascend_tier: "Bronze",
+                    ascend_subtier: 1,
+                    streak_days: 0,
+                    last_activity_date: nil,
+                    prestige_mountains_completed: 0
+                )
             }
         }
     }
@@ -413,15 +396,13 @@ class AppState: ObservableObject {
                 }
 
                 print("📡 Feed loaded: \(cloudTours.count) cloud tours → \(pageTours.count) display tours (profiles matched: \(profiles.count))")
-                await MainActor.run {
-                    self.recentTours.append(contentsOf: pageTours)
-                    self.feedPage += 1
-                    self.hasMoreFeed = cloudTours.count == self.feedPageSize
-                    self.isLoadingMoreFeed = false
-                }
+                self.recentTours.append(contentsOf: pageTours)
+                self.feedPage += 1
+                self.hasMoreFeed = cloudTours.count == self.feedPageSize
+                self.isLoadingMoreFeed = false
             } catch {
                 print("❌ Fehler beim Feed laden: \(error)")
-                await MainActor.run { self.isLoadingMoreFeed = false }
+                self.isLoadingMoreFeed = false
             }
         }
     }
@@ -431,8 +412,7 @@ class AppState: ObservableObject {
         self.currentXP += xp
         self.currentLevel = (self.currentXP / 1000) + 1
 
-        uploadProfileToCloud()
-        fetchLeaderboard()
+        uploadProfileToCloud()  // uploadProfileToCloud already calls fetchLeaderboard()
 
         Task {
             let myId: UUID
@@ -504,7 +484,7 @@ class AppState: ObservableObject {
                     try await supabase.from("tours").insert(newCloudTour).execute()
                     print("✅ Tour erfolgreich hochgeladen: \(summit) (attempt \(attempt))")
                     try? await Task.sleep(nanoseconds: 500_000_000)
-                    await MainActor.run { fetchFeed() }
+                    fetchFeed()
                     return
                 } catch {
                     print("⚠️ Tour insert attempt \(attempt) failed: \(error.localizedDescription)")
@@ -661,11 +641,9 @@ class AppState: ObservableObject {
                     localData = []
                 }
                 
-                await MainActor.run {
-                    self.friendsLeaderboard = friendsPlayers
-                    self.globalLeaderboard = globalData
-                    self.localLeaderboard = localData
-                }
+                self.friendsLeaderboard = friendsPlayers
+                self.globalLeaderboard = globalData
+                self.localLeaderboard = localData
             } catch { print("❌ Fehler beim Leaderboard laden: \(error)") }
         }
     }
@@ -713,12 +691,10 @@ class AppState: ObservableObject {
                 let finalBanner = Array(bannerItems.shuffled().prefix(5))
 
                 // 4. Update der UI auf dem Main-Thread
-                await MainActor.run {
-                    self.recommendedPeaks = displayPeaks
-                    self.suggestedRoutes = routeSuggestions
-                    self.heroBannerItems = finalBanner
-                    print("✅ Erfolgreich \(allPeaks.count) Berge von Supabase geladen!")
-                }
+                self.recommendedPeaks = displayPeaks
+                self.suggestedRoutes = routeSuggestions
+                self.heroBannerItems = finalBanner
+                print("✅ Erfolgreich \(allPeaks.count) Berge von Supabase geladen!")
             } catch {
                 // 5. Falls es weiterhin fehlschlägt, loggen wir den exakten Grund in die Konsole
                 print("❌ Fehler beim Laden der Peaks von Supabase: \(error)")
