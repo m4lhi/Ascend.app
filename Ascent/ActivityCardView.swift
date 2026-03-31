@@ -12,17 +12,25 @@ struct ActivityCardView: View {
 
     @State private var showComments = false
 
+    // Static formatters — allocated once, reused across all cards
+    private static let durationFormatter: DateComponentsFormatter = {
+        let f = DateComponentsFormatter()
+        f.allowedUnits = [.hour, .minute]
+        f.unitsStyle = .abbreviated
+        return f
+    }()
+    private static let relativeFormatter: RelativeDateTimeFormatter = {
+        let f = RelativeDateTimeFormatter()
+        f.unitsStyle = .full
+        return f
+    }()
+
     var formattedDuration: String {
-        let formatter = DateComponentsFormatter()
-        formatter.allowedUnits = [.hour, .minute]
-        formatter.unitsStyle = .abbreviated
-        return formatter.string(from: tour.durationSeconds) ?? "0m"
+        Self.durationFormatter.string(from: tour.durationSeconds) ?? "0m"
     }
 
     var timeAgo: String {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .full
-        return formatter.string(for: tour.date)?.uppercased() ?? "JUST NOW"
+        Self.relativeFormatter.string(for: tour.date)?.uppercased() ?? "JUST NOW"
     }
 
     private let gold = Color(red: 0.85, green: 0.65, blue: 0.13)
@@ -119,8 +127,7 @@ struct ActivityCardView: View {
             HStack(spacing: 0) {
                 // Fist Bump
                 Button(action: {
-                    let impact = UIImpactFeedbackGenerator(style: .light)
-                    impact.impactOccurred()
+                    HapticManager.shared.light()
                     appState.toggleFistBump(tour: tour)
                 }) {
                     HStack(spacing: 5) {
@@ -153,8 +160,7 @@ struct ActivityCardView: View {
 
                 // Bookmark
                 Button(action: {
-                    let impact = UIImpactFeedbackGenerator(style: .light)
-                    impact.impactOccurred()
+                    HapticManager.shared.light()
                     appState.toggleBookmark(tour: tour)
                 }) {
                     Image(systemName: tour.isBookmarked ? "bookmark.fill" : "bookmark")
@@ -275,10 +281,14 @@ struct CommentSheetView: View {
 struct CommentRow: View {
     let comment: CommentDisplay
 
+    private static let commentTimeFormatter: RelativeDateTimeFormatter = {
+        let f = RelativeDateTimeFormatter()
+        f.unitsStyle = .abbreviated
+        return f
+    }()
+
     var timeAgo: String {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .abbreviated
-        return formatter.localizedString(for: comment.date, relativeTo: Date())
+        Self.commentTimeFormatter.localizedString(for: comment.date, relativeTo: Date())
     }
 
     var body: some View {
