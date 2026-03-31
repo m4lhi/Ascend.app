@@ -267,9 +267,9 @@ struct TrophyRoomView: View {
     @State private var selectedCategory: AchievementCategory? = nil
     @State private var selectedAchievement: Achievement? = nil
     
-    private let gold = Color(red: 0.85, green: 0.65, blue: 0.13)
-    private let cardBg = Color(red: 0.11, green: 0.11, blue: 0.14)
-    private let bg = Color(red: 0.05, green: 0.05, blue: 0.08)
+    private let gold = Color(red: 0.1, green: 0.5, blue: 0.95)
+    private let cardBg = Color.white
+    private let bg = Color(red: 0.95, green: 0.95, blue: 0.97)
     
     private var requiredXP: Int { appState.xpNeededForNextLevel }
     private var xpProgress: Double {
@@ -314,7 +314,24 @@ struct TrophyRoomView: View {
 
     var body: some View {
         ZStack {
-            bg.ignoresSafeArea()
+            ZStack {
+                bg.ignoresSafeArea()
+                
+                // Ambient color blobs (GPU-optimized)
+                Circle()
+                    .fill(RadialGradient(colors: [Color.purple.opacity(0.08), Color.clear], center: .center, startRadius: 0, endRadius: 150))
+                    .frame(width: 300, height: 300)
+                    .offset(x: -80, y: -100)
+                Circle()
+                    .fill(RadialGradient(colors: [gold.opacity(0.07), Color.clear], center: .center, startRadius: 0, endRadius: 125))
+                    .frame(width: 250, height: 250)
+                    .offset(x: 120, y: 300)
+                Circle()
+                    .fill(RadialGradient(colors: [Color.green.opacity(0.06), Color.clear], center: .center, startRadius: 0, endRadius: 100))
+                    .frame(width: 200, height: 200)
+                    .offset(x: -50, y: 600)
+            }
+            .ignoresSafeArea()
             
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 0) {
@@ -324,20 +341,20 @@ struct TrophyRoomView: View {
                     // ============================================
                     HStack {
                         Text("Profile")
-                            .font(.system(size: 28, weight: .bold))
-                            .foregroundColor(.white)
+                            .font(.system(size: 28, weight: .bold, design: .rounded))
+                            .foregroundColor(.primary)
                         Spacer()
                         
                         Button(action: { showEditProfile = true }) {
                             Image(systemName: "pencil.circle.fill")
-                                .font(.system(size: 22))
+                                .font(.system(size: 22, design: .rounded))
                                 .foregroundColor(gold)
                         }
                         .padding(.trailing, 8)
                         
                         Button(action: { showSettings = true }) {
                             Image(systemName: "gearshape.fill")
-                                .font(.system(size: 20))
+                                .font(.system(size: 20, design: .rounded))
                                 .foregroundColor(.gray)
                         }
                     }
@@ -378,7 +395,7 @@ struct TrophyRoomView: View {
                                         .frame(width: 72, height: 72)
                                         .overlay(
                                             Image(systemName: "person.fill")
-                                                .font(.system(size: 28))
+                                                .font(.system(size: 28, design: .rounded))
                                                 .foregroundColor(.gray)
                                         )
                                 }
@@ -396,18 +413,18 @@ struct TrophyRoomView: View {
                             
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(appState.userName)
-                                    .font(.system(size: 22, weight: .bold))
-                                    .foregroundColor(.white)
+                                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                                    .foregroundColor(.primary)
                                 Text("@\(appState.userHandle)")
-                                    .font(.system(size: 14))
+                                    .font(.system(size: 14, design: .rounded))
                                     .foregroundColor(.gray)
                                 
                                 if !appState.userRegion.isEmpty && appState.userRegion != "Unknown" {
                                     HStack(spacing: 4) {
                                         Image(systemName: "location.fill")
-                                            .font(.system(size: 9))
+                                            .font(.system(size: 9, design: .rounded))
                                         Text(appState.userRegion)
-                                            .font(.system(size: 12, weight: .medium))
+                                            .font(.system(size: 12, weight: .medium, design: .rounded))
                                     }
                                     .foregroundColor(gold)
                                     .padding(.top, 2)
@@ -423,11 +440,11 @@ struct TrophyRoomView: View {
                                 HStack(spacing: 8) {
                                     ForEach(appState.selectedSports, id: \.self) { sport in
                                         Text(sport)
-                                            .font(.system(size: 11, weight: .semibold))
-                                            .foregroundColor(.white.opacity(0.7))
+                                            .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                            .foregroundColor(.black.opacity(0.7))
                                             .padding(.horizontal, 10)
                                             .padding(.vertical, 5)
-                                            .background(Color.white.opacity(0.08))
+                                            .background(Color.gray.opacity(0.1))
                                             .clipShape(Capsule())
                                     }
                                 }
@@ -464,22 +481,24 @@ struct TrophyRoomView: View {
                         }
                         .padding(.vertical, 14)
                         .background(
-                            RoundedRectangle(cornerRadius: 16)
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
                                 .fill(.ultraThinMaterial)
-                                .environment(\.colorScheme, .dark)
+                                .environment(\.colorScheme, .light)
                         )
                         .overlay(
-                            RoundedRectangle(cornerRadius: 16)
-                                .stroke(Color.white.opacity(0.06), lineWidth: 1)
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                .stroke(Color.white.opacity(0.5), lineWidth: 0.5)
                         )
                     }
                     .padding(20)
-                    .background(cardBg)
-                    .cornerRadius(24)
+                    .background(.ultraThinMaterial)
+                    .environment(\.colorScheme, .light)
+                    .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
                     .overlay(
-                        RoundedRectangle(cornerRadius: 24)
-                            .stroke(Color.white.opacity(0.05), lineWidth: 1)
+                        RoundedRectangle(cornerRadius: 24, style: .continuous)
+                            .stroke(Color.white.opacity(0.5), lineWidth: 0.5)
                     )
+                    .shadow(color: .black.opacity(0.06), radius: 15, y: 6)
                     .padding(.horizontal, 20)
                     .opacity(animateIn ? 1 : 0)
                     .offset(y: animateIn ? 0 : 16)
@@ -499,46 +518,48 @@ struct TrophyRoomView: View {
                                 
                                 VStack(alignment: .leading, spacing: 6) {
                                     Text("Alpinist Rank")
-                                        .font(.caption)
+                                        .font(.system(.caption, design: .rounded))
                                         .foregroundColor(.gray)
                                     
                                     HStack(alignment: .bottom, spacing: 5) {
                                         Text("\(profile.ascend_tier) \(String(repeating: "I", count: profile.ascend_subtier))")
-                                            .font(.headline)
+                                            .font(.system(.headline, design: .rounded))
                                             .fontWeight(.bold)
-                                            .foregroundColor(isObsidian ? .white : tColor)
+                                            .foregroundColor(isObsidian ? .black : tColor)
                                         
                                         Spacer()
                                         
                                         Text("\(Int(profile.ascend_xp)) XP")
-                                            .font(.caption)
+                                            .font(.system(.caption, design: .rounded))
                                             .foregroundColor(.gray)
                                     }
                                     
                                     GeometryReader { geo in
                                         let progress = max(0, min(Double(appState.currentLevelProgressXP) / Double(max(appState.xpNeededForNextLevel, 1)), 1.0))
                                         ZStack(alignment: .leading) {
-                                            Capsule().fill(Color.white.opacity(0.1)).frame(height: 6)
+                                            Capsule().fill(Color.gray.opacity(0.1)).frame(height: 6)
                                             Capsule().fill(tColor)
                                                 .frame(width: progressAnimated ? geo.size.width * progress : 0, height: 6)
                                         }
                                     }.frame(height: 6)
                                 }
                             } else {
-                                ProgressView().tint(.white)
+                                ProgressView().tint(.gray)
                                 Text("Loading Rank...").foregroundColor(.gray).padding(.leading, 10)
                                 Spacer()
                             }
                             
-                            Image(systemName: "chevron.right").font(.caption).foregroundColor(.gray)
+                            Image(systemName: "chevron.right").font(.system(.caption, design: .rounded)).foregroundColor(.gray)
                         }
                         .padding(20)
-                        .background(cardBg)
-                        .cornerRadius(20)
+                        .background(.ultraThinMaterial)
+                        .environment(\.colorScheme, .light)
+                        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
                         .overlay(
-                            RoundedRectangle(cornerRadius: 20)
-                                .stroke(Color.white.opacity(0.05), lineWidth: 1)
+                            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                                .stroke(Color.white.opacity(0.5), lineWidth: 0.5)
                         )
+                        .shadow(color: .black.opacity(0.06), radius: 12, y: 6)
                     }
                     .buttonStyle(.plain)
                     .padding(.horizontal, 20)
@@ -554,11 +575,11 @@ struct TrophyRoomView: View {
                         HStack {
                             HStack(spacing: 8) {
                                 Image(systemName: "medal.fill")
-                                    .font(.system(size: 14, weight: .bold))
+                                    .font(.system(size: 14, weight: .bold, design: .rounded))
                                     .foregroundColor(gold)
                                 Text("Achievements")
-                                    .font(.system(size: 19, weight: .bold))
-                                    .foregroundColor(.white)
+                                    .font(.system(size: 19, weight: .bold, design: .rounded))
+                                    .foregroundColor(.primary)
                             }
                             
                             Spacer()
@@ -643,7 +664,7 @@ struct TrophyRoomView: View {
         .sheet(item: $selectedAchievement) { achievement in
             AchievementDetailSheet(achievement: achievement)
                 .presentationDetents([.medium])
-                .preferredColorScheme(.dark)
+                .preferredColorScheme(.light)
         }
     }
     
@@ -668,9 +689,9 @@ struct ProfileStatItem: View {
         VStack(spacing: 4) {
             Text(value)
                 .font(.system(size: 18, weight: .bold, design: .rounded))
-                .foregroundColor(.white)
+                .foregroundColor(.primary)
             Text(label)
-                .font(.system(size: 10, weight: .semibold))
+                .font(.system(size: 10, weight: .semibold, design: .rounded))
                 .foregroundColor(color.opacity(0.7))
                 .tracking(0.5)
         }
@@ -693,15 +714,15 @@ struct CategoryFilterPill: View {
         Button(action: action) {
             HStack(spacing: 5) {
                 Image(systemName: icon)
-                    .font(.system(size: 10, weight: .bold))
+                    .font(.system(size: 10, weight: .bold, design: .rounded))
                 Text(title)
-                    .font(.system(size: 12, weight: .bold))
+                    .font(.system(size: 12, weight: .bold, design: .rounded))
             }
             .foregroundColor(isSelected ? .black : .gray)
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
             .background(
-                isSelected ? color : Color.white.opacity(0.06)
+                isSelected ? color : Color.gray.opacity(0.1)
             )
             .clipShape(Capsule())
         }
@@ -724,7 +745,7 @@ struct AchievementBadgeCard: View {
                         .fill(
                             achievement.isUnlocked
                                 ? achievement.category.color.opacity(0.12)
-                                : Color.white.opacity(0.02)
+                                : Color.gray.opacity(0.05)
                         )
                         .frame(height: 76)
                         .overlay(
@@ -732,24 +753,24 @@ struct AchievementBadgeCard: View {
                                 .stroke(
                                     achievement.isUnlocked
                                         ? achievement.category.color.opacity(0.25)
-                                        : Color.white.opacity(0.04),
+                                        : Color.black.opacity(0.04),
                                     lineWidth: 1
                                 )
                         )
                     
                     if achievement.isUnlocked {
                         Image(systemName: achievement.icon)
-                            .font(.system(size: 28))
+                            .font(.system(size: 28, design: .rounded))
                             .foregroundColor(achievement.category.color)
                             .shadow(color: achievement.category.color.opacity(0.4), radius: 8)
                     } else {
                         ZStack {
                             Image(systemName: achievement.icon)
-                                .font(.system(size: 28))
+                                .font(.system(size: 28, design: .rounded))
                                 .foregroundColor(.gray.opacity(0.15))
                             
                             Image(systemName: "lock.fill")
-                                .font(.system(size: 12))
+                                .font(.system(size: 12, design: .rounded))
                                 .foregroundColor(.gray.opacity(0.3))
                                 .offset(x: 14, y: 14)
                         }
@@ -757,8 +778,8 @@ struct AchievementBadgeCard: View {
                 }
                 
                 Text(achievement.title)
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundColor(achievement.isUnlocked ? .white : .gray.opacity(0.4))
+                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .foregroundColor(achievement.isUnlocked ? .primary : .gray.opacity(0.4))
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
                 
@@ -767,7 +788,7 @@ struct AchievementBadgeCard: View {
                     GeometryReader { geo in
                         ZStack(alignment: .leading) {
                             Capsule()
-                                .fill(Color.white.opacity(0.06))
+                                .fill(Color.gray.opacity(0.1))
                                 .frame(height: 3)
                             Capsule()
                                 .fill(achievement.category.color.opacity(0.5))
@@ -780,9 +801,9 @@ struct AchievementBadgeCard: View {
                     // Earned indicator
                     HStack(spacing: 3) {
                         Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 8))
+                            .font(.system(size: 8, design: .rounded))
                         Text("Earned")
-                            .font(.system(size: 9, weight: .semibold))
+                            .font(.system(size: 9, weight: .semibold, design: .rounded))
                     }
                     .foregroundColor(achievement.category.color.opacity(0.6))
                 }
@@ -802,50 +823,57 @@ struct AchievementDetailSheet: View {
     
     var body: some View {
         ZStack {
-            Color(red: 0.08, green: 0.08, blue: 0.1).ignoresSafeArea()
+            Color(white: 0.98).ignoresSafeArea()
             
             VStack(spacing: 24) {
                 // Handle
                 Capsule()
-                    .fill(Color.white.opacity(0.2))
+                    .fill(Color.black.opacity(0.2))
                     .frame(width: 36, height: 4)
                     .padding(.top, 12)
                 
-                // Badge (Interactive 3D)
+                // Badge
                 ZStack {
-                    // Background Glow für freigeschaltete Badges
+                    Circle()
+                        .fill(
+                            achievement.isUnlocked
+                                ? achievement.category.color.opacity(0.12)
+                                : Color.gray.opacity(0.05)
+                        )
+                        .frame(width: 100, height: 100)
+                    
                     if achievement.isUnlocked {
                         Circle()
-                            .fill(achievement.category.color.opacity(0.08))
-                            .frame(width: 140, height: 140)
-                            .blur(radius: 20)
+                            .fill(achievement.category.color.opacity(0.06))
+                            .frame(width: 130, height: 130)
+                        
+                        Image(systemName: achievement.icon)
+                            .font(.system(size: 44, design: .rounded))
+                            .foregroundColor(achievement.category.color)
+                            .shadow(color: achievement.category.color.opacity(0.5), radius: 12)
+                    } else {
+                        Image(systemName: achievement.icon)
+                            .font(.system(size: 44, design: .rounded))
+                            .foregroundColor(.gray.opacity(0.2))
                     }
-                    
-                    // Die 3D Münze
-                    Achievement3DView(
-                        iconName: achievement.icon,
-                        badgeColor: achievement.category.color,
-                        isUnlocked: achievement.isUnlocked
-                    )
-                    .frame(width: 220, height: 220)
                 }
                 
                 VStack(spacing: 8) {
                     Text(achievement.title)
-                        .font(.system(size: 22, weight: .bold))
-                        .foregroundColor(.white)
+                        .font(.system(size: 22, weight: .bold, design: .rounded))
+                        .foregroundColor(.primary)
                     
                     Text(achievement.description)
-                        .font(.system(size: 15))
+                        .font(.system(size: 15, design: .rounded))
                         .foregroundColor(.gray)
                         .multilineTextAlignment(.center)
                     
                     // Category pill
                     HStack(spacing: 5) {
                         Image(systemName: achievement.category.icon)
-                            .font(.system(size: 10, weight: .bold))
+                            .font(.system(size: 10, weight: .bold, design: .rounded))
                         Text(achievement.category.rawValue)
-                            .font(.system(size: 11, weight: .bold))
+                            .font(.system(size: 11, weight: .bold, design: .rounded))
                     }
                     .foregroundColor(achievement.category.color)
                     .padding(.horizontal, 12)
@@ -859,18 +887,18 @@ struct AchievementDetailSheet: View {
                 VStack(spacing: 10) {
                     HStack {
                         Text("Progress")
-                            .font(.system(size: 13, weight: .semibold))
+                            .font(.system(size: 13, weight: .semibold, design: .rounded))
                             .foregroundColor(.gray)
                         Spacer()
                         Text(achievement.progressText)
                             .font(.system(size: 13, weight: .bold, design: .rounded))
-                            .foregroundColor(achievement.isUnlocked ? achievement.category.color : .white)
+                            .foregroundColor(achievement.isUnlocked ? achievement.category.color : .primary)
                     }
                     
                     GeometryReader { geo in
                         ZStack(alignment: .leading) {
                             Capsule()
-                                .fill(Color.white.opacity(0.08))
+                                .fill(Color.gray.opacity(0.1))
                                 .frame(height: 8)
                             Capsule()
                                 .fill(
@@ -884,8 +912,9 @@ struct AchievementDetailSheet: View {
                     .frame(height: 8)
                 }
                 .padding(20)
-                .background(Color.white.opacity(0.04))
+                .background(Color.white)
                 .cornerRadius(16)
+                .shadow(color: .black.opacity(0.04), radius: 10, y: 4)
                 .padding(.horizontal, 20)
                 
                 Spacer()
@@ -913,15 +942,15 @@ struct EditAccountView: View {
     @State private var showHandleErrorAlert = false
     @State private var isSaving = false
     
-    private let gold = Color(red: 0.85, green: 0.65, blue: 0.13)
-    private let cardBg = Color(red: 0.11, green: 0.11, blue: 0.14)
+    private let gold = Color(red: 0.1, green: 0.5, blue: 0.95)
+    private let cardBg = Color.white
     
     let availableSports = ["Mountaineering", "Climbing", "Ski Touring", "Hiking", "Bouldering", "Ice Climbing", "Alpinism"]
     
     var body: some View {
         NavigationView {
             ZStack {
-                Color(red: 0.05, green: 0.05, blue: 0.08).ignoresSafeArea()
+                Color(white: 0.98).ignoresSafeArea()
                 
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 24) {
@@ -952,7 +981,7 @@ struct EditAccountView: View {
                                         .frame(width: 100, height: 100)
                                         .overlay(
                                             Image(systemName: "person.fill")
-                                                .font(.system(size: 36))
+                                                .font(.system(size: 36, design: .rounded))
                                                 .foregroundColor(.gray)
                                         )
                                         .overlay(Circle().stroke(Color.white.opacity(0.1), lineWidth: 2))
@@ -962,7 +991,7 @@ struct EditAccountView: View {
                                     ZStack {
                                         Circle().fill(gold).frame(width: 32, height: 32)
                                         Image(systemName: "camera.fill")
-                                            .font(.system(size: 13, weight: .bold))
+                                            .font(.system(size: 13, weight: .bold, design: .rounded))
                                             .foregroundColor(.black)
                                     }
                                     .overlay(Circle().stroke(Color(red: 0.05, green: 0.05, blue: 0.08), lineWidth: 3))
@@ -974,7 +1003,7 @@ struct EditAccountView: View {
                         // === PROFILE INFO SECTION ===
                         VStack(alignment: .leading, spacing: 16) {
                             Text("PROFILE INFO")
-                                .font(.system(size: 11, weight: .black))
+                                .font(.system(size: 11, weight: .black, design: .rounded))
                                 .foregroundColor(.gray)
                                 .tracking(2)
                             
@@ -983,15 +1012,15 @@ struct EditAccountView: View {
                             HStack(spacing: 12) {
                                 ZStack {
                                     RoundedRectangle(cornerRadius: 10)
-                                        .fill(Color.white.opacity(0.06))
+                                        .fill(Color.gray.opacity(0.1))
                                         .frame(width: 38, height: 38)
                                     Text("@")
-                                        .font(.system(size: 16, weight: .bold))
+                                        .font(.system(size: 16, weight: .bold, design: .rounded))
                                         .foregroundColor(.gray)
                                 }
                                 TextField("username", text: $draftHandle)
-                                    .font(.system(size: 15))
-                                    .foregroundColor(.white)
+                                    .font(.system(size: 15, design: .rounded))
+                                    .foregroundColor(.primary)
                                     .textInputAutocapitalization(.never)
                                     .autocorrectionDisabled()
                                     .onChange(of: draftHandle) { _, newValue in
@@ -1003,33 +1032,33 @@ struct EditAccountView: View {
                             .cornerRadius(14)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 14)
-                                    .stroke(Color.white.opacity(0.06), lineWidth: 1)
+                                    .stroke(Color.black.opacity(0.06), lineWidth: 1)
                             )
                             
                             // Region with auto-detect
                             HStack(spacing: 12) {
                                 ZStack {
                                     RoundedRectangle(cornerRadius: 10)
-                                        .fill(Color.white.opacity(0.06))
+                                        .fill(Color.black.opacity(0.06))
                                         .frame(width: 38, height: 38)
                                     Image(systemName: "location.fill")
-                                        .font(.system(size: 14, weight: .bold))
+                                        .font(.system(size: 14, weight: .bold, design: .rounded))
                                         .foregroundColor(.gray)
                                 }
                                 TextField("Region / State", text: $draftRegion)
-                                    .font(.system(size: 15))
-                                    .foregroundColor(.white)
+                                    .font(.system(size: 15, design: .rounded))
+                                    .foregroundColor(.primary)
                                 
                                 Button(action: { locationFetcher.fetchRegion() }) {
                                     if locationFetcher.isFetching {
                                         ProgressView().scaleEffect(0.7)
                                     } else {
                                         Text("Detect")
-                                            .font(.system(size: 11, weight: .bold))
-                                            .foregroundColor(gold)
+                                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                                            .foregroundColor(.white)
                                             .padding(.horizontal, 10)
                                             .padding(.vertical, 6)
-                                            .background(gold.opacity(0.12))
+                                            .background(gold)
                                             .clipShape(Capsule())
                                     }
                                 }
@@ -1039,7 +1068,7 @@ struct EditAccountView: View {
                             .cornerRadius(14)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 14)
-                                    .stroke(Color.white.opacity(0.06), lineWidth: 1)
+                                    .stroke(Color.black.opacity(0.06), lineWidth: 1)
                             )
                         }
                         .padding(.horizontal, 20)
@@ -1048,12 +1077,12 @@ struct EditAccountView: View {
                         VStack(alignment: .leading, spacing: 14) {
                             HStack {
                                 Text("DISCIPLINES")
-                                    .font(.system(size: 11, weight: .black))
+                                    .font(.system(size: 11, weight: .black, design: .rounded))
                                     .foregroundColor(.gray)
                                     .tracking(2)
                                 Spacer()
                                 Text("\(draftSports.count)/4")
-                                    .font(.system(size: 11, weight: .bold))
+                                    .font(.system(size: 11, weight: .bold, design: .rounded))
                                     .foregroundColor(draftSports.count >= 4 ? gold : .gray)
                             }
                             
@@ -1074,19 +1103,19 @@ struct EditAccountView: View {
                                     } label: {
                                         HStack(spacing: 8) {
                                             Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                                                .font(.system(size: 14))
+                                                .font(.system(size: 14, design: .rounded))
                                                 .foregroundColor(isSelected ? gold : .gray.opacity(0.4))
                                             Text(sport)
-                                                .font(.system(size: 13, weight: isSelected ? .bold : .medium))
+                                                .font(.system(size: 13, weight: isSelected ? .bold : .medium, design: .rounded))
                                                 .foregroundColor(isSelected ? .white : .gray)
                                             Spacer()
                                         }
                                         .padding(12)
-                                        .background(isSelected ? gold.opacity(0.08) : cardBg)
+                                        .background(isSelected ? gold : cardBg)
                                         .cornerRadius(12)
                                         .overlay(
                                             RoundedRectangle(cornerRadius: 12)
-                                                .stroke(isSelected ? gold.opacity(0.3) : Color.white.opacity(0.04), lineWidth: 1)
+                                                .stroke(Color.black.opacity(0.04), lineWidth: 1)
                                         )
                                     }
                                 }
@@ -1100,7 +1129,7 @@ struct EditAccountView: View {
             }
             .navigationTitle("Edit Profile")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarColorScheme(.dark, for: .navigationBar)
+            .toolbarColorScheme(.light, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Cancel") { dismiss() }
@@ -1140,7 +1169,7 @@ struct EditAccountView: View {
                 Text("This @handle is already in use by another Alpinist. Please choose a different one.")
             }
         }
-        .preferredColorScheme(.dark)
+        .preferredColorScheme(.light)
     }
     
     private func save() {
@@ -1185,22 +1214,22 @@ struct EditField: View {
         HStack(spacing: 12) {
             ZStack {
                 RoundedRectangle(cornerRadius: 10)
-                    .fill(Color.white.opacity(0.06))
+                    .fill(Color.black.opacity(0.05))
                     .frame(width: 38, height: 38)
                 Image(systemName: icon)
-                    .font(.system(size: 14, weight: .bold))
+                    .font(.system(size: 14, weight: .bold, design: .rounded))
                     .foregroundColor(.gray)
             }
             TextField(placeholder, text: $text)
-                .font(.system(size: 15))
-                .foregroundColor(.white)
+                .font(.system(size: 15, design: .rounded))
+                .foregroundColor(.primary)
         }
         .padding(12)
-        .background(Color(red: 0.11, green: 0.11, blue: 0.14))
+        .background(Color.white)
         .cornerRadius(14)
         .overlay(
             RoundedRectangle(cornerRadius: 14)
-                .stroke(Color.white.opacity(0.06), lineWidth: 1)
+                .stroke(Color.black.opacity(0.06), lineWidth: 1)
         )
     }
 }
@@ -1216,7 +1245,7 @@ struct SafariView: UIViewControllerRepresentable {
         let config = SFSafariViewController.Configuration()
         config.entersReaderIfAvailable = false
         let vc = SFSafariViewController(url: url, configuration: config)
-        vc.preferredControlTintColor = UIColor(Color(red: 0.85, green: 0.65, blue: 0.13))
+        vc.preferredControlTintColor = UIColor(red: 0.1, green: 0.5, blue: 0.95, alpha: 1.0)
         return vc
     }
     

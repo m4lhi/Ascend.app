@@ -28,9 +28,9 @@ struct ArenaView: View {
     @State private var rowsRevealed = false
     @State private var headerGlow = false
 
-    private let gold = Color(red: 0.85, green: 0.65, blue: 0.13)
-    private let bg = Color(red: 0.05, green: 0.05, blue: 0.08)
-    private let cardBg = Color(red: 0.11, green: 0.11, blue: 0.14)
+    private let gold = Color(red: 0.1, green: 0.5, blue: 0.95) // Light Blue Accent
+    private let bg = Color(red: 0.95, green: 0.95, blue: 0.97)
+    private let cardBg = Color.white
 
     var leaderboard: [Player] {
         let sourceArray: [CloudProfile]
@@ -76,6 +76,16 @@ struct ArenaView: View {
         ZStack {
             bg.ignoresSafeArea()
 
+            // Ambient color blobs (GPU-optimized)
+            Circle()
+                .fill(RadialGradient(colors: [gold.opacity(0.08), Color.clear], center: .center, startRadius: 0, endRadius: 140))
+                .frame(width: 280, height: 280)
+                .offset(x: 100, y: -150)
+            Circle()
+                .fill(RadialGradient(colors: [Color.cyan.opacity(0.07), Color.clear], center: .center, startRadius: 0, endRadius: 110))
+                .frame(width: 220, height: 220)
+                .offset(x: -120, y: 200)
+
             // Subtle mountain silhouette background
             VStack {
                 MountainSilhouette()
@@ -100,21 +110,16 @@ struct ArenaView: View {
                         VStack(alignment: .leading, spacing: 6) {
                             // Motivational greeting
                             Text(motivationalMessage.0.uppercased())
-                                .font(.system(size: 11, weight: .black))
+                                .font(.system(size: 11, weight: .black, design: .rounded))
                                 .foregroundColor(gold.opacity(0.7))
                                 .tracking(2.5)
 
                             Text("The Arena")
-                                .font(.system(size: 32, weight: .black))
-                                .foregroundStyle(
-                                    LinearGradient(
-                                        colors: [.white, .white.opacity(0.7)],
-                                        startPoint: .leading, endPoint: .trailing
-                                    )
-                                )
+                                .font(.system(size: 32, weight: .black, design: .rounded))
+                                .foregroundStyle(.black)
 
                             Text(motivationalMessage.1)
-                                .font(.system(size: 13, weight: .medium))
+                                .font(.system(size: 13, weight: .medium, design: .rounded))
                                 .foregroundColor(.gray)
                                 .lineLimit(2)
                                 .fixedSize(horizontal: false, vertical: true)
@@ -128,14 +133,14 @@ struct ArenaView: View {
                             ZStack {
                                 Circle()
                                     .fill(.ultraThinMaterial)
-                                    .environment(\.colorScheme, .dark)
+                                    .environment(\.colorScheme, .light)
                                     .frame(width: 48, height: 48)
                                     .overlay(
                                         Circle().stroke(gold.opacity(0.2), lineWidth: 1)
                                     )
 
                                 Image(systemName: "person.badge.plus")
-                                    .font(.system(size: 17, weight: .semibold))
+                                    .font(.system(size: 17, weight: .semibold, design: .rounded))
                                     .foregroundColor(gold)
                             }
                         }
@@ -201,14 +206,16 @@ struct ArenaView: View {
                                     }
                                 }
                                 .background(
-                                    RoundedRectangle(cornerRadius: 22)
-                                        .fill(cardBg)
+                                    RoundedRectangle(cornerRadius: 22, style: .continuous)
+                                        .fill(.ultraThinMaterial)
+                                        .environment(\.colorScheme, .light)
                                 )
-                                .clipShape(RoundedRectangle(cornerRadius: 22))
+                                .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
                                 .overlay(
-                                    RoundedRectangle(cornerRadius: 22)
-                                        .stroke(Color.white.opacity(0.06), lineWidth: 1)
+                                    RoundedRectangle(cornerRadius: 22, style: .continuous)
+                                        .stroke(Color.white.opacity(0.5), lineWidth: 0.5)
                                 )
+                                .shadow(color: .black.opacity(0.06), radius: 15, y: 6)
                                 .padding(.horizontal, 20)
                             }
 
@@ -323,9 +330,9 @@ struct AnimatedScopeSelector: View {
                     } label: {
                         HStack(spacing: 5) {
                             Image(systemName: scopes[index].1)
-                                .font(.system(size: 10, weight: .bold))
+                                .font(.system(size: 10, weight: .bold, design: .rounded))
                             Text(scopes[index].0)
-                                .font(.system(size: 13, weight: .bold))
+                                .font(.system(size: 13, weight: .bold, design: .rounded))
                         }
                         .foregroundColor(selectedScope == index ? .black : .gray)
                         .frame(maxWidth: .infinity)
@@ -347,16 +354,17 @@ struct AnimatedScopeSelector: View {
             .background(
                 RoundedRectangle(cornerRadius: 16)
                     .fill(.ultraThinMaterial)
-                    .environment(\.colorScheme, .dark)
+                    .environment(\.colorScheme, .light)
             )
+            .shadow(color: .black.opacity(0.05), radius: 10, y: 4)
             .overlay(
                 RoundedRectangle(cornerRadius: 16)
-                    .stroke(Color.white.opacity(0.06), lineWidth: 1)
+                    .stroke(Color.black.opacity(0.04), lineWidth: 1)
             )
 
             // Contextual subtitle
             Text(subtitle)
-                .font(.system(size: 11, weight: .medium))
+                .font(.system(size: 11, weight: .medium, design: .rounded))
                 .foregroundColor(.gray.opacity(0.6))
                 .animation(.easeInOut(duration: 0.3), value: selectedScope)
         }
@@ -371,8 +379,8 @@ struct PremiumPodiumView: View {
     let players: [Player]
     var isRevealed: Bool = true
 
-    private let gold = Color(red: 0.85, green: 0.65, blue: 0.13)
-    private let silver = Color(red: 0.72, green: 0.75, blue: 0.82)
+    private let gold = Color(red: 0.1, green: 0.5, blue: 0.95)
+    private let silver = Color(red: 0.6, green: 0.65, blue: 0.75)
     private let bronze = Color(red: 0.82, green: 0.52, blue: 0.22)
 
     private func rankColor(_ rank: Int) -> Color {
@@ -426,19 +434,19 @@ struct PremiumPodiumView: View {
             if rank == 1 {
                 ZStack {
                     Image(systemName: "crown.fill")
-                        .font(.system(size: 24))
+                        .font(.system(size: 24, design: .rounded))
                         .foregroundColor(gold.opacity(0.3))
                         .blur(radius: 8)
 
                     Image(systemName: "crown.fill")
-                        .font(.system(size: 22))
+                        .font(.system(size: 22, design: .rounded))
                         .foregroundColor(gold)
                 }
                 .padding(.bottom, 6)
             }
 
             // Avatar with progress ring
-            ZStack(alignment: .bottom) {
+            ZStack(alignment: .center) {
                 // Glow behind avatar for #1
                 if rank == 1 {
                     Circle()
@@ -497,28 +505,28 @@ struct PremiumPodiumView: View {
 
                     Text("\(rank)")
                         .font(.system(size: 12, weight: .black, design: .rounded))
-                        .foregroundColor(.black)
+                        .foregroundColor(.white)
                 }
-                .offset(y: 12)
+                .offset(y: (avatarSize / 2) + 2) // Badge exakt an den unteren Rand setzen
             }
             .padding(.bottom, 18)
 
             // Name with shimmer for #1
             if rank == 1 {
                 Text(player.name)
-                    .font(.system(size: 16, weight: .bold))
-                    .foregroundColor(.white)
+                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .foregroundColor(.black)
                     .lineLimit(1)
                     .modifier(ShimmerModifier(color: gold))
             } else {
                 Text(player.name)
-                    .font(.system(size: rank == 2 ? 14 : 13, weight: .bold))
-                    .foregroundColor(.white)
+                    .font(.system(size: rank == 2 ? 14 : 13, weight: .bold, design: .rounded))
+                    .foregroundColor(.black)
                     .lineLimit(1)
             }
 
             Text("@\(player.handle)")
-                .font(.system(size: 10))
+                .font(.system(size: 10, design: .rounded))
                 .foregroundColor(.gray)
                 .lineLimit(1)
                 .padding(.bottom, 8)
@@ -528,7 +536,7 @@ struct PremiumPodiumView: View {
                 .font(.system(size: rank == 1 ? 24 : 18, weight: .black, design: .rounded))
                 .foregroundColor(color)
             Text("XP")
-                .font(.system(size: 9, weight: .bold))
+                .font(.system(size: 9, weight: .bold, design: .rounded))
                 .foregroundColor(color.opacity(0.5))
                 .tracking(1)
                 .padding(.bottom, 10)
@@ -536,7 +544,7 @@ struct PremiumPodiumView: View {
             // Glassmorphic Pillar
             RoundedRectangle(cornerRadius: 14)
                 .fill(.ultraThinMaterial)
-                .environment(\.colorScheme, .dark)
+                .environment(\.colorScheme, .light)
                 .frame(height: pillarHeight)
                 .overlay(
                     RoundedRectangle(cornerRadius: 14)
@@ -549,7 +557,7 @@ struct PremiumPodiumView: View {
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 14)
-                        .stroke(color.opacity(0.2), lineWidth: 1)
+                        .stroke(color.opacity(0.3), lineWidth: 1)
                 )
                 .shadow(color: color.opacity(rank == 1 ? 0.2 : 0.1), radius: rank == 1 ? 12 : 6, y: 4)
         }
@@ -616,7 +624,7 @@ struct PremiumLeaderboardRow: View {
             // Rank number
             Text("\(rank)")
                 .font(.system(size: 15, weight: .bold, design: .rounded))
-                .foregroundColor(player.isCurrentUser ? gold : .white.opacity(0.4))
+                .foregroundColor(player.isCurrentUser ? gold : .black.opacity(0.4))
                 .frame(width: 30, alignment: .center)
 
             // Avatar with mini progress ring
@@ -633,11 +641,11 @@ struct PremiumLeaderboardRow: View {
                     .clipShape(Circle())
                 } else {
                     Circle()
-                        .fill(Color.white.opacity(0.06))
+                        .fill(Color.gray.opacity(0.1))
                         .frame(width: 42, height: 42)
                         .overlay(
                             Text(String(player.name.prefix(1)).uppercased())
-                                .font(.system(size: 16, weight: .bold))
+                                .font(.system(size: 16, weight: .bold, design: .rounded))
                                 .foregroundColor(player.isCurrentUser ? gold : .gray)
                         )
                 }
@@ -646,7 +654,7 @@ struct PremiumLeaderboardRow: View {
                 Circle()
                     .trim(from: 0, to: min(Double(player.xp % 1000) / 1000.0, 1.0))
                     .stroke(
-                        player.isCurrentUser ? gold.opacity(0.5) : Color.white.opacity(0.1),
+                        player.isCurrentUser ? gold.opacity(0.5) : Color.black.opacity(0.1),
                         style: StrokeStyle(lineWidth: 2, lineCap: .round)
                     )
                     .frame(width: 48, height: 48)
@@ -657,13 +665,13 @@ struct PremiumLeaderboardRow: View {
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 6) {
                     Text(player.name)
-                        .font(.system(size: 15, weight: player.isCurrentUser ? .bold : .semibold))
-                        .foregroundColor(.white)
+                        .font(.system(size: 15, weight: player.isCurrentUser ? .bold : .semibold, design: .rounded))
+                        .foregroundColor(.primary)
                         .lineLimit(1)
 
                     if player.isCurrentUser {
                         Text("YOU")
-                            .font(.system(size: 8, weight: .black))
+                            .font(.system(size: 8, weight: .black, design: .rounded))
                             .foregroundColor(.black)
                             .padding(.horizontal, 5)
                             .padding(.vertical, 2)
@@ -674,7 +682,7 @@ struct PremiumLeaderboardRow: View {
 
                 HStack(spacing: 4) {
                     Text("@\(player.handle)")
-                        .font(.system(size: 11))
+                        .font(.system(size: 11, design: .rounded))
                         .foregroundColor(.gray)
                         .lineLimit(1)
 
@@ -692,9 +700,9 @@ struct PremiumLeaderboardRow: View {
             VStack(alignment: .trailing, spacing: 2) {
                 Text("\(player.xp)")
                     .font(.system(size: 17, weight: .bold, design: .rounded))
-                    .foregroundColor(player.isCurrentUser ? gold : .white)
+                    .foregroundColor(player.isCurrentUser ? gold : .black)
                 Text("XP")
-                    .font(.system(size: 9, weight: .semibold))
+                    .font(.system(size: 9, weight: .semibold, design: .rounded))
                     .foregroundColor(.gray.opacity(0.5))
                     .tracking(0.5)
             }
@@ -759,18 +767,18 @@ struct MotivationalBanner: View {
                         .frame(width: 36, height: 36)
 
                     Image(systemName: "flame.fill")
-                        .font(.system(size: 15, weight: .bold))
+                        .font(.system(size: 15, weight: .bold, design: .rounded))
                         .foregroundColor(gold)
                 }
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("You're ranked #\(rank)")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(.white)
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .foregroundColor(.black)
 
                     if let next = nextPlayer, xpGap > 0 {
                         Text("\(xpGap) XP to overtake @\(next.handle)")
-                            .font(.system(size: 12, weight: .medium))
+                            .font(.system(size: 12, weight: .medium, design: .rounded))
                             .foregroundColor(gold.opacity(0.8))
                     }
                 }
@@ -845,12 +853,12 @@ struct EmptyFriendsView: View {
                 // Mountain icon
                 ZStack {
                     Image(systemName: "mountain.2.fill")
-                        .font(.system(size: 44))
+                        .font(.system(size: 44, design: .rounded))
                         .foregroundColor(gold.opacity(0.12))
                         .offset(y: 8)
 
                     Image(systemName: "person.3.fill")
-                        .font(.system(size: 32))
+                        .font(.system(size: 32, design: .rounded))
                         .foregroundColor(gold.opacity(0.45))
                         .offset(y: floatOffset)
                 }
@@ -858,11 +866,11 @@ struct EmptyFriendsView: View {
 
             VStack(spacing: 10) {
                 Text("The summit is better shared")
-                    .font(.system(size: 20, weight: .bold))
+                    .font(.system(size: 20, weight: .bold, design: .rounded))
                     .foregroundColor(.white)
 
                 Text("Invite fellow alpinists to compete,\ncheer each other on, and climb together.")
-                    .font(.system(size: 14, weight: .medium))
+                    .font(.system(size: 14, weight: .medium, design: .rounded))
                     .foregroundColor(.gray)
                     .multilineTextAlignment(.center)
                     .lineSpacing(3)
@@ -871,9 +879,9 @@ struct EmptyFriendsView: View {
             Button(action: onAdd) {
                 HStack(spacing: 8) {
                     Image(systemName: "plus")
-                        .font(.system(size: 14, weight: .bold))
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
                     Text("Add Friend")
-                        .font(.system(size: 15, weight: .bold))
+                        .font(.system(size: 15, weight: .bold, design: .rounded))
                 }
                 .foregroundColor(.black)
                 .padding(.horizontal, 28)

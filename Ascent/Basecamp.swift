@@ -18,9 +18,9 @@ struct BasecampView: View {
 
     private let bannerTimer = Timer.publish(every: 4, on: .main, in: .common).autoconnect()
 
-    private let gold = Color(red: 0.85, green: 0.65, blue: 0.13)
-    private let cardBg = Color(red: 0.11, green: 0.11, blue: 0.14)
-    private let bg = Color(red: 0.05, green: 0.05, blue: 0.08)
+    private let gold = Color(red: 0.1, green: 0.5, blue: 0.95) // Sleek Apple Blue
+    private let cardBg = Color.white
+    private let bg = Color(red: 0.95, green: 0.95, blue: 0.97)
 
     var ironLegsProgress: CGFloat {
         min(CGFloat(appState.weeklyElevation) / 5000.0, 1.0)
@@ -40,7 +40,25 @@ struct BasecampView: View {
 
     var body: some View {
         ZStack {
-            bg.ignoresSafeArea()
+            // Ambient gradient background (Gentler Streak style — GPU-optimized)
+            ZStack {
+                bg.ignoresSafeArea()
+                
+                // Soft ambient color blobs (RadialGradient = GPU-accelerated, no blur needed)
+                Circle()
+                    .fill(RadialGradient(colors: [Color.blue.opacity(0.1), Color.clear], center: .center, startRadius: 0, endRadius: 150))
+                    .frame(width: 300, height: 300)
+                    .offset(x: -100, y: -200)
+                Circle()
+                    .fill(RadialGradient(colors: [Color.cyan.opacity(0.08), Color.clear], center: .center, startRadius: 0, endRadius: 125))
+                    .frame(width: 250, height: 250)
+                    .offset(x: 120, y: 100)
+                Circle()
+                    .fill(RadialGradient(colors: [Color.purple.opacity(0.06), Color.clear], center: .center, startRadius: 0, endRadius: 100))
+                    .frame(width: 200, height: 200)
+                    .offset(x: -50, y: 400)
+            }
+            .ignoresSafeArea()
 
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 0) {
@@ -89,9 +107,9 @@ struct BasecampView: View {
 
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Good \(greeting)")
-                                .font(.subheadline).foregroundColor(.gray)
+                                .font(.system(.subheadline, design: .rounded)).foregroundColor(.gray)
                             Text(appState.userName)
-                                .font(.title2).fontWeight(.bold).foregroundColor(.white)
+                                .font(.system(.title2, design: .rounded)).fontWeight(.bold).foregroundColor(.primary)
                         }
                         .padding(.leading, 8)
 
@@ -101,7 +119,7 @@ struct BasecampView: View {
                         Button(action: { showXPDetails = true }) {
                             HStack(spacing: 4) {
                                 Image(systemName: "bolt.fill")
-                                    .font(.system(size: 10, weight: .bold))
+                                    .font(.system(size: 10, weight: .bold, design: .rounded))
                                 Text("\(appState.currentXP) XP")
                                     .font(.system(size: 11, weight: .bold, design: .rounded))
                             }
@@ -191,17 +209,17 @@ struct BasecampView: View {
                                     HStack(alignment: .bottom) {
                                         VStack(alignment: .leading, spacing: 4) {
                                             Text(peak.isPrestigePeak ? "PRESTIGE PEAK" : "FEATURED")
-                                                .font(.system(size: 9, weight: .black))
+                                                .font(.system(size: 9, weight: .black, design: .rounded))
                                                 .foregroundColor(peak.isPrestigePeak ? gold : .cyan)
                                                 .tracking(2)
                                             Text(peak.name)
-                                                .font(.title3).fontWeight(.bold).foregroundColor(.white)
+                                                .font(.system(.title3, design: .rounded)).fontWeight(.bold).foregroundColor(.white)
                                             Text("\(peak.elevation)m · \(peak.region)")
-                                                .font(.caption).foregroundColor(.white.opacity(0.7))
+                                                .font(.system(.caption, design: .rounded)).foregroundColor(.white.opacity(0.7))
                                         }
                                         Spacer()
                                         Image(systemName: "chevron.right.circle.fill")
-                                            .font(.system(size: 28))
+                                            .font(.system(size: 28, design: .rounded))
                                             .foregroundColor(.white.opacity(0.5))
                                     }
                                     .padding(16)
@@ -286,7 +304,7 @@ struct BasecampView: View {
                             if appState.recentTours.count > 3 {
                                 Button(action: { showAllActivities = true }) {
                                     Text("See All")
-                                        .font(.system(size: 13, weight: .semibold))
+                                        .font(.system(size: 13, weight: .semibold, design: .rounded))
                                         .foregroundColor(gold)
                                 }
                             }
@@ -296,16 +314,23 @@ struct BasecampView: View {
                         if appState.recentTours.isEmpty && !appState.isLoadingMoreFeed {
                             VStack(spacing: 14) {
                                 Image(systemName: "figure.hiking")
-                                    .font(.system(size: 36))
+                                    .font(.system(size: 36, design: .rounded))
                                     .foregroundColor(.gray.opacity(0.4))
                                 Text("No activity yet")
-                                    .font(.headline).foregroundColor(.white)
+                                    .font(.system(.headline, design: .rounded)).foregroundColor(.primary)
                                 Text("Complete your first mission to see it here.")
-                                    .font(.caption).foregroundColor(.gray)
+                                    .font(.system(.caption, design: .rounded)).foregroundColor(.gray)
                                     .multilineTextAlignment(.center)
                             }
                             .frame(maxWidth: .infinity).padding(40)
-                            .background(cardBg).cornerRadius(20)
+                            .background(.ultraThinMaterial)
+                            .environment(\.colorScheme, .light)
+                            .cornerRadius(20)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                                    .stroke(Color.white.opacity(0.5), lineWidth: 0.5)
+                            )
+                            .shadow(color: .black.opacity(0.06), radius: 15, y: 6)
                             .padding(.horizontal, 20)
                         } else {
                             VStack(spacing: 16) {
@@ -313,7 +338,7 @@ struct BasecampView: View {
                                     ActivityCardView(tour: tour)
                                 }
                                 if appState.isLoadingMoreFeed && appState.recentTours.count < 3 {
-                                    ProgressView().tint(.white).padding()
+                                    ProgressView().tint(.gray).padding()
                                 }
                             }
                             .padding(.horizontal, 20)
@@ -330,17 +355,17 @@ struct BasecampView: View {
             appState.fetchRecommendedPeaks()
         }
         .sheet(isPresented: $showXPDetails) {
-            XPDetailView().presentationDetents([.medium, .large]).preferredColorScheme(.dark)
+            XPDetailView().presentationDetents([.medium, .large]).preferredColorScheme(.light)
         }
         .sheet(isPresented: $showObjectiveDetail) {
             if let obj = selectedObjective {
                 ObjectiveDetailView(title: obj.title, icon: obj.icon, current: obj.current, target: obj.target, unit: obj.unit)
                     .presentationDetents([.medium, .large])
-                    .preferredColorScheme(.dark)
+                    .preferredColorScheme(.light)
             }
         }
         .sheet(isPresented: $showAllActivities) {
-            AllActivitiesView().preferredColorScheme(.dark)
+            AllActivitiesView().preferredColorScheme(.light)
         }
         .fullScreenCover(isPresented: $showTracker, onDismiss: {
             appState.fetchFeed()
@@ -361,11 +386,11 @@ struct BasecampView: View {
     private func sectionHeader(_ title: String, icon: String, iconColor: Color) -> some View {
         HStack(spacing: 8) {
             Image(systemName: icon)
-                .font(.system(size: 12, weight: .bold))
+                .font(.system(size: 12, weight: .bold, design: .rounded))
                 .foregroundColor(iconColor)
             Text(title)
-                .font(.system(size: 17, weight: .bold))
-                .foregroundColor(.white)
+                .font(.system(size: 17, weight: .bold, design: .rounded))
+                .foregroundColor(.primary)
         }
         .padding(.horizontal, 20)
     }
@@ -380,7 +405,7 @@ struct BasecampView: View {
                 startPoint: .topLeading, endPoint: .bottomTrailing
             )
             Image(systemName: peak.isPrestigePeak ? "crown.fill" : "mountain.2.fill")
-                .font(.system(size: 60)).foregroundColor(.white.opacity(0.06))
+                .font(.system(size: 60, design: .rounded)).foregroundColor(.white.opacity(0.06))
         }
     }
 }
@@ -405,7 +430,7 @@ struct WeeklyObjectiveCard: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Image(systemName: icon)
-                    .font(.system(size: 14, weight: .bold))
+                    .font(.system(size: 14, weight: .bold, design: .rounded))
                     .foregroundColor(color)
                 Spacer()
                 Text("\(Int(progress * 100))%")
@@ -414,21 +439,21 @@ struct WeeklyObjectiveCard: View {
             }
 
             Text(title.uppercased())
-                .font(.system(size: 10, weight: .black))
+                .font(.system(size: 10, weight: .black, design: .rounded))
                 .foregroundColor(.gray).tracking(1)
 
             HStack(alignment: .lastTextBaseline, spacing: 3) {
                 Text("\(current)")
                     .font(.system(size: 24, weight: .black, design: .rounded))
-                    .foregroundColor(.white)
+                    .foregroundColor(.primary)
                 Text("/ \(target) \(unit)")
-                    .font(.system(size: 11, weight: .medium))
+                    .font(.system(size: 11, weight: .medium, design: .rounded))
                     .foregroundColor(.gray)
             }
 
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
-                    Capsule().fill(Color.white.opacity(0.08)).frame(height: 5)
+                    Capsule().fill(Color.gray.opacity(0.1)).frame(height: 5)
                     Capsule().fill(color)
                         .frame(width: max(5, geo.size.width * progress), height: 5)
                 }
@@ -437,12 +462,14 @@ struct WeeklyObjectiveCard: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity)
-        .background(Color(red: 0.11, green: 0.11, blue: 0.14))
+        .background(.ultraThinMaterial)
+        .environment(\.colorScheme, .light)
         .cornerRadius(16)
         .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(color.opacity(progress >= 1 ? 0.4 : 0.1), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(color.opacity(0.25), lineWidth: 0.5)
         )
+        .shadow(color: color.opacity(0.15), radius: 12, y: 6)
     }
 }
 
@@ -482,7 +509,7 @@ struct RouteCard: View {
 
                     // Difficulty pill
                     Text(mountain.difficulty.rawValue.uppercased())
-                        .font(.system(size: 8, weight: .black))
+                        .font(.system(size: 8, weight: .black, design: .rounded))
                         .foregroundColor(.black)
                         .padding(.horizontal, 6).padding(.vertical, 3)
                         .background(mountain.difficulty.color)
@@ -493,25 +520,25 @@ struct RouteCard: View {
                 // Info area
                 VStack(alignment: .leading, spacing: 4) {
                     Text(mountain.name)
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(.white)
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .foregroundColor(.primary)
                         .lineLimit(1)
 
                     HStack(spacing: 4) {
-                        Image(systemName: "arrow.up.right").font(.system(size: 9, weight: .bold)).foregroundColor(.gray)
+                        Image(systemName: "arrow.up.right").font(.system(size: 9, weight: .bold, design: .rounded)).foregroundColor(.gray)
                         Text("\(mountain.elevation)m")
-                            .font(.system(size: 11, weight: .medium))
+                            .font(.system(size: 11, weight: .medium, design: .rounded))
                             .foregroundColor(.gray)
                         Text("·").foregroundColor(.gray.opacity(0.5))
                         Text(mountain.region)
-                            .font(.system(size: 11)).foregroundColor(.gray)
+                            .font(.system(size: 11, design: .rounded)).foregroundColor(.gray)
                             .lineLimit(1)
                     }
 
                     if mountain.isPrestigePeak {
                         HStack(spacing: 3) {
-                            Image(systemName: "crown.fill").font(.system(size: 8))
-                            Text("PRESTIGE").font(.system(size: 8, weight: .black)).tracking(0.5)
+                            Image(systemName: "crown.fill").font(.system(size: 8, design: .rounded))
+                            Text("PRESTIGE").font(.system(size: 8, weight: .black, design: .rounded)).tracking(0.5)
                         }
                         .foregroundColor(gold)
                     }
@@ -519,12 +546,14 @@ struct RouteCard: View {
                 .padding(.horizontal, 12).padding(.vertical, 10)
             }
             .frame(width: 180)
-            .background(Color(red: 0.11, green: 0.11, blue: 0.14))
-            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .background(.ultraThinMaterial)
+            .environment(\.colorScheme, .light)
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: 14)
-                    .stroke(Color.white.opacity(0.06), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(Color.white.opacity(0.5), lineWidth: 0.5)
             )
+            .shadow(color: .black.opacity(0.06), radius: 12, y: 6)
         }
         .buttonStyle(PlainButtonStyle())
     }
@@ -536,7 +565,7 @@ struct RouteCard: View {
                 startPoint: .topLeading, endPoint: .bottomTrailing
             )
             Image(systemName: "mountain.2.fill")
-                .font(.system(size: 28)).foregroundColor(.white.opacity(0.15))
+                .font(.system(size: 28, design: .rounded)).foregroundColor(.white.opacity(0.15))
         }
     }
 }
@@ -560,24 +589,24 @@ struct DiscoverCard: View {
                         .fill(mountain.isPrestigePeak ? gold.opacity(0.15) : Color.blue.opacity(0.1))
                         .frame(width: 48, height: 48)
                     Image(systemName: mountain.isPrestigePeak ? "crown.fill" : "mountain.2.fill")
-                        .font(.system(size: 18))
+                        .font(.system(size: 18, design: .rounded))
                         .foregroundColor(mountain.isPrestigePeak ? gold : .blue)
                 }
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text(mountain.name)
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(.white)
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .foregroundColor(.primary)
                         .lineLimit(1)
                     Text("\(mountain.elevation)m · \(mountain.region)")
-                        .font(.system(size: 11)).foregroundColor(.gray)
+                        .font(.system(size: 11, design: .rounded)).foregroundColor(.gray)
                         .lineLimit(1)
                 }
 
                 Spacer()
 
                 Text(mountain.difficulty.rawValue.uppercased())
-                    .font(.system(size: 8, weight: .black))
+                    .font(.system(size: 8, weight: .black, design: .rounded))
                     .foregroundColor(.black)
                     .padding(.horizontal, 6).padding(.vertical, 3)
                     .background(mountain.difficulty.color)
@@ -585,12 +614,14 @@ struct DiscoverCard: View {
             }
             .padding(12)
             .frame(width: 260)
-            .background(Color(red: 0.11, green: 0.11, blue: 0.14))
-            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .background(.ultraThinMaterial)
+            .environment(\.colorScheme, .light)
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: 14)
-                    .stroke(mountain.isPrestigePeak ? gold.opacity(0.2) : Color.white.opacity(0.05), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(Color.white.opacity(0.5), lineWidth: 0.5)
             )
+            .shadow(color: .black.opacity(0.06), radius: 12, y: 6)
         }
         .buttonStyle(PlainButtonStyle())
     }
@@ -614,16 +645,16 @@ struct XPDetailView: View {
 
     var body: some View {
         ZStack {
-            Color(red: 0.08, green: 0.08, blue: 0.1).ignoresSafeArea()
+            Color.clear.ignoresSafeArea()
             VStack(spacing: 30) {
                 HStack {
-                    Text("Performance Stats").font(.title2).fontWeight(.bold).foregroundColor(.white)
+                    Text("Performance Stats").font(.system(.title2, design: .rounded)).fontWeight(.bold).foregroundColor(.primary)
                     Spacer()
-                    Button(action: { dismiss() }) { Image(systemName: "xmark.circle.fill").font(.system(size: 24)).foregroundColor(.gray) }
+                    Button(action: { dismiss() }) { Image(systemName: "xmark.circle.fill").font(.system(size: 24, design: .rounded)).foregroundColor(.gray) }
                 }
                 VStack(spacing: 8) {
-                    Text("\(appState.currentXP) XP").font(.system(size: 48, weight: .black, design: .rounded)).foregroundColor(.white)
-                    Text(regionText).font(.subheadline).foregroundColor(.green)
+                    Text("\(appState.currentXP) XP").font(.system(size: 48, weight: .black, design: .rounded)).foregroundColor(.primary)
+                    Text(regionText).font(.system(.subheadline, design: .rounded)).foregroundColor(.green)
                 }
                 .padding(.vertical, 20)
                 HStack(spacing: 20) {
@@ -631,11 +662,21 @@ struct XPDetailView: View {
                     Divider().background(Color.gray.opacity(0.3)).frame(height: 50)
                     StatColumn(title: "Missions", value: "\(appState.recentTours.filter{$0.isCurrentUser}.count)", unit: "total")
                 }
-                .padding().background(Color(red: 0.12, green: 0.12, blue: 0.15)).cornerRadius(16)
+                .padding()
+                .background(.ultraThinMaterial)
+                .environment(\.colorScheme, .light)
+                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .stroke(Color.white.opacity(0.5), lineWidth: 0.5)
+                )
+                .shadow(color: .black.opacity(0.06), radius: 20, y: 10)
+                
                 Spacer()
             }
             .padding(25)
         }
+        .presentationBackground(.ultraThinMaterial)
     }
 }
 
@@ -643,9 +684,9 @@ struct StatColumn: View {
     let title: String; let value: String; let unit: String
     var body: some View {
         VStack(spacing: 4) {
-            Text(title).font(.caption).foregroundColor(.gray).textCase(.uppercase)
-            Text(value).font(.title2).fontWeight(.bold).foregroundColor(.white)
-            Text(unit).font(.caption2).foregroundColor(.gray)
+            Text(title).font(.system(.caption, design: .rounded)).foregroundColor(.gray).textCase(.uppercase)
+            Text(value).font(.system(.title2, design: .rounded)).fontWeight(.bold).foregroundColor(.primary)
+            Text(unit).font(.system(.caption2, design: .rounded)).foregroundColor(.gray)
         }
         .frame(maxWidth: .infinity)
     }
@@ -662,7 +703,7 @@ struct AllActivitiesView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                Color(red: 0.08, green: 0.08, blue: 0.1).ignoresSafeArea()
+                Color(red: 0.95, green: 0.95, blue: 0.97).ignoresSafeArea()
 
                 ScrollView {
                     LazyVStack(spacing: 20) {
@@ -676,12 +717,12 @@ struct AllActivitiesView: View {
                         }
 
                         if appState.isLoadingMoreFeed {
-                            ProgressView().tint(.white).padding()
+                            ProgressView().tint(.gray).padding()
                         }
 
                         if !appState.hasMoreFeed && !appState.recentTours.isEmpty {
                             Text("You've seen it all!")
-                                .font(.caption).foregroundColor(.gray)
+                                .font(.system(.caption, design: .rounded)).foregroundColor(.gray)
                                 .padding(.top, 10)
                         }
                     }
@@ -696,7 +737,7 @@ struct AllActivitiesView: View {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button(action: { dismiss() }) {
                         Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 24))
+                            .font(.system(size: 24, design: .rounded))
                             .foregroundColor(.gray)
                     }
                 }

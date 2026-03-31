@@ -15,9 +15,9 @@ struct ContentView: View {
 
     var body: some View {
         ZStack(alignment: .bottom) {
-
-            Color(red: 0.05, green: 0.05, blue: 0.08).ignoresSafeArea()
-
+            
+            Color(red: 0.95, green: 0.95, blue: 0.97).ignoresSafeArea()
+            
             Group {
                 switch selectedTab {
                 case 0: BasecampView()
@@ -31,6 +31,7 @@ struct ContentView: View {
 
             CustomTabBar(selectedTab: $selectedTab, showTracker: $showTracker)
         }
+        .preferredColorScheme(.light)
         .fullScreenCover(isPresented: $showTracker) {
             LiveRecordView(targetMountain: nil)
         }
@@ -46,10 +47,10 @@ struct CustomTabBar: View {
         ZStack(alignment: .top) {
             RoundedRectangle(cornerRadius: 40)
                 .fill(.ultraThinMaterial)
-                .environment(\.colorScheme, .dark)
+                .environment(\.colorScheme, .light)
                 .clipShape(RoundedRectangle(cornerRadius: 40))
                 .frame(height: 85)
-                .shadow(color: .black.opacity(0.5), radius: 20, y: 10)
+                .shadow(color: .black.opacity(0.1), radius: 25, y: 15)
             
             HStack(spacing: 0) {
                 TabBarIcon(icon: "house.fill", isSelected: selectedTab == 0) { selectedTab = 0 }
@@ -67,16 +68,14 @@ struct CustomTabBar: View {
             }) {
                 ZStack {
                     Circle()
-                        .fill(Color.white.opacity(0.2))
-                        .background(.regularMaterial)
-                        .environment(\.colorScheme, .light)
+                        .fill(Color(red: 0.1, green: 0.5, blue: 0.95))
                         .clipShape(Circle())
                         .frame(width: 70, height: 70)
-                        .shadow(color: .white.opacity(0.2), radius: 15, y: 0)
+                        .shadow(color: Color(red: 0.1, green: 0.5, blue: 0.95).opacity(0.4), radius: 15, y: 4)
                     
-                    Image(systemName: "play.fill")
-                        .font(.system(size: 30, weight: .black))
-                        .foregroundColor(.black)
+                    Image(systemName: "figure.walk")
+                        .font(.system(size: 28, weight: .black, design: .rounded))
+                        .foregroundColor(.white)
                         .offset(x: 2)
                 }
             }
@@ -95,8 +94,8 @@ struct TabBarIcon: View {
     var body: some View {
         Button(action: action) {
             Image(systemName: icon)
-                .font(.system(size: 26, weight: isSelected ? .bold : .regular))
-                .foregroundColor(isSelected ? .white : .gray.opacity(0.5))
+                .font(.system(size: 26, weight: isSelected ? .bold : .regular, design: .rounded))
+                .foregroundColor(isSelected ? Color(red: 0.1, green: 0.5, blue: 0.95) : .gray.opacity(0.6))
                 .frame(maxWidth: .infinity)
         }
     }

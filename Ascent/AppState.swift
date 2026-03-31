@@ -179,7 +179,30 @@ class AppState: ObservableObject {
     var weeklyElevation: Int { weeklyTours.reduce(0) { $0 + $1.elevationGainMeters } }
     var weeklyTourCount: Int { weeklyTours.count }
     
-
+    // Automatische Berechnung des Rangs anhand des aktuellen Levels!
+    func syncAscendTierWithCurrentLevel() {
+        guard ascendProfile != nil else { return }
+        
+        // Finde den Rang, in dessen Level-Range wir uns befinden
+        let roadmapTiers = AscendRoadmapData.shared.tiers
+        if let matchedTier = roadmapTiers.first(where: { currentLevel >= $0.startLvl && currentLevel <= $0.endLvl }) {
+            let parts = matchedTier.name.split(separator: " ")
+            let baseTier = String(parts[0]) // z.B. "Bronze"
+            
+            var subtier = 1
+            if parts.count > 1 {
+                let numeral = String(parts[1])
+                if numeral == "II" { subtier = 2 }
+                else if numeral == "III" { subtier = 3 }
+            }
+            // Obsidian hat keine Subtier-Angabe im Namen, bleibt bei 1
+            
+            ascendProfile?.ascend_tier = baseTier
+            ascendProfile?.ascend_subtier = subtier
+            ascendProfile?.ascend_level = self.currentLevel
+            ascendProfile?.ascend_xp = Double(self.currentXP) // XP fix!
+        }
+    }
     
     // --- PROFIL FUNKTIONEN ---
     
@@ -239,6 +262,8 @@ class AppState: ObservableObject {
                     .value
                 
                 self.ascendProfile = result
+                self.syncAscendTierWithCurrentLevel() // <- Hier wird der korrekte dynamische Rang ermittelt!
+                
             } catch {
                 print("⚠️ Fetch Ascend Profile: \(error)")
                 // Create dummy or insert if not exists
@@ -252,6 +277,7 @@ class AppState: ObservableObject {
                     last_activity_date: nil,
                     prestige_mountains_completed: 0
                 )
+                self.syncAscendTierWithCurrentLevel() // <- Selbst beim leeren Start der richtige Rang
             }
         }
     }
@@ -411,8 +437,17 @@ class AppState: ObservableObject {
     func addCompletedTour(summit: String, comment: String, elevation: Int, duration: TimeInterval, distance: Double, xp: Int, pauses: [PauseEntry] = [], photoData: Data? = nil) {
         self.currentXP += xp
         self.currentLevel = (self.currentXP / 1000) + 1
+        self.syncAscendTierWithCurrentLevel() // Update Rank if user leveled up
 
         uploadProfileToCloud()  // uploadProfileToCloud already calls fetchLeaderboard()
+        
+        // Optional: Update ascend_profiles DB if we want it permanently saved.
+        // We'll trust the sync on fetch, but pushing the new level is clean.
+        if let profile = self.ascendProfile {
+            Task {
+                try? await supabase.from("ascend_profiles").upsert(profile).execute()
+            }
+        }
 
         Task {
             let myId: UUID
@@ -523,15 +558,23 @@ class AppState: ObservableObject {
     // Fist Bump (Like) toggeln
     func toggleFistBump(tour: Tour) {
         guard let tourId = tour.cloudId else { return }
+        let wasBumped = tour.isFistBumped
+        
+        // Optimistic UI Update -> Verhindert, dass der Feed neu lädt und springt
+        if let idx = recentTours.firstIndex(where: { $0.id == tour.id }) {
+            recentTours[idx].isFistBumped.toggle()
+            recentTours[idx].fistBumpCount += wasBumped ? -1 : 1
+        }
+        
         Task {
             do {
                 let myId = try await supabase.auth.session.user.id
-                if tour.isFistBumped {
+                if wasBumped {
                     try await supabase.from("fist_bumps").delete().eq("tour_id", value: tourId).eq("user_id", value: myId).execute()
                 } else {
                     try await supabase.from("fist_bumps").insert(CloudFistBump(tour_id: tourId, user_id: myId)).execute()
                 }
-                fetchFeed()
+                // fetchFeed() wird hier NICHT mehr gerufen, um Scroll-Jumping zu verhindern
             } catch { print("❌ Fehler beim Fist Bump: \(error)") }
         }
     }
@@ -539,12 +582,18 @@ class AppState: ObservableObject {
     // Kommentar posten
     func postComment(tour: Tour, body: String) {
         guard let tourId = tour.cloudId, !body.isEmpty else { return }
+        
+        // Optimistic Update für den Comment-Zähler
+        if let idx = recentTours.firstIndex(where: { $0.id == tour.id }) {
+            recentTours[idx].commentCount += 1
+        }
+        
         Task {
             do {
                 let myId = try await supabase.auth.session.user.id
                 let comment = CloudComment(id: nil, tour_id: tourId, user_id: myId, body: body, created_at: nil)
                 try await supabase.from("comments").insert(comment).execute()
-                fetchFeed()
+                // fetchFeed() wird hier absichtlich weggelassen
             } catch { print("❌ Fehler beim Kommentieren: \(error)") }
         }
     }
@@ -582,15 +631,22 @@ class AppState: ObservableObject {
     // Bookmark toggeln
     func toggleBookmark(tour: Tour) {
         guard let tourId = tour.cloudId else { return }
+        let wasBookmarked = tour.isBookmarked
+        
+        // Optimistic Update
+        if let idx = recentTours.firstIndex(where: { $0.id == tour.id }) {
+            recentTours[idx].isBookmarked.toggle()
+        }
+        
         Task {
             do {
                 let myId = try await supabase.auth.session.user.id
-                if tour.isBookmarked {
+                if wasBookmarked {
                     try await supabase.from("bookmarked_routes").delete().eq("tour_id", value: tourId).eq("user_id", value: myId).execute()
                 } else {
                     try await supabase.from("bookmarked_routes").insert(CloudBookmark(tour_id: tourId, user_id: myId, mountain_name: tour.summitName)).execute()
                 }
-                fetchFeed()
+                // fetchFeed() wird hier absichtlich weggelassen
             } catch { print("❌ Fehler beim Bookmark: \(error)") }
         }
     }

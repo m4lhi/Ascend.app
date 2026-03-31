@@ -21,12 +21,11 @@ struct LoginView: View {
 
     var body: some View {
         ZStack {
-            Color(red: 0.05, green: 0.05, blue: 0.08).ignoresSafeArea()
+            Color(red: 0.95, green: 0.95, blue: 0.97).ignoresSafeArea()
             
             Circle()
-                .fill(Color(red: 0.85, green: 0.65, blue: 0.13).opacity(0.1))
+                .fill(RadialGradient(colors: [Color(red: 0.1, green: 0.5, blue: 0.95).opacity(0.12), Color.clear], center: .center, startRadius: 0, endRadius: 150))
                 .frame(width: 300, height: 300)
-                .blur(radius: 100)
                 .offset(y: -200)
             
             VStack(spacing: 25) {
@@ -35,17 +34,17 @@ struct LoginView: View {
                 // === LOGO & TITEL ===
                 VStack(spacing: 10) {
                     Image(systemName: "mountain.2.fill")
-                        .font(.system(size: 60))
-                        .foregroundColor(Color(red: 0.85, green: 0.65, blue: 0.13))
-                        .shadow(color: Color(red: 0.85, green: 0.65, blue: 0.13).opacity(0.5), radius: 10, y: 5)
+                        .font(.system(size: 60, design: .rounded))
+                        .foregroundColor(Color(red: 0.1, green: 0.5, blue: 0.95))
+                        .shadow(color: Color(red: 0.1, green: 0.5, blue: 0.95).opacity(0.3), radius: 10, y: 5)
                     
                     Text("ASCENT")
                         .font(.system(size: 42, weight: .black, design: .rounded))
-                        .foregroundColor(.white)
+                        .foregroundColor(.primary)
                         .tracking(4)
                     
                     Text(isRegistering ? "Join the Elite" : "Welcome back, Alpinist")
-                        .font(.subheadline)
+                        .font(.system(.subheadline, design: .rounded))
                         .foregroundColor(.gray)
                 }
                 
@@ -56,32 +55,34 @@ struct LoginView: View {
                     HStack {
                         Image(systemName: "envelope.fill").foregroundColor(.gray)
                         TextField("Email Address", text: $email)
-                            .foregroundColor(.white)
+                            .foregroundColor(.primary)
                             .textInputAutocapitalization(.never) // Wichtig für E-Mails!
                             .keyboardType(.emailAddress)
                             .autocorrectionDisabled(true)
                     }
                     .padding()
-                    .background(Color.white.opacity(0.05))
+                    .background(.ultraThinMaterial)
+                    .environment(\.colorScheme, .light)
                     .cornerRadius(12)
-                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.1), lineWidth: 1))
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.5), lineWidth: 0.5))
                     
                     HStack {
                         Image(systemName: "lock.fill").foregroundColor(.gray)
                         SecureField("Password", text: $password)
-                            .foregroundColor(.white)
+                            .foregroundColor(.primary)
                     }
                     .padding()
-                    .background(Color.white.opacity(0.05))
+                    .background(.ultraThinMaterial)
+                    .environment(\.colorScheme, .light)
                     .cornerRadius(12)
-                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.1), lineWidth: 1))
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.5), lineWidth: 0.5))
                 }
                 .padding(.horizontal, 30)
                 
                 // === NEU: FEHLERMELDUNG ANZEIGEN ===
                 if let errorMessage = errorMessage {
                     Text(errorMessage)
-                        .font(.caption)
+                        .font(.system(.caption, design: .rounded))
                         .foregroundColor(.red)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 30)
@@ -97,16 +98,16 @@ struct LoginView: View {
                             ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .black))
                         } else {
                             Text(isRegistering ? "CREATE ACCOUNT" : "SIGN IN")
-                                .font(.headline)
+                                .font(.system(.headline, design: .rounded))
                                 .fontWeight(.bold)
                                 .foregroundColor(.black)
                         }
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
-                    .background(Color(red: 0.85, green: 0.65, blue: 0.13))
+                    .background(Color(red: 0.1, green: 0.5, blue: 0.95))
                     .cornerRadius(12)
-                    .shadow(color: Color(red: 0.85, green: 0.65, blue: 0.13).opacity(0.4), radius: 10, y: 5)
+                    .shadow(color: Color(red: 0.1, green: 0.5, blue: 0.95).opacity(0.3), radius: 10, y: 5)
                 }
                 .padding(.horizontal, 30)
                 .disabled(isLoading || email.isEmpty || password.isEmpty) // Button sperren, wenn Felder leer sind
@@ -115,7 +116,7 @@ struct LoginView: View {
                 // === "ODER" TRENNLINIE ===
                 HStack {
                     VStack { Divider().background(Color.gray.opacity(0.5)) }
-                    Text("OR").font(.caption).foregroundColor(.gray).padding(.horizontal, 10)
+                    Text("OR").font(.system(.caption, design: .rounded)).foregroundColor(.gray).padding(.horizontal, 10)
                     VStack { Divider().background(Color.gray.opacity(0.5)) }
                 }
                 .padding(.horizontal, 40)
@@ -127,7 +128,7 @@ struct LoginView: View {
                     onRequest: { request in request.requestedScopes = [.fullName, .email] },
                     onCompletion: { result in print("Apple Login vorerst deaktiviert.") }
                 )
-                .signInWithAppleButtonStyle(.white)
+                .signInWithAppleButtonStyle(.black)
                 .frame(height: 55)
                 .cornerRadius(12)
                 .padding(.horizontal, 30)
@@ -146,9 +147,9 @@ struct LoginView: View {
                             .foregroundColor(.gray)
                         Text(isRegistering ? "Sign In" : "Register")
                             .fontWeight(.bold)
-                            .foregroundColor(Color(red: 0.85, green: 0.65, blue: 0.13))
+                            .foregroundColor(Color(red: 0.1, green: 0.5, blue: 0.95))
                     }
-                    .font(.subheadline)
+                    .font(.system(.subheadline, design: .rounded))
                 }
                 .padding(.bottom, 20)
             }

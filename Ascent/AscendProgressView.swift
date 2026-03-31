@@ -11,22 +11,22 @@ struct AscendProgressView: View {
     
     var body: some View {
         ZStack {
-            Color(red: 0.05, green: 0.05, blue: 0.08).ignoresSafeArea()
+            Color(red: 0.95, green: 0.95, blue: 0.97).ignoresSafeArea()
             
             VStack(spacing: 0) {
                 // Header Bar
                 HStack {
                     Button(action: { dismiss() }) {
                         Image(systemName: "chevron.down")
-                            .font(.title3)
-                            .foregroundColor(.white)
+                            .font(.system(.title3, design: .rounded))
+                            .foregroundColor(.primary)
                             .padding()
                     }
                     Spacer()
                     Text("Ascend Rank")
-                        .font(.headline)
+                        .font(.system(.headline, design: .rounded))
                         .fontWeight(.bold)
-                        .foregroundColor(.white)
+                        .foregroundColor(.primary)
                     Spacer()
                     // Balance space
                     Button(action: { }) {
@@ -44,12 +44,12 @@ struct AscendProgressView: View {
                             
                             VStack(alignment: .leading, spacing: 10) {
                                 Text("Your progress")
-                                    .font(.title2)
+                                    .font(.system(.title2, design: .rounded))
                                     .fontWeight(.bold)
-                                    .foregroundColor(.white)
+                                    .foregroundColor(.primary)
                                 
                                 Text("Unlock perks, rewards, and recognition as you level up your Ascend Rank.")
-                                    .font(.subheadline)
+                                    .font(.system(.subheadline, design: .rounded))
                                     .foregroundColor(.gray)
                                     .fixedSize(horizontal: false, vertical: true)
                             }
@@ -60,9 +60,9 @@ struct AscendProgressView: View {
                             // RANK ROADMAP
                             VStack(alignment: .leading, spacing: 20) {
                                 Text("Tier Progression")
-                                    .font(.title2)
+                                    .font(.system(.title2, design: .rounded))
                                     .fontWeight(.black)
-                                    .foregroundColor(.white)
+                                    .foregroundColor(.primary)
                                     .padding(.horizontal, 25)
                                 
                                 RankRoadmapView(currentLevel: profile.ascend_level)
@@ -72,7 +72,7 @@ struct AscendProgressView: View {
                             
                         } else {
                             // Loading state or nil state
-                            ProgressView().tint(.white)
+                            ProgressView().tint(.gray)
                                 .padding(.top, 100)
                             Text("Loading Rank Data...").foregroundColor(.gray).padding()
                         }
@@ -106,7 +106,7 @@ struct AscendCard: View {
     }
     
     var textColor: Color {
-        profile.ascend_tier.lowercased() == "obsidian" ? .white : tierColor
+        profile.ascend_tier.lowercased() == "obsidian" ? .black : tierColor
     }
 
     var body: some View {
@@ -117,8 +117,8 @@ struct AscendCard: View {
                 // Background Gradient
                 LinearGradient(
                     colors: [
-                        Color(red: 0.15, green: 0.15, blue: 0.12),
-                        tierColor.opacity(0.15)
+                        Color(white: 0.95),
+                        tierColor.opacity(0.1)
                     ],
                     startPoint: .top,
                     endPoint: .bottom
@@ -127,8 +127,7 @@ struct AscendCard: View {
                 // Obsidian Glow specific
                 if profile.ascend_tier.lowercased() == "obsidian" {
                     Circle()
-                        .fill(Color.purple.opacity(0.3))
-                        .blur(radius: 40)
+                        .fill(RadialGradient(colors: [Color.purple.opacity(0.3), Color.clear], center: .center, startRadius: 0, endRadius: 100))
                         .frame(width: 200, height: 200)
                 }
                 
@@ -153,7 +152,7 @@ struct AscendCard: View {
             VStack(alignment: .leading, spacing: 15) {
                 HStack(alignment: .bottom) {
                     Text("\(profile.ascend_tier) \(String(repeating: "I", count: profile.ascend_subtier))")
-                        .font(.title)
+                        .font(.system(.title, design: .rounded))
                         .fontWeight(.bold)
                         .foregroundColor(textColor)
                     
@@ -161,7 +160,7 @@ struct AscendCard: View {
                     
                     VStack(alignment: .trailing, spacing: 2) {
                         Text("\(Int(profile.ascend_xp)) points")
-                            .font(.headline)
+                            .font(.system(.headline, design: .rounded))
                             .foregroundColor(textColor)
                     }
                 }
@@ -172,15 +171,15 @@ struct AscendCard: View {
                 
                 HStack {
                     Text("\(profile.ascend_tier) I")
-                        .font(.caption2)
+                        .font(.system(.caption2, design: .rounded))
                         .foregroundColor(.gray)
                     Spacer()
                     Text("\(profile.ascend_tier) II")
-                        .font(.caption2)
+                        .font(.system(.caption2, design: .rounded))
                         .foregroundColor(.gray)
                     Spacer()
                     Text("\(profile.ascend_tier) III")
-                        .font(.caption2)
+                        .font(.system(.caption2, design: .rounded))
                         .foregroundColor(.gray)
                 }
                 
@@ -188,20 +187,21 @@ struct AscendCard: View {
                     // Action to show history (future feature)
                 }) {
                     Text("View point history")
-                        .font(.subheadline)
+                        .font(.system(.subheadline, design: .rounded))
                         .fontWeight(.semibold)
-                        .foregroundColor(.white.opacity(0.9))
+                        .foregroundColor(.primary)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
-                        .background(Color.white.opacity(0.1))
+                        .background(Color.gray.opacity(0.1))
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
                 .padding(.top, 10)
             }
             .padding(20)
-            .background(Color(red: 0.12, green: 0.12, blue: 0.15))
+            .background(Color.white)
             .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-            .offset(y: -20) // Overlap top section slightly
+            .shadow(color: .black.opacity(0.04), radius: 10, y: 4)
+            .offset(y: -20)
         }
         .onAppear {
             withAnimation(.spring(response: 0.6, dampingFraction: 0.6)) {
@@ -442,12 +442,12 @@ struct RankTierNodeView: View {
             VStack(spacing: 0) {
                 ZStack {
                     Circle()
-                        .fill(isUnlocked ? tier.color : Color.white.opacity(0.1))
+                        .fill(isUnlocked ? tier.color : Color.gray.opacity(0.1))
                         .frame(width: 20, height: 20)
                         .shadow(color: isUnlocked ? tier.color.opacity(0.8) : .clear, radius: 8)
                         .overlay(
                             Circle()
-                                .stroke(Color(red: 0.05, green: 0.05, blue: 0.08), lineWidth: 3)
+                                .stroke(Color(white: 0.98), lineWidth: 3)
                         )
                     
                     if isCurrentTier {
@@ -458,32 +458,34 @@ struct RankTierNodeView: View {
                             .scaleEffect(1.0 + (sin(phase) * 0.2))
                     }
                 }
+                .frame(width: 30, height: 30) // WICHTIGER FIX: Feste Breite für exaktes Alignment der Striche!
                 
                 // Path line
                 if tier.endLvl != 1000 {
                     Rectangle()
-                        .fill(isUnlocked ? tier.color.opacity(0.6) : Color.white.opacity(0.1))
+                        .fill(isUnlocked ? tier.color.opacity(0.6) : Color.gray.opacity(0.1))
                         .frame(width: 2)
                         .frame(height: 100)
                         .overlay(
                             Rectangle()
-                                .fill(LinearGradient(colors: [.white, .clear], startPoint: .top, endPoint: .bottom))
+                                .fill(LinearGradient(colors: [.gray, .clear], startPoint: .top, endPoint: .bottom))
                                 .frame(width: 2)
                                 .opacity(isUnlocked && currentLevel > tier.endLvl ? 0.3 : 0) // Glowing flow
                         )
                 }
             }
+            .frame(width: 30) // Zwingt den gesamten Strich-Container exakt auf dieselbe Mitte
             
             // Content Card
             HStack(spacing: 15) {
                 // Major Milestone uses the huge 3D Gem
                 ZStack {
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(isUnlocked ? tier.color.opacity(0.15) : Color.white.opacity(0.03))
+                        .fill(isUnlocked ? tier.color.opacity(0.15) : Color.gray.opacity(0.05))
                         .frame(width: 60, height: 60)
                         .overlay(
                             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                .stroke(isUnlocked ? tier.color.opacity(0.5) : Color.white.opacity(0.05), lineWidth: 1)
+                                .stroke(isUnlocked ? tier.color.opacity(0.5) : Color.black.opacity(0.04), lineWidth: 1)
                         )
                     
                     GemView(isActive: isUnlocked, color: tier.color, isObsidian: tier.isObsidian)
@@ -494,13 +496,13 @@ struct RankTierNodeView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     HStack {
                         Text(tier.name)
-                            .font(.headline)
+                            .font(.system(.headline, design: .rounded))
                             .fontWeight(.bold)
-                            .foregroundColor(isUnlocked ? .white : .gray.opacity(0.6))
+                            .foregroundColor(isUnlocked ? .primary : .gray.opacity(0.6))
                         
                         if isCurrentTier {
                             Text("Current")
-                                .font(.system(size: 10, weight: .bold))
+                                .font(.system(size: 10, weight: .bold, design: .rounded))
                                 .foregroundColor(tier.color)
                                 .padding(.horizontal, 6).padding(.vertical, 2)
                                 .background(tier.color.opacity(0.2))
@@ -510,12 +512,12 @@ struct RankTierNodeView: View {
                     
                     HStack(spacing: 6) {
                         Text("\(tier.achievements.count) Requirements")
-                            .font(.caption)
+                            .font(.system(.caption, design: .rounded))
                             .foregroundColor(.gray.opacity(0.5))
                         
                         if !isUnlocked {
                             Image(systemName: "lock.fill")
-                                .font(.system(size: 9))
+                                .font(.system(size: 9, design: .rounded))
                                 .foregroundColor(tier.color.opacity(0.6))
                         }
                     }
@@ -525,13 +527,14 @@ struct RankTierNodeView: View {
                 
                 // Chevron to indicate it's clickable
                 Image(systemName: "chevron.right")
-                    .font(.footnote)
+                    .font(.system(.footnote, design: .rounded))
                     .foregroundColor(isUnlocked ? tier.color : .gray.opacity(0.4))
                     .padding(.trailing, 5)
             }
             .padding(15)
-            .background(isCurrentTier ? tier.color.opacity(0.05) : Color.white.opacity(0.02))
+            .background(isCurrentTier ? tier.color.opacity(0.05) : Color.white)
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .shadow(color: .black.opacity(0.04), radius: 8, y: 4)
             .overlay(
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .stroke(isCurrentTier ? tier.color.opacity(0.3) : Color.clear, lineWidth: 1)
@@ -563,12 +566,11 @@ struct RankGallerySheet: View {
     
     var body: some View {
         ZStack {
-            Color(red: 0.05, green: 0.05, blue: 0.08).ignoresSafeArea()
+            Color(red: 0.95, green: 0.95, blue: 0.97).ignoresSafeArea()
             
             // Subtle ambient background
             Circle()
-                .fill(tier.color.opacity(0.1))
-                .blur(radius: 60)
+                .fill(RadialGradient(colors: [tier.color.opacity(0.12), Color.clear], center: .center, startRadius: 0, endRadius: 150))
                 .frame(width: 300, height: 300)
                 .offset(y: -200)
             
@@ -577,15 +579,15 @@ struct RankGallerySheet: View {
                 HStack {
                     Button(action: { dismiss() }) {
                         Image(systemName: "xmark.circle.fill")
-                            .font(.title2)
-                            .foregroundColor(.white.opacity(0.5))
+                            .font(.system(.title2, design: .rounded))
+                            .foregroundColor(.primary.opacity(0.5))
                             .padding()
                     }
                     Spacer()
                     Text("\(tier.name) Records")
-                        .font(.headline)
+                        .font(.system(.headline, design: .rounded))
                         .fontWeight(.bold)
-                        .foregroundColor(.white)
+                        .foregroundColor(.primary)
                     Spacer()
                     Image(systemName: "xmark").foregroundColor(.clear).padding()
                 }
@@ -597,13 +599,13 @@ struct RankGallerySheet: View {
                 
                 VStack(spacing: 8) {
                     Text("\(completedCount) / \(tier.achievements.count) COMPLETED")
-                        .font(.caption)
+                        .font(.system(.caption, design: .rounded))
                         .fontWeight(.bold)
                         .foregroundColor(tier.color)
                     
                     GeometryReader { geo in
                         ZStack(alignment: .leading) {
-                            Capsule().fill(Color.white.opacity(0.1))
+                            Capsule().fill(Color.gray.opacity(0.1))
                             Capsule().fill(tier.color)
                                 .frame(width: geo.size.width * CGFloat(progress))
                         }
@@ -623,15 +625,15 @@ struct RankGallerySheet: View {
                                 // Badge Graphic
                                 ZStack {
                                     RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                        .fill(isUnlocked ? tier.color.opacity(0.15) : Color.white.opacity(0.03))
+                                        .fill(isUnlocked ? tier.color.opacity(0.15) : Color.gray.opacity(0.05))
                                         .frame(height: 80)
                                         .overlay(
                                             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                                .stroke(isUnlocked ? tier.color.opacity(0.4) : Color.white.opacity(0.05), lineWidth: 1)
+                                                .stroke(isUnlocked ? tier.color.opacity(0.4) : Color.black.opacity(0.04), lineWidth: 1)
                                         )
                                     
                                     Image(systemName: ach.icon)
-                                        .font(.system(size: 28, weight: .light))
+                                        .font(.system(size: 28, weight: .light, design: .rounded))
                                         .foregroundColor(isUnlocked ? tier.color : .gray.opacity(0.3))
                                         .shadow(color: isUnlocked ? tier.color.opacity(0.6) : .clear, radius: 5)
                                 }
@@ -639,15 +641,15 @@ struct RankGallerySheet: View {
                                 // Text
                                 VStack(spacing: 2) {
                                     Text(ach.title)
-                                        .font(.caption)
+                                        .font(.system(.caption, design: .rounded))
                                         .fontWeight(.bold)
-                                        .foregroundColor(isUnlocked ? .white : .gray.opacity(0.6))
+                                        .foregroundColor(isUnlocked ? .primary : .gray.opacity(0.6))
                                         .multilineTextAlignment(.center)
                                         .lineLimit(2)
                                         .minimumScaleFactor(0.8)
                                         
                                     Text(ach.subtitle)
-                                        .font(.system(size: 9))
+                                        .font(.system(size: 9, design: .rounded))
                                         .foregroundColor(isUnlocked ? tier.color.opacity(0.8) : .gray.opacity(0.4))
                                         .lineLimit(1)
                                 }
