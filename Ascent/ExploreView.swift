@@ -224,8 +224,9 @@ struct ExploreView: View {
                 }
             }
         }
-        .fullScreenCover(isPresented: $showTracker) {
-            LiveRecordView(targetMountain: mountainToTrack)
+        // 🟢 FIX: Wir nutzen 'item:', damit der Tracker erst öffnet, wenn der Berg zu 100% geladen ist!
+        .fullScreenCover(item: $mountainToTrack) { mountain in
+            LiveRecordView(targetMountain: mountain)
         }
         .sheet(isPresented: $showLayersSheet) {
             layersSheet.presentationDetents([.medium]).presentationDragIndicator(.visible)
