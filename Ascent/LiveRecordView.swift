@@ -271,7 +271,8 @@ struct LiveRecordView: View {
     @State private var blinkToggle: Bool = false
     let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
-    @State private var cameraPosition: MapCameraPosition
+    // .automatic erlaubt der Karte, beim Start alles zu zeigen, und dem User, danach frei zu wischen
+    @State private var cameraPosition: MapCameraPosition = .automatic
 
     @State private var showSaveForm = false
     @State private var showElevationProfile = false
@@ -283,16 +284,6 @@ struct LiveRecordView: View {
     @State private var isTooFarForRoute = false
 
     private let gold = Color(red: 0.85, green: 0.65, blue: 0.13)
-    
-    init(targetMountain: Mountain?) {
-        self.targetMountain = targetMountain
-        
-        if let target = targetMountain, let lat = target.latitude, let lon = target.longitude {
-            _cameraPosition = State(initialValue: .camera(MapCamera(centerCoordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon), distance: 15000)))
-        } else {
-            _cameraPosition = State(initialValue: .automatic)
-        }
-    }
 
     private var elevationProgress: Double {
         guard gpsManager.elevationGain > 0 else { return 0 }
@@ -325,11 +316,13 @@ struct LiveRecordView: View {
                 
                 if let routeCoords = plannedRoute, !routeCoords.isEmpty {
                     if routeCoords.count == 2 {
+                        // Fallback Luftlinie (gestrichelt)
                         MapPolyline(coordinates: routeCoords)
                             .stroke(.white.opacity(0.6), style: StrokeStyle(lineWidth: 3, dash: [5, 5]))
                     } else {
+                        // Echte OSRM Wanderroute (Blaue Linie)
                         MapPolyline(coordinates: routeCoords)
-                            .stroke(.cyan, style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round))
+                            .stroke(.cyan.opacity(0.8), style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round, dash: [8, 8]))
                     }
                 }
                 
@@ -352,11 +345,15 @@ struct LiveRecordView: View {
                 let userCLLoc = CLLocation(latitude: loc.coordinate.latitude, longitude: loc.coordinate.longitude)
                 let destCLLoc = CLLocation(latitude: targetLat, longitude: targetLon)
                 
+                // 🟢 DER MAGISCHE FIX:
+                // Wenn das GPS zu weit weg ist, setzen wir hasCalculatedRoute NICHT auf true.
+                // Dadurch probiert es die Karte im Hintergrund weiter, bis du "virtuell" am Eibsee ankommst!
                 if userCLLoc.distance(from: destCLLoc) > 50000 {
                     withAnimation { self.isTooFarForRoute = true }
                     return
                 }
                 
+                // Jetzt sind wir nah dran! Route wird berechnet.
                 hasCalculatedRoute = true
                 withAnimation { self.isTooFarForRoute = false }
                 calculateRouteToMountain(from: loc.coordinate, to: CLLocationCoordinate2D(latitude: targetLat, longitude: targetLon))
@@ -381,26 +378,12 @@ struct LiveRecordView: View {
                     .frame(height: 300).ignoresSafeArea()
             }
             
-            // 🟢 NEUE MAP CONTROLS (Zentrieren & Route ansehen)
+            // 🟢 NEUE MAP CONTROLS: Nur noch der Button, der zu dir springt.
             VStack {
                 Spacer()
                 HStack {
                     Spacer()
                     VStack(spacing: 14) {
-                        // Button: Ganze Route sehen (nur sichtbar, wenn Route geladen)
-                        if let coords = plannedRoute, coords.count > 2 {
-                            Button(action: viewFullRoute) {
-                                Image(systemName: "map")
-                                    .font(.system(size: 20))
-                                    .foregroundColor(.white)
-                                    .frame(width: 52, height: 52)
-                                    .background(.ultraThinMaterial, in: Circle())
-                                    .overlay(Circle().stroke(Color.white.opacity(0.1), lineWidth: 1))
-                                    .shadow(color: .black.opacity(0.3), radius: 8, y: 4)
-                            }
-                        }
-                        
-                        // Button: Zurück zur eigenen Position
                         Button(action: centerOnUser) {
                             Image(systemName: "location.fill")
                                 .font(.system(size: 20))
@@ -412,7 +395,6 @@ struct LiveRecordView: View {
                         }
                     }
                     .padding(.trailing, 16)
-                    // Animiert elegant hoch/runter, wenn das Data Panel unten sich ändert
                     .padding(.bottom, panelCollapsed ? 150 : 340)
                     .animation(.spring(response: 0.4, dampingFraction: 0.8), value: panelCollapsed)
                 }
@@ -471,36 +453,25 @@ struct LiveRecordView: View {
             }
         }
     }
-    
-    // 🟢 BUTTON-FUNKTION: Ganze Route übersichtlich anzeigen
-    private func viewFullRoute() {
-        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-        guard let routeCoords = plannedRoute, !routeCoords.isEmpty else { return }
-        
-        let polyline = MKPolyline(coordinates: routeCoords, count: routeCoords.count)
-        withAnimation(.easeInOut(duration: 1.0)) {
-            cameraPosition = .rect(padMapRect(polyline.boundingMapRect))
-        }
-    }
 
     private func calculateRouteToMountain(from userLoc: CLLocationCoordinate2D, to dest: CLLocationCoordinate2D) {
         
-        withAnimation(.easeInOut(duration: 1.5)) {
+        // 1. Sofort die Luftlinie setzen, damit man was sieht!
+        withAnimation(.easeInOut(duration: 1.0)) {
             self.plannedRoute = [userLoc, dest]
             if !self.isRunning {
-                let centerLat = (userLoc.latitude + dest.latitude) / 2
-                let centerLon = (userLoc.longitude + dest.longitude) / 2
-                let spanLat = max(abs(userLoc.latitude - dest.latitude) * 1.5, 0.02)
-                let spanLon = max(abs(userLoc.longitude - dest.longitude) * 1.5, 0.02)
-                
-                self.cameraPosition = .region(MKCoordinateRegion(
-                    center: CLLocationCoordinate2D(latitude: centerLat, longitude: centerLon),
-                    span: MKCoordinateSpan(latitudeDelta: spanLat, longitudeDelta: spanLon)
-                ))
+                let p1 = MKMapPoint(userLoc)
+                let p2 = MKMapPoint(dest)
+                let rect = MKMapRect(
+                    x: min(p1.x, p2.x), y: min(p1.y, p2.y),
+                    width: abs(p1.x - p2.x), height: abs(p1.y - p2.y)
+                )
+                self.cameraPosition = .rect(padMapRect(rect))
             }
         }
 
-        let urlString = "https://router.project-osrm.org/route/v1/foot/\(userLoc.longitude),\(userLoc.latitude);\(dest.longitude),\(dest.latitude)?overview=full&geometries=geojson"
+        // 2. Versuche, die Wanderroute im Hintergrund zu laden
+        let urlString = "https://routing.openstreetmap.de/routed-foot/route/v1/driving/\(userLoc.longitude),\(userLoc.latitude);\(dest.longitude),\(dest.latitude)?overview=full&geometries=geojson"
         
         guard let url = URL(string: urlString) else { return }
 
@@ -530,6 +501,15 @@ struct LiveRecordView: View {
                 print("❌ OSRM Routing failed: \(error.localizedDescription)")
             }
         }
+    }
+    
+    private func padMapRect(_ rect: MKMapRect) -> MKMapRect {
+        return MKMapRect(
+            x: rect.origin.x - rect.size.width * 0.3,
+            y: rect.origin.y - rect.size.height * 0.3,
+            width: rect.size.width * 1.6,
+            height: rect.size.height * 1.6
+        )
     }
 
     // MARK: - Top Bar
@@ -606,15 +586,6 @@ struct LiveRecordView: View {
         }
         .padding(.horizontal, 20)
         .padding(.top, 58)
-    }
-
-    private func padMapRect(_ rect: MKMapRect) -> MKMapRect {
-        return MKMapRect(
-            x: rect.origin.x - rect.size.width * 0.3,
-            y: rect.origin.y - rect.size.height * 0.3,
-            width: rect.size.width * 1.6,
-            height: rect.size.height * 1.6
-        )
     }
 
     // MARK: - Data Panel
@@ -818,6 +789,7 @@ struct LiveRecordView: View {
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         isRunning = true
         
+        // Sanfter Zoom beim Start
         if let userLoc = gpsManager.currentLocation {
             withAnimation(.easeInOut(duration: 1.5)) {
                 cameraPosition = .camera(MapCamera(centerCoordinate: userLoc.coordinate, distance: 3000))
