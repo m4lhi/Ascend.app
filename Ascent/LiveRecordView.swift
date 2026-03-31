@@ -288,7 +288,7 @@ struct LiveRecordView: View {
     @State private var hasCalculatedRoute = false
     @State private var isTooFarForRoute = false
 
-    private let gold = Color(red: 0.85, green: 0.65, blue: 0.13)
+    private let gold = Color(red: 0.1, green: 0.5, blue: 0.95)
     
     init(targetMountain: Mountain?) {
         self.targetMountain = targetMountain
@@ -371,12 +371,12 @@ struct LiveRecordView: View {
                 calculateRouteToMountain(from: loc.coordinate, to: CLLocationCoordinate2D(latitude: targetLat, longitude: targetLon))
             }
 
-            // === LAYER 2: Darkening overlay ===
-            Color.black.opacity(0.25).ignoresSafeArea()
+            // === LAYER 2: Lightening overlay ===
+            Color.white.opacity(0.4).ignoresSafeArea()
 
             // === LAYER 3: Top gradient ===
             VStack {
-                LinearGradient(colors: [.black.opacity(0.75), .black.opacity(0.3), .clear],
+                LinearGradient(colors: [.white.opacity(0.95), .white.opacity(0.5), .clear],
                                startPoint: .top, endPoint: .bottom)
                     .frame(height: 200).ignoresSafeArea()
                 Spacer()
@@ -385,7 +385,7 @@ struct LiveRecordView: View {
             // === LAYER 4: Bottom gradient ===
             VStack {
                 Spacer()
-                LinearGradient(colors: [.clear, .black.opacity(0.6)],
+                LinearGradient(colors: [.clear, .white.opacity(0.8)],
                                startPoint: .top, endPoint: .bottom)
                     .frame(height: 300).ignoresSafeArea()
             }
@@ -396,23 +396,23 @@ struct LiveRecordView: View {
                 if targetMountain != nil {
                     Button(action: viewFullRoute) {
                         Image(systemName: "map")
-                            .font(.system(size: 20))
-                            .foregroundColor(.white)
+                            .font(.system(size: 20, design: .rounded))
+                            .foregroundColor(.primary)
                             .frame(width: 48, height: 48)
                             .background(.ultraThinMaterial, in: Circle())
-                            .overlay(Circle().stroke(Color.white.opacity(0.1), lineWidth: 1))
-                            .shadow(color: .black.opacity(0.3), radius: 8, y: 4)
+                            .overlay(Circle().stroke(Color.black.opacity(0.04), lineWidth: 1))
+                            .shadow(color: .black.opacity(0.1), radius: 8, y: 4)
                     }
                 }
                 
                 Button(action: centerOnUser) {
                     Image(systemName: "location.fill")
-                        .font(.system(size: 20))
+                        .font(.system(size: 20, design: .rounded))
                         .foregroundColor(gold)
                         .frame(width: 48, height: 48)
                         .background(.ultraThinMaterial, in: Circle())
-                        .overlay(Circle().stroke(Color.white.opacity(0.1), lineWidth: 1))
-                        .shadow(color: .black.opacity(0.3), radius: 8, y: 4)
+                        .overlay(Circle().stroke(Color.black.opacity(0.04), lineWidth: 1))
+                        .shadow(color: .black.opacity(0.1), radius: 8, y: 4)
                 }
             }
             .padding(.trailing, 16)
@@ -432,7 +432,7 @@ struct LiveRecordView: View {
                     HStack {
                         Image(systemName: "exclamationmark.triangle.fill").foregroundColor(.orange)
                         Text("You are too far away for route guidance.")
-                            .font(.system(size: 13, weight: .bold))
+                            .font(.system(size: 13, weight: .bold, design: .rounded))
                             .foregroundColor(.white)
                     }
                     .padding()
@@ -443,7 +443,7 @@ struct LiveRecordView: View {
                 .transition(.opacity)
             }
         }
-        .preferredColorScheme(.dark)
+        .preferredColorScheme(.light)
         .onReceive(timer) { _ in
             blinkToggle.toggle()
             if isRunning && !gpsManager.isAutoPaused { timeElapsed += 1 }
@@ -548,10 +548,11 @@ struct LiveRecordView: View {
             HStack {
                 Button(action: { dismiss() }) {
                     Image(systemName: "xmark")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(.white)
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .foregroundColor(.primary)
                         .frame(width: 40, height: 40)
                         .background(.ultraThinMaterial, in: Circle())
+                        .overlay(Circle().stroke(Color.black.opacity(0.04), lineWidth: 1))
                 }
 
                 Spacer()
@@ -564,11 +565,12 @@ struct LiveRecordView: View {
                             .animation(.easeInOut(duration: 0.6), value: blinkToggle)
                     }
                     Text(statusLabel)
-                        .font(.system(size: 10, weight: .black))
-                        .foregroundColor(.white).tracking(2)
+                        .font(.system(size: 10, weight: .black, design: .rounded))
+                        .foregroundColor(.primary).tracking(2)
                 }
                 .padding(.horizontal, 14).padding(.vertical, 8)
                 .background(.ultraThinMaterial, in: Capsule())
+                .overlay(Capsule().stroke(Color.black.opacity(0.04), lineWidth: 1))
 
                 Spacer()
 
@@ -577,17 +579,18 @@ struct LiveRecordView: View {
                         .font(.system(size: 12, weight: .black, design: .rounded))
                         .foregroundColor(gold)
                     Text("XP")
-                        .font(.system(size: 7, weight: .black))
+                        .font(.system(size: 7, weight: .black, design: .rounded))
                         .foregroundColor(gold.opacity(0.6))
                 }
                 .frame(width: 40, height: 40)
                 .background(.ultraThinMaterial, in: Circle())
+                .overlay(Circle().stroke(Color.black.opacity(0.04), lineWidth: 1))
             }
 
             VStack(spacing: 6) {
                 GeometryReader { geo in
                     ZStack(alignment: .leading) {
-                        Capsule().fill(Color.white.opacity(0.12)).frame(height: 5)
+                        Capsule().fill(Color.gray.opacity(0.12)).frame(height: 5)
                         Capsule()
                             .fill(LinearGradient(colors: [gold.opacity(0.6), gold],
                                                  startPoint: .leading, endPoint: .trailing))
@@ -600,12 +603,12 @@ struct LiveRecordView: View {
                 HStack {
                     if let mt = targetMountain {
                         Text(mt.name.uppercased())
-                            .font(.system(size: 8, weight: .black))
-                            .foregroundColor(.white.opacity(0.4)).tracking(1.5)
+                            .font(.system(size: 8, weight: .black, design: .rounded))
+                            .foregroundColor(.primary.opacity(0.4)).tracking(1.5)
                     } else {
                         Text("ELEVATION XP")
-                            .font(.system(size: 8, weight: .black))
-                            .foregroundColor(.white.opacity(0.4)).tracking(1.5)
+                            .font(.system(size: 8, weight: .black, design: .rounded))
+                            .foregroundColor(.primary.opacity(0.4)).tracking(1.5)
                     }
                     Spacer()
                     Text("\(Int(gpsManager.elevationGain))m")
@@ -622,7 +625,7 @@ struct LiveRecordView: View {
     private var dataPanel: some View {
         VStack(spacing: 0) {
             Capsule()
-                .fill(Color.white.opacity(0.3))
+                .fill(Color.gray.opacity(0.3))
                 .frame(width: 36, height: 5)
                 .padding(.top, 10)
                 .padding(.bottom, 6)
@@ -637,7 +640,7 @@ struct LiveRecordView: View {
                                 .contentTransition(.numericText())
                                 .animation(.spring(response: 0.4, dampingFraction: 0.85), value: Int(gpsManager.elevationGain))
                             Text("Hm")
-                                .font(.system(size: 14, weight: .bold))
+                                .font(.system(size: 14, weight: .bold, design: .rounded))
                                 .foregroundColor(gold.opacity(0.6))
                         }
 
@@ -645,15 +648,15 @@ struct LiveRecordView: View {
 
                         Text(timeString(from: timeElapsed))
                             .font(.system(size: 20, weight: .bold, design: .monospaced))
-                            .foregroundColor(.white)
+                            .foregroundColor(.primary)
 
                         HStack(alignment: .lastTextBaseline, spacing: 2) {
                             Text(String(format: "%.1f", gpsManager.distance / 1000))
                                 .font(.system(size: 20, weight: .bold, design: .rounded))
-                                .foregroundColor(.white)
+                                .foregroundColor(.primary)
                             Text("km")
-                                .font(.system(size: 11, weight: .semibold))
-                                .foregroundColor(.white.opacity(0.5))
+                                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                .foregroundColor(.primary.opacity(0.5))
                         }
                     }
 
@@ -661,11 +664,11 @@ struct LiveRecordView: View {
                         Button(action: startRecording) {
                             HStack(spacing: 12) {
                                 Image(systemName: "play.fill")
-                                    .font(.system(size: 18, weight: .black))
+                                    .font(.system(size: 18, weight: .black, design: .rounded))
                                 Text("START MISSION")
-                                    .font(.system(size: 14, weight: .black)).tracking(2)
+                                    .font(.system(size: 14, weight: .black, design: .rounded)).tracking(2)
                             }
-                            .foregroundColor(.black)
+                            .foregroundColor(.white)
                             .frame(maxWidth: .infinity).frame(height: 56)
                             .background(gold)
                             .cornerRadius(28)
@@ -675,7 +678,7 @@ struct LiveRecordView: View {
                         HStack(spacing: 12) {
                             Button(action: togglePause) {
                                 Image(systemName: isRunning ? "pause.fill" : "play.fill")
-                                    .font(.system(size: 20, weight: .bold))
+                                    .font(.system(size: 20, weight: .bold, design: .rounded))
                                     .foregroundColor(.white)
                                     .frame(width: 56, height: 56)
                                     .background(.ultraThinMaterial, in: Circle())
@@ -694,42 +697,42 @@ struct LiveRecordView: View {
                                 .contentTransition(.numericText())
                                 .animation(.spring(response: 0.4, dampingFraction: 0.85), value: Int(gpsManager.elevationGain))
                             Text("Hm")
-                                .font(.system(size: 24, weight: .bold))
+                                .font(.system(size: 24, weight: .bold, design: .rounded))
                                 .foregroundColor(gold.opacity(0.6))
                                 .padding(.bottom, 10)
                         }
                         Text("ELEVATION GAIN")
-                            .font(.system(size: 9, weight: .black))
-                            .foregroundColor(.white.opacity(0.35)).tracking(3)
+                            .font(.system(size: 9, weight: .black, design: .rounded))
+                            .foregroundColor(.primary.opacity(0.35)).tracking(3)
                     }
 
-                    Rectangle().fill(Color.white.opacity(0.08)).frame(height: 1).padding(.horizontal, 10)
+                    Rectangle().fill(Color.gray.opacity(0.1)).frame(height: 1).padding(.horizontal, 10)
 
                     HStack(spacing: 0) {
                         VStack(spacing: 5) {
                             Text(timeString(from: timeElapsed))
                                 .font(.system(size: 32, weight: .bold, design: .monospaced))
-                                .foregroundColor(.white)
+                                .foregroundColor(.primary)
                             Text("DURATION")
-                                .font(.system(size: 8, weight: .black))
-                                .foregroundColor(.white.opacity(0.35)).tracking(2)
+                                .font(.system(size: 8, weight: .black, design: .rounded))
+                                .foregroundColor(.primary.opacity(0.35)).tracking(2)
                         }
                         .frame(maxWidth: .infinity)
 
-                        Rectangle().fill(Color.white.opacity(0.1)).frame(width: 1, height: 44)
+                        Rectangle().fill(Color.gray.opacity(0.1)).frame(width: 1, height: 44)
 
                         VStack(spacing: 5) {
                             HStack(alignment: .lastTextBaseline, spacing: 3) {
                                 Text(String(format: "%.2f", gpsManager.distance / 1000))
                                     .font(.system(size: 32, weight: .bold, design: .rounded))
-                                    .foregroundColor(.white)
+                                    .foregroundColor(.primary)
                                 Text("km")
-                                    .font(.system(size: 13, weight: .semibold))
-                                    .foregroundColor(.white.opacity(0.5))
+                                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                                    .foregroundColor(.primary.opacity(0.5))
                             }
                             Text("DISTANCE")
-                                .font(.system(size: 8, weight: .black))
-                                .foregroundColor(.white.opacity(0.35)).tracking(2)
+                                .font(.system(size: 8, weight: .black, design: .rounded))
+                                .foregroundColor(.primary.opacity(0.35)).tracking(2)
                         }
                         .frame(maxWidth: .infinity)
                     }
@@ -744,11 +747,11 @@ struct LiveRecordView: View {
                         Button(action: startRecording) {
                             HStack(spacing: 12) {
                                 Image(systemName: "play.fill")
-                                    .font(.system(size: 18, weight: .black))
+                                    .font(.system(size: 18, weight: .black, design: .rounded))
                                 Text("START MISSION")
-                                    .font(.system(size: 14, weight: .black)).tracking(2)
+                                    .font(.system(size: 14, weight: .black, design: .rounded)).tracking(2)
                             }
-                            .foregroundColor(.black)
+                            .foregroundColor(.white)
                             .frame(maxWidth: .infinity).frame(height: 56)
                             .background(gold)
                             .cornerRadius(28)
@@ -758,11 +761,11 @@ struct LiveRecordView: View {
                         HStack(spacing: 12) {
                             Button(action: togglePause) {
                                 Image(systemName: isRunning ? "pause.fill" : "play.fill")
-                                    .font(.system(size: 20, weight: .bold))
-                                    .foregroundColor(.white)
+                                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                                    .foregroundColor(.primary)
                                     .frame(width: 56, height: 56)
                                     .background(.ultraThinMaterial, in: Circle())
-                                    .overlay(Circle().stroke(Color.white.opacity(0.1), lineWidth: 1))
+                                    .overlay(Circle().stroke(Color.black.opacity(0.04), lineWidth: 1))
                             }
 
                             if gpsManager.rawRoute.count >= 2 {
@@ -772,11 +775,11 @@ struct LiveRecordView: View {
                                     }
                                 }) {
                                     Image(systemName: "chart.line.uptrend.xyaxis")
-                                        .font(.system(size: 16, weight: .bold))
-                                        .foregroundColor(showElevationProfile ? gold : .white)
+                                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                                        .foregroundColor(showElevationProfile ? gold : .primary)
                                         .frame(width: 56, height: 56)
                                         .background(.ultraThinMaterial, in: Circle())
-                                        .overlay(Circle().stroke(Color.white.opacity(0.1), lineWidth: 1))
+                                        .overlay(Circle().stroke(Color.black.opacity(0.04), lineWidth: 1))
                                 }
                             }
 
@@ -795,9 +798,9 @@ struct LiveRecordView: View {
                 .fill(.ultraThinMaterial)
                 .overlay(
                     RoundedRectangle(cornerRadius: 36)
-                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                        .stroke(Color.black.opacity(0.06), lineWidth: 1)
                 )
-                .shadow(color: .black.opacity(0.4), radius: 30, y: -10)
+                .shadow(color: .black.opacity(0.04), radius: 30, y: -10)
         )
         .gesture(
             DragGesture(minimumDistance: 20)
@@ -866,7 +869,7 @@ struct SlideToFinishControl: View {
 
     private let thumbSize: CGFloat = 48
     private let trackHeight: CGFloat = 56
-    private let gold = Color(red: 0.85, green: 0.65, blue: 0.13)
+    private let gold = Color(red: 0.1, green: 0.5, blue: 0.95)
 
     var body: some View {
         GeometryReader { geo in
@@ -881,8 +884,8 @@ struct SlideToFinishControl: View {
                     )
                     .overlay(
                         Text("SLIDE TO FINISH")
-                            .font(.system(size: 9, weight: .black))
-                            .foregroundColor(.white.opacity(max(0.35 - (dragOffset / maxDrag) * 0.35, 0)))
+                            .font(.system(size: 9, weight: .black, design: .rounded))
+                            .foregroundColor(.primary.opacity(max(0.35 - (dragOffset / maxDrag) * 0.35, 0)))
                             .tracking(2)
                     )
 
@@ -898,7 +901,7 @@ struct SlideToFinishControl: View {
                         .stroke(Color.red.opacity(0.5), lineWidth: 1.5)
                         .frame(width: thumbSize, height: thumbSize)
                     Image(systemName: "flag.checkered")
-                        .font(.system(size: 16, weight: .bold))
+                        .font(.system(size: 16, weight: .bold, design: .rounded))
                         .foregroundColor(.red)
                 }
                 .offset(x: 4 + dragOffset)
@@ -981,16 +984,16 @@ struct MissionSaveView: View {
                     Section {
                         HStack {
                             if isVerifiedSummit {
-                                Image(systemName: "checkmark.seal.fill").foregroundColor(.green).font(.title)
+                                Image(systemName: "checkmark.seal.fill").foregroundColor(.green).font(.system(.title, design: .rounded))
                                 VStack(alignment: .leading) {
-                                    Text("Verified Summit").font(.headline).foregroundColor(.green)
-                                    Text("You conquered \(mountain.name)! (+500 Bonus XP)").font(.caption).foregroundColor(.gray)
+                                    Text("Verified Summit").font(.system(.headline, design: .rounded)).foregroundColor(.green)
+                                    Text("You conquered \(mountain.name)! (+500 Bonus XP)").font(.system(.caption, design: .rounded)).foregroundColor(.gray)
                                 }
                             } else {
-                                Image(systemName: "exclamationmark.triangle.fill").foregroundColor(.orange).font(.title)
+                                Image(systemName: "exclamationmark.triangle.fill").foregroundColor(.orange).font(.system(.title, design: .rounded))
                                 VStack(alignment: .leading) {
-                                    Text("Mission Attempt").font(.headline).foregroundColor(.orange)
-                                    Text("Elevation too low to verify summit.").font(.caption).foregroundColor(.gray)
+                                    Text("Mission Attempt").font(.system(.headline, design: .rounded)).foregroundColor(.orange)
+                                    Text("Elevation too low to verify summit.").font(.system(.caption, design: .rounded)).foregroundColor(.gray)
                                 }
                             }
                         }
@@ -1041,12 +1044,12 @@ struct MissionSaveView: View {
                         ForEach(pauseLog) { pause in
                             HStack {
                                 Image(systemName: pause.isAutomatic ? "pause.circle" : "hand.raised")
-                                    .font(.caption).foregroundColor(.orange)
+                                    .font(.system(.caption, design: .rounded)).foregroundColor(.orange)
                                 Text(pause.isAutomatic ? "Auto" : "Manual")
-                                    .font(.subheadline)
+                                    .font(.system(.subheadline, design: .rounded))
                                 Spacer()
                                 Text(formatPauseDuration(pause.duration))
-                                    .font(.subheadline).foregroundColor(.gray)
+                                    .font(.system(.subheadline, design: .rounded)).foregroundColor(.gray)
                             }
                         }
                         HStack {
@@ -1089,7 +1092,7 @@ struct MissionSaveView: View {
                 }
             }
         }
-        .preferredColorScheme(.dark)
+        .preferredColorScheme(.light)
     }
 
     private func formatPauseDuration(_ interval: TimeInterval) -> String {
@@ -1121,7 +1124,7 @@ struct ElevationProfileChart: View {
         return result
     }
 
-    private let gold = Color(red: 0.85, green: 0.65, blue: 0.13)
+    private let gold = Color(red: 0.1, green: 0.5, blue: 0.95)
 
     var body: some View {
         Chart {
@@ -1149,13 +1152,13 @@ struct ElevationProfileChart: View {
         .chartXAxis {
             AxisMarks(values: .automatic(desiredCount: 3)) {
                 AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5)).foregroundStyle(Color.gray.opacity(0.3))
-                AxisValueLabel().foregroundStyle(.gray).font(.system(size: 9))
+                AxisValueLabel().foregroundStyle(.gray).font(.system(size: 9, design: .rounded))
             }
         }
         .chartYAxis {
             AxisMarks(values: .automatic(desiredCount: 3)) {
                 AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5)).foregroundStyle(Color.gray.opacity(0.3))
-                AxisValueLabel().foregroundStyle(.gray).font(.system(size: 9))
+                AxisValueLabel().foregroundStyle(.gray).font(.system(size: 9, design: .rounded))
             }
         }
         .chartPlotStyle { plotArea in

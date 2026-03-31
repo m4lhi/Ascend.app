@@ -21,6 +21,7 @@ struct AscentApp: App {
                 // JA: Zeige die normale App mit der Tab-Leiste
                 ContentView()
                     .environmentObject(appState)
+                    .roundedFontDesign()
                     .onAppear {
                         appState.fetchProfileFromCloud()
                     }
@@ -28,6 +29,7 @@ struct AscentApp: App {
                 // NEIN: Zeige den neuen Login-Bildschirm
                 LoginView()
                     .environmentObject(appState)
+                    .roundedFontDesign()
             }
         }
     }

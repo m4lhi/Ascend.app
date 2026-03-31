@@ -198,7 +198,7 @@ struct AscentButtonStyle: ButtonStyle {
 struct PrimaryButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.headline)
+            .font(.system(.headline, design: .rounded))
             .foregroundColor(.white)
             .frame(maxWidth: .infinity)
             .padding(DesignSystem.Spacing.md)
@@ -224,4 +224,23 @@ extension Color {
     static let systemGreen  = Color(.systemGreen)
     static let systemOrange = Color(.systemOrange)
     static let systemRed    = Color(.systemRed)
+}
+
+// =========================================
+// === GLOBAL ROUNDED FONT MODIFIER ===
+// =========================================
+// Applies SF Pro Rounded (Gentler Streak style) to ALL text in the view hierarchy.
+// Attach once at the app root to affect every screen.
+
+struct RoundedFontDesignModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .environment(\.font, .system(.body, design: .rounded))
+    }
+}
+
+extension View {
+    func roundedFontDesign() -> some View {
+        modifier(RoundedFontDesignModifier())
+    }
 }

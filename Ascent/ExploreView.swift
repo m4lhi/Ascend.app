@@ -108,7 +108,7 @@ struct ExploreView: View {
 
     @State private var hasCenteredOnUser = false
 
-    private let gold = Color(red: 0.85, green: 0.65, blue: 0.13)
+    private let gold = Color(red: 0.1, green: 0.5, blue: 0.95)
 
     var mapMountains: [Mountain] {
         var source = showNearby ? mountainManager.nearbyMountains : mountainManager.mountains
@@ -131,7 +131,7 @@ struct ExploreView: View {
             mapLayer
 
             LinearGradient(
-                colors: [.black.opacity(0.8), .black.opacity(0.3), .clear],
+                colors: [.white.opacity(0.95), .white.opacity(0.6), .clear],
                 startPoint: .top, endPoint: .bottom
             )
             .frame(height: 180)
@@ -236,6 +236,7 @@ struct ExploreView: View {
         } message: {
             Text("Please enable location services for Ascend in your iPhone Settings to use this feature.")
         }
+        .preferredColorScheme(.light)
     }
 
     @ViewBuilder
@@ -252,14 +253,14 @@ struct ExploreView: View {
                         Annotation("\(idx + 1)", coordinate: coord) {
                             ZStack {
                                 Circle().fill(gold).frame(width: 32, height: 32)
-                                Text("\(idx + 1)").font(.system(size: 14, weight: .black)).foregroundColor(.black)
+                                Text("\(idx + 1)").font(.system(size: 14, weight: .black, design: .rounded)).foregroundColor(.black)
                             }
                             .shadow(color: .black.opacity(0.3), radius: 4, y: 2)
                         }
                         .tag(mountain.id)
                     } else {
                         Marker(mountain.name, systemImage: "plus.circle.fill", coordinate: coord)
-                            .tint(.white.opacity(0.7))
+                            .tint(.primary.opacity(0.7))
                             .tag(mountain.id)
                     }
                 }
@@ -268,16 +269,16 @@ struct ExploreView: View {
                     Annotation(mountain.name, coordinate: coord) {
                         VStack(spacing: 0) {
                             Text(mountain.name)
-                                .font(.system(size: 13, weight: .bold))
+                                .font(.system(size: 13, weight: .bold, design: .rounded))
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 6)
                                 .background(gold)
-                                .foregroundColor(.black)
+                                .foregroundColor(.white)
                                 .cornerRadius(10)
                                 .shadow(color: .black.opacity(0.4), radius: 5, y: 3)
                             
                             Image(systemName: "triangle.fill")
-                                .font(.system(size: 12))
+                                .font(.system(size: 12, design: .rounded))
                                 .foregroundColor(gold)
                                 .rotationEffect(.degrees(180))
                                 .offset(y: -2)
@@ -351,9 +352,9 @@ struct ExploreView: View {
     @ViewBuilder
     var searchBar: some View {
         HStack(spacing: 10) {
-            Image(systemName: "magnifyingglass").foregroundColor(.gray).font(.system(size: 16, weight: .medium))
+            Image(systemName: "magnifyingglass").foregroundColor(.gray).font(.system(size: 16, weight: .medium, design: .rounded))
             TextField("Search peaks, regions or countries…", text: $searchText)
-                .focused($isSearchFocused).foregroundColor(.white).autocorrectionDisabled().textInputAutocapitalization(.never)
+                .focused($isSearchFocused).foregroundColor(.primary).autocorrectionDisabled().textInputAutocapitalization(.never)
 
             if isSearchActive || !searchText.isEmpty {
                 Button {
@@ -368,7 +369,7 @@ struct ExploreView: View {
             }
         }
         .padding(.horizontal, 14).padding(.vertical, 12).background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 14)).overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.white.opacity(0.12), lineWidth: 0.5))
+        .clipShape(RoundedRectangle(cornerRadius: 14)).overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black.opacity(0.08), lineWidth: 0.5))
     }
 
     @ViewBuilder
@@ -382,10 +383,10 @@ struct ExploreView: View {
                 if showNearby {
                     ForEach([10.0, 25.0, 50.0], id: \.self) { radius in
                         Button { nearbyRadiusKm = radius } label: {
-                            Text("\(Int(radius))km").font(.system(size: 10, weight: .bold))
-                                .foregroundColor(nearbyRadiusKm == radius ? .black : .white.opacity(0.7))
+                            Text("\(Int(radius))km").font(.system(size: 10, weight: .bold, design: .rounded))
+                                .foregroundColor(nearbyRadiusKm == radius ? .white : .primary.opacity(0.7))
                                 .padding(.horizontal, 8).padding(.vertical, 6)
-                                .background(nearbyRadiusKm == radius ? gold : Color.white.opacity(0.1)).clipShape(Capsule())
+                                .background(nearbyRadiusKm == radius ? gold : Color.black.opacity(0.05)).clipShape(Capsule())
                         }
                     }
                 }
@@ -432,14 +433,14 @@ struct ExploreView: View {
         let suggestions = Array(visibleMountains.prefix(10))
         VStack(spacing: 0) {
             if !searchText.isEmpty {
-                HStack { Text("\(visibleMountains.count) results").font(.system(size: 11, weight: .semibold)).foregroundColor(.gray); Spacer() }
-                    .padding(.horizontal, 14).padding(.vertical, 8).background(Color.white.opacity(0.03))
+                HStack { Text("\(visibleMountains.count) results").font(.system(size: 11, weight: .semibold, design: .rounded)).foregroundColor(.gray); Spacer() }
+                    .padding(.horizontal, 14).padding(.vertical, 8).background(Color.gray.opacity(0.05))
             }
 
             if suggestions.isEmpty {
                 VStack(spacing: 8) {
-                    Image(systemName: "mountain.2").font(.title2).foregroundColor(.gray.opacity(0.4))
-                    Text("No peaks found").font(.caption).foregroundColor(.gray)
+                    Image(systemName: "mountain.2").font(.system(.title2, design: .rounded)).foregroundColor(.gray.opacity(0.4))
+                    Text("No peaks found").font(.system(.caption, design: .rounded)).foregroundColor(.gray)
                 }.frame(maxWidth: .infinity).padding(.vertical, 24)
             } else {
                 ScrollView {
@@ -451,21 +452,21 @@ struct ExploreView: View {
                                     Image(systemName: mountain.isPrestigePeak ? "crown.fill" : "mountain.2.fill")
                                         .foregroundColor(mountain.isPrestigePeak ? gold : .gray).frame(width: 20)
                                     VStack(alignment: .leading, spacing: 2) {
-                                        Text(mountain.name).font(.system(size: 14, weight: .semibold)).foregroundColor(.white)
-                                        Text("\(mountain.region) · \(mountain.elevation)m").font(.system(size: 11)).foregroundColor(.gray)
+                                        Text(mountain.name).font(.system(size: 14, weight: .semibold, design: .rounded)).foregroundColor(.primary)
+                                        Text("\(mountain.region) · \(mountain.elevation)m").font(.system(size: 11, design: .rounded)).foregroundColor(.gray)
                                     }
                                     Spacer()
-                                    Text(mountain.difficulty.rawValue).font(.system(size: 10, weight: .bold)).foregroundColor(difficultyColor(mountain.difficulty))
+                                    Text(mountain.difficulty.rawValue).font(.system(size: 10, weight: .bold, design: .rounded)).foregroundColor(difficultyColor(mountain.difficulty))
                                 }.padding(.horizontal, 14).padding(.vertical, 10)
                             }
-                            if index < suggestions.count - 1 { Divider().background(Color.white.opacity(0.06)) }
+                            if index < suggestions.count - 1 { Divider().background(Color.black.opacity(0.06)) }
                         }
                     }
                 }.frame(maxHeight: 320)
             }
         }
         .background(.ultraThinMaterial).clipShape(RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.white.opacity(0.1), lineWidth: 0.5))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black.opacity(0.08), lineWidth: 0.5))
     }
 
     @ViewBuilder
@@ -481,17 +482,17 @@ struct ExploreView: View {
                             VStack(spacing: 8) {
                                 ZStack {
                                     RoundedRectangle(cornerRadius: 12).fill(layerPreviewColor(layer)).frame(height: 80)
-                                    Image(systemName: layer.icon).font(.system(size: 28)).foregroundColor(.white)
+                                    Image(systemName: layer.icon).font(.system(size: 28, design: .rounded)).foregroundColor(.white)
                                 }.overlay(RoundedRectangle(cornerRadius: 12).stroke(currentMapLayer == layer ? gold : Color.clear, lineWidth: 2))
-                                Text(layer.rawValue).font(.system(size: 13, weight: .bold)).foregroundColor(currentMapLayer == layer ? gold : .white)
-                                Text(layer.subtitle).font(.system(size: 10)).foregroundColor(.gray)
+                                Text(layer.rawValue).font(.system(size: 13, weight: .bold, design: .rounded)).foregroundColor(currentMapLayer == layer ? gold : .primary)
+                                Text(layer.subtitle).font(.system(size: 10, design: .rounded)).foregroundColor(.gray)
                             }
                         }
                     }
                 }.padding(16)
             }
-            .background(Color(red: 0.08, green: 0.08, blue: 0.1)).navigationTitle("Map Layers").navigationBarTitleDisplayMode(.inline)
-        }.preferredColorScheme(.dark)
+            .background(Color(white: 0.98)).navigationTitle("Map Layers").navigationBarTitleDisplayMode(.inline)
+        }.preferredColorScheme(.light)
     }
 
     func layerPreviewColor(_ layer: MapLayerType) -> LinearGradient {
@@ -507,22 +508,22 @@ struct ExploreView: View {
         VStack(spacing: 12) {
             HStack {
                 Image(systemName: "pencil.line").foregroundColor(gold)
-                Text("Route Creator").font(.system(size: 16, weight: .bold)).foregroundColor(.white)
+                Text("Route Creator").font(.system(size: 16, weight: .bold, design: .rounded)).foregroundColor(.primary)
                 Spacer()
-                Text("\(routeMountains.count) peaks").font(.system(size: 12, weight: .semibold)).foregroundColor(gold)
+                Text("\(routeMountains.count) peaks").font(.system(size: 12, weight: .semibold, design: .rounded)).foregroundColor(gold)
             }
 
             TextField("Route name…", text: $routeName).textFieldStyle(.plain).padding(10)
-                .background(Color.white.opacity(0.08)).cornerRadius(10).foregroundColor(.white)
+                .background(Color.gray.opacity(0.1)).cornerRadius(10).foregroundColor(.primary)
 
             if !routeMountains.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
                         ForEach(Array(routeMountains.enumerated()), id: \.element.id) { index, mountain in
                             HStack(spacing: 4) {
-                                Text("\(index + 1)").font(.system(size: 10, weight: .black)).foregroundColor(.black).frame(width: 18, height: 18).background(gold).clipShape(Circle())
-                                Text(mountain.name).font(.system(size: 11, weight: .semibold)).foregroundColor(.white).lineLimit(1)
-                                Button { routeMountains.removeAll { $0.id == mountain.id } } label: { Image(systemName: "xmark.circle.fill").font(.system(size: 12)).foregroundColor(.gray) }
+                                Text("\(index + 1)").font(.system(size: 10, weight: .black, design: .rounded)).foregroundColor(.black).frame(width: 18, height: 18).background(gold).clipShape(Circle())
+                                Text(mountain.name).font(.system(size: 11, weight: .semibold, design: .rounded)).foregroundColor(.white).lineLimit(1)
+                                Button { routeMountains.removeAll { $0.id == mountain.id } } label: { Image(systemName: "xmark.circle.fill").font(.system(size: 12, design: .rounded)).foregroundColor(.gray) }
                             }.padding(.horizontal, 8).padding(.vertical, 6).background(Color.white.opacity(0.1)).cornerRadius(8)
                         }
                     }
@@ -531,15 +532,15 @@ struct ExploreView: View {
 
             HStack(spacing: 12) {
                 Button { withAnimation(.spring()) { isRouteCreationMode = false; routeMountains = []; routeName = "" } } label: {
-                    Text("Cancel").font(.system(size: 14, weight: .bold)).foregroundColor(.white).frame(maxWidth: .infinity).padding(.vertical, 12).background(Color.white.opacity(0.15)).cornerRadius(12)
+                    Text("Cancel").font(.system(size: 14, weight: .bold, design: .rounded)).foregroundColor(.primary).frame(maxWidth: .infinity).padding(.vertical, 12).background(Color.gray.opacity(0.1)).cornerRadius(12)
                 }
                 Button { saveCreatedRoute() } label: {
-                    HStack(spacing: 4) { Image(systemName: "checkmark"); Text("Save Route") }.font(.system(size: 14, weight: .bold)).foregroundColor(.black).frame(maxWidth: .infinity).padding(.vertical, 12).background(routeMountains.count >= 2 ? gold : gold.opacity(0.3)).cornerRadius(12)
+                    HStack(spacing: 4) { Image(systemName: "checkmark"); Text("Save Route") }.font(.system(size: 14, weight: .bold, design: .rounded)).foregroundColor(.white).frame(maxWidth: .infinity).padding(.vertical, 12).background(routeMountains.count >= 2 ? gold : gold.opacity(0.3)).cornerRadius(12)
                 }.disabled(routeMountains.count < 2)
             }
         }
         .padding(16).background(.ultraThinMaterial).clipShape(RoundedRectangle(cornerRadius: 24))
-        .overlay(RoundedRectangle(cornerRadius: 24).stroke(gold.opacity(0.3), lineWidth: 0.5))
+        .overlay(RoundedRectangle(cornerRadius: 24).stroke(Color.black.opacity(0.05), lineWidth: 0.5))
         .padding(.horizontal, 16)
         .padding(.bottom, 120)
     }
@@ -581,7 +582,7 @@ struct ExploreView: View {
                     if (discoverySheetExpanded || showRoutesFilter || nearbyCards.isEmpty) {
                         discoverySectionHeader(title: "My Routes", icon: "bookmark.fill")
                         if savedRoutes.isEmpty {
-                            HStack { Spacer(); VStack(spacing: 6) { Image(systemName: "map").font(.title2).foregroundColor(.gray.opacity(0.3)); Text("No saved routes yet.").font(.caption).foregroundColor(.gray) }; Spacer() }.padding(.vertical, 16)
+                            HStack { Spacer(); VStack(spacing: 6) { Image(systemName: "map").font(.system(.title2, design: .rounded)).foregroundColor(.gray.opacity(0.3)); Text("No saved routes yet.").font(.system(.caption, design: .rounded)).foregroundColor(.gray) }; Spacer() }.padding(.vertical, 16)
                         } else {
                             ScrollView(.horizontal, showsIndicators: false) {
                                 HStack(spacing: 12) {
@@ -613,11 +614,11 @@ struct ExploreView: View {
     @ViewBuilder
     func discoverySectionHeader(title: String, icon: String) -> some View {
         HStack {
-            Image(systemName: icon).font(.system(size: 13, weight: .bold)).foregroundColor(gold)
-            Text(title).font(.system(size: 15, weight: .bold)).foregroundColor(.white)
+            Image(systemName: icon).font(.system(size: 13, weight: .bold, design: .rounded)).foregroundColor(gold)
+            Text(title).font(.system(size: 15, weight: .bold, design: .rounded)).foregroundColor(.primary)
             Spacer()
             if !discoverySheetExpanded {
-                Button { withAnimation(.spring()) { discoverySheetExpanded = true } } label: { Text("See All").font(.system(size: 12, weight: .semibold)).foregroundColor(gold) }
+                Button { withAnimation(.spring()) { discoverySheetExpanded = true } } label: { Text("See All").font(.system(size: 12, weight: .semibold, design: .rounded)).foregroundColor(gold) }
             }
         }.padding(.horizontal, 16)
     }
@@ -641,13 +642,13 @@ struct ExploreView: View {
                     imagePlaceholder
                 }
 
-                LinearGradient(colors: [.clear, Color(red: 0.1, green: 0.1, blue: 0.12)], startPoint: .center, endPoint: .bottom)
+                LinearGradient(colors: [.clear, Color.white], startPoint: .center, endPoint: .bottom)
                     .frame(height: 120) // Verhindert das unendliche Ausdehnen!
 
                 Button {
                     withAnimation(.spring()) { selectedMountain = nil; selectedMarkerTag = nil; selectedRouteToShow = nil }
                 } label: {
-                    Image(systemName: "xmark.circle.fill").font(.system(size: 26)).foregroundStyle(.white.opacity(0.8), .black.opacity(0.5))
+                    Image(systemName: "xmark.circle.fill").font(.system(size: 26, design: .rounded)).foregroundStyle(.white.opacity(0.8), .black.opacity(0.5))
                 }.padding(12)
             }
             .frame(height: 120)
@@ -656,14 +657,14 @@ struct ExploreView: View {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(mountain.name).font(.headline).fontWeight(.bold).foregroundColor(.white)
-                        Text("\(mountain.region), \(mountain.country)").font(.caption).foregroundColor(.gray)
+                        Text(mountain.name).font(.system(.headline, design: .rounded)).fontWeight(.bold).foregroundColor(.white)
+                        Text("\(mountain.region), \(mountain.country)").font(.system(.caption, design: .rounded)).foregroundColor(.gray)
                     }
                     Spacer()
                     VStack(alignment: .trailing, spacing: 4) {
-                        Text(mountain.difficulty.rawValue.uppercased()).font(.system(size: 9, weight: .black)).foregroundColor(.black).padding(.horizontal, 8).padding(.vertical, 4).background(difficultyColor(mountain.difficulty)).clipShape(Capsule())
+                        Text(mountain.difficulty.rawValue.uppercased()).font(.system(size: 9, weight: .black, design: .rounded)).foregroundColor(.black).padding(.horizontal, 8).padding(.vertical, 4).background(difficultyColor(mountain.difficulty)).clipShape(Capsule())
                         if mountain.isPrestigePeak {
-                            HStack(spacing: 3) { Image(systemName: "crown.fill").font(.system(size: 8)); Text("PRESTIGE").font(.system(size: 8, weight: .black)) }.foregroundColor(gold)
+                            HStack(spacing: 3) { Image(systemName: "crown.fill").font(.system(size: 8, design: .rounded)); Text("PRESTIGE").font(.system(size: 8, weight: .black, design: .rounded)) }.foregroundColor(gold)
                         }
                     }
                 }
@@ -679,16 +680,16 @@ struct ExploreView: View {
                 }
 
                 if !mountain.description.isEmpty {
-                    Text(mountain.description).font(.caption2).foregroundColor(.gray).lineLimit(2)
+                    Text(mountain.description).font(.system(.caption2, design: .rounded)).foregroundColor(.gray).lineLimit(2)
                 }
 
                 Button { HapticManager.shared.heavy(); mountainToTrack = mountain; showTracker = true } label: {
-                    HStack { Image(systemName: "play.fill"); Text("Commence Mission") }.font(.subheadline).fontWeight(.bold).foregroundColor(.black).frame(maxWidth: .infinity).padding(.vertical, 10).background(gold).clipShape(RoundedRectangle(cornerRadius: 12))
+                    HStack { Image(systemName: "play.fill"); Text("Commence Mission") }.font(.system(.subheadline, design: .rounded)).fontWeight(.bold).foregroundColor(.white).frame(maxWidth: .infinity).padding(.vertical, 10).background(gold).clipShape(RoundedRectangle(cornerRadius: 12))
                 }
             }.padding(16)
         }
-        .background(Color(red: 0.1, green: 0.1, blue: 0.12)).clipShape(RoundedRectangle(cornerRadius: 20))
-        .shadow(color: .black.opacity(0.4), radius: 15, y: 5)
+        .background(Color.white).clipShape(RoundedRectangle(cornerRadius: 20))
+        .shadow(color: .black.opacity(0.1), radius: 15, y: 5)
         .padding(.horizontal, 16)
         .padding(.bottom, 120)
     }
@@ -696,8 +697,8 @@ struct ExploreView: View {
     @ViewBuilder
     var imagePlaceholder: some View {
         ZStack {
-            Color(red: 0.15, green: 0.15, blue: 0.18).frame(height: 120)
-            Image(systemName: "mountain.2.fill").font(.system(size: 30)).foregroundColor(.white.opacity(0.1))
+            Color(white: 0.95).frame(height: 120)
+            Image(systemName: "mountain.2.fill").font(.system(size: 30, design: .rounded)).foregroundColor(.black.opacity(0.1))
         }
     }
 
@@ -789,18 +790,18 @@ struct FloatingMapButton: View {
     let icon: String
     var isActive: Bool = false
     let action: () -> Void
-    private let gold = Color(red: 0.85, green: 0.65, blue: 0.13)
+    private let gold = Color(red: 0.1, green: 0.5, blue: 0.95)
 
     var body: some View {
         Button(action: action) {
             Image(systemName: icon)
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundColor(isActive ? .black : .white)
+                .font(.system(size: 18, weight: .semibold, design: .rounded))
+                .foregroundColor(isActive ? .white : .primary)
                 .frame(width: 44, height: 44)
-                .background(isActive ? gold : Color(red: 0.1, green: 0.1, blue: 0.12).opacity(0.85))
+                .background(isActive ? gold : Color(white: 0.95))
                 .clipShape(Circle())
-                .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
-                .overlay(Circle().stroke(Color.white.opacity(0.08), lineWidth: 1))
+                .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 4)
+                .overlay(Circle().stroke(Color.black.opacity(0.04), lineWidth: 1))
         }
         .buttonStyle(PlainButtonStyle())
     }
@@ -811,13 +812,13 @@ struct FloatingMapButton: View {
 // =========================================
 struct ToolbarButton: View {
     let icon: String; let label: String; let isActive: Bool; let action: () -> Void
-    private let gold = Color(red: 0.85, green: 0.65, blue: 0.13)
+    private let gold = Color(red: 0.1, green: 0.5, blue: 0.95)
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 4) { Image(systemName: icon).font(.system(size: 11, weight: .bold)); Text(label).font(.system(size: 11, weight: .bold)) }
-            .foregroundColor(isActive ? .black : .white).padding(.horizontal, 10).padding(.vertical, 8)
-            .background(isActive ? gold : Color.black.opacity(0.5)).clipShape(Capsule())
-            .overlay(Capsule().stroke(Color.white.opacity(isActive ? 0 : 0.15), lineWidth: 0.5))
+            HStack(spacing: 4) { Image(systemName: icon).font(.system(size: 11, weight: .bold, design: .rounded)); Text(label).font(.system(size: 11, weight: .bold, design: .rounded)) }
+            .foregroundColor(isActive ? .white : .primary).padding(.horizontal, 10).padding(.vertical, 8)
+            .background(isActive ? gold : Color.white).clipShape(Capsule())
+            .overlay(Capsule().stroke(Color.black.opacity(isActive ? 0 : 0.05), lineWidth: 0.5))
         }
     }
 }
@@ -826,46 +827,47 @@ struct DifficultyChip: View {
     let label: String; var color: Color = .white; let isSelected: Bool; let action: () -> Void
     var body: some View {
         Button(action: action) {
-            Text(label).font(.system(size: 12, weight: .bold)).foregroundColor(isSelected ? .black : .white)
-                .padding(.horizontal, 12).padding(.vertical, 6).background(isSelected ? color : Color.white.opacity(0.15)).cornerRadius(8)
+            Text(label).font(.system(size: 12, weight: .bold, design: .rounded)).foregroundColor(isSelected ? .white : .primary)
+                .padding(.horizontal, 12).padding(.vertical, 6).background(isSelected ? color : Color.white).cornerRadius(8)
+                .shadow(color: .black.opacity(0.03), radius: 2)
         }
     }
 }
 
 struct ExploreDiscoveryCard: View {
     let mountain: Mountain; let userLocation: CLLocation?; var compact: Bool = false; let onTap: () -> Void
-    @State private var isPressed = false; private let gold = Color(red: 0.85, green: 0.65, blue: 0.13)
+    @State private var isPressed = false; private let gold = Color(red: 0.1, green: 0.5, blue: 0.95)
     var body: some View {
         Button(action: onTap) {
             VStack(alignment: .leading, spacing: 6) {
                 if let urlString = mountain.imageUrl, let url = URL(string: urlString) {
-                    AsyncImage(url: url) { p in if let i = p.image { i.resizable().scaledToFill() } else { Color.white.opacity(0.05) } }.frame(width: 140, height: 65).clipped().cornerRadius(8)
+                    AsyncImage(url: url) { p in if let i = p.image { i.resizable().scaledToFill() } else { Color.black.opacity(0.05) } }.frame(width: 140, height: 65).clipped().cornerRadius(8)
                 } else {
-                    RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(0.05)).frame(width: 140, height: 65)
+                    RoundedRectangle(cornerRadius: 8).fill(Color.black.opacity(0.05)).frame(width: 140, height: 65)
                 }
-                Text(mountain.name).font(.system(size: 12, weight: .bold)).foregroundColor(.white).lineLimit(1)
+                Text(mountain.name).font(.system(size: 12, weight: .bold, design: .rounded)).foregroundColor(.primary).lineLimit(1)
                 HStack {
-                    Text("\(mountain.elevation)m").font(.system(size: 10)).foregroundColor(.gray)
+                    Text("\(mountain.elevation)m").font(.system(size: 10, design: .rounded)).foregroundColor(.gray)
                     Spacer()
-                    Text(mountain.difficulty.rawValue.uppercased()).font(.system(size: 7, weight: .black)).foregroundColor(.black).padding(.horizontal, 4).padding(.vertical, 2).background(mountain.difficulty.color).cornerRadius(3)
+                    Text(mountain.difficulty.rawValue.uppercased()).font(.system(size: 7, weight: .black, design: .rounded)).foregroundColor(.white).padding(.horizontal, 4).padding(.vertical, 2).background(mountain.difficulty.color).cornerRadius(3)
                 }
-            }.padding(8).frame(width: 156).background(Color.white.opacity(0.08)).cornerRadius(12)
+            }.padding(8).frame(width: 156).background(Color.white).cornerRadius(12).shadow(color: .black.opacity(0.04), radius: 4, y: 2)
         }.buttonStyle(PlainButtonStyle())
     }
 }
 
 struct SavedRouteCard: View {
     let route: SavedRoute; let onTap: () -> Void; let onDelete: () -> Void
-    var body: some View { Button(action: onTap) { Text(route.name).font(.caption).fontWeight(.semibold).foregroundColor(.white).padding().background(Color.white.opacity(0.08)).cornerRadius(12) } }
+    var body: some View { Button(action: onTap) { Text(route.name).font(.system(.caption, design: .rounded)).fontWeight(.semibold).foregroundColor(.primary).padding().background(Color.white).cornerRadius(12).shadow(color: .black.opacity(0.04), radius: 4, y: 2) } }
 }
 
 struct DetailStat: View {
     let icon: String; let value: String; let label: String
     var body: some View {
         VStack(spacing: 4) {
-            Image(systemName: icon).font(.system(size: 12)).foregroundColor(.gray)
-            Text(value).font(.system(size: 13, weight: .bold)).foregroundColor(.white)
-            Text(label).font(.system(size: 9, weight: .medium)).foregroundColor(.gray)
+            Image(systemName: icon).font(.system(size: 12, design: .rounded)).foregroundColor(.gray)
+            Text(value).font(.system(size: 13, weight: .bold, design: .rounded)).foregroundColor(.primary)
+            Text(label).font(.system(size: 9, weight: .medium, design: .rounded)).foregroundColor(.gray)
         }.frame(maxWidth: .infinity)
     }
 }
