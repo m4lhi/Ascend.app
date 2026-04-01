@@ -518,8 +518,8 @@ struct LiveRecordView: View {
         // 2. Apple Maps nach offiziellem Wanderweg fragen (async, blockiert Main Thread nicht)
         Task {
             let request = MKDirections.Request()
-            request.source = MKMapItem(placemark: MKPlacemark(coordinate: userLoc))
-            request.destination = MKMapItem(placemark: MKPlacemark(coordinate: dest))
+            request.source = MKMapItem(location: CLLocation(latitude: userLoc.latitude, longitude: userLoc.longitude), address: nil)
+            request.destination = MKMapItem(location: CLLocation(latitude: dest.latitude, longitude: dest.longitude), address: nil)
             request.transportType = .walking
 
             let directions = MKDirections(request: request)

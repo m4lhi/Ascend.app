@@ -911,7 +911,7 @@ struct ExploreView: View {
         } else if !searchText.isEmpty || selectedDifficulty != nil {
             await mountainManager.searchMountains(query: searchText, difficulty: selectedDifficulty)
         } else {
-            await mountainManager.clearNearby()
+            mountainManager.clearNearby()
         }
     }
 }
@@ -1071,19 +1071,21 @@ struct RouteElevationProfile: View {
     }
 
     var body: some View {
+        let chartMinElevation = max(0, minElevation)
+        let chartMaxElevation = (mountains.map { $0.elevation }.max() ?? 1000) + 100
+        let areaFillGradient = LinearGradient(
+            colors: [accentColor.opacity(0.3), accentColor.opacity(0.05)],
+            startPoint: .top, endPoint: .bottom
+        )
+
         Chart {
             ForEach(elevationPoints, id: \.index) { point in
                 AreaMark(
                     x: .value("Point", point.index),
-                    yStart: .value("Base", max(0, minElevation)),
-                    y: .value("Elevation", point.elevation)
+                    yStart: .value("Base", chartMinElevation),
+                    yEnd: .value("Elevation", point.elevation)
                 )
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [accentColor.opacity(0.3), accentColor.opacity(0.05)],
-                        startPoint: .top, endPoint: .bottom
-                    )
-                )
+                .foregroundStyle(areaFillGradient)
                 .interpolationMethod(.catmullRom)
 
                 LineMark(
@@ -1112,7 +1114,7 @@ struct RouteElevationProfile: View {
                 }
             }
         }
-        .chartYScale(domain: max(0, minElevation)...(mountains.map { $0.elevation }.max() ?? 1000) + 100)
+        .chartYScale(domain: chartMinElevation...chartMaxElevation)
     }
 }
 
@@ -1139,10 +1141,13 @@ struct MountainElevationPreview: View {
     }
 
     var body: some View {
+        let maxElevationRange = Double(elevation) * 1.1
+        let areaFillGradient = LinearGradient(colors: [accentColor.opacity(0.2), accentColor.opacity(0.02)], startPoint: .top, endPoint: .bottom)
+
         Chart {
             ForEach(profilePoints, id: \.x) { point in
-                AreaMark(x: .value("D", point.x), yStart: .value("Base", 0), y: .value("E", point.y))
-                    .foregroundStyle(LinearGradient(colors: [accentColor.opacity(0.2), accentColor.opacity(0.02)], startPoint: .top, endPoint: .bottom))
+                AreaMark(x: .value("D", point.x), yStart: .value("Base", 0), yEnd: .value("E", point.y))
+                    .foregroundStyle(areaFillGradient)
                     .interpolationMethod(.catmullRom)
                 LineMark(x: .value("D", point.x), y: .value("E", point.y))
                     .foregroundStyle(accentColor.opacity(0.6))
@@ -1152,7 +1157,7 @@ struct MountainElevationPreview: View {
         }
         .chartXAxis(.hidden)
         .chartYAxis(.hidden)
-        .chartYScale(domain: 0...Double(elevation) * 1.1)
+        .chartYScale(domain: 0...maxElevationRange)
     }
 }
 

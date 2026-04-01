@@ -72,10 +72,11 @@ struct CachedAsyncImage<Content: View, Placeholder: View>: View {
         Task.detached(priority: .utility) {
             do {
                 let (data, _) = try await URLSession.shared.data(from: url)
-                guard let image = UIImage(data: data) else { return }
-                ImageCache.shared.store(image, for: url)
                 await MainActor.run {
-                    self.uiImage = image
+                    if let image = UIImage(data: data) {
+                        ImageCache.shared.store(image, for: url)
+                        self.uiImage = image
+                    }
                     self.isLoading = false
                 }
             } catch {

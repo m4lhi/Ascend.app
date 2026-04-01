@@ -3,6 +3,7 @@ import PhotosUI
 import CoreLocation
 import Combine
 import SafariServices
+import MapKit
 
 // =========================================
 // === DATEI: TrophyRoomView.swift ===
@@ -236,13 +237,22 @@ class LocationFetcher: NSObject, ObservableObject, CLLocationManagerDelegate {
             DispatchQueue.main.async { self.isFetching = false }
             return
         }
-        let geocoder = CLGeocoder()
-        geocoder.reverseGeocodeLocation(location) { placemarks, error in
-            DispatchQueue.main.async {
-                self.isFetching = false
-                if let placemark = placemarks?.first {
-                    self.detectedRegion = placemark.administrativeArea ?? placemark.country ?? ""
+        Task {
+            do {
+                guard let request = MKReverseGeocodingRequest(location: location) else {
+                    DispatchQueue.main.async { self.isFetching = false }
+                    return
                 }
+                let mapItems = try await request.mapItems
+                DispatchQueue.main.async {
+                    self.isFetching = false
+                    if let mapItem = mapItems.first {
+                        let rep = mapItem.addressRepresentations
+                        self.detectedRegion = rep?.regionName ?? rep?.cityName ?? ""
+                    }
+                }
+            } catch {
+                DispatchQueue.main.async { self.isFetching = false }
             }
         }
     }
@@ -1241,7 +1251,6 @@ struct SafariView: UIViewControllerRepresentable {
         let config = SFSafariViewController.Configuration()
         config.entersReaderIfAvailable = false
         let vc = SFSafariViewController(url: url, configuration: config)
-        vc.preferredControlTintColor = UIColor(red: 0.1, green: 0.5, blue: 0.95, alpha: 1.0)
         return vc
     }
     
