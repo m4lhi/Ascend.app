@@ -471,12 +471,10 @@ struct PremiumPodiumView: View {
 
                 // Avatar image
                 if let urlString = player.avatarURL, let url = URL(string: urlString) {
-                    AsyncImage(url: url) { phase in
-                        if let image = phase.image {
-                            image.resizable().scaledToFill()
-                        } else {
-                            Circle().fill(Color.white.opacity(0.06))
-                        }
+                    CachedAsyncImage(url: url) { image in
+                        image.resizable().scaledToFill()
+                    } placeholder: {
+                        Circle().fill(Color.white.opacity(0.06))
                     }
                     .frame(width: avatarSize, height: avatarSize)
                     .clipShape(Circle())
@@ -630,12 +628,10 @@ struct PremiumLeaderboardRow: View {
             // Avatar with mini progress ring
             ZStack {
                 if let urlString = player.avatarURL, let url = URL(string: urlString) {
-                    AsyncImage(url: url) { phase in
-                        if let image = phase.image {
-                            image.resizable().scaledToFill()
-                        } else {
-                            Circle().fill(Color.white.opacity(0.06))
-                        }
+                    CachedAsyncImage(url: url) { image in
+                        image.resizable().scaledToFill()
+                    } placeholder: {
+                        Circle().fill(Color.white.opacity(0.06))
                     }
                     .frame(width: 42, height: 42)
                     .clipShape(Circle())

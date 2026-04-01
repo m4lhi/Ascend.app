@@ -57,9 +57,9 @@ class MountainManager: ObservableObject {
                     .lte("longitude", value: maxLon)
                 
                 let visiblePeaks: [Mountain]
-                
+
                 if zoomLevel == .far {
-                    // 1. Lade eine größere Auswahl (100 Berge)
+                    // 1. Lade eine größere Auswahl (100 Berge) — nur Kartenfelder
                     let rawPeaks: [Mountain] = try await baseQuery
                         .order("isPrestigePeak", ascending: false)
                         .order("elevation", ascending: false)

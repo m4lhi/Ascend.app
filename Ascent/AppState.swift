@@ -235,13 +235,13 @@ class AppState: ObservableObject {
     }
     
     // Speichert einfache Änderungen wie XP
-    func uploadProfileToCloud() {
+    func uploadProfileToCloud(refreshLeaderboard: Bool = false) {
         Task {
             do {
                 let session = try await supabase.auth.session
                 let updatedProfile = CloudProfile(id: session.user.id, username: self.userName, handle: self.userHandle, xp: self.currentXP, level: self.currentLevel, avatar_url: self.avatarURL, region: self.userRegion)
                 try await supabase.from("profiles").upsert(updatedProfile).execute()
-                fetchLeaderboard()
+                if refreshLeaderboard { fetchLeaderboard() }
             } catch { print("❌ Fehler beim Speichern: \(error)") }
         }
     }
@@ -290,7 +290,7 @@ class AppState: ObservableObject {
             try await supabase.from("profiles").upsert(updatedProfile).execute()
             
             self.userName = newName; self.userHandle = newHandle; self.userRegion = newRegion; self.selectedSports = newSports
-            fetchLeaderboard()
+            fetchLeaderboard()  // Region may change → local leaderboard must refresh
             return true
         } catch { return false }
     }
@@ -309,9 +309,7 @@ class AppState: ObservableObject {
                 
                 let updatedProfile = CloudProfile(id: userId, username: self.userName, handle: self.userHandle, xp: self.currentXP, level: self.currentLevel, avatar_url: cacheBusterURL, region: self.userRegion)
                 try await supabase.from("profiles").upsert(updatedProfile).execute()
-                
-                fetchLeaderboard()
-                fetchFeed()
+                // No leaderboard/feed refresh needed — only avatar URL changed
             } catch { print("❌ Fehler beim Bild-Upload: \(error)") }
         }
     }
@@ -345,7 +343,7 @@ class AppState: ObservableObject {
                 var relevantIds = myFriendships.map { $0.friend_id }
                 relevantIds.append(myId)
 
-                let profiles: [CloudProfile] = try await supabase.from("profiles").select().in("id", values: relevantIds).execute().value
+                let profiles: [CloudProfile] = try await supabase.from("profiles").select("id,username,handle,avatar_url,xp,level,region").in("id", values: relevantIds).execute().value
 
                 let rangeStart = feedPage * feedPageSize
                 let rangeEnd = rangeStart + feedPageSize - 1
@@ -361,34 +359,40 @@ class AppState: ObservableObject {
                 // Alle tour IDs sammeln für Social-Queries
                 let tourIds = cloudTours.compactMap { $0.id }
 
-                // Fist bumps, comments, bookmarks in parallel laden
+                // Fist bumps, comments, bookmarks TRULY in parallel laden
                 var allBumps: [CloudFistBump] = []
                 var allCommentCounts: [UUID: Int] = [:]
                 var myBookmarks: Set<UUID> = []
 
                 if !tourIds.isEmpty {
-                    allBumps = (try? await supabase.from("fist_bumps").select().in("tour_id", values: tourIds).execute().value) ?? []
-
                     struct CommentRow: Codable { let tour_id: UUID }
-                    let commentRows: [CommentRow] = (try? await supabase.from("comments").select("tour_id").in("tour_id", values: tourIds).execute().value) ?? []
+                    struct BookmarkRow: Codable { let tour_id: UUID }
+
+                    async let bumpsTask: [CloudFistBump] = (try? supabase.from("fist_bumps").select().in("tour_id", values: tourIds).execute().value) ?? []
+                    async let commentsTask: [CommentRow] = (try? supabase.from("comments").select("tour_id").in("tour_id", values: tourIds).execute().value) ?? []
+                    async let bookmarksTask: [BookmarkRow] = (try? supabase.from("bookmarked_routes").select("tour_id").eq("user_id", value: myId).in("tour_id", values: tourIds).execute().value) ?? []
+
+                    allBumps = await bumpsTask
+                    let commentRows = await commentsTask
                     for row in commentRows {
                         allCommentCounts[row.tour_id, default: 0] += 1
                     }
-
-                    struct BookmarkRow: Codable { let tour_id: UUID }
-                    let bookmarkRows: [BookmarkRow] = (try? await supabase.from("bookmarked_routes").select("tour_id").eq("user_id", value: myId).in("tour_id", values: tourIds).execute().value) ?? []
-                    myBookmarks = Set(bookmarkRows.map { $0.tour_id })
+                    myBookmarks = Set((await bookmarksTask).map { $0.tour_id })
                 }
+
+                // Reuse single decoder instance instead of creating one per tour
+                let pauseDecoder = JSONDecoder()
+                pauseDecoder.dateDecodingStrategy = .iso8601
+                // Build profile lookup dict to avoid O(n²) .first(where:) per tour
+                let profileLookup = Dictionary(uniqueKeysWithValues: profiles.map { ($0.id, $0) })
 
                 var pageTours: [Tour] = []
                 for tour in cloudTours {
-                    if let player = profiles.first(where: { $0.id == tour.user_id }) {
+                    if let player = profileLookup[tour.user_id] {
                         var parsedPauseCount = 0
                         var parsedPauseDuration: TimeInterval = 0
                         if let json = tour.pauses, let data = json.data(using: .utf8) {
-                            let decoder = JSONDecoder()
-                            decoder.dateDecodingStrategy = .iso8601
-                            if let entries = try? decoder.decode([PauseEntry].self, from: data) {
+                            if let entries = try? pauseDecoder.decode([PauseEntry].self, from: data) {
                                 parsedPauseCount = entries.count
                                 parsedPauseDuration = entries.reduce(0) { $0 + $1.duration }
                             }
@@ -439,7 +443,7 @@ class AppState: ObservableObject {
         self.currentLevel = (self.currentXP / 1000) + 1
         self.syncAscendTierWithCurrentLevel() // Update Rank if user leveled up
 
-        uploadProfileToCloud()  // uploadProfileToCloud already calls fetchLeaderboard()
+        uploadProfileToCloud(refreshLeaderboard: true)  // Tour completed = XP changed = leaderboard needs refresh
         
         // Optional: Update ascend_profiles DB if we want it permanently saved.
         // We'll trust the sync on fetch, but pushing the new level is clean.
@@ -467,16 +471,21 @@ class AppState: ObservableObject {
                 }
             }
 
-            // Resize photo early (before network calls) so it's ready
+            // Resize photo on background thread to avoid UI freeze
             var compressedPhoto: Data? = nil
-            if let photoData, let uiImage = UIImage(data: photoData) {
-                let maxDim: CGFloat = 800
-                let scale = min(maxDim / max(uiImage.size.width, uiImage.size.height), 1.0)
-                let newSize = CGSize(width: uiImage.size.width * scale, height: uiImage.size.height * scale)
-                let renderer = UIGraphicsImageRenderer(size: newSize)
-                let resized = renderer.image { _ in uiImage.draw(in: CGRect(origin: .zero, size: newSize)) }
-                compressedPhoto = resized.jpegData(compressionQuality: 0.6)
-                print("📸 Photo prepared (\((compressedPhoto?.count ?? 0) / 1024)KB)")
+            if let photoData {
+                compressedPhoto = await Task.detached(priority: .userInitiated) {
+                    guard let uiImage = UIImage(data: photoData) else { return nil as Data? }
+                    let maxDim: CGFloat = 800
+                    let scale = min(maxDim / max(uiImage.size.width, uiImage.size.height), 1.0)
+                    let newSize = CGSize(width: uiImage.size.width * scale, height: uiImage.size.height * scale)
+                    let renderer = UIGraphicsImageRenderer(size: newSize)
+                    let resized = renderer.image { _ in uiImage.draw(in: CGRect(origin: .zero, size: newSize)) }
+                    return resized.jpegData(compressionQuality: 0.6)
+                }.value
+                if let compressed = compressedPhoto {
+                    print("📸 Photo prepared (\(compressed.count / 1024)KB)")
+                }
             }
 
             // Upload photo first (retry), then insert tour with photo_url
@@ -538,8 +547,7 @@ class AppState: ObservableObject {
         self.currentXP = max(0, self.currentXP - tour.xpGained)
         self.currentLevel = max(1, (self.currentXP / 1000) + 1)
         self.recentTours.removeAll { $0.id == tour.id }
-        uploadProfileToCloud()
-        fetchLeaderboard()
+        uploadProfileToCloud(refreshLeaderboard: true)
 
         Task {
             do {
@@ -608,7 +616,7 @@ class AppState: ObservableObject {
             }
             let rows: [FullComment] = try await supabase.from("comments").select().eq("tour_id", value: tourId).order("created_at", ascending: true).execute().value
             let userIds = Array(Set(rows.map { $0.user_id }))
-            let profiles: [CloudProfile] = try await supabase.from("profiles").select().in("id", values: userIds).execute().value
+            let profiles: [CloudProfile] = try await supabase.from("profiles").select("id,username,handle,avatar_url,xp,level,region").in("id", values: userIds).execute().value
 
             return rows.map { row in
                 let profile = profiles.first { $0.id == row.user_id }
@@ -669,34 +677,33 @@ class AppState: ObservableObject {
         }
     }
     
-    // Holt die drei Leaderboard-Listen
+    // Holt die drei Leaderboard-Listen parallel
     func fetchLeaderboard() {
         Task {
             do {
                 let myId = try await supabase.auth.session.user.id
                 let myProfile = CloudProfile(id: myId, username: self.userName, handle: self.userHandle, xp: self.currentXP, level: self.currentLevel, avatar_url: self.avatarURL, region: self.userRegion)
-                
-                // 1. FRIENDS
+                let region = self.userRegion
+
+                // Fetch friendships first (needed for friends query)
                 let myFriendships: [FriendshipRule] = try await supabase.from("friendships").select("friend_id").eq("user_id", value: myId).execute().value
                 let friendIds = myFriendships.map { $0.friend_id }
+
+                // Run all 3 leaderboard queries in parallel
+                async let friendsTask: [CloudProfile] = !friendIds.isEmpty
+                    ? (try supabase.from("profiles").select().in("id", values: friendIds).execute().value)
+                    : []
+                async let globalTask: [CloudProfile] = try supabase.from("profiles").select().order("xp", ascending: false).limit(50).execute().value
+                async let localTask: [CloudProfile] = !region.isEmpty
+                    ? (try supabase.from("profiles").select().eq("region", value: region).order("xp", ascending: false).limit(50).execute().value)
+                    : []
+
+                let (friendsData, globalData, localData) = try await (friendsTask, globalTask, localTask)
+
                 var friendsPlayers: [CloudProfile] = [myProfile]
-                if !friendIds.isEmpty {
-                    let friendsData: [CloudProfile] = try await supabase.from("profiles").select().in("id", values: friendIds).execute().value
-                    friendsPlayers.append(contentsOf: friendsData)
-                }
+                friendsPlayers.append(contentsOf: friendsData)
                 friendsPlayers.sort { $0.xp > $1.xp }
-                
-                // 2. GLOBAL
-                let globalData: [CloudProfile] = try await supabase.from("profiles").select().order("xp", ascending: false).limit(50).execute().value
-                
-                // 3. LOCAL
-                let localData: [CloudProfile]
-                if !self.userRegion.isEmpty {
-                    localData = try await supabase.from("profiles").select().eq("region", value: self.userRegion).order("xp", ascending: false).limit(50).execute().value
-                } else {
-                    localData = []
-                }
-                
+
                 self.friendsLeaderboard = friendsPlayers
                 self.globalLeaderboard = globalData
                 self.localLeaderboard = localData

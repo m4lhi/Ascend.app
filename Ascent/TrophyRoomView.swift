@@ -380,12 +380,10 @@ struct TrophyRoomView: View {
                                     .rotationEffect(.degrees(-90))
                                 
                                 if let urlString = appState.avatarURL, let url = URL(string: urlString) {
-                                    AsyncImage(url: url) { phase in
-                                        if let image = phase.image {
-                                            image.resizable().scaledToFill()
-                                        } else {
-                                            Circle().fill(cardBg)
-                                        }
+                                    CachedAsyncImage(url: url) { image in
+                                        image.resizable().scaledToFill()
+                                    } placeholder: {
+                                        Circle().fill(cardBg)
                                     }
                                     .frame(width: 72, height: 72)
                                     .clipShape(Circle())
@@ -965,12 +963,10 @@ struct EditAccountView: View {
                                         .clipShape(Circle())
                                         .overlay(Circle().stroke(gold.opacity(0.3), lineWidth: 2))
                                 } else if let urlString = appState.avatarURL, let url = URL(string: urlString) {
-                                    AsyncImage(url: url) { phase in
-                                        if let image = phase.image {
-                                            image.resizable().scaledToFill()
-                                        } else {
-                                            Circle().fill(cardBg)
-                                        }
+                                    CachedAsyncImage(url: url) { image in
+                                        image.resizable().scaledToFill()
+                                    } placeholder: {
+                                        Circle().fill(cardBg)
                                     }
                                     .frame(width: 100, height: 100)
                                     .clipShape(Circle())

@@ -81,12 +81,10 @@ struct BasecampView: View {
                                     .rotationEffect(.degrees(-90))
 
                                 if let urlString = appState.avatarURL, let url = URL(string: urlString) {
-                                    AsyncImage(url: url) { phase in
-                                        if let image = phase.image {
-                                            image.resizable().scaledToFill()
-                                        } else {
-                                            Circle().fill(cardBg)
-                                        }
+                                    CachedAsyncImage(url: url) { image in
+                                        image.resizable().scaledToFill()
+                                    } placeholder: {
+                                        Circle().fill(cardBg)
                                     }
                                     .frame(width: 44, height: 44).clipShape(Circle())
                                 } else {
@@ -187,12 +185,10 @@ struct BasecampView: View {
                                         .overlay(
                                             Group {
                                                 if let urlString = peak.imageUrl, !urlString.isEmpty, let url = URL(string: urlString) {
-                                                    AsyncImage(url: url) { phase in
-                                                        if let image = phase.image {
-                                                            image.resizable().scaledToFill()
-                                                        } else {
-                                                            heroBannerPlaceholder(peak: peak)
-                                                        }
+                                                    CachedAsyncImage(url: url) { image in
+                                                        image.resizable().scaledToFill()
+                                                    } placeholder: {
+                                                        heroBannerPlaceholder(peak: peak)
                                                     }
                                                 } else {
                                                     heroBannerPlaceholder(peak: peak)
@@ -493,12 +489,10 @@ struct RouteCard: View {
                         .overlay(
                             Group {
                                 if let urlString = mountain.imageUrl, !urlString.isEmpty, let url = URL(string: urlString) {
-                                    AsyncImage(url: url) { phase in
-                                        if let image = phase.image {
-                                            image.resizable().scaledToFill()
-                                        } else {
-                                            routePlaceholder
-                                        }
+                                    CachedAsyncImage(url: url) { image in
+                                        image.resizable().scaledToFill()
+                                    } placeholder: {
+                                        routePlaceholder
                                     }
                                 } else {
                                     routePlaceholder

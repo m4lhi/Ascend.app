@@ -41,12 +41,10 @@ struct ActivityCardView: View {
             // === TOP ROW ===
             HStack(alignment: .top, spacing: 12) {
                 if let urlString = tour.playerAvatarURL, let url = URL(string: urlString) {
-                    AsyncImage(url: url) { phase in
-                        if let image = phase.image {
-                            image.resizable().scaledToFill()
-                        } else {
-                            RoundedRectangle(cornerRadius: 12).fill(Color.gray.opacity(0.3))
-                        }
+                    CachedAsyncImage(url: url) { image in
+                        image.resizable().scaledToFill()
+                    } placeholder: {
+                        RoundedRectangle(cornerRadius: 12).fill(Color.gray.opacity(0.3))
                     }
                     .frame(width: 45, height: 45)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
@@ -108,17 +106,13 @@ struct ActivityCardView: View {
 
             // === TOUR PHOTO ===
             if let photoURL = tour.photoURL, let url = URL(string: photoURL) {
-                AsyncImage(url: url) { phase in
-                    if let image = phase.image {
-                        image.resizable().scaledToFill()
-                            .frame(maxWidth: .infinity).frame(height: 200)
-                            .clipped().cornerRadius(12)
-                    } else if phase.error != nil {
-                        EmptyView()
-                    } else {
-                        RoundedRectangle(cornerRadius: 12).fill(Color.white.opacity(0.05))
-                            .frame(height: 200).overlay(ProgressView().tint(.white))
-                    }
+                CachedAsyncImage(url: url) { image in
+                    image.resizable().scaledToFill()
+                        .frame(maxWidth: .infinity).frame(height: 200)
+                        .clipped().cornerRadius(12)
+                } placeholder: {
+                    RoundedRectangle(cornerRadius: 12).fill(Color.white.opacity(0.05))
+                        .frame(height: 200).overlay(ProgressView().tint(.white))
                 }
             }
 
@@ -309,12 +303,10 @@ struct CommentRow: View {
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
             if let urlString = comment.avatarURL, let url = URL(string: urlString) {
-                AsyncImage(url: url) { phase in
-                    if let image = phase.image {
-                        image.resizable().scaledToFill()
-                    } else {
-                        Circle().fill(Color.gray.opacity(0.3))
-                    }
+                CachedAsyncImage(url: url) { image in
+                    image.resizable().scaledToFill()
+                } placeholder: {
+                    Circle().fill(Color.gray.opacity(0.3))
                 }
                 .frame(width: 32, height: 32).clipShape(Circle())
             } else {

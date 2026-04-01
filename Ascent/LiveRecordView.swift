@@ -24,6 +24,7 @@ class LiveGPSManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     @Published var isRecording: Bool = false
     
     private(set) var rawRoute: [CLLocation] = []
+    private static let maxRawRoutePoints = 5000
     private var lastLocation: CLLocation?
 
     private let isAltimeterAvailable = CMAltimeter.isRelativeAltitudeAvailable()
@@ -230,6 +231,10 @@ class LiveGPSManager: NSObject, ObservableObject, CLLocationManagerDelegate {
 
         routePoints.append(newLocation.coordinate)
         rawRoute.append(newLocation)
+        // Cap rawRoute to prevent unbounded memory growth on long hikes
+        if rawRoute.count > Self.maxRawRoutePoints {
+            rawRoute.removeFirst(rawRoute.count - Self.maxRawRoutePoints)
+        }
 
         if altimeterBaseline == nil { altimeterBaseline = newLocation.altitude }
 
@@ -493,9 +498,9 @@ struct LiveRecordView: View {
         }
     }
 
-    // 🟢 Apple Maps Routen-Berechnung (Garantiert immer eine Linie)
+    // Apple Maps Routen-Berechnung — async, off main thread
     private func calculateRouteToMountain(from userLoc: CLLocationCoordinate2D, to dest: CLLocationCoordinate2D) {
-        
+
         // 1. Sofortige weiße Luftlinie zeichnen, als Fallback
         withAnimation(.easeInOut(duration: 0.5)) {
             self.fallbackRoute = [userLoc, dest]
@@ -510,25 +515,27 @@ struct LiveRecordView: View {
             }
         }
 
-        // 2. Apple Maps nach offiziellem Wanderweg fragen
-        let request = MKDirections.Request()
-        request.source = MKMapItem(placemark: MKPlacemark(coordinate: userLoc))
-        request.destination = MKMapItem(placemark: MKPlacemark(coordinate: dest))
-        request.transportType = .walking
+        // 2. Apple Maps nach offiziellem Wanderweg fragen (async, blockiert Main Thread nicht)
+        Task {
+            let request = MKDirections.Request()
+            request.source = MKMapItem(placemark: MKPlacemark(coordinate: userLoc))
+            request.destination = MKMapItem(placemark: MKPlacemark(coordinate: dest))
+            request.transportType = .walking
 
-        let directions = MKDirections(request: request)
-        directions.calculate { response, error in
-            if let route = response?.routes.first {
-                // SUCCESS: Ersetze Luftlinie durch die blaue Wanderroute
-                withAnimation(.easeInOut(duration: 1.0)) {
-                    self.appleRoute = route
-                    self.fallbackRoute = nil
-                    if !self.isRunning {
-                        self.cameraPosition = .rect(self.padMapRect(route.polyline.boundingMapRect))
+            let directions = MKDirections(request: request)
+            do {
+                let response = try await directions.calculate()
+                if let route = response.routes.first {
+                    withAnimation(.easeInOut(duration: 1.0)) {
+                        self.appleRoute = route
+                        self.fallbackRoute = nil
+                        if !self.isRunning {
+                            self.cameraPosition = .rect(self.padMapRect(route.polyline.boundingMapRect))
+                        }
                     }
                 }
-            } else {
-                print("⚠️ Apple Maps hat keinen Wanderweg gefunden. Die Luftlinie bleibt erhalten.")
+            } catch {
+                print("⚠️ Apple Maps hat keinen Wanderweg gefunden: \(error.localizedDescription)")
             }
         }
     }
