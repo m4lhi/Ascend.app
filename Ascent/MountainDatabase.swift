@@ -39,6 +39,7 @@ struct Mountain: Identifiable, Hashable, Codable {
     var photographer_link: String?
     let latitude: Double?
     let longitude: Double?
+    var routes: [MountainRoute]?
 
     // Explicit CodingKeys mapping exactly to Supabase column names (case-sensitive)
     enum CodingKeys: String, CodingKey {
@@ -55,24 +56,36 @@ struct Mountain: Identifiable, Hashable, Codable {
         case photographer_link = "photographer_link"
         case latitude         = "latitude"
         case longitude        = "longitude"
+        case routes           = "routes"
     }
 
     // Safe decode: catches NULL values from Supabase
     init(from decoder: Decoder) throws {
-        let c = try decoder.container(keyedBy: CodingKeys.self)
-        id                = try c.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
-        name              = try c.decodeIfPresent(String.self, forKey: .name) ?? "Unknown"
-        elevation         = try c.decodeIfPresent(Int.self, forKey: .elevation) ?? 0
-        difficulty        = try c.decodeIfPresent(Difficulty.self, forKey: .difficulty) ?? .medium
-        country           = try c.decodeIfPresent(String.self, forKey: .country) ?? ""
-        region            = try c.decodeIfPresent(String.self, forKey: .region) ?? ""
-        description       = try c.decodeIfPresent(String.self, forKey: .description) ?? ""
-        isPrestigePeak    = try c.decodeIfPresent(Bool.self, forKey: .isPrestigePeak) ?? false
-        imageUrl          = try c.decodeIfPresent(String.self, forKey: .imageUrl)
-        photographer_name = try c.decodeIfPresent(String.self, forKey: .photographer_name)
-        photographer_link = try c.decodeIfPresent(String.self, forKey: .photographer_link)
-        latitude          = try c.decodeIfPresent(Double.self, forKey: .latitude)
-        longitude         = try c.decodeIfPresent(Double.self, forKey: .longitude)
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        self.id = try container.decode(UUID.self, forKey: .id)
+        self.name = try container.decode(String.self, forKey: .name)
+        self.elevation = try container.decode(Int.self, forKey: .elevation)
+        
+        if let diffStr = try container.decodeIfPresent(String.self, forKey: .difficulty), let diff = Difficulty(rawValue: diffStr) {
+            self.difficulty = diff
+        } else {
+            self.difficulty = .medium
+        }
+        
+        self.country = try container.decodeIfPresent(String.self, forKey: .country) ?? "Unknown"
+        self.region = try container.decodeIfPresent(String.self, forKey: .region) ?? "Unknown Region"
+        self.description = try container.decodeIfPresent(String.self, forKey: .description) ?? "No description available."
+        
+        self.isPrestigePeak = try container.decodeIfPresent(Bool.self, forKey: .isPrestigePeak) ?? false
+        self.imageUrl = try container.decodeIfPresent(String.self, forKey: .imageUrl)
+        self.photographer_name = try container.decodeIfPresent(String.self, forKey: .photographer_name)
+        self.photographer_link = try container.decodeIfPresent(String.self, forKey: .photographer_link)
+        
+        self.latitude = try container.decodeIfPresent(Double.self, forKey: .latitude)
+        self.longitude = try container.decodeIfPresent(Double.self, forKey: .longitude)
+        
+        self.routes = try container.decodeIfPresent([MountainRoute].self, forKey: .routes)
     }
 
     // Manual init for code that creates Mountain directly
@@ -99,6 +112,18 @@ struct Mountain: Identifiable, Hashable, Codable {
             endPoint: .bottomTrailing
         )
     }
+}
+
+// =========================================
+// === MOUNTAIN ROUTE (NEW) ===
+// =========================================
+struct MountainRoute: Identifiable, Hashable, Codable {
+    var id: UUID
+    let mountain_id: UUID
+    let route_name: String
+    let start_lat: Double
+    let start_lon: Double
+    let route_polyline: String
 }
 
 // =========================================

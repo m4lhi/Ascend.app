@@ -8,9 +8,12 @@ import CoreLocation
 // === SUPABASE CONNECTION MANAGER ===
 // =========================================
 
+let supabaseURL = Bundle.main.object(forInfoDictionaryKey: "SupabaseURL") as? String ?? ""
+let supabaseKey = Bundle.main.object(forInfoDictionaryKey: "SupabaseAnonKey") as? String ?? ""
+
 let supabase = SupabaseClient(
-    supabaseURL: URL(string: "https://qujkzrwrhrqejsqulohy.supabase.co")!,
-    supabaseKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF1amt6cndyaHJxZWpzcXVsb2h5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5OTQzMDYsImV4cCI6MjA4ODU3MDMwNn0.mdB8rjht5QtGcYmeEbNmYDlXLdsHcH9jzxmTOi4S28E",
+    supabaseURL: URL(string: supabaseURL)!,
+    supabaseKey: supabaseKey,
     options: SupabaseClientOptions(auth: .init(emitLocalSessionAsInitialSession: true))
 )
 
@@ -51,7 +54,7 @@ class MountainManager: ObservableObject {
         func fetchMountainsInBounds(minLat: Double, maxLat: Double, minLon: Double, maxLon: Double, zoomLevel: ExploreView.ZoomLevel) async {
             do {
                 let baseQuery = supabase.from("mountains")
-                    .select()
+                    .select("*, routes:mountain_routes(*)")
                     .gte("latitude", value: minLat)
                     .lte("latitude", value: maxLat)
                     .gte("longitude", value: minLon)
@@ -119,20 +122,20 @@ class MountainManager: ObservableObject {
             
             let results: [Mountain]
             if !safe.isEmpty, let diff = difficulty {
-                results = try await supabase.from("mountains").select()
+                results = try await supabase.from("mountains").select("*, routes:mountain_routes(*)")
                     .or("name.ilike.%\(safe)%,region.ilike.%\(safe)%,country.ilike.%\(safe)%")
                     .eq("difficulty", value: diff.rawValue)
                     .execute().value
             } else if !safe.isEmpty {
-                results = try await supabase.from("mountains").select()
+                results = try await supabase.from("mountains").select("*, routes:mountain_routes(*)")
                     .or("name.ilike.%\(safe)%,region.ilike.%\(safe)%,country.ilike.%\(safe)%")
                     .execute().value
             } else if let diff = difficulty {
-                results = try await supabase.from("mountains").select()
+                results = try await supabase.from("mountains").select("*, routes:mountain_routes(*)")
                     .eq("difficulty", value: diff.rawValue)
                     .execute().value
             } else {
-                results = try await supabase.from("mountains").select()
+                results = try await supabase.from("mountains").select("*, routes:mountain_routes(*)")
                     .limit(100)
                     .execute().value
             }
@@ -170,7 +173,7 @@ class MountainManager: ObservableObject {
         do {
             let results: [Mountain] = try await supabase
                 .from("mountains")
-                .select()
+                .select("*, routes:mountain_routes(*)")
                 .order("isPrestigePeak", ascending: false)
                 .order("elevation", ascending: false)
                 .limit(10)

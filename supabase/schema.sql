@@ -16,15 +16,15 @@ CREATE TABLE IF NOT EXISTS public.ascend_profiles (
 -- Enable RLS
 ALTER TABLE public.ascend_profiles ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can view their own ascend profile" 
-ON public.ascend_profiles FOR SELECT 
+CREATE POLICY "Users can view their own ascend profile"
+ON public.ascend_profiles FOR SELECT
 USING (auth.uid() = user_id);
 
-CREATE POLICY "Users can update their own ascend profile" 
+CREATE POLICY "Users can update their own ascend profile"
 ON public.ascend_profiles FOR UPDATE
 USING (auth.uid() = user_id);
 
-CREATE POLICY "Users can insert their own ascend profile" 
+CREATE POLICY "Users can insert their own ascend profile"
 ON public.ascend_profiles FOR INSERT
 WITH CHECK (auth.uid() = user_id);
 
@@ -42,3 +42,26 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- CREATE TRIGGER on_auth_user_created_ascend
 --   AFTER INSERT ON auth.users
 --   FOR EACH ROW EXECUTE PROCEDURE public.handle_new_ascend_profile();
+
+-- Create mountain routes table for offline routing
+CREATE TABLE IF NOT EXISTS public.mountain_routes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    mountain_id UUID NOT NULL REFERENCES public.mountains(id) ON DELETE CASCADE,
+    route_name TEXT NOT NULL,
+    start_lat DOUBLE PRECISION NOT NULL,
+    start_lon DOUBLE PRECISION NOT NULL,
+    route_polyline TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Enable RLS for mountain_routes
+ALTER TABLE public.mountain_routes ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can view mountain routes"
+ON public.mountain_routes FOR SELECT
+USING (true);
+
+-- You can restrict this to admins/service roles if needed for insertion
+CREATE POLICY "Admins/Service keys can insert mountain routes"
+ON public.mountain_routes FOR INSERT
+WITH CHECK (true);

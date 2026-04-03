@@ -752,3 +752,4 @@ struct LevelBadge: View {
         }
     }
 }
+

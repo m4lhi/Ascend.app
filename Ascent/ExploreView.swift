@@ -1171,3 +1171,7 @@ struct DetailStat: View {
         }.frame(maxWidth: .infinity)
     }
 }
+#Preview {
+    ExploreView()
+        .environmentObject(AppState())
+}
