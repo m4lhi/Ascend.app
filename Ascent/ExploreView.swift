@@ -751,7 +751,7 @@ struct ExploreView: View {
                 }
 
                 // Mini elevation preview
-                MountainElevationPreview(elevation: mountain.elevation, accentColor: gold)
+                MountainElevationPreview(mountain: mountain, accentColor: gold)
                     .frame(height: 40)
 
                 Button { HapticManager.shared.heavy(); mountainToTrack = mountain; showTracker = true } label: {
@@ -1122,26 +1122,69 @@ struct RouteElevationProfile: View {
 // === SINGLE MOUNTAIN ELEVATION PREVIEW ===
 // =========================================
 struct MountainElevationPreview: View {
-    let elevation: Int
+    let mountain: Mountain
     let accentColor: Color
 
-    // Simulate a simple ascent profile: start → approach → steep → summit
+    // Generate a unique, deterministic ascent profile for each mountain based on its name
     private var profilePoints: [(x: Double, y: Double)] {
-        let summit = Double(elevation)
-        let start = max(0, summit * 0.15)
-        return [
-            (0.0, start),
-            (0.15, start + summit * 0.05),
-            (0.3, start + summit * 0.2),
-            (0.5, start + summit * 0.45),
-            (0.7, start + summit * 0.75),
-            (0.85, start + summit * 0.92),
-            (1.0, summit)
-        ]
+        // If we have real elevation data from Supabase (BRouter), use it!
+        if let firstRoute = mountain.routes?.first, let actualElevations = firstRoute.elevation_profile, !actualElevations.isEmpty {
+            var points: [(x: Double, y: Double)] = []
+            let count = actualElevations.count
+            let step = max(1, count / 100) // Downsample to ~100 points for smooth performance
+            
+            for (index, elev) in actualElevations.enumerated() {
+                if index % step == 0 || index == count - 1 {
+                    points.append((Double(index) / Double(count - 1), Double(elev)))
+                }
+            }
+            return points
+        }
+    
+        let summit = Double(mountain.elevation)
+        
+        // Stable seed from mountain name
+        let seed = abs(mountain.name.hashValue) % 1000
+        
+        // Base camp variance (10% to 40% of summit)
+        let startRatio = 0.10 + (Double(seed % 30) / 100.0)
+        let start = max(0, summit * startRatio)
+        
+        // Stealth profile: 1.0 (linear), >1 (flat start, steep end), <1 (steep start, flat ridge)
+        let curveFactor = 0.7 + (Double(seed % 15) / 10.0)
+        
+        var points: [(x: Double, y: Double)] = []
+        let numPoints = 12
+        for i in 0...numPoints {
+            let x = Double(i) / Double(numPoints)
+            var y = start + (summit - start) * pow(x, curveFactor)
+            
+            // Add natural terrain "bumps" in the middle of the trail
+            if i > 0 && i < numPoints {
+                let wave = sin(x * .pi * Double((seed % 3) + 2)) + cos(x * .pi * Double((seed % 4) + 1))
+                let noise = (summit - start) * 0.06 // Max 6% deviation
+                y += wave * noise
+            }
+            
+            // Prevent going below start or above summit
+            y = max(start, min(summit, y))
+            points.append((x, y))
+        }
+        
+        // Allow tiny realistic ridge descents, but generally ascending
+        var finalPoints: [(x: Double, y: Double)] = []
+        var highest = start
+        for pt in points {
+            highest = max(highest, pt.y - (summit * 0.03)) // Max 3% downhill dip
+            finalPoints.append((pt.x, highest))
+        }
+        
+        finalPoints[finalPoints.count - 1] = (1.0, summit)
+        return finalPoints
     }
 
     var body: some View {
-        let maxElevationRange = Double(elevation) * 1.1
+        let maxElevationRange = Double(mountain.elevation) * 1.1
         let areaFillGradient = LinearGradient(colors: [accentColor.opacity(0.2), accentColor.opacity(0.02)], startPoint: .top, endPoint: .bottom)
 
         Chart {
