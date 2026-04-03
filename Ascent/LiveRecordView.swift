@@ -339,10 +339,10 @@ struct LiveRecordView: View {
             Map(position: $cameraPosition, bounds: MapCameraBounds(maximumDistance: 150_000)) {
                 UserAnnotation()
                 
-                // 🟢 Zieht den dynamischen Zustieg (Approach) als graue gestrichelte Linie
+                // 🟢 Zieht den dynamischen Zustieg (Approach) als durchgehende graue Linie (vorher gestrichelt)
                 if let approach = appleApproachRoute {
                     MapPolyline(coordinates: approach)
-                        .stroke(.gray.opacity(0.8), style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round, dash: [6, 6]))
+                        .stroke(.gray.opacity(0.8), style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round))
                 } else if let fallback = fallbackRoute {
                     MapPolyline(coordinates: fallback)
                         .stroke(.white.opacity(0.6), style: StrokeStyle(lineWidth: 3, dash: [5, 5]))
