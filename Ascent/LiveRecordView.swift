@@ -362,15 +362,6 @@ struct LiveRecordView: View {
                 guard let loc = newLoc, let target = targetMountain, !hasCalculatedRoute,
                       let targetLat = target.latitude, let targetLon = target.longitude else { return }
                 
-                let userCLLoc = CLLocation(latitude: loc.coordinate.latitude, longitude: loc.coordinate.longitude)
-                let destCLLoc = CLLocation(latitude: targetLat, longitude: targetLon)
-                
-                // Blockiert die Berechnung nur solange du > 50km entfernt bist.
-                if userCLLoc.distance(from: destCLLoc) > 50000 {
-                    withAnimation { self.isTooFarForRoute = true }
-                    return
-                }
-                
                 hasCalculatedRoute = true
                 withAnimation { self.isTooFarForRoute = false }
                 calculateRouteToMountain(from: loc.coordinate, to: CLLocationCoordinate2D(latitude: targetLat, longitude: targetLon))
@@ -520,6 +511,11 @@ struct LiveRecordView: View {
             }
             
             // Lade echte Gehwege oder Straßen bis zum Startpunkt (ohne Distanz-Limit!)
+            // Trigger Pioneer Approach (Luftlinie) nur, wenn der User > 50km vom Startpunkt weg ist
+            if userCLLoc.distance(from: trailheadCL) > 50000 {
+                return
+            }
+            
             Task {
                 let request = MKDirections.Request()
                 request.source = MKMapItem(location: userCLLoc, address: nil)
