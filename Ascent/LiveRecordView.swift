@@ -345,7 +345,7 @@ struct LiveRecordView: View {
                         .stroke(.gray.opacity(0.8), style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round))
                 } else if let fallback = fallbackRoute {
                     MapPolyline(coordinates: fallback)
-                        .stroke(.white.opacity(0.6), style: StrokeStyle(lineWidth: 3, dash: [5, 5]))
+                        .stroke(.gray.opacity(0.8), style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round))
                 }
                 
                 // 🟢 Zeichnet die Offline Ascent Polyline (z.T. ignoriert, z.T. aktiv)
@@ -628,35 +628,47 @@ struct LiveRecordView: View {
                 request.source = MKMapItem(location: userCLLoc, address: nil)
                 request.destination = MKMapItem(location: interceptCLLoc, address: nil)
                 request.transportType = .walking
+                
+                var calculatedRoute: MKRoute? = nil
 
-                let directions = MKDirections(request: request)
                 do {
+                    let directions = MKDirections(request: request)
                     let response = try await directions.calculate()
-                    if let route = response.routes.first {
-                        // MKPolyline wandeln in [CLLocationCoordinate2D]
-                        let pointCount = route.polyline.pointCount
-                        var coords = [CLLocationCoordinate2D](repeating: kCLLocationCoordinate2DInvalid, count: pointCount)
-                        route.polyline.getCoordinates(&coords, range: NSRange(location: 0, length: pointCount))
+                    calculatedRoute = response.routes.first
+                } catch {
+                    print("⚠️ Walking approach route calculation failed: \(error), trying automobile...")
+                    do {
+                        request.transportType = .automobile
+                        let carDirections = MKDirections(request: request)
+                        let carResponse = try await carDirections.calculate()
+                        calculatedRoute = carResponse.routes.first
+                    } catch {
+                        print("⚠️ Automobile approach failed as well: \(error)")
+                    }
+                }
+                
+                if let route = calculatedRoute {
+                    // MKPolyline wandeln in [CLLocationCoordinate2D]
+                    let pointCount = route.polyline.pointCount
+                    var coords = [CLLocationCoordinate2D](repeating: kCLLocationCoordinate2DInvalid, count: pointCount)
+                    route.polyline.getCoordinates(&coords, range: NSRange(location: 0, length: pointCount))
+                    
+                    withAnimation(.easeInOut(duration: 1.0)) {
+                        self.appleApproachRoute = coords
+                        self.fallbackRoute = nil
                         
-                        withAnimation(.easeInOut(duration: 1.0)) {
-                            self.appleApproachRoute = coords
-                            self.fallbackRoute = nil
-                            
-                            if !self.isRunning {
-                                let safeBestIndex = min(bestIndex, decodedAscent.count - 1)
-                                let allActiveCoords = coords + Array(decodedAscent[safeBestIndex...])
-                                if !allActiveCoords.isEmpty {
-                                    let rects = allActiveCoords.map { MKMapRect(origin: MKMapPoint($0), size: MKMapSize(width: 1, height: 1)) }
-                                    if var finalRect = rects.first {
-                                        for r in rects { finalRect = finalRect.union(r) }
-                                        self.cameraPosition = .rect(self.padMapRect(finalRect))
-                                    }
+                        if !self.isRunning {
+                            let safeBestIndex = min(bestIndex, decodedAscent.count - 1)
+                            let allActiveCoords = coords + Array(decodedAscent[safeBestIndex...])
+                            if !allActiveCoords.isEmpty {
+                                let rects = allActiveCoords.map { MKMapRect(origin: MKMapPoint($0), size: MKMapSize(width: 1, height: 1)) }
+                                if var finalRect = rects.first {
+                                    for r in rects { finalRect = finalRect.union(r) }
+                                    self.cameraPosition = .rect(self.padMapRect(finalRect))
                                 }
                             }
                         }
                     }
-                } catch {
-                    print("⚠️ Approach route calculation failed: \(error)")
                 }
             }
             return
