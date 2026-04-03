@@ -12,5 +12,9 @@
     <string>Ascend needs background location access to keep recording your route even when your phone is locked in your pocket.</string>
     <key>NSMotionUsageDescription</key>
     <string>Ascend uses your iPhone's barometer and motion sensors to accurately calculate your exact elevation gain.</string>
+    <key>SupabaseURL</key>
+    <string>https://qujkzrwrhrqejsqulohy.supabase.co</string>
+    <key>SupabaseAnonKey</key>
+    <string>eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF1amt6cndyaHJxZWpzcXVsb2h5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5OTQzMDYsImV4cCI6MjA4ODU3MDMwNn0.mdB8rjht5QtGcYmeEbNmYDlXLdsHcH9jzxmTOi4S28E</string>
 </dict>
 </plist>

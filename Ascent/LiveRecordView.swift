@@ -289,6 +289,7 @@ struct LiveRecordView: View {
     // 🟢 Speichert die berechneten Routen
     @State private var appleRoute: MKRoute? = nil
     @State private var fallbackRoute: [CLLocationCoordinate2D]? = nil
+    @State private var offlineAscentRoute: [CLLocationCoordinate2D]? = nil
     
     @State private var hasCalculatedRoute = false
     @State private var isTooFarForRoute = false
@@ -332,16 +333,25 @@ struct LiveRecordView: View {
     var body: some View {
         ZStack(alignment: .topTrailing) {
             // === LAYER 1: Map ===
-            Map(position: $cameraPosition) {
+            Map(position: $cameraPosition, bounds: MapCameraBounds(minimumDistance: 100, maximumDistance: 150_000)) {
                 UserAnnotation()
                 
                 // 🟢 Zieht die echte Wanderroute (Blau) oder die Luftlinie (Weiß)
+                if let ascentRoute = offlineAscentRoute {
+                    MapPolyline(coordinates: ascentRoute)
+                        .stroke(.cyan, style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round))
+                }
+                
                 if let route = appleRoute {
                     MapPolyline(route)
-                        .stroke(.cyan, style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round))
-                } else if let fallback = fallbackRoute {
-                    MapPolyline(coordinates: fallback)
-                        .stroke(.white.opacity(0.6), style: StrokeStyle(lineWidth: 3, dash: [5, 5]))
+                        .stroke(.gray, style: StrokeStyle(lineWidth: 3, lineCap: .round, dash: [5, 5]))
+                } else if fallbackRoute != nil {
+                    // Fallback nur, wenn keine approach-route da ist und kein offlineAscent? Oder zusätzlich.
+                    // Pionier Modus.
+                    if let fallback = fallbackRoute {
+                        MapPolyline(coordinates: fallback)
+                            .stroke(.white.opacity(0.6), style: StrokeStyle(lineWidth: 3, dash: [5, 5]))
+                    }
                 }
                 
                 // 🟢 Zeigt den Ziel-Marker auf dem Berg
@@ -501,6 +511,56 @@ struct LiveRecordView: View {
     // Apple Maps Routen-Berechnung — async, off main thread
     private func calculateRouteToMountain(from userLoc: CLLocationCoordinate2D, to dest: CLLocationCoordinate2D) {
 
+        let userCLLoc = CLLocation(latitude: userLoc.latitude, longitude: userLoc.longitude)
+        
+        // 1. Check if we have a predefined MountainRoute in the database
+        if let target = targetMountain, let routes = target.routes, let firstRoute = routes.first {
+            let trailhead = CLLocationCoordinate2D(latitude: firstRoute.start_lat, longitude: firstRoute.start_lon)
+            let trailheadCL = CLLocation(latitude: trailhead.latitude, longitude: trailhead.longitude)
+            
+            // Decode the offline ascent polyline
+            let decodedAscent = PolylineUtility.decode(polyline: firstRoute.route_polyline)
+            
+            // Check Pioneer Mode (distance to trailhead > 2000m)
+            if userCLLoc.distance(from: trailheadCL) > 2000 {
+                // Fallback / Pioneer mode
+                withAnimation {
+                    self.fallbackRoute = [userLoc, dest]
+                }
+            } else {
+                // Hybrid Mode: Approach + Ascent
+                withAnimation {
+                    self.offlineAscentRoute = decodedAscent
+                }
+                
+                // Request Approach to trailhead
+                Task {
+                    let request = MKDirections.Request()
+                    request.source = MKMapItem(location: userCLLoc, address: nil)
+                    request.destination = MKMapItem(location: trailheadCL, address: nil)
+                    request.transportType = .walking
+
+                    let directions = MKDirections(request: request)
+                    do {
+                        let response = try await directions.calculate()
+                        if let route = response.routes.first {
+                            withAnimation(.easeInOut(duration: 1.0)) {
+                                self.appleRoute = route
+                                self.fallbackRoute = nil
+                                if !self.isRunning {
+                                    self.cameraPosition = .rect(self.padMapRect(route.polyline.boundingMapRect))
+                                }
+                            }
+                        }
+                    } catch {
+                        print("⚠️ Approach route calculation failed: \(error)")
+                    }
+                }
+            }
+            return
+        }
+
+        // --- OLD LOGIC ---
         // 1. Sofortige weiße Luftlinie zeichnen, als Fallback
         withAnimation(.easeInOut(duration: 0.5)) {
             self.fallbackRoute = [userLoc, dest]
@@ -829,14 +889,12 @@ struct LiveRecordView: View {
         HapticManager.shared.medium()
         isRunning = true
         
-        if let userLoc = gpsManager.currentLocation {
-            withAnimation(.easeInOut(duration: 1.5)) {
-                cameraPosition = .camera(MapCamera(centerCoordinate: userLoc.coordinate, distance: 3000))
-            }
-        }
-        
         gpsManager.logManualResume()
         gpsManager.startTracking()
+        
+        // 🟢 Wir springen NICHT mehr hart auf den User, 
+        // stattdessen lassen wir die Kamera einfach dort, wo sie ist (oft bei der Route).
+        // Wenn der User sich selbst zentrieren will, kann er den "Location"-Button rechts drücken.
     }
 
     private func togglePause() {

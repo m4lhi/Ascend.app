@@ -722,7 +722,7 @@ class AppState: ObservableObject {
                 // Das Limit sichert uns gegen zu große Datenmengen ab.
                 let allPeaks: [Mountain] = try await supabase
                     .from("mountains")
-                    .select()
+                    .select("*, routes:mountain_routes(*)")
                     .limit(50)
                     .execute()
                     .value
