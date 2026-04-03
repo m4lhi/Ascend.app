@@ -22,7 +22,9 @@ public struct PolylineUtility {
                 let lngOffset = try decodeOffset(from: polyline, index: &index)
                 lng += lngOffset
                 
-                coordinates.append(CLLocationCoordinate2D(latitude: lat, longitude: lng))
+        // The correct order for Google Polylines is latitude then longitude, BUT 
+        // OSRM V1 encodes `lng, lat` arrays. Wait, standard OSRM v5 encodes normally.
+        let coordinate = CLLocationCoordinate2D(latitude: lat, longitude: lng)
             } catch {
                 break
             }
