@@ -333,7 +333,7 @@ struct LiveRecordView: View {
     var body: some View {
         ZStack(alignment: .topTrailing) {
             // === LAYER 1: Map ===
-            Map(position: $cameraPosition, bounds: MapCameraBounds(minimumDistance: 100, maximumDistance: 150_000)) {
+            Map(position: $cameraPosition, bounds: MapCameraBounds(maximumDistance: 150_000)) {
                 UserAnnotation()
                 
                 // 🟢 Zieht die echte Wanderroute (Blau) oder die Luftlinie (Weiß)
@@ -491,12 +491,20 @@ struct LiveRecordView: View {
     // 🟢 BUTTON-FUNKTION: Ganze Route übersichtlich anzeigen
     private func viewFullRoute() {
         HapticManager.shared.light()
-        if let route = appleRoute {
-            withAnimation(.easeInOut(duration: 1.0)) {
-                cameraPosition = .rect(padMapRect(route.polyline.boundingMapRect))
-            }
-        } else if let target = targetMountain, let userLoc = gpsManager.currentLocation, let lat = target.latitude, let lon = target.longitude {
-            withAnimation(.easeInOut(duration: 1.0)) {
+        
+        let allPoints: [CLLocationCoordinate2D] = (offlineAscentRoute ?? []) + (fallbackRoute ?? [])
+        let routeRect: MKMapRect? = appleRoute?.polyline.boundingMapRect
+        
+        withAnimation(.easeInOut(duration: 1.0)) {
+            if !allPoints.isEmpty {
+                let rects = allPoints.map { MKMapRect(origin: MKMapPoint($0), size: MKMapSize(width: 1, height: 1)) }
+                var finalRect = rects.first!
+                for rect in rects { finalRect = finalRect.union(rect) }
+                if let r = routeRect { finalRect = finalRect.union(r) }
+                cameraPosition = .rect(padMapRect(finalRect))
+            } else if let r = routeRect {
+                cameraPosition = .rect(padMapRect(r))
+            } else if let target = targetMountain, let userLoc = gpsManager.currentLocation, let lat = target.latitude, let lon = target.longitude {
                 let p1 = MKMapPoint(userLoc.coordinate)
                 let p2 = MKMapPoint(CLLocationCoordinate2D(latitude: lat, longitude: lon))
                 let rect = MKMapRect(
@@ -892,7 +900,7 @@ struct LiveRecordView: View {
         gpsManager.logManualResume()
         gpsManager.startTracking()
         
-        // 🟢 Wir springen NICHT mehr hart auf den User, 
+        // 🟢 Wir springen NICHT mehr hart auf den User,
         // stattdessen lassen wir die Kamera einfach dort, wo sie ist (oft bei der Route).
         // Wenn der User sich selbst zentrieren will, kann er den "Location"-Button rechts drücken.
     }
