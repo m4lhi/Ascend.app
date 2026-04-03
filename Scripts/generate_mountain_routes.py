@@ -2,12 +2,13 @@ import os
 import time
 import requests
 import math
+import polyline
 from supabase import create_client, Client
 
 # ==========================================
-# === ROUTE FETCHER (OSRM DEMO)
+# === ROUTE FETCHER (BROUTER)
 # ==========================================
-# Make sure to pip install supabase requests
+# Make sure to pip install supabase requests polyline
 # Replace string values with your credentials
 
 SUPABASE_URL = "https://qujkzrwrhrqejsqulohy.supabase.co"
@@ -16,29 +17,60 @@ SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# Free OSRM API Demo server (rate limited to ~1 request per second)
-# For production/70k peaks, consider self-hosting OSRM or OpenRouteService.
-OSRM_BASE_URL = "http://router.project-osrm.org/route/v1/foot/"
+# We use BRouter with trekking profile because it's specifically built for
+# hiking/alpine trails and won't get stuck on streets like OSRM.
+BROUTER_BASE_URL = "https://brouter.de/brouter"
+
+def haversine_distance(lat1, lon1, lat2, lon2):
+    """
+    Calculates the real-world distance in kilometers between two GPS points.
+    """
+    R = 6371.0 # Earth radius in km
+    
+    dLat = math.radians(lat2 - lat1)
+    dLon = math.radians(lon2 - lon1)
+    
+    a = math.sin(dLat / 2)**2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dLon / 2)**2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    
+    return R * c
 
 def fetch_walking_route(start_lon, start_lat, end_lon, end_lat):
     """
-    Fetches a walking route from OSRM and returns the polyline.
+    Fetches a hiking route from BRouter and verifies that it actually reaches the peak.
     """
-    url = f"{OSRM_BASE_URL}{start_lon},{start_lat};{end_lon},{end_lat}?overview=full"
+    url = f"{BROUTER_BASE_URL}?lonlats={start_lon},{start_lat}|{end_lon},{end_lat}&profile=trekking&alternativeidx=0&format=geojson"
     
     try:
-        response = requests.get(url, timeout=5)
-        data = response.json()
+        response = requests.get(url, timeout=10)
         
-        if data.get("code") == "Ok":
-            # The encoded polyline geometry
-            return data["routes"][0]["geometry"]
-        else:
-            print(f"OSRM Error: {data.get('code')}")
-            return None
+        # BRouter might return 400 if it can't find a path at all
+        if response.status_code == 200:
+            data = response.json()
+            features = data.get("features", [])
+            if features:
+                coords = features[0].get("geometry", {}).get("coordinates", [])
+                if coords:
+                    # Last point of the generated route:
+                    last_lon, last_lat = coords[-1][0], coords[-1][1]
+                    
+                    # Verify if the route actually reached the peak (within 250 meters)
+                    dist_to_peak = haversine_distance(last_lat, last_lon, end_lat, end_lon)
+                    
+                    if dist_to_peak > 0.25:
+                        print(f"⚠️ Route discarded. It ended {dist_to_peak:.1f}km away from the actual peak (Snapping issue).")
+                        return None
+                        
+                    # Convert [lon, lat, elev] back to (lat, lon) for standard Google Polyline encoding
+                    path_tuples = [(c[1], c[0]) for c in coords]
+                    return polyline.encode(path_tuples)
+                    
+        print(f"⚠️ BRouter failed to find a valid trail (Status {response.status_code}).")
+                
     except Exception as e:
         print(f"Request failed: {e}")
-        return None
+        
+    return None
 
 def find_start_point(peak_lat, peak_lon, retries=3):
     """

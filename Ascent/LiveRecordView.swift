@@ -339,13 +339,14 @@ struct LiveRecordView: View {
             Map(position: $cameraPosition, bounds: MapCameraBounds(maximumDistance: 150_000)) {
                 UserAnnotation()
                 
-                // 🟢 Zieht den dynamischen Zustieg (Approach) als durchgehende graue Linie (vorher gestrichelt)
+                // 🟢 Zieht den dynamischen Zustieg (Approach) als durchgehende graue Linie (perfekter Übergang)
                 if let approach = appleApproachRoute {
                     MapPolyline(coordinates: approach)
                         .stroke(.gray.opacity(0.8), style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round))
                 } else if let fallback = fallbackRoute {
+                    // Falls die API noch lädt oder ausfällt: leicht gestrichelte Luftlinie
                     MapPolyline(coordinates: fallback)
-                        .stroke(.gray.opacity(0.8), style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round))
+                        .stroke(.gray.opacity(0.4), style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round, dash: [8, 8]))
                 }
                 
                 // 🟢 Zeichnet die Offline Ascent Polyline (z.T. ignoriert, z.T. aktiv)
@@ -581,21 +582,17 @@ struct LiveRecordView: View {
         }
     }
 
-    // Apple Maps Routen-Berechnung — async, off main thread
+    // 🟢 GEFIXT: Apple Maps Routen-Berechnung (Entfernt 50km Sperre & nutzt Auto-Routing!)
     private func calculateRouteToMountain(from userLoc: CLLocationCoordinate2D, to dest: CLLocationCoordinate2D) {
-
         let userCLLoc = CLLocation(latitude: userLoc.latitude, longitude: userLoc.longitude)
         
         // 1. Check if we have a predefined MountainRoute in the database
         if let target = targetMountain, let routes = target.routes, let firstRoute = routes.first {
             let decodedAscent = PolylineUtility.decode(polyline: firstRoute.route_polyline)
             
-            guard !decodedAscent.isEmpty else {
-                print("⚠️ Route Polyline konnte nicht dekodiert werden oder ist leer.")
-                return
-            }
+            guard !decodedAscent.isEmpty else { return }
             
-            // 🟢 ZERSCHNEIDEN: Finde den Interception Point! Wo steigt der User am nächsten ein?
+            // Finde den Interception Point! Wo steigt der User am nächsten ein?
             var minDistance: CLLocationDistance = .infinity
             var bestIndex = 0
             for (i, coord) in decodedAscent.enumerated() {
@@ -612,22 +609,24 @@ struct LiveRecordView: View {
             withAnimation {
                 self.offlineAscentRoute = decodedAscent
                 self.interceptIndex = bestIndex
+                // Sofortige Luftlinie zeichnen, falls Berechnung dauert
                 self.fallbackRoute = [userLoc, interceptCoord]
                 self.appleApproachRoute = nil
                 self.updateClosestRouteIndex(to: userLoc)
             }
             
-            // Lade echte Gehwege oder Straßen bis zum Intercept-Point (ohne Distanz-Limit!)
-            // Trigger Pioneer Approach (Luftlinie) nur, wenn der User > 50km vom Einstiegspunkt weg ist
-            if userCLLoc.distance(from: interceptCLLoc) > 50000 {
+            // Abbrechen nur bei interkontinentalen Distanzen (z.B. > 2.000 km)
+            if userCLLoc.distance(from: interceptCLLoc) > 2_000_000 {
                 return
             }
             
             Task {
                 let request = MKDirections.Request()
-                request.source = MKMapItem(location: userCLLoc, address: nil)
-                request.destination = MKMapItem(location: interceptCLLoc, address: nil)
-                request.transportType = .walking
+                request.source = MKMapItem(placemark: MKPlacemark(coordinate: userLoc))
+                request.destination = MKMapItem(placemark: MKPlacemark(coordinate: interceptCoord))
+                
+                // WICHTIG: Zuerst Auto probieren! Apple weigert sich oft, weite Strecken als "Walking" zu berechnen.
+                request.transportType = .automobile
                 
                 var calculatedRoute: MKRoute? = nil
 
@@ -636,35 +635,36 @@ struct LiveRecordView: View {
                     let response = try await directions.calculate()
                     calculatedRoute = response.routes.first
                 } catch {
-                    print("⚠️ Walking approach route calculation failed: \(error), trying automobile...")
+                    print("⚠️ Auto-Anreise fehlgeschlagen, versuche Fußweg: \(error.localizedDescription)")
                     do {
-                        request.transportType = .automobile
-                        let carDirections = MKDirections(request: request)
-                        let carResponse = try await carDirections.calculate()
-                        calculatedRoute = carResponse.routes.first
+                        request.transportType = .walking
+                        let directions = MKDirections(request: request)
+                        let response = try await directions.calculate()
+                        calculatedRoute = response.routes.first
                     } catch {
-                        print("⚠️ Automobile approach failed as well: \(error)")
+                        print("⚠️ Fußweg ebenfalls fehlgeschlagen: \(error.localizedDescription)")
                     }
                 }
                 
                 if let route = calculatedRoute {
-                    // MKPolyline wandeln in [CLLocationCoordinate2D]
                     let pointCount = route.polyline.pointCount
                     var coords = [CLLocationCoordinate2D](repeating: kCLLocationCoordinate2DInvalid, count: pointCount)
                     route.polyline.getCoordinates(&coords, range: NSRange(location: 0, length: pointCount))
                     
-                    withAnimation(.easeInOut(duration: 1.0)) {
-                        self.appleApproachRoute = coords
-                        self.fallbackRoute = nil
-                        
-                        if !self.isRunning {
-                            let safeBestIndex = min(bestIndex, decodedAscent.count - 1)
-                            let allActiveCoords = coords + Array(decodedAscent[safeBestIndex...])
-                            if !allActiveCoords.isEmpty {
-                                let rects = allActiveCoords.map { MKMapRect(origin: MKMapPoint($0), size: MKMapSize(width: 1, height: 1)) }
-                                if var finalRect = rects.first {
-                                    for r in rects { finalRect = finalRect.union(r) }
-                                    self.cameraPosition = .rect(self.padMapRect(finalRect))
+                    DispatchQueue.main.async {
+                        withAnimation(.easeInOut(duration: 1.0)) {
+                            self.appleApproachRoute = coords
+                            self.fallbackRoute = nil // Luftlinie verschwindet, wenn echte Route da ist
+                            
+                            if !self.isRunning {
+                                let safeBestIndex = min(bestIndex, decodedAscent.count - 1)
+                                let allActiveCoords = coords + Array(decodedAscent[safeBestIndex...])
+                                if !allActiveCoords.isEmpty {
+                                    let rects = allActiveCoords.map { MKMapRect(origin: MKMapPoint($0), size: MKMapSize(width: 1, height: 1)) }
+                                    if var finalRect = rects.first {
+                                        for r in rects { finalRect = finalRect.union(r) }
+                                        self.cameraPosition = .rect(self.padMapRect(finalRect))
+                                    }
                                 }
                             }
                         }
@@ -674,8 +674,7 @@ struct LiveRecordView: View {
             return
         }
 
-        // --- OLD LOGIC ---
-        // 1. Sofortige weiße Luftlinie zeichnen, als Fallback
+        // --- OLD LOGIC (Falls Berg noch keine offizielle Route in der Datenbank hat) ---
         withAnimation(.easeInOut(duration: 0.5)) {
             self.fallbackRoute = [userLoc, dest]
             if !self.isRunning {
@@ -689,21 +688,33 @@ struct LiveRecordView: View {
             }
         }
 
-        // 2. Apple Maps nach offiziellem Wanderweg fragen (async, blockiert Main Thread nicht)
         Task {
             let request = MKDirections.Request()
-            request.source = MKMapItem(location: CLLocation(latitude: userLoc.latitude, longitude: userLoc.longitude), address: nil)
-            request.destination = MKMapItem(location: CLLocation(latitude: dest.latitude, longitude: dest.longitude), address: nil)
-            request.transportType = .walking
+            request.source = MKMapItem(placemark: MKPlacemark(coordinate: userLoc))
+            request.destination = MKMapItem(placemark: MKPlacemark(coordinate: dest))
+            request.transportType = .automobile // Auch hier .automobile als Standard setzen
 
-            let directions = MKDirections(request: request)
+            var calculatedRoute: MKRoute? = nil
+            
             do {
+                let directions = MKDirections(request: request)
                 let response = try await directions.calculate()
-                if let route = response.routes.first {
-                    let pointCount = route.polyline.pointCount
-                    var coords = [CLLocationCoordinate2D](repeating: kCLLocationCoordinate2DInvalid, count: pointCount)
-                    route.polyline.getCoordinates(&coords, range: NSRange(location: 0, length: pointCount))
-                    
+                calculatedRoute = response.routes.first
+            } catch {
+                do {
+                    request.transportType = .walking
+                    let directions = MKDirections(request: request)
+                    let response = try await directions.calculate()
+                    calculatedRoute = response.routes.first
+                } catch { }
+            }
+            
+            if let route = calculatedRoute {
+                let pointCount = route.polyline.pointCount
+                var coords = [CLLocationCoordinate2D](repeating: kCLLocationCoordinate2DInvalid, count: pointCount)
+                route.polyline.getCoordinates(&coords, range: NSRange(location: 0, length: pointCount))
+                
+                DispatchQueue.main.async {
                     withAnimation(.easeInOut(duration: 1.0)) {
                         self.appleApproachRoute = coords
                         self.fallbackRoute = nil
@@ -712,8 +723,6 @@ struct LiveRecordView: View {
                         }
                     }
                 }
-            } catch {
-                print("⚠️ Apple Maps hat keinen Wanderweg gefunden: \(error.localizedDescription)")
             }
         }
     }
@@ -1009,10 +1018,6 @@ struct LiveRecordView: View {
         
         gpsManager.logManualResume()
         gpsManager.startTracking()
-        
-        // 🟢 Wir springen NICHT mehr hart auf den User,
-        // stattdessen lassen wir die Kamera einfach dort, wo sie ist (oft bei der Route).
-        // Wenn der User sich selbst zentrieren will, kann er den "Location"-Button rechts drücken.
     }
 
     private func togglePause() {
