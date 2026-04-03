@@ -287,9 +287,13 @@ struct LiveRecordView: View {
     @State private var sliderResetToken = UUID()
     
     // 🟢 Speichert die berechneten Routen
-    @State private var hybridRoute: [CLLocationCoordinate2D]? = nil
+    @State private var appleApproachRoute: [CLLocationCoordinate2D]? = nil
+    @State private var offlineAscentRoute: [CLLocationCoordinate2D]? = nil
     @State private var fallbackRoute: [CLLocationCoordinate2D]? = nil
     
+    @State private var interceptIndex: Int = 0
+    @State private var closestRouteIndex: Int? = nil
+
     @State private var hasCalculatedRoute = false
     @State private var isTooFarForRoute = false
 
@@ -335,13 +339,37 @@ struct LiveRecordView: View {
             Map(position: $cameraPosition, bounds: MapCameraBounds(maximumDistance: 150_000)) {
                 UserAnnotation()
                 
-                // 🟢 Zieht die durchgehende hybride Wanderroute (Blau) oder die Luftlinie (Weiß)
-                if let routeCoords = hybridRoute {
-                    MapPolyline(coordinates: routeCoords)
-                        .stroke(.cyan, style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round))
+                // 🟢 Zieht den dynamischen Zustieg (Approach) als graue gestrichelte Linie
+                if let approach = appleApproachRoute {
+                    MapPolyline(coordinates: approach)
+                        .stroke(.gray.opacity(0.8), style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round, dash: [6, 6]))
                 } else if let fallback = fallbackRoute {
                     MapPolyline(coordinates: fallback)
                         .stroke(.white.opacity(0.6), style: StrokeStyle(lineWidth: 3, dash: [5, 5]))
+                }
+                
+                // 🟢 Zeichnet die Offline Ascent Polyline (z.T. ignoriert, z.T. aktiv)
+                if let routeCoords = offlineAscentRoute {
+                    
+                    // Der ignorierte untere Teil (vor dem Interception Point)
+                    if interceptIndex > 0 {
+                        MapPolyline(coordinates: Array(routeCoords[0...interceptIndex]))
+                            .stroke(.gray.opacity(0.3), style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round))
+                    }
+                    
+                    let activeStartIndex = max(interceptIndex, closestRouteIndex ?? interceptIndex)
+                    
+                    // Das Stück vom Interception-Point bis zur aktuellen User-Position (bereits gelaufen / grau)
+                    if activeStartIndex > interceptIndex && activeStartIndex < routeCoords.count {
+                        MapPolyline(coordinates: Array(routeCoords[interceptIndex...activeStartIndex]))
+                            .stroke(.gray.opacity(0.6), style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round))
+                    }
+                    
+                    // Das restliche, noch zu laufende Stück in die Zukunft (Sattes Cyan)
+                    if activeStartIndex < routeCoords.count {
+                        MapPolyline(coordinates: Array(routeCoords[activeStartIndex...]))
+                            .stroke(.cyan, style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round))
+                    }
                 }
                 
                 // 🟢 Zeigt den Ziel-Marker auf dem Berg
@@ -375,7 +403,12 @@ struct LiveRecordView: View {
             .mapStyle(.imagery(elevation: .realistic))
             .ignoresSafeArea()
             .onChange(of: gpsManager.currentLocation) { _, newLoc in
-                guard let loc = newLoc, let target = targetMountain, !hasCalculatedRoute,
+                guard let loc = newLoc else { return }
+                
+                // 🟢 Off-Route Detection: Snapping & Splitting update
+                updateClosestRouteIndex(to: loc.coordinate)
+                
+                guard let target = targetMountain, !hasCalculatedRoute,
                       let targetLat = target.latitude, let targetLon = target.longitude else { return }
                 
                 hasCalculatedRoute = true
@@ -485,11 +518,47 @@ struct LiveRecordView: View {
         }
     }
     
+    // 🟢 HILFS-FUNKTION: Sucht den nächsten Routenpunkt für das Snapping (Split Rendering)
+    private func updateClosestRouteIndex(to coord: CLLocationCoordinate2D) {
+        guard let route = offlineAscentRoute, !route.isEmpty else { return }
+        let userLoc = CLLocation(latitude: coord.latitude, longitude: coord.longitude)
+        
+        var minDistance: CLLocationDistance = .infinity
+        var minIndex: Int = interceptIndex
+        
+        for i in interceptIndex..<route.count {
+            let routePt = route[i]
+            let pointLoc = CLLocation(latitude: routePt.latitude, longitude: routePt.longitude)
+            let dist = userLoc.distance(from: pointLoc)
+            if dist < minDistance {
+                minDistance = dist
+                minIndex = i
+            }
+        }
+        
+        // Regel: Nur Snappen, wenn wir weniger als ~250m von der Linie entfernt sind.
+        if minDistance < 250 {
+            withAnimation(.easeInOut(duration: 0.5)) {
+                if let current = closestRouteIndex, minIndex > current {
+                    closestRouteIndex = minIndex
+                } else if closestRouteIndex == nil {
+                    closestRouteIndex = max(minIndex, interceptIndex)
+                }
+            }
+        }
+    }
+
     // 🟢 BUTTON-FUNKTION: Ganze Route übersichtlich anzeigen
     private func viewFullRoute() {
         HapticManager.shared.light()
         
-        let allPoints: [CLLocationCoordinate2D] = (hybridRoute ?? fallbackRoute) ?? []
+        var allPoints: [CLLocationCoordinate2D] = []
+        if let approach = appleApproachRoute { allPoints += approach }
+        else if let fallback = fallbackRoute { allPoints += fallback }
+        
+        if let ascent = offlineAscentRoute {
+            allPoints += Array(ascent[interceptIndex...])
+        }
         
         withAnimation(.easeInOut(duration: 1.0)) {
             if !allPoints.isEmpty {
@@ -516,26 +585,40 @@ struct LiveRecordView: View {
         
         // 1. Check if we have a predefined MountainRoute in the database
         if let target = targetMountain, let routes = target.routes, let firstRoute = routes.first {
-            let trailhead = CLLocationCoordinate2D(latitude: firstRoute.start_lat, longitude: firstRoute.start_lon)
-            let trailheadCL = CLLocation(latitude: trailhead.latitude, longitude: trailhead.longitude)
-            
-            // 🟢 ALWAYS decode the offline ascent polyline!
             let decodedAscent = PolylineUtility.decode(polyline: firstRoute.route_polyline)
-            withAnimation {
-                // Verbindet die Linien sofort als Fallback (Pioneer Luftlinie + Echter Offline Aufstieg)
-                self.hybridRoute = [userLoc, trailhead] + decodedAscent
+            
+            // 🟢 ZERSCHNEIDEN: Finde den Interception Point! Wo steigt der User am nächsten ein?
+            var minDistance: CLLocationDistance = .infinity
+            var bestIndex = 0
+            for (i, coord) in decodedAscent.enumerated() {
+                let dist = userCLLoc.distance(from: CLLocation(latitude: coord.latitude, longitude: coord.longitude))
+                if dist < minDistance {
+                    minDistance = dist
+                    bestIndex = i
+                }
             }
             
-            // Lade echte Gehwege oder Straßen bis zum Startpunkt (ohne Distanz-Limit!)
-            // Trigger Pioneer Approach (Luftlinie) nur, wenn der User > 50km vom Startpunkt weg ist
-            if userCLLoc.distance(from: trailheadCL) > 50000 {
+            let interceptCoord = decodedAscent[bestIndex]
+            let interceptCLLoc = CLLocation(latitude: interceptCoord.latitude, longitude: interceptCoord.longitude)
+            
+            withAnimation {
+                self.offlineAscentRoute = decodedAscent
+                self.interceptIndex = bestIndex
+                self.fallbackRoute = [userLoc, interceptCoord]
+                self.appleApproachRoute = nil
+                self.updateClosestRouteIndex(to: userLoc)
+            }
+            
+            // Lade echte Gehwege oder Straßen bis zum Intercept-Point (ohne Distanz-Limit!)
+            // Trigger Pioneer Approach (Luftlinie) nur, wenn der User > 50km vom Einstiegspunkt weg ist
+            if userCLLoc.distance(from: interceptCLLoc) > 50000 {
                 return
             }
             
             Task {
                 let request = MKDirections.Request()
                 request.source = MKMapItem(location: userCLLoc, address: nil)
-                request.destination = MKMapItem(location: trailheadCL, address: nil)
+                request.destination = MKMapItem(location: interceptCLLoc, address: nil)
                 request.transportType = .walking
 
                 let directions = MKDirections(request: request)
@@ -547,17 +630,17 @@ struct LiveRecordView: View {
                         var coords = [CLLocationCoordinate2D](repeating: kCLLocationCoordinate2DInvalid, count: pointCount)
                         route.polyline.getCoordinates(&coords, range: NSRange(location: 0, length: pointCount))
                         
-                        // 🟢 Verbindet Approach (Apple Maps) und Ascent (Supabase Polyline) zu einer langen flüssigen Route!
-                        let combined = coords + decodedAscent
-                        
                         withAnimation(.easeInOut(duration: 1.0)) {
-                            self.hybridRoute = combined
+                            self.appleApproachRoute = coords
                             self.fallbackRoute = nil
+                            
                             if !self.isRunning {
-                                let rects = combined.map { MKMapRect(origin: MKMapPoint($0), size: MKMapSize(width: 1, height: 1)) }
-                                var finalRect = rects.first!
-                                for r in rects { finalRect = finalRect.union(r) }
-                                self.cameraPosition = .rect(self.padMapRect(finalRect))
+                                let allActiveCoords = coords + Array(decodedAscent[bestIndex...])
+                                let rects = allActiveCoords.map { MKMapRect(origin: MKMapPoint($0), size: MKMapSize(width: 1, height: 1)) }
+                                if var finalRect = rects.first {
+                                    for r in rects { finalRect = finalRect.union(r) }
+                                    self.cameraPosition = .rect(self.padMapRect(finalRect))
+                                }
                             }
                         }
                     }
@@ -599,7 +682,7 @@ struct LiveRecordView: View {
                     route.polyline.getCoordinates(&coords, range: NSRange(location: 0, length: pointCount))
                     
                     withAnimation(.easeInOut(duration: 1.0)) {
-                        self.hybridRoute = coords
+                        self.appleApproachRoute = coords
                         self.fallbackRoute = nil
                         if !self.isRunning {
                             self.cameraPosition = .rect(self.padMapRect(route.polyline.boundingMapRect))
