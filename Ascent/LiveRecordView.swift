@@ -349,25 +349,26 @@ struct LiveRecordView: View {
                 }
                 
                 // 🟢 Zeichnet die Offline Ascent Polyline (z.T. ignoriert, z.T. aktiv)
-                if let routeCoords = offlineAscentRoute {
+                if let routeCoords = offlineAscentRoute, routeCoords.count > 1 {
+                    
+                    let safeIntercept = min(max(0, interceptIndex), routeCoords.count - 1)
+                    let safeActiveStart = min(max(safeIntercept, closestRouteIndex ?? safeIntercept), routeCoords.count - 1)
                     
                     // Der ignorierte untere Teil (vor dem Interception Point)
-                    if interceptIndex > 0 {
-                        MapPolyline(coordinates: Array(routeCoords[0...interceptIndex]))
+                    if safeIntercept > 0 {
+                        MapPolyline(coordinates: Array(routeCoords[0...safeIntercept]))
                             .stroke(.gray.opacity(0.3), style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round))
                     }
                     
-                    let activeStartIndex = max(interceptIndex, closestRouteIndex ?? interceptIndex)
-                    
                     // Das Stück vom Interception-Point bis zur aktuellen User-Position (bereits gelaufen / grau)
-                    if activeStartIndex > interceptIndex && activeStartIndex < routeCoords.count {
-                        MapPolyline(coordinates: Array(routeCoords[interceptIndex...activeStartIndex]))
+                    if safeActiveStart > safeIntercept {
+                        MapPolyline(coordinates: Array(routeCoords[safeIntercept...safeActiveStart]))
                             .stroke(.gray.opacity(0.6), style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round))
                     }
                     
                     // Das restliche, noch zu laufende Stück in die Zukunft (Sattes Cyan)
-                    if activeStartIndex < routeCoords.count {
-                        MapPolyline(coordinates: Array(routeCoords[activeStartIndex...]))
+                    if safeActiveStart < routeCoords.count - 1 {
+                        MapPolyline(coordinates: Array(routeCoords[safeActiveStart...]))
                             .stroke(.cyan, style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round))
                     }
                 }
@@ -524,9 +525,10 @@ struct LiveRecordView: View {
         let userLoc = CLLocation(latitude: coord.latitude, longitude: coord.longitude)
         
         var minDistance: CLLocationDistance = .infinity
-        var minIndex: Int = interceptIndex
+        let startIdx = min(max(0, interceptIndex), route.count - 1)
+        var minIndex: Int = startIdx
         
-        for i in interceptIndex..<route.count {
+        for i in startIdx..<route.count {
             let routePt = route[i]
             let pointLoc = CLLocation(latitude: routePt.latitude, longitude: routePt.longitude)
             let dist = userLoc.distance(from: pointLoc)
@@ -542,7 +544,7 @@ struct LiveRecordView: View {
                 if let current = closestRouteIndex, minIndex > current {
                     closestRouteIndex = minIndex
                 } else if closestRouteIndex == nil {
-                    closestRouteIndex = max(minIndex, interceptIndex)
+                    closestRouteIndex = max(minIndex, startIdx)
                 }
             }
         }
@@ -556,8 +558,9 @@ struct LiveRecordView: View {
         if let approach = appleApproachRoute { allPoints += approach }
         else if let fallback = fallbackRoute { allPoints += fallback }
         
-        if let ascent = offlineAscentRoute {
-            allPoints += Array(ascent[interceptIndex...])
+        if let ascent = offlineAscentRoute, !ascent.isEmpty {
+            let safeIntercept = min(max(0, interceptIndex), ascent.count - 1)
+            allPoints += Array(ascent[safeIntercept...])
         }
         
         withAnimation(.easeInOut(duration: 1.0)) {
@@ -586,6 +589,11 @@ struct LiveRecordView: View {
         // 1. Check if we have a predefined MountainRoute in the database
         if let target = targetMountain, let routes = target.routes, let firstRoute = routes.first {
             let decodedAscent = PolylineUtility.decode(polyline: firstRoute.route_polyline)
+            
+            guard !decodedAscent.isEmpty else {
+                print("⚠️ Route Polyline konnte nicht dekodiert werden oder ist leer.")
+                return
+            }
             
             // 🟢 ZERSCHNEIDEN: Finde den Interception Point! Wo steigt der User am nächsten ein?
             var minDistance: CLLocationDistance = .infinity
@@ -635,11 +643,14 @@ struct LiveRecordView: View {
                             self.fallbackRoute = nil
                             
                             if !self.isRunning {
-                                let allActiveCoords = coords + Array(decodedAscent[bestIndex...])
-                                let rects = allActiveCoords.map { MKMapRect(origin: MKMapPoint($0), size: MKMapSize(width: 1, height: 1)) }
-                                if var finalRect = rects.first {
-                                    for r in rects { finalRect = finalRect.union(r) }
-                                    self.cameraPosition = .rect(self.padMapRect(finalRect))
+                                let safeBestIndex = min(bestIndex, decodedAscent.count - 1)
+                                let allActiveCoords = coords + Array(decodedAscent[safeBestIndex...])
+                                if !allActiveCoords.isEmpty {
+                                    let rects = allActiveCoords.map { MKMapRect(origin: MKMapPoint($0), size: MKMapSize(width: 1, height: 1)) }
+                                    if var finalRect = rects.first {
+                                        for r in rects { finalRect = finalRect.union(r) }
+                                        self.cameraPosition = .rect(self.padMapRect(finalRect))
+                                    }
                                 }
                             }
                         }
