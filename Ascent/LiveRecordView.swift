@@ -348,6 +348,22 @@ struct LiveRecordView: View {
                 if let target = targetMountain, let lat = target.latitude, let lon = target.longitude {
                     Marker(target.name, systemImage: "mountain.2.fill", coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon))
                         .tint(gold)
+                        
+                    // 🟢 Zeigt optional das Trailhead-Startsymbol (den Parkplatz)
+                    if let routes = target.routes, let first = routes.first {
+                        let tLat = first.start_lat
+                        let tLon = first.start_lon
+                        Annotation("Trailhead", coordinate: CLLocationCoordinate2D(latitude: tLat, longitude: tLon)) {
+                            Image(systemName: "figure.walk.arrival")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundColor(.white)
+                                .padding(6)
+                                .background(gold)
+                                .clipShape(Circle())
+                                .overlay(Circle().stroke(Color.white, lineWidth: 2))
+                                .shadow(radius: 3)
+                        }
+                    }
                 }
                 
                 // 🟢 Zeigt die Linie an, die du tatsächlich gelaufen bist
