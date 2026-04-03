@@ -287,9 +287,8 @@ struct LiveRecordView: View {
     @State private var sliderResetToken = UUID()
     
     // 🟢 Speichert die berechneten Routen
-    @State private var appleRoute: MKRoute? = nil
+    @State private var hybridRoute: [CLLocationCoordinate2D]? = nil
     @State private var fallbackRoute: [CLLocationCoordinate2D]? = nil
-    @State private var offlineAscentRoute: [CLLocationCoordinate2D]? = nil
     
     @State private var hasCalculatedRoute = false
     @State private var isTooFarForRoute = false
@@ -336,22 +335,13 @@ struct LiveRecordView: View {
             Map(position: $cameraPosition, bounds: MapCameraBounds(maximumDistance: 150_000)) {
                 UserAnnotation()
                 
-                // 🟢 Zieht die echte Wanderroute (Blau) oder die Luftlinie (Weiß)
-                if let ascentRoute = offlineAscentRoute {
-                    MapPolyline(coordinates: ascentRoute)
+                // 🟢 Zieht die durchgehende hybride Wanderroute (Blau) oder die Luftlinie (Weiß)
+                if let routeCoords = hybridRoute {
+                    MapPolyline(coordinates: routeCoords)
                         .stroke(.cyan, style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round))
-                }
-                
-                if let route = appleRoute {
-                    MapPolyline(route)
-                        .stroke(.gray, style: StrokeStyle(lineWidth: 3, lineCap: .round, dash: [5, 5]))
-                } else if fallbackRoute != nil {
-                    // Fallback nur, wenn keine approach-route da ist und kein offlineAscent? Oder zusätzlich.
-                    // Pionier Modus.
-                    if let fallback = fallbackRoute {
-                        MapPolyline(coordinates: fallback)
-                            .stroke(.white.opacity(0.6), style: StrokeStyle(lineWidth: 3, dash: [5, 5]))
-                    }
+                } else if let fallback = fallbackRoute {
+                    MapPolyline(coordinates: fallback)
+                        .stroke(.white.opacity(0.6), style: StrokeStyle(lineWidth: 3, dash: [5, 5]))
                 }
                 
                 // 🟢 Zeigt den Ziel-Marker auf dem Berg
@@ -492,18 +482,14 @@ struct LiveRecordView: View {
     private func viewFullRoute() {
         HapticManager.shared.light()
         
-        let allPoints: [CLLocationCoordinate2D] = (offlineAscentRoute ?? []) + (fallbackRoute ?? [])
-        let routeRect: MKMapRect? = appleRoute?.polyline.boundingMapRect
+        let allPoints: [CLLocationCoordinate2D] = (hybridRoute ?? fallbackRoute) ?? []
         
         withAnimation(.easeInOut(duration: 1.0)) {
             if !allPoints.isEmpty {
                 let rects = allPoints.map { MKMapRect(origin: MKMapPoint($0), size: MKMapSize(width: 1, height: 1)) }
                 var finalRect = rects.first!
                 for rect in rects { finalRect = finalRect.union(rect) }
-                if let r = routeRect { finalRect = finalRect.union(r) }
                 cameraPosition = .rect(padMapRect(finalRect))
-            } else if let r = routeRect {
-                cameraPosition = .rect(padMapRect(r))
             } else if let target = targetMountain, let userLoc = gpsManager.currentLocation, let lat = target.latitude, let lon = target.longitude {
                 let p1 = MKMapPoint(userLoc.coordinate)
                 let p2 = MKMapPoint(CLLocationCoordinate2D(latitude: lat, longitude: lon))
@@ -526,43 +512,45 @@ struct LiveRecordView: View {
             let trailhead = CLLocationCoordinate2D(latitude: firstRoute.start_lat, longitude: firstRoute.start_lon)
             let trailheadCL = CLLocation(latitude: trailhead.latitude, longitude: trailhead.longitude)
             
-            // Decode the offline ascent polyline
+            // 🟢 ALWAYS decode the offline ascent polyline!
             let decodedAscent = PolylineUtility.decode(polyline: firstRoute.route_polyline)
+            withAnimation {
+                // Verbindet die Linien sofort als Fallback (Pioneer Luftlinie + Echter Offline Aufstieg)
+                self.hybridRoute = [userLoc, trailhead] + decodedAscent
+            }
             
-            // Check Pioneer Mode (distance to trailhead > 2000m)
-            if userCLLoc.distance(from: trailheadCL) > 2000 {
-                // Fallback / Pioneer mode
-                withAnimation {
-                    self.fallbackRoute = [userLoc, dest]
-                }
-            } else {
-                // Hybrid Mode: Approach + Ascent
-                withAnimation {
-                    self.offlineAscentRoute = decodedAscent
-                }
-                
-                // Request Approach to trailhead
-                Task {
-                    let request = MKDirections.Request()
-                    request.source = MKMapItem(location: userCLLoc, address: nil)
-                    request.destination = MKMapItem(location: trailheadCL, address: nil)
-                    request.transportType = .walking
+            // Lade echte Gehwege oder Straßen bis zum Startpunkt (ohne Distanz-Limit!)
+            Task {
+                let request = MKDirections.Request()
+                request.source = MKMapItem(location: userCLLoc, address: nil)
+                request.destination = MKMapItem(location: trailheadCL, address: nil)
+                request.transportType = .walking
 
-                    let directions = MKDirections(request: request)
-                    do {
-                        let response = try await directions.calculate()
-                        if let route = response.routes.first {
-                            withAnimation(.easeInOut(duration: 1.0)) {
-                                self.appleRoute = route
-                                self.fallbackRoute = nil
-                                if !self.isRunning {
-                                    self.cameraPosition = .rect(self.padMapRect(route.polyline.boundingMapRect))
-                                }
+                let directions = MKDirections(request: request)
+                do {
+                    let response = try await directions.calculate()
+                    if let route = response.routes.first {
+                        // MKPolyline wandeln in [CLLocationCoordinate2D]
+                        let pointCount = route.polyline.pointCount
+                        var coords = [CLLocationCoordinate2D](repeating: kCLLocationCoordinate2DInvalid, count: pointCount)
+                        route.polyline.getCoordinates(&coords, range: NSRange(location: 0, length: pointCount))
+                        
+                        // 🟢 Verbindet Approach (Apple Maps) und Ascent (Supabase Polyline) zu einer langen flüssigen Route!
+                        let combined = coords + decodedAscent
+                        
+                        withAnimation(.easeInOut(duration: 1.0)) {
+                            self.hybridRoute = combined
+                            self.fallbackRoute = nil
+                            if !self.isRunning {
+                                let rects = combined.map { MKMapRect(origin: MKMapPoint($0), size: MKMapSize(width: 1, height: 1)) }
+                                var finalRect = rects.first!
+                                for r in rects { finalRect = finalRect.union(r) }
+                                self.cameraPosition = .rect(self.padMapRect(finalRect))
                             }
                         }
-                    } catch {
-                        print("⚠️ Approach route calculation failed: \(error)")
                     }
+                } catch {
+                    print("⚠️ Approach route calculation failed: \(error)")
                 }
             }
             return
@@ -594,8 +582,12 @@ struct LiveRecordView: View {
             do {
                 let response = try await directions.calculate()
                 if let route = response.routes.first {
+                    let pointCount = route.polyline.pointCount
+                    var coords = [CLLocationCoordinate2D](repeating: kCLLocationCoordinate2DInvalid, count: pointCount)
+                    route.polyline.getCoordinates(&coords, range: NSRange(location: 0, length: pointCount))
+                    
                     withAnimation(.easeInOut(duration: 1.0)) {
-                        self.appleRoute = route
+                        self.hybridRoute = coords
                         self.fallbackRoute = nil
                         if !self.isRunning {
                             self.cameraPosition = .rect(self.padMapRect(route.polyline.boundingMapRect))
