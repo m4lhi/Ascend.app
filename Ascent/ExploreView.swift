@@ -868,4 +868,112 @@ struct ExploreView: View {
     }
 
     func flyTo(lat: Double, lon: Double, distance: Double) {
-        withAnimation(.easeInOut(duration: 1.5)
+        withAnimation(.easeInOut(duration: 1.5)) {
+            cameraPosition = .camera(MapCamera(centerCoordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon), distance: distance, heading: 0, pitch: 0))
+        }
+    }
+
+    func refreshResults() async {
+        await mountainManager.fetchTopMountains()
+        performDebouncedSearch()
+    }
+
+    func performDebouncedSearch() {
+        searchTask?.cancel()
+        searchTask = Task {
+            try? await Task.sleep(nanoseconds: 300_000_000)
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeInOut) {
+                mountainManager.searchMountains(query: searchText, in: selectedDifficulty, nearby: showNearby, radiusKm: nearbyRadiusKm)
+            }
+        }
+    }
+
+    func saveCreatedRoute() {
+        guard !routeMountains.isEmpty, !routeName.isEmpty else { return }
+        let newRoute = SavedRoute(
+            id: UUID(),
+            name: routeName,
+            mountainIds: routeMountains.map { $0.id },
+            createdAt: Date(),
+            updatedAt: Date()
+        )
+        Task {
+            await mountainManager.saveRoute(newRoute)
+            withAnimation(.spring()) {
+                isRouteCreationMode = false
+                routeMountains = []
+                routeName = ""
+            }
+        }
+    }
+}
+
+// =========================================
+// === SINGLE MOUNTAIN ELEVATION PREVIEW ===
+// =========================================
+struct MountainElevationPreview: View {
+    let elevation: Int
+    let accentColor: Color
+    let route: MountainRoute?
+
+    // Simulate a simple ascent profile: start → approach → steep → summit
+    private var profilePoints: [(x: Double, y: Double)] {
+        if let route = route, let elevs = route.elevation_profile, !elevs.isEmpty {
+            let maxPoints = min(elevs.count, 100)
+            let step = Double(elevs.count) / Double(maxPoints)
+            return (0..<maxPoints).map { i in
+                let index = min(Int(Double(i) * step), elevs.count - 1)
+                return (Double(i) / Double(max(1, maxPoints - 1)), Double(elevs[index]))
+            }
+        }
+        let summit = Double(elevation)
+        let start = max(0, summit * 0.15)
+        return [
+            (0.0, start),
+            (0.15, start + summit * 0.05),
+            (0.3, start + summit * 0.2),
+            (0.5, start + summit * 0.45),
+            (0.7, start + summit * 0.75),
+            (0.85, start + summit * 0.92),
+            (1.0, summit)
+        ]
+    }
+
+    var body: some View {
+        GeometryReader { geo in
+            let points = profilePoints
+            let path = Path { path in
+                for i in 0..<points.count {
+                    let x = points[i].x * geo.size.width
+                    let y = geo.size.height - points[i].y * geo.size.height
+                    if i == 0 {
+                        path.move(to: CGPoint(x: x, y: y))
+                    } else {
+                        path.addLine(to: CGPoint(x: x, y: y))
+                    }
+                }
+            }
+
+            ZStack(alignment: .leading) {
+                // Background gradient
+                LinearGradient(colors: [accentColor.opacity(0.2), accentColor.opacity(0.1)], startPoint: .top, endPoint: .bottom)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+
+                // Elevation profile line
+                path.stroke(accentColor, lineWidth: 3)
+
+                // Add circles at each point
+                ForEach(0..<points.count, id: \.self) { i in
+                    let x = points[i].x * geo.size.width
+                    let y = geo.size.height - points[i].y * geo.size.height
+                    Circle()
+                        .fill(accentColor)
+                        .frame(width: 6, height: 6)
+                        .position(x: x, y: y)
+                }
+            }
+        }
+        .frame(height: 40)
+    }
+}
