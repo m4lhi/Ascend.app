@@ -13,63 +13,20 @@ struct SettingsView: View {
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var appState: AppState
 
-    @AppStorage("isDarkMode") private var isDarkMode = false
     @AppStorage("notificationsEnabled") private var notificationsEnabled = true
     @AppStorage("isLoggedIn") private var isLoggedIn = true
-    @AppStorage("voiceGuidanceEnabled") private var voiceGuidanceEnabled = true
-    @AppStorage("voiceGuidanceVolume") private var voiceGuidanceVolume: Double = 0.8
-    @AppStorage("distanceUnit") private var distanceUnit = "metric"
-    @AppStorage("autoRecordPauses") private var autoRecordPauses = true
-    @AppStorage("showElevationProfile") private var showElevationProfile = true
-    @AppStorage("liveTrackingDefault") private var liveTrackingDefault = false
-    @AppStorage("routeColor") private var routeColorName: String = "blue"
 
     @ObservedObject private var emergencyManager = EmergencyManager.shared
     @ObservedObject private var offlineManager = OfflineManager.shared
 
     @State private var showEditProfile = false
-    @State private var showTerms = false
-    @State private var showPrivacy = false
     @State private var showLogoutConfirm = false
     @State private var showDeleteConfirm = false
     @State private var notificationDenied = false
-    @State private var selectedSection: SettingsTab = .general
     @State private var showExportAllTours = false
     @State private var showShareLocation = false
 
     private let accentBlue = Color(red: 0.1, green: 0.5, blue: 0.95)
-
-    enum SettingsTab: String, CaseIterable {
-        case general = "General"
-        case tracking = "Tracking"
-        case navigation = "Navigation"
-        case safety = "Safety"
-        case offline = "Offline"
-        case account = "Account"
-
-        var icon: String {
-            switch self {
-            case .general:    return "gearshape.fill"
-            case .tracking:   return "location.fill"
-            case .navigation: return "map.fill"
-            case .safety:     return "shield.fill"
-            case .offline:    return "icloud.and.arrow.down"
-            case .account:    return "person.fill"
-            }
-        }
-
-        var color: Color {
-            switch self {
-            case .general:    return .gray
-            case .tracking:   return .blue
-            case .navigation: return .green
-            case .safety:     return .red
-            case .offline:    return .purple
-            case .account:    return .orange
-            }
-        }
-    }
-
     var body: some View {
         NavigationView {
             ZStack {
@@ -85,17 +42,51 @@ struct SettingsView: View {
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 20) {
 
-                        // Section Picker
-                        sectionPicker
+                        SettingsSection(title: "ACCOUNT") {
+                            Button(action: { showEditProfile = true }) {
+                                SettingsRowLabel(icon: "person.crop.circle", iconColor: accentBlue, text: "Edit Profile", showArrow: true)
+                            }
+                            Divider().background(Color.black.opacity(0.1))
+                            Button(action: { showLogoutConfirm = true }) {
+                                SettingsRowLabel(icon: "rectangle.portrait.and.arrow.right", iconColor: .orange, text: "Logout")
+                            }
+                        }
 
-                        // Dynamic content based on selected section
-                        switch selectedSection {
-                        case .general:    generalSection
-                        case .tracking:   trackingSection
-                        case .navigation: navigationSection
-                        case .safety:     safetySection
-                        case .offline:    offlineSection
-                        case .account:    accountSection
+                        SettingsSection(title: "DATA") {
+                            Button(action: { showExportAllTours = true }) {
+                                SettingsRowLabel(icon: "square.and.arrow.up", iconColor: .blue, text: "Export All Tours (GPX)", showArrow: true)
+                            }
+                        }
+
+                        SettingsSection(title: "SAFETY & SHARING") {
+                            Button(action: { showShareLocation = true }) {
+                                SettingsRowLabel(icon: "location.circle.fill", iconColor: .blue, text: "Share Current Location")
+                            }
+                            Divider().background(Color.black.opacity(0.1))
+                            EmergencySettingsView(emergencyManager: emergencyManager)
+                        }
+
+                        SettingsSection(title: "OFFLINE") {
+                            OfflineDownloadsView(offlineManager: offlineManager)
+                        }
+
+                        SettingsSection(title: "NOTIFICATIONS") {
+                            Toggle(isOn: Binding(
+                                get: { notificationsEnabled },
+                                set: { newValue in
+                                    if newValue { requestNotificationPermission() }
+                                    else { notificationsEnabled = false }
+                                }
+                            )) {
+                                SettingsRowLabel(icon: "bell.badge.fill", iconColor: .red, text: "Push Notifications")
+                            }
+                            .tint(accentBlue)
+                        }
+
+                        SettingsSection(title: "DANGER ZONE") {
+                            Button(action: { showDeleteConfirm = true }) {
+                                SettingsRowLabel(icon: "trash.fill", iconColor: .red, text: "Delete Account", textColor: .red)
+                            }
                         }
 
                         // Version info
@@ -125,13 +116,11 @@ struct SettingsView: View {
         .sheet(isPresented: $showEditProfile) {
             EditAccountView()
         }
-        .sheet(isPresented: $showTerms) {
-            SafariView(url: URL(string: "https://ascent.app/terms")!)
-                .ignoresSafeArea()
+        .sheet(isPresented: $showExportAllTours) {
+            ExportAllToursSheet().environmentObject(appState)
         }
-        .sheet(isPresented: $showPrivacy) {
-            SafariView(url: URL(string: "https://ascent.app/privacy")!)
-                .ignoresSafeArea()
+        .sheet(isPresented: $showShareLocation) {
+            ShareLocationSheet()
         }
         .alert("Notification Access Denied", isPresented: $notificationDenied) {
             Button("Open Settings") {
@@ -150,319 +139,10 @@ struct SettingsView: View {
             Text("Are you sure you want to logout? Your data is saved in the cloud.")
         }
         .confirmationDialog("Delete Account", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
-            Button("Delete Everything", role: .destructive) { performLogout() }
+            Button("Delete Everything", role: .destructive) { deleteAccount() }
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("This will permanently delete your account and all associated data. This action cannot be undone.")
-        }
-    }
-
-    // MARK: - Section Picker
-
-    private var sectionPicker: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 10) {
-                ForEach(SettingsTab.allCases, id: \.self) { tab in
-                    Button(action: {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                            selectedSection = tab
-                        }
-                    }) {
-                        HStack(spacing: 6) {
-                            Image(systemName: tab.icon)
-                                .font(.system(size: 12, weight: .bold))
-                            Text(tab.rawValue)
-                                .font(.system(size: 13, weight: .semibold, design: .rounded))
-                        }
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 8)
-                        .background(selectedSection == tab ? tab.color.opacity(0.15) : Color.clear)
-                        .foregroundColor(selectedSection == tab ? tab.color : .secondary)
-                        .clipShape(Capsule())
-                        .overlay(
-                            Capsule().stroke(selectedSection == tab ? tab.color.opacity(0.3) : Color.clear, lineWidth: 1)
-                        )
-                    }
-                }
-            }
-        }
-    }
-
-    // MARK: - General Section
-
-    private var generalSection: some View {
-        VStack(spacing: 16) {
-            SettingsSection(title: "APPEARANCE") {
-                Toggle(isOn: $isDarkMode) {
-                    SettingsRowLabel(icon: "moon.fill", iconColor: .cyan, text: "Dark Mode")
-                }
-                .tint(accentBlue)
-
-                Divider().background(Color.black.opacity(0.1))
-
-                HStack(spacing: 15) {
-                    SettingsRowLabel(icon: "ruler", iconColor: .blue, text: "Units")
-                    Spacer()
-                    Picker("", selection: $distanceUnit) {
-                        Text("Metric").tag("metric")
-                        Text("Imperial").tag("imperial")
-                    }
-                    .pickerStyle(.segmented)
-                    .frame(width: 160)
-                }
-            }
-
-            SettingsSection(title: "NOTIFICATIONS") {
-                Toggle(isOn: Binding(
-                    get: { notificationsEnabled },
-                    set: { newValue in
-                        if newValue { requestNotificationPermission() }
-                        else { notificationsEnabled = false }
-                    }
-                )) {
-                    SettingsRowLabel(icon: "bell.badge.fill", iconColor: .red, text: "Push Notifications")
-                }
-                .tint(accentBlue)
-            }
-        }
-    }
-
-    // MARK: - Tracking Section
-
-    private var trackingSection: some View {
-        VStack(spacing: 16) {
-            SettingsSection(title: "RECORDING") {
-                Toggle(isOn: $autoRecordPauses) {
-                    SettingsRowLabel(icon: "pause.circle.fill", iconColor: .orange, text: "Auto-Detect Pauses")
-                }
-                .tint(accentBlue)
-
-                Divider().background(Color.black.opacity(0.1))
-
-                Toggle(isOn: $showElevationProfile) {
-                    SettingsRowLabel(icon: "chart.line.uptrend.xyaxis", iconColor: .purple, text: "Show Elevation Profile")
-                }
-                .tint(accentBlue)
-
-                Divider().background(Color.black.opacity(0.1))
-
-                Toggle(isOn: $liveTrackingDefault) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        SettingsRowLabel(icon: "antenna.radiowaves.left.and.right", iconColor: .green, text: "Auto Live Tracking")
-                    }
-                }
-                .tint(accentBlue)
-
-                Text("When enabled, live tracking starts automatically with each tour so friends and family can follow your progress.")
-                    .font(.system(.caption2, design: .rounded))
-                    .foregroundColor(.secondary)
-                    .padding(.leading, 47)
-            }
-
-            SettingsSection(title: "DATA") {
-                Button(action: { showExportAllTours = true }) {
-                    SettingsRowLabel(icon: "square.and.arrow.up", iconColor: .blue, text: "Export All Tours (GPX)", showArrow: true)
-                }
-            }
-            .sheet(isPresented: $showExportAllTours) {
-                ExportAllToursSheet()
-                    .environmentObject(appState)
-            }
-        }
-    }
-
-    // MARK: - Navigation Section
-
-    private var navigationSection: some View {
-        VStack(spacing: 16) {
-            SettingsSection(title: "VOICE GUIDANCE") {
-                Toggle(isOn: $voiceGuidanceEnabled) {
-                    SettingsRowLabel(icon: "speaker.wave.3.fill", iconColor: .green, text: "Voice Navigation")
-                }
-                .tint(accentBlue)
-
-                if voiceGuidanceEnabled {
-                    Divider().background(Color.black.opacity(0.1))
-
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            SettingsRowLabel(icon: "speaker.fill", iconColor: .gray, text: "Volume")
-                            Spacer()
-                            Text("\(Int(voiceGuidanceVolume * 100))%")
-                                .font(.system(.caption, design: .rounded))
-                                .foregroundColor(.secondary)
-                        }
-                        Slider(value: $voiceGuidanceVolume, in: 0...1, step: 0.1)
-                            .tint(accentBlue)
-                            .padding(.leading, 47)
-                    }
-                }
-            }
-
-            SettingsSection(title: "ROUTE DISPLAY") {
-                HStack(spacing: 15) {
-                    SettingsRowLabel(icon: "paintbrush.fill", iconColor: .purple, text: "Route Color")
-                    Spacer()
-                    HStack(spacing: 8) {
-                        ForEach(RouteColorOption.allCases, id: \.self) { option in
-                            Button(action: {
-                                withAnimation(.spring(response: 0.25)) {
-                                    routeColorName = option.rawValue
-                                }
-                                HapticManager.shared.light()
-                            }) {
-                                Circle()
-                                    .fill(option.color)
-                                    .frame(width: 28, height: 28)
-                                    .overlay(
-                                        Circle().stroke(Color.white, lineWidth: 2)
-                                    )
-                                    .overlay(
-                                        routeColorName == option.rawValue
-                                            ? Image(systemName: "checkmark")
-                                                .font(.system(size: 12, weight: .bold))
-                                                .foregroundColor(.white)
-                                            : nil
-                                    )
-                                    .scaleEffect(routeColorName == option.rawValue ? 1.15 : 1.0)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // MARK: - Safety Section
-
-    private var safetySection: some View {
-        VStack(spacing: 16) {
-            SettingsSection(title: "EMERGENCY CONTACTS") {
-                EmergencySettingsView(emergencyManager: emergencyManager)
-            }
-
-            SettingsSection(title: "SOS SETTINGS") {
-                HStack(spacing: 12) {
-                    Image(systemName: "sos.circle.fill")
-                        .font(.system(size: 28))
-                        .foregroundColor(.red)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Emergency SOS")
-                            .font(.system(.subheadline, design: .rounded))
-                            .fontWeight(.semibold)
-                        Text("Hold the SOS button for 3 seconds during a tour to send your location to emergency contacts.")
-                            .font(.system(.caption, design: .rounded))
-                            .foregroundColor(.secondary)
-                    }
-                }
-
-                if emergencyManager.contacts.isEmpty {
-                    HStack(spacing: 8) {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundColor(.orange)
-                        Text("Add an emergency contact above to enable SOS.")
-                            .font(.system(.caption, design: .rounded))
-                            .foregroundColor(.orange)
-                    }
-                    .padding(10)
-                    .background(Color.orange.opacity(0.1))
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                } else {
-                    HStack(spacing: 8) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(.green)
-                        Text("SOS will notify \(emergencyManager.contacts.first(where: { $0.isDefault })?.name ?? "your contact") at \(emergencyManager.contacts.first(where: { $0.isDefault })?.phone ?? "")")
-                            .font(.system(.caption, design: .rounded))
-                            .foregroundColor(.secondary)
-                    }
-                    .padding(10)
-                    .background(Color.green.opacity(0.08))
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                }
-
-                Divider().background(Color.black.opacity(0.1))
-
-                Button(action: { showShareLocation = true }) {
-                    HStack(spacing: 12) {
-                        Image(systemName: "location.circle.fill")
-                            .font(.system(size: 28))
-                            .foregroundColor(.blue)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Share Current Location")
-                                .font(.system(.subheadline, design: .rounded))
-                                .fontWeight(.semibold)
-                                .foregroundColor(.primary)
-                            Text("Share your GPS coordinates via message.")
-                                .font(.system(.caption, design: .rounded))
-                                .foregroundColor(.secondary)
-                        }
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(.system(.caption))
-                            .foregroundColor(.gray)
-                    }
-                }
-            }
-            .sheet(isPresented: $showShareLocation) {
-                ShareLocationSheet()
-            }
-        }
-    }
-
-    // MARK: - Offline Section
-
-    private var offlineSection: some View {
-        VStack(spacing: 16) {
-            SettingsSection(title: "OFFLINE CONTENT") {
-                OfflineDownloadsView(offlineManager: offlineManager)
-            }
-
-            SettingsSection(title: "INFO") {
-                HStack(spacing: 12) {
-                    Image(systemName: "info.circle.fill")
-                        .foregroundColor(.blue)
-                        .font(.system(size: 20))
-                    Text("Download routes and map regions from the Explore tab. Offline content allows navigation without cell service.")
-                        .font(.system(.caption, design: .rounded))
-                        .foregroundColor(.secondary)
-                }
-            }
-        }
-    }
-
-    // MARK: - Account Section
-
-    private var accountSection: some View {
-        VStack(spacing: 16) {
-            SettingsSection(title: "PROFILE") {
-                Button(action: { showEditProfile = true }) {
-                    SettingsRowLabel(icon: "person.crop.circle", iconColor: accentBlue, text: "Edit Profile", showArrow: true)
-                }
-            }
-
-            SettingsSection(title: "ABOUT") {
-                Button(action: { showTerms = true }) {
-                    SettingsRowLabel(icon: "doc.text.fill", iconColor: .gray, text: "Terms of Service", showArrow: true)
-                }
-
-                Divider().background(Color.black.opacity(0.1))
-
-                Button(action: { showPrivacy = true }) {
-                    SettingsRowLabel(icon: "hand.raised.fill", iconColor: .gray, text: "Privacy Policy", showArrow: true)
-                }
-            }
-
-            SettingsSection(title: "SESSION") {
-                Button(action: { showLogoutConfirm = true }) {
-                    SettingsRowLabel(icon: "rectangle.portrait.and.arrow.right", iconColor: .orange, text: "Logout")
-                }
-            }
-
-            SettingsSection(title: "DANGER ZONE") {
-                Button(action: { showDeleteConfirm = true }) {
-                    SettingsRowLabel(icon: "trash.fill", iconColor: .red, text: "Delete Account", textColor: .red)
-                }
-            }
         }
     }
 
@@ -495,6 +175,28 @@ struct SettingsView: View {
         Task {
             do { try await supabase.auth.signOut() }
             catch { print("❌ Logout error: \(error.localizedDescription)") }
+            await MainActor.run {
+                isLoggedIn = false
+                dismiss()
+            }
+        }
+    }
+    
+    private func deleteAccount() {
+        Task {
+            do {
+                let userId = try await supabase.auth.session.user.id
+                
+                // Erase data from Profiles (If database triggers are configured, this cascades to auth.users or alerts)
+                try await supabase.from("profiles").delete().eq("id", value: userId).execute()
+                
+                // Attempt to call RPC delete_user if the DB supports it
+                try? await supabase.rpc("delete_user").execute()
+                
+                try await supabase.auth.signOut()
+            } catch {
+                print("❌ Delete Account error: \(error.localizedDescription)")
+            }
             await MainActor.run {
                 isLoggedIn = false
                 dismiss()
