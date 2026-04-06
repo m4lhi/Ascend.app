@@ -276,6 +276,7 @@ struct TrophyRoomView: View {
     @State private var animateIn = false
     @State private var selectedCategory: AchievementCategory? = nil
     @State private var selectedAchievement: Achievement? = nil
+    @State private var showAllAchievements = false
     
     private let gold = Color(red: 0.1, green: 0.5, blue: 0.95)
     private let cardBg = Color.white
@@ -423,9 +424,26 @@ struct TrophyRoomView: View {
                                 Text(appState.userName)
                                     .font(.system(size: 22, weight: .bold, design: .rounded))
                                     .foregroundColor(.primary)
-                                Text("@\(appState.userHandle)")
-                                    .font(.system(size: 14, design: .rounded))
-                                    .foregroundColor(.gray)
+                                
+                                HStack(spacing: 8) {
+                                    Text("@\(appState.userHandle)")
+                                        .font(.system(size: 14, design: .rounded))
+                                        .foregroundColor(.gray)
+                                    
+                                    if !appState.instaHandle.isEmpty {
+                                        HStack(spacing: 3) {
+                                            Image(systemName: "camera.circle.fill")
+                                                .font(.system(size: 11))
+                                            Text(appState.instaHandle)
+                                                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                        }
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 4)
+                                        .background(Color.gray.opacity(0.1))
+                                        .foregroundColor(.black.opacity(0.7))
+                                        .clipShape(Capsule())
+                                    }
+                                }
                                 
                                 if !appState.userRegion.isEmpty && appState.userRegion != "Unknown" {
                                     HStack(spacing: 4) {
@@ -442,18 +460,56 @@ struct TrophyRoomView: View {
                             Spacer()
                         }
                         
-                        // Sport tags
-                        if !appState.selectedSports.isEmpty {
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 8) {
-                                    ForEach(appState.selectedSports, id: \.self) { sport in
-                                        Text(sport)
-                                            .font(.system(size: 11, weight: .semibold, design: .rounded))
-                                            .foregroundColor(.black.opacity(0.7))
+                        // Sport tags & Hobbies
+                        VStack(alignment: .leading, spacing: 8) {
+                            if !appState.selectedSports.isEmpty {
+                                ScrollView(.horizontal, showsIndicators: false) {
+                                    HStack(spacing: 8) {
+                                        ForEach(appState.selectedSports, id: \.self) { sport in
+                                            Text(sport)
+                                                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                                .foregroundColor(.black.opacity(0.7))
+                                                .padding(.horizontal, 10)
+                                                .padding(.vertical, 5)
+                                                .background(Color.gray.opacity(0.1))
+                                                .clipShape(Capsule())
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            if !appState.mountaineeringSpecialties.isEmpty {
+                                ScrollView(.horizontal, showsIndicators: false) {
+                                    HStack(spacing: 8) {
+                                        ForEach(appState.mountaineeringSpecialties, id: \.self) { specialty in
+                                            HStack(spacing: 4) {
+                                                Image(systemName: "mountain.2.fill")
+                                                    .font(.system(size: 9))
+                                                Text(specialty)
+                                            }
+                                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                                            .foregroundColor(Color(red: 0.1, green: 0.5, blue: 0.95))
                                             .padding(.horizontal, 10)
                                             .padding(.vertical, 5)
-                                            .background(Color.gray.opacity(0.1))
+                                            .background(Color(red: 0.1, green: 0.5, blue: 0.95).opacity(0.1))
                                             .clipShape(Capsule())
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            if !appState.otherHobbies.isEmpty {
+                                ScrollView(.horizontal, showsIndicators: false) {
+                                    HStack(spacing: 8) {
+                                        ForEach(appState.otherHobbies, id: \.self) { hobby in
+                                            Text(hobby)
+                                                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                                .foregroundColor(.black.opacity(0.7))
+                                                .padding(.horizontal, 10)
+                                                .padding(.vertical, 5)
+                                                .background(Color.gray.opacity(0.1))
+                                                .clipShape(Capsule())
+                                        }
                                     }
                                 }
                             }
@@ -576,73 +632,119 @@ struct TrophyRoomView: View {
                     .offset(y: animateIn ? 0 : 12)
                     
                     // ============================================
-                    // MARK: - ACHIEVEMENTS
+                    // MARK: - EQUIPMENT LOCKER
                     // ============================================
                     VStack(alignment: .leading, spacing: 16) {
-                        // Section header
-                        HStack {
-                            HStack(spacing: 8) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "tshirt.fill")
+                                .font(.system(size: 14, weight: .bold, design: .rounded))
+                                .foregroundColor(.orange)
+                            Text("Equipment")
+                                .font(.system(size: 19, weight: .bold, design: .rounded))
+                                .foregroundColor(.primary)
+                            
+                            Spacer()
+                            
+                            Button(action: { /* edit equipment hook */ }) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "pencil")
+                                        .font(.system(size: 11, weight: .bold))
+                                    Text("Edit")
+                                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                                }
+                                .foregroundColor(gold)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 5)
+                                .background(gold.opacity(0.1))
+                                .clipShape(Capsule())
+                            }
+                        }
+                        .padding(.horizontal, 20)
+                        
+                        EquipmentLockerView(equipment: appState.equipment)
+                    }
+                    .padding(.top, 28)
+                    .opacity(animateIn ? 1 : 0)
+                    .offset(y: animateIn ? 0 : 10)
+
+                    // ============================================
+                    // MARK: - TRACK RECORD (PERSONAL FEED)
+                    // ============================================
+                    VStack(alignment: .leading, spacing: 16) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "list.bullet.rectangle.portrait.fill")
+                                .font(.system(size: 14, weight: .bold, design: .rounded))
+                                .foregroundColor(.cyan)
+                            Text("Track Record")
+                                .font(.system(size: 19, weight: .bold, design: .rounded))
+                                .foregroundColor(.primary)
+                        }
+                        .padding(.horizontal, 20)
+                        
+                        let myTours = appState.recentTours.filter { $0.isCurrentUser }
+                        if myTours.isEmpty {
+                            Text("No missions completed yet.")
+                                .font(.system(.subheadline, design: .rounded))
+                                .foregroundColor(.gray)
+                                .padding(.horizontal, 20)
+                                .padding(.vertical, 10)
+                        } else {
+                            VStack(spacing: 16) {
+                                ForEach(myTours) { tour in
+                                    // Make sure ActivityCardView exists globally. Assuming from Basecamp.
+                                    ActivityCardView(tour: tour)
+                                        .padding(.horizontal, 16)
+                                }
+                            }
+                        }
+                    }
+                    .padding(.top, 28)
+                    .opacity(animateIn ? 1 : 0)
+                    .offset(y: animateIn ? 0 : 10)
+                    
+                    // ============================================
+                    // MARK: - ACHIEVEMENTS (SINGLE BUTTON)
+                    // ============================================
+                    Button(action: { showAllAchievements = true }) {
+                        HStack(alignment: .center, spacing: 15) {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(gold.opacity(0.1))
+                                    .frame(width: 48, height: 48)
                                 Image(systemName: "medal.fill")
-                                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                                    .font(.system(size: 20))
                                     .foregroundColor(gold)
+                            }
+                            
+                            VStack(alignment: .leading, spacing: 4) {
                                 Text("Achievements")
-                                    .font(.system(size: 19, weight: .bold, design: .rounded))
+                                    .font(.system(.headline, design: .rounded))
+                                    .fontWeight(.bold)
                                     .foregroundColor(.primary)
+                                Text("\(unlockedCount) / \(achievements.count) Unlocked")
+                                    .font(.system(.caption, design: .rounded))
+                                    .foregroundColor(.gray)
                             }
                             
                             Spacer()
                             
-                            Text("\(unlockedCount)/\(achievements.count)")
-                                .font(.system(size: 13, weight: .bold, design: .rounded))
-                                .foregroundColor(gold)
+                            Image(systemName: "chevron.right")
+                                .font(.system(.caption, design: .rounded))
+                                .foregroundColor(.gray)
                         }
-                        .padding(.horizontal, 20)
-                        
-                        // Category filter
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 8) {
-                                CategoryFilterPill(
-                                    title: "All",
-                                    icon: "square.grid.2x2.fill",
-                                    isSelected: selectedCategory == nil,
-                                    color: gold
-                                ) {
-                                    withAnimation(.spring(response: 0.35)) { selectedCategory = nil }
-                                }
-                                
-                                ForEach(AchievementCategory.allCases, id: \.rawValue) { cat in
-                                    CategoryFilterPill(
-                                        title: cat.rawValue,
-                                        icon: cat.icon,
-                                        isSelected: selectedCategory == cat,
-                                        color: cat.color
-                                    ) {
-                                        withAnimation(.spring(response: 0.35)) { selectedCategory = cat }
-                                    }
-                                }
-                            }
-                            .padding(.horizontal, 20)
-                        }
-                        
-                        // Badge grid
-                        LazyVGrid(
-                            columns: [
-                                GridItem(.flexible(), spacing: 12),
-                                GridItem(.flexible(), spacing: 12),
-                                GridItem(.flexible(), spacing: 12)
-                            ],
-                            spacing: 14
-                        ) {
-                            ForEach(filteredAchievements) { achievement in
-                                AchievementBadgeCard(achievement: achievement, onTap: {
-                                    selectedAchievement = achievement
-                                })
-                            }
-                        }
-                        .padding(.horizontal, 20)
-                        .animation(.spring(response: 0.4), value: selectedCategory?.rawValue)
+                        .padding(16)
+                        .background(Color.white)
+                        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                        .shadow(color: .black.opacity(0.04), radius: 8, y: 4)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                                .stroke(Color.white.opacity(0.5), lineWidth: 0.5)
+                        )
                     }
-                    .padding(.top, 28)
+                    .buttonStyle(.plain)
+                    .padding(.horizontal, 20)
+                    .padding(.top, 20)
+                    .padding(.bottom, 20)
                     .opacity(animateIn ? 1 : 0)
                     .offset(y: animateIn ? 0 : 10)
                     
@@ -677,6 +779,10 @@ struct TrophyRoomView: View {
                 .presentationDetents([.medium])
                 .preferredColorScheme(.light)
         }
+        .sheet(isPresented: $showAllAchievements) {
+            AllAchievementsSheet(achievements: achievements, unlockedCount: unlockedCount)
+        }
+
     }
     
     private func formatElevation(_ m: Int) -> String {
@@ -947,9 +1053,12 @@ struct EditAccountView: View {
     @State private var draftName: String = ""
     @State private var draftHandle: String = ""
     @State private var draftRegion: String = ""
+    @State private var draftInsta: String = ""
     @State private var photoItem: PhotosPickerItem? = nil
     @State private var draftImageData: Data? = nil
     @State private var draftSports: [String] = []
+    @State private var draftHobbies: [String] = []
+    @State private var draftSpecialties: [String] = []
     @State private var showHandleErrorAlert = false
     @State private var isSaving = false
     
@@ -957,6 +1066,8 @@ struct EditAccountView: View {
     private let cardBg = Color.white
     
     let availableSports = ["Mountaineering", "Climbing", "Ski Touring", "Hiking", "Bouldering", "Ice Climbing", "Alpinism"]
+    let availableHobbies = ["Boxing", "Soccer", "Running", "Swimming", "Cycling", "Tennis", "Basketball", "Yoga", "Gym", "CrossFit", "Surfing", "Skiing", "Weightlifting", "Golf"]
+    let availableSpecialties = ["Ice Climbing", "Scrambling", "Bouldering", "Lead Climbing", "Trad Climbing", "Expedition", "Mixed Climbing", "Klettersteig"]
     
     var body: some View {
         NavigationView {
@@ -1075,10 +1186,31 @@ struct EditAccountView: View {
                             .padding(12)
                             .background(cardBg)
                             .cornerRadius(14)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 14)
-                                    .stroke(Color.black.opacity(0.06), lineWidth: 1)
-                            )
+                            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black.opacity(0.06), lineWidth: 1))
+                            
+                            // Instagram integration
+                            HStack(spacing: 12) {
+                                ZStack {
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .fill(Color.pink.opacity(0.1))
+                                        .frame(width: 38, height: 38)
+                                    Image(systemName: "camera.circle.fill")
+                                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                                        .foregroundColor(.pink)
+                                }
+                                TextField("instagram_handle", text: $draftInsta)
+                                    .font(.system(size: 15, design: .rounded))
+                                    .foregroundColor(.primary)
+                                    .textInputAutocapitalization(.never)
+                                    .autocorrectionDisabled()
+                                    .onChange(of: draftInsta) { _, newValue in
+                                        draftInsta = newValue.replacingOccurrences(of: "@", with: "")
+                                    }
+                            }
+                            .padding(12)
+                            .background(cardBg)
+                            .cornerRadius(14)
+                            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black.opacity(0.06), lineWidth: 1))
                         }
                         .padding(.horizontal, 20)
                         
@@ -1095,38 +1227,51 @@ struct EditAccountView: View {
                                     .foregroundColor(draftSports.count >= 4 ? gold : .gray)
                             }
                             
-                            LazyVGrid(
-                                columns: [GridItem(.flexible()), GridItem(.flexible())],
-                                spacing: 10
-                            ) {
+                            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
                                 ForEach(availableSports, id: \.self) { sport in
-                                    let isSelected = draftSports.contains(sport)
-                                    Button {
-                                        withAnimation(.spring(response: 0.3)) {
-                                            if isSelected {
-                                                draftSports.removeAll { $0 == sport }
-                                            } else if draftSports.count < 4 {
-                                                draftSports.append(sport)
-                                            }
-                                        }
-                                    } label: {
-                                        HStack(spacing: 8) {
-                                            Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                                                .font(.system(size: 14, design: .rounded))
-                                                .foregroundColor(isSelected ? gold : .gray.opacity(0.4))
-                                            Text(sport)
-                                                .font(.system(size: 13, weight: isSelected ? .bold : .medium, design: .rounded))
-                                                .foregroundColor(isSelected ? .white : .gray)
-                                            Spacer()
-                                        }
-                                        .padding(12)
-                                        .background(isSelected ? gold : cardBg)
-                                        .cornerRadius(12)
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 12)
-                                                .stroke(Color.black.opacity(0.04), lineWidth: 1)
-                                        )
-                                    }
+                                    SportButton(title: sport, isSelected: draftSports.contains(sport), maxLimit: 4, list: $draftSports, color: gold)
+                                }
+                            }
+                        }
+                        .padding(.horizontal, 20)
+                        
+                        // === SPECIALTIES SECTION ===
+                        VStack(alignment: .leading, spacing: 14) {
+                            HStack {
+                                Text("SPECIALTIES")
+                                    .font(.system(size: 11, weight: .black, design: .rounded))
+                                    .foregroundColor(.gray)
+                                    .tracking(2)
+                                Spacer()
+                                Text("\(draftSpecialties.count)/10")
+                                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                                    .foregroundColor(draftSpecialties.count >= 10 ? gold : .gray)
+                            }
+                            
+                            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                                ForEach(availableSpecialties, id: \.self) { specialty in
+                                    SportButton(title: specialty, isSelected: draftSpecialties.contains(specialty), maxLimit: 10, list: $draftSpecialties, color: Color(red: 0.1, green: 0.5, blue: 0.95))
+                                }
+                            }
+                        }
+                        .padding(.horizontal, 20)
+                        
+                        // === OTHER HOBBIES SECTION ===
+                        VStack(alignment: .leading, spacing: 14) {
+                            HStack {
+                                Text("OTHER HOBBIES")
+                                    .font(.system(size: 11, weight: .black, design: .rounded))
+                                    .foregroundColor(.gray)
+                                    .tracking(2)
+                                Spacer()
+                                Text("\(draftHobbies.count)/10")
+                                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                                    .foregroundColor(draftHobbies.count >= 10 ? gold : .gray)
+                            }
+                            
+                            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                                ForEach(availableHobbies, id: \.self) { hobby in
+                                    SportButton(title: hobby, isSelected: draftHobbies.contains(hobby), maxLimit: 10, list: $draftHobbies, color: .purple)
                                 }
                             }
                         }
@@ -1159,7 +1304,10 @@ struct EditAccountView: View {
                 draftName = appState.userName
                 draftHandle = appState.userHandle
                 draftRegion = appState.userRegion == "Unknown" ? "" : appState.userRegion
+                draftInsta = appState.instaHandle
                 draftSports = appState.selectedSports
+                draftSpecialties = appState.mountaineeringSpecialties
+                draftHobbies = appState.otherHobbies
                 draftImageData = appState.profileImage
             }
             .onChange(of: locationFetcher.detectedRegion) { _, newRegion in
@@ -1188,7 +1336,10 @@ struct EditAccountView: View {
                 newName: draftName,
                 newHandle: draftHandle,
                 newRegion: draftRegion,
-                newSports: draftSports
+                newSports: draftSports,
+                newInsta: draftInsta,
+                newHobbies: draftHobbies,
+                newSpecialties: draftSpecialties
             )
             
             if isSuccess {
@@ -1243,6 +1394,44 @@ struct EditField: View {
     }
 }
 
+// Helper button for selecting sports/hobbies
+struct SportButton: View {
+    let title: String
+    let isSelected: Bool
+    let maxLimit: Int
+    @Binding var list: [String]
+    let color: Color
+    
+    var body: some View {
+        Button {
+            withAnimation(.spring(response: 0.3)) {
+                if isSelected {
+                    list.removeAll { $0 == title }
+                } else if list.count < maxLimit {
+                    list.append(title)
+                }
+            }
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 14, design: .rounded))
+                    .foregroundColor(isSelected ? color : .gray.opacity(0.4))
+                Text(title)
+                    .font(.system(size: 12, weight: isSelected ? .bold : .medium, design: .rounded))
+                    .foregroundColor(isSelected ? .white : .gray)
+                Spacer()
+            }
+            .padding(12)
+            .background(isSelected ? color : Color.white)
+            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color.black.opacity(0.04), lineWidth: 1)
+            )
+        }
+    }
+}
+
 // =========================================
 // MARK: - Safari View (for Settings links)
 // =========================================
@@ -1258,4 +1447,206 @@ struct SafariView: UIViewControllerRepresentable {
     }
     
     func updateUIViewController(_ uiViewController: SFSafariViewController, context: Context) {}
+}
+
+// =========================================
+// MARK: - Equipment Locker View
+// =========================================
+
+struct EquipmentLockerView: View {
+    let equipment: Equipment
+    
+    var body: some View {
+        ZStack {
+            // Background environment using premium gradient and frost
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(LinearGradient(colors: [Color.white, Color(red: 0.98, green: 0.98, blue: 0.99)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                .shadow(color: .black.opacity(0.04), radius: 15, y: 6)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 24, style: .continuous)
+                        .stroke(Color.white, lineWidth: 2)
+                )
+            
+            // Subtle contour lines in the background
+            Image(systemName: "map.fill")
+                .font(.system(size: 150))
+                .foregroundColor(.black.opacity(0.02))
+                .rotationEffect(.degrees(-15))
+                .offset(x: 50, y: -20)
+            
+            // Character Silhouette
+            Image(systemName: "figure.climbing")
+                .font(.system(size: 160))
+                .foregroundColor(.black.opacity(0.07))
+                .offset(y: 10)
+            
+            // Equipment Slots layout around the character
+            VStack(spacing: 20) {
+                // Head
+                EquipmentSlot(icon: "crown.fill", label: "Head", value: equipment.head, color: .orange)
+                    .offset(y: -15)
+                
+                HStack(spacing: 90) {
+                    // Jacket
+                    EquipmentSlot(icon: "tshirt.fill", label: "Jacket", value: equipment.jacket, color: .blue)
+                    
+                    // Backpack
+                    EquipmentSlot(icon: "backpack.fill", label: "Pack", value: equipment.backpack, color: .red)
+                }
+                
+                HStack(spacing: 120) {
+                    // Pants
+                    EquipmentSlot(icon: "figure.walk", label: "Pants", value: equipment.pants, color: .indigo)
+                        .offset(y: 10)
+                    
+                    // Extras
+                    EquipmentSlot(icon: "sparkles", label: "Extras", value: equipment.extras, color: .orange)
+                        .offset(y: 10)
+                }
+                
+                // Boots
+                EquipmentSlot(icon: "shoe.fill", label: "Boots", value: equipment.boots, color: .brown)
+                    .offset(y: 30)
+            }
+            .padding(.vertical, 40)
+        }
+        .padding(.horizontal, 20)
+    }
+}
+
+struct EquipmentSlot: View {
+    let icon: String
+    let label: String
+    let value: String
+    let color: Color
+    
+    @State private var showDetail = false
+    
+    var body: some View {
+        Button(action: {
+            showDetail = true
+        }) {
+            VStack(spacing: 6) {
+                ZStack {
+                    Circle()
+                        .fill(Color.white)
+                        .frame(width: 46, height: 46)
+                        .shadow(color: color.opacity(0.2), radius: 8, y: 4)
+                        .overlay(Circle().stroke(Color.black.opacity(0.05), lineWidth: 1))
+                    
+                    Image(systemName: icon)
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundColor(color)
+                }
+                
+                VStack(spacing: 2) {
+                    Text(value)
+                        .font(.system(size: 11, weight: .bold, design: .rounded))
+                        .foregroundColor(.primary)
+                        .lineLimit(1)
+                        .frame(width: 80)
+                    
+                    Text(label.uppercased())
+                        .font(.system(size: 9, weight: .black, design: .rounded))
+                        .foregroundColor(.gray)
+                        .tracking(1)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .sheet(isPresented: $showDetail) {
+            VStack(spacing: 20) {
+                Image(systemName: icon)
+                    .font(.system(size: 60))
+                    .foregroundColor(color)
+                    .padding(.top, 40)
+                    .shadow(color: color.opacity(0.3), radius: 10, y: 5)
+                
+                Text(label.uppercased())
+                    .font(.system(size: 14, weight: .black, design: .rounded))
+                    .foregroundColor(.gray)
+                    .tracking(2)
+                
+                Text(value)
+                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                
+                Text("This is a preview of the equipment detail view. In the future, you will be able to select and change your \(label) gear from a vast library of items here.")
+                    .font(.system(size: 15, design: .rounded))
+                    .multilineTextAlignment(.center)
+                    .foregroundColor(.gray)
+                    .padding(.horizontal, 30)
+                    .padding(.top, 10)
+                
+                Spacer()
+            }
+            .presentationDetents([.fraction(0.45)])
+            .preferredColorScheme(.light)
+        }
+    }
+}
+
+// =========================================
+// MARK: - All Achievements Sheet
+// =========================================
+
+struct AllAchievementsSheet: View {
+    @Environment(\.dismiss) var dismiss
+    let achievements: [Achievement]
+    let unlockedCount: Int
+    @State private var selectedAchievement: Achievement? = nil
+    
+    var body: some View {
+        NavigationView {
+            ZStack {
+                Color(red: 0.95, green: 0.95, blue: 0.97).ignoresSafeArea()
+                
+                ScrollView {
+                    VStack(spacing: 20) {
+                        // Stat Summary
+                        HStack {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Total Unlocked")
+                                    .font(.system(.subheadline, design: .rounded))
+                                    .foregroundColor(.gray)
+                                Text("\(unlockedCount) of \(achievements.count)")
+                                    .font(.system(.title, design: .rounded))
+                                    .fontWeight(.black)
+                                    .foregroundColor(Color(red: 0.1, green: 0.5, blue: 0.95))
+                            }
+                            Spacer()
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.top, 10)
+                        
+                        LazyVGrid(
+                            columns: [GridItem(.flexible(), spacing: 15), GridItem(.flexible(), spacing: 15), GridItem(.flexible(), spacing: 15)],
+                            spacing: 15
+                        ) {
+                            ForEach(achievements) { achievement in
+                                AchievementBadgeCard(achievement: achievement, onTap: {
+                                    selectedAchievement = achievement
+                                })
+                            }
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 40)
+                    }
+                }
+            }
+            .navigationTitle("Trophy Room")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: { dismiss() }) {
+                        Image(systemName: "xmark.circle.fill").foregroundColor(.gray)
+                    }
+                }
+            }
+            .sheet(item: $selectedAchievement) { achievement in
+                AchievementDetailSheet(achievement: achievement)
+                    .presentationDetents([.medium])
+                    .preferredColorScheme(.light)
+            }
+        }
+    }
 }
