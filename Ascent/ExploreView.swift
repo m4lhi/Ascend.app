@@ -754,6 +754,32 @@ struct ExploreView: View {
                 MountainElevationPreview(elevation: mountain.elevation, accentColor: gold)
                     .frame(height: 40)
 
+                // Action buttons row
+                HStack(spacing: 8) {
+                    // Offline download
+                    OfflineDownloadButton(
+                        mountain: mountain,
+                        route: mountain.routes?.first
+                    )
+
+                    Spacer()
+
+                    // Add to collection
+                    Button(action: {}) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "rectangle.stack.badge.plus")
+                            Text("Collection")
+                                .font(.system(.caption, design: .rounded))
+                                .fontWeight(.semibold)
+                        }
+                        .foregroundColor(gold)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                        .background(gold.opacity(0.1))
+                        .clipShape(Capsule())
+                    }
+                }
+
                 Button { HapticManager.shared.heavy(); mountainToTrack = mountain; showTracker = true } label: {
                     HStack { Image(systemName: "play.fill"); Text("Commence Mission") }.font(.system(.subheadline, design: .rounded)).fontWeight(.bold).foregroundColor(.white).frame(maxWidth: .infinity).padding(.vertical, 10).background(gold).clipShape(RoundedRectangle(cornerRadius: 12))
                 }

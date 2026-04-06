@@ -65,3 +65,8 @@ USING (true);
 CREATE POLICY "Admins/Service keys can insert mountain routes"
 ON public.mountain_routes FOR INSERT
 WITH CHECK (true);
+
+-- ============================================
+-- Add route_polyline to tours table for map display in social feed
+-- ============================================
+ALTER TABLE public.tours ADD COLUMN IF NOT EXISTS route_polyline TEXT;

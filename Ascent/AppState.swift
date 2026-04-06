@@ -2,6 +2,7 @@ import Foundation
 import SwiftUI
 import Combine
 import Supabase
+import CoreLocation
 
 // =========================================
 // === DATEI: AppState.swift ===
@@ -45,6 +46,72 @@ struct CloudTour: Codable {
     let distance_km: Double?
     let pauses: String?
     let photo_url: String?
+    let route_polyline: String?  // Encoded route coordinates for map display
+
+    // Custom decoder: gracefully handle missing route_polyline column in DB
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decodeIfPresent(UUID.self, forKey: .id)
+        user_id = try c.decode(UUID.self, forKey: .user_id)
+        name = try c.decode(String.self, forKey: .name)
+        elevation = try c.decode(Int.self, forKey: .elevation)
+        date = try c.decode(Date.self, forKey: .date)
+        difficulty = try c.decode(String.self, forKey: .difficulty)
+        notes = try c.decode(String.self, forKey: .notes)
+        duration_seconds = try c.decodeIfPresent(Int.self, forKey: .duration_seconds)
+        distance_km = try c.decodeIfPresent(Double.self, forKey: .distance_km)
+        pauses = try c.decodeIfPresent(String.self, forKey: .pauses)
+        photo_url = try c.decodeIfPresent(String.self, forKey: .photo_url)
+        route_polyline = try c.decodeIfPresent(String.self, forKey: .route_polyline)
+    }
+
+    // Keep regular init for creating new tours
+    init(id: UUID?, user_id: UUID, name: String, elevation: Int, date: Date, difficulty: String, notes: String, duration_seconds: Int?, distance_km: Double?, pauses: String?, photo_url: String?, route_polyline: String?) {
+        self.id = id; self.user_id = user_id; self.name = name; self.elevation = elevation
+        self.date = date; self.difficulty = difficulty; self.notes = notes
+        self.duration_seconds = duration_seconds; self.distance_km = distance_km
+        self.pauses = pauses; self.photo_url = photo_url; self.route_polyline = route_polyline
+    }
+}
+
+/// Lightweight encoded polyline helpers for storing route data
+struct RouteEncoder {
+    /// Encode an array of CLLocation into a compact JSON string of [[lat,lon,alt],...]
+    static func encode(_ locations: [CLLocation]) -> String? {
+        guard !locations.isEmpty else { return nil }
+        // Sample down to max 200 points for storage efficiency
+        let step = max(1, locations.count / 200)
+        var sampled: [[Double]] = []
+        for i in stride(from: 0, to: locations.count, by: step) {
+            let loc = locations[i]
+            sampled.append([
+                (loc.coordinate.latitude * 100000).rounded() / 100000,
+                (loc.coordinate.longitude * 100000).rounded() / 100000,
+                loc.altitude.rounded()
+            ])
+        }
+        // Always include the last point
+        if let last = locations.last {
+            let lastEntry = [
+                (last.coordinate.latitude * 100000).rounded() / 100000,
+                (last.coordinate.longitude * 100000).rounded() / 100000,
+                last.altitude.rounded()
+            ]
+            if sampled.last != lastEntry { sampled.append(lastEntry) }
+        }
+        guard let data = try? JSONSerialization.data(withJSONObject: sampled) else { return nil }
+        return String(data: data, encoding: .utf8)
+    }
+
+    /// Decode a JSON polyline string back into coordinates
+    static func decode(_ polyline: String) -> [CLLocationCoordinate2D] {
+        guard let data = polyline.data(using: .utf8),
+              let arr = try? JSONSerialization.jsonObject(with: data) as? [[Double]] else { return [] }
+        return arr.compactMap { point in
+            guard point.count >= 2 else { return nil }
+            return CLLocationCoordinate2D(latitude: point[0], longitude: point[1])
+        }
+    }
 }
 
 struct PauseEntry: Codable, Identifiable {
@@ -85,6 +152,7 @@ struct Tour: Identifiable {
     var isFistBumped: Bool = false
     var commentCount: Int = 0
     var isBookmarked: Bool = false
+    var routeCoordinates: [CLLocationCoordinate2D] = []  // Decoded route for map display
 }
 
 // --- SOCIAL MODELS ---
@@ -161,6 +229,9 @@ class AppState: ObservableObject {
     @Published var heroBannerItems: [HeroBannerItem] = []
     @Published var suggestedRoutes: [Mountain] = []
 
+    // Collections (shared across all pages)
+    @Published var myCollections: [TourCollection] = []
+
     // Pagination
     @Published var isLoadingMoreFeed: Bool = false
     @Published var hasMoreFeed: Bool = true
@@ -225,6 +296,7 @@ class AppState: ObservableObject {
                 fetchLeaderboard()
                 fetchFeed()
                 fetchAscendProfile()
+                fetchCollections()
             } catch {
                 if self.userHandle == "climber" {
                     self.userHandle = "climber_\(Int.random(in: 1000...9999))"
@@ -364,6 +436,8 @@ class AppState: ObservableObject {
                 var allCommentCounts: [UUID: Int] = [:]
                 var myBookmarks: Set<UUID> = []
 
+                var bumpsByTour: [UUID: [CloudFistBump]] = [:]
+
                 if !tourIds.isEmpty {
                     struct CommentRow: Codable { let tour_id: UUID }
                     struct BookmarkRow: Codable { let tour_id: UUID }
@@ -373,6 +447,10 @@ class AppState: ObservableObject {
                     async let bookmarksTask: [BookmarkRow] = (try? supabase.from("bookmarked_routes").select("tour_id").eq("user_id", value: myId).in("tour_id", values: tourIds).execute().value) ?? []
 
                     allBumps = await bumpsTask
+                    // Build Dictionary for O(1) lookup per tour instead of O(n) filter
+                    for bump in allBumps {
+                        bumpsByTour[bump.tour_id, default: []].append(bump)
+                    }
                     let commentRows = await commentsTask
                     for row in commentRows {
                         allCommentCounts[row.tour_id, default: 0] += 1
@@ -398,7 +476,10 @@ class AppState: ObservableObject {
                             }
                         }
 
-                        let tourBumps = tour.id != nil ? allBumps.filter { $0.tour_id == tour.id! } : []
+                        let tourBumps = tour.id.flatMap { bumpsByTour[$0] } ?? []
+
+                        // Decode route polyline if available
+                        let routeCoords = tour.route_polyline.flatMap { RouteEncoder.decode($0) } ?? []
 
                         let feedTour = Tour(
                             cloudId: tour.id,
@@ -411,7 +492,7 @@ class AppState: ObservableObject {
                             elevationGainMeters: tour.elevation,
                             durationSeconds: TimeInterval(tour.duration_seconds ?? 0),
                             distanceKilometers: tour.distance_km ?? 0.0,
-                            xpGained: 100 + tour.elevation,
+                            xpGained: XPCalculator.xp(elevation: tour.elevation, difficulty: Difficulty(rawValue: tour.difficulty) ?? .medium, isPrestigePeak: false),
                             isCurrentUser: player.id == myId,
                             photoURL: tour.photo_url,
                             pauseCount: parsedPauseCount,
@@ -419,7 +500,8 @@ class AppState: ObservableObject {
                             fistBumpCount: tourBumps.count,
                             isFistBumped: tourBumps.contains { $0.user_id == myId },
                             commentCount: tour.id != nil ? allCommentCounts[tour.id!] ?? 0 : 0,
-                            isBookmarked: tour.id != nil ? myBookmarks.contains(tour.id!) : false
+                            isBookmarked: tour.id != nil ? myBookmarks.contains(tour.id!) : false,
+                            routeCoordinates: routeCoords
                         )
                         pageTours.append(feedTour)
                     }
@@ -438,12 +520,13 @@ class AppState: ObservableObject {
     }
 
     // Fügt eine neue Tour hinzu (vom Tracker)
-    func addCompletedTour(summit: String, comment: String, elevation: Int, duration: TimeInterval, distance: Double, xp: Int, pauses: [PauseEntry] = [], photoData: Data? = nil) {
+    func addCompletedTour(summit: String, comment: String, elevation: Int, duration: TimeInterval, distance: Double, xp: Int, pauses: [PauseEntry] = [], photoData: Data? = nil, rawRoute: [CLLocation] = []) {
         self.currentXP += xp
         self.currentLevel = (self.currentXP / 1000) + 1
         self.syncAscendTierWithCurrentLevel() // Update Rank if user leveled up
 
         uploadProfileToCloud(refreshLeaderboard: true)  // Tour completed = XP changed = leaderboard needs refresh
+        fetchCollections() // Refresh collections in case mountain was added to one
         
         // Optional: Update ascend_profiles DB if we want it permanently saved.
         // We'll trust the sync on fetch, but pushing the new level is clean.
@@ -508,6 +591,9 @@ class AppState: ObservableObject {
                 }
             }
 
+            // Encode route polyline for storage
+            let routePolyline = RouteEncoder.encode(rawRoute)
+
             // Insert tour (with photo_url if upload succeeded) — retry up to 3 times
             let newCloudTour = CloudTour(
                 id: nil,
@@ -520,7 +606,8 @@ class AppState: ObservableObject {
                 duration_seconds: Int(duration),
                 distance_km: distance,
                 pauses: pausesJSON,
-                photo_url: photoURL
+                photo_url: photoURL,
+                route_polyline: routePolyline
             )
 
             for attempt in 1...3 {
@@ -617,9 +704,10 @@ class AppState: ObservableObject {
             let rows: [FullComment] = try await supabase.from("comments").select().eq("tour_id", value: tourId).order("created_at", ascending: true).execute().value
             let userIds = Array(Set(rows.map { $0.user_id }))
             let profiles: [CloudProfile] = try await supabase.from("profiles").select("id,username,handle,avatar_url,xp,level,region").in("id", values: userIds).execute().value
+            let profileLookup = Dictionary(uniqueKeysWithValues: profiles.map { ($0.id, $0) })
 
             return rows.map { row in
-                let profile = profiles.first { $0.id == row.user_id }
+                let profile = profileLookup[row.user_id]
                 return CommentDisplay(
                     id: row.id,
                     userName: profile?.username ?? "Unknown",
@@ -762,6 +850,26 @@ class AppState: ObservableObject {
                 // 5. Falls es weiterhin fehlschlägt, loggen wir den exakten Grund in die Konsole
                 print("❌ Fehler beim Laden der Peaks von Supabase: \(error)")
                 print("💡 Tipp: Wenn dies passiert, weichen die Spalten in Supabase wahrscheinlich vom 'Mountain' Modell ab (z.B. imageUrl vs image_url oder falscher Datentyp).")
+            }
+        }
+    }
+
+    // --- COLLECTIONS ---
+
+    func fetchCollections() {
+        Task {
+            do {
+                let userId = try await supabase.auth.session.user.id
+                let results: [TourCollection] = try await supabase
+                    .from("collections")
+                    .select()
+                    .eq("user_id", value: userId)
+                    .order("updated_at", ascending: false)
+                    .execute()
+                    .value
+                self.myCollections = results
+            } catch {
+                print("⚠️ Fetch collections: \(error)")
             }
         }
     }

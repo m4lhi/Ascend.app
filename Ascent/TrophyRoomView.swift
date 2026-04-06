@@ -651,6 +651,9 @@ struct TrophyRoomView: View {
             }
         }
         .onAppear {
+            // Refresh profile & rank data when tab appears
+            appState.fetchAscendProfile()
+
             withAnimation(.spring(response: 0.7, dampingFraction: 0.85).delay(0.1)) {
                 animateIn = true
             }

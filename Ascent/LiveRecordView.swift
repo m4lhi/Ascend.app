@@ -231,9 +231,12 @@ class LiveGPSManager: NSObject, ObservableObject, CLLocationManagerDelegate {
 
         routePoints.append(newLocation.coordinate)
         rawRoute.append(newLocation)
-        // Cap rawRoute to prevent unbounded memory growth on long hikes
+        // Cap both arrays to prevent unbounded memory growth on long hikes
         if rawRoute.count > Self.maxRawRoutePoints {
             rawRoute.removeFirst(rawRoute.count - Self.maxRawRoutePoints)
+        }
+        if routePoints.count > Self.maxRawRoutePoints {
+            routePoints.removeFirst(routePoints.count - Self.maxRawRoutePoints)
         }
 
         if altimeterBaseline == nil { altimeterBaseline = newLocation.altitude }
@@ -274,6 +277,11 @@ struct LiveRecordView: View {
     var targetMountain: Mountain?
 
     @StateObject private var gpsManager = LiveGPSManager()
+    @StateObject private var navigationManager = NavigationManager()
+    @ObservedObject private var weatherManager = WeatherManager.shared
+    @StateObject private var photoHighlightManager = PhotoHighlightManager()
+    @ObservedObject private var emergencyManager = EmergencyManager.shared
+
     @State private var timeElapsed: Int = 0
     @State private var isRunning: Bool = false
     @State private var blinkToggle: Bool = false
@@ -283,6 +291,8 @@ struct LiveRecordView: View {
 
     @State private var showSaveForm = false
     @State private var showElevationProfile = false
+    @State private var showExportSheet = false
+    @State private var showWeatherDetail = false
     @State private var panelCollapsed = false
     @State private var sliderResetToken = UUID()
     
@@ -298,7 +308,17 @@ struct LiveRecordView: View {
     @State private var isTooFarForRoute = false
 
     private let gold = Color(red: 0.1, green: 0.5, blue: 0.95)
-    
+    @AppStorage("routeColor") private var routeColorName: String = "blue"
+
+    private var userRouteColor: Color {
+        switch routeColorName {
+        case "red":    return .red
+        case "green":  return .green
+        case "orange": return .orange
+        default:       return Color(red: 0.1, green: 0.5, blue: 0.95)
+        }
+    }
+
     init(targetMountain: Mountain?) {
         self.targetMountain = targetMountain
         
@@ -399,15 +419,25 @@ struct LiveRecordView: View {
                 // 🟢 Zeigt die Linie an, die du tatsächlich gelaufen bist
                 if !gpsManager.routePoints.isEmpty {
                     MapPolyline(coordinates: gpsManager.routePoints)
-                        .stroke(gold, style: StrokeStyle(lineWidth: 6, lineCap: .round, lineJoin: .round))
+                        .stroke(userRouteColor, style: StrokeStyle(lineWidth: 6, lineCap: .round, lineJoin: .round))
                 }
             }
             .mapStyle(.imagery(elevation: .realistic))
             .ignoresSafeArea()
             .onChange(of: gpsManager.currentLocation) { _, newLoc in
                 guard let loc = newLoc else { return }
-                
-                // 🟢 Off-Route Detection: Snapping & Splitting update
+
+                // Feed navigation manager with GPS updates
+                if navigationManager.isNavigating {
+                    navigationManager.updateLocation(loc)
+                }
+
+                // Update live tracking position
+                if emergencyManager.isLiveTracking {
+                    Task { await emergencyManager.updateLiveLocation(loc) }
+                }
+
+                // Off-Route Detection: Snapping & Splitting update
                 updateClosestRouteIndex(to: loc.coordinate)
                 
                 guard let target = targetMountain, !hasCalculatedRoute,
@@ -438,7 +468,6 @@ struct LiveRecordView: View {
             }
             
             // === LAYER 5: Map Controls (Buttons) ===
-            // 🟢 Die Buttons sind jetzt sicher OBEN RECHTS platziert
             VStack(spacing: 14) {
                 if targetMountain != nil {
                     Button(action: viewFullRoute) {
@@ -451,7 +480,7 @@ struct LiveRecordView: View {
                             .shadow(color: .black.opacity(0.1), radius: 8, y: 4)
                     }
                 }
-                
+
                 Button(action: centerOnUser) {
                     Image(systemName: "location.fill")
                         .font(.system(size: 20, design: .rounded))
@@ -461,9 +490,65 @@ struct LiveRecordView: View {
                         .overlay(Circle().stroke(Color.black.opacity(0.04), lineWidth: 1))
                         .shadow(color: .black.opacity(0.1), radius: 8, y: 4)
                 }
+
+                // Weather button
+                if weatherManager.currentWeather != nil {
+                    Button(action: { showWeatherDetail.toggle() }) {
+                        VStack(spacing: 2) {
+                            Image(systemName: weatherManager.currentWeather?.conditionSymbol ?? "cloud")
+                                .symbolRenderingMode(.multicolor)
+                                .font(.system(size: 18))
+                            Text(weatherManager.currentWeather?.temperatureFormatted ?? "")
+                                .font(.system(size: 9, weight: .bold, design: .rounded))
+                        }
+                        .frame(width: 48, height: 48)
+                        .background(.ultraThinMaterial, in: Circle())
+                        .overlay(Circle().stroke(Color.black.opacity(0.04), lineWidth: 1))
+                        .shadow(color: .black.opacity(0.1), radius: 8, y: 4)
+                    }
+                }
+
+                // Photo capture
+                if isRunning {
+                    PhotoCaptureButton(
+                        currentLocation: gpsManager.currentLocation,
+                        photoManager: photoHighlightManager
+                    )
+                }
+
+                // SOS Button
+                if isRunning {
+                    SOSButtonView(
+                        emergencyManager: emergencyManager,
+                        currentLocation: gpsManager.currentLocation
+                    )
+                }
+
+                // Share location
+                if isRunning {
+                    Button(action: shareLocation) {
+                        Image(systemName: "location.circle.fill")
+                            .font(.system(size: 20, design: .rounded))
+                            .foregroundColor(.blue)
+                            .frame(width: 48, height: 48)
+                            .background(.ultraThinMaterial, in: Circle())
+                            .overlay(Circle().stroke(Color.black.opacity(0.04), lineWidth: 1))
+                            .shadow(color: .black.opacity(0.1), radius: 8, y: 4)
+                    }
+                }
             }
             .padding(.trailing, 16)
             .padding(.top, 140)
+
+            // Navigation HUD overlay
+            if navigationManager.isNavigating {
+                VStack {
+                    Spacer().frame(height: 120)
+                    NavigationHUDView(navManager: navigationManager)
+                        .padding(.horizontal, 16)
+                    Spacer()
+                }
+            }
 
             // === LAYER 6: Content ===
             VStack(spacing: 0) {
@@ -505,8 +590,36 @@ struct LiveRecordView: View {
                 distanceKm: gpsManager.distance / 1000.0,
                 pauseLog: gpsManager.pauseLog,
                 totalPauseDuration: gpsManager.totalPauseDuration,
+                rawRoute: gpsManager.rawRoute,
+                photoHighlights: photoHighlightManager.highlights,
                 onDismissTracker: { dismiss() }
             )
+        }
+        .sheet(isPresented: $showExportSheet) {
+            ExportSheetView(
+                tourName: targetMountain?.name ?? "Tour",
+                tourDate: Date(),
+                routePoints: gpsManager.rawRoute
+            )
+        }
+        .sheet(isPresented: $showWeatherDetail) {
+            if let weather = weatherManager.currentWeather {
+                NavigationView {
+                    ScrollView {
+                        WeatherCardView(weather: weather, compact: false)
+                            .padding(20)
+                    }
+                    .navigationTitle("Weather Conditions")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .navigationBarTrailing) {
+                            Button(action: { showWeatherDetail = false }) {
+                                Image(systemName: "xmark.circle.fill").foregroundColor(.gray)
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -1015,9 +1128,38 @@ struct LiveRecordView: View {
     private func startRecording() {
         HapticManager.shared.medium()
         isRunning = true
-        
+
         gpsManager.logManualResume()
         gpsManager.startTracking()
+
+        // Start navigation if we have a route
+        if let route = offlineAscentRoute, !route.isEmpty {
+            let startIndex = min(max(0, interceptIndex), route.count - 1)
+            let navCoords = Array(route[startIndex...])
+            navigationManager.startNavigation(coordinates: navCoords, mountainName: targetMountain?.name)
+        }
+
+        // Fetch weather for current/target location
+        if let target = targetMountain, let lat = target.latitude, let lon = target.longitude {
+            Task { await weatherManager.fetchWeather(latitude: lat, longitude: lon) }
+        } else if let loc = gpsManager.currentLocation {
+            Task { await weatherManager.fetchWeather(latitude: loc.coordinate.latitude, longitude: loc.coordinate.longitude) }
+        }
+
+        // Start live tracking if enabled
+        if UserDefaults.standard.bool(forKey: "liveTrackingDefault") {
+            Task { await emergencyManager.startLiveTracking(tourName: targetMountain?.name) }
+        }
+    }
+
+    private func shareLocation() {
+        guard let loc = gpsManager.currentLocation else { return }
+        let text = emergencyManager.shareCurrentLocation(loc)
+        let activityVC = UIActivityViewController(activityItems: [text], applicationActivities: nil)
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let rootVC = windowScene.windows.first?.rootViewController {
+            rootVC.present(activityVC, animated: true)
+        }
     }
 
     private func togglePause() {
@@ -1042,6 +1184,8 @@ struct LiveRecordView: View {
         isRunning = false
         gpsManager.stopTracking()
         gpsManager.finalizeSession()
+        navigationManager.stopNavigation()
+        Task { await emergencyManager.stopLiveTracking() }
         showSaveForm = true
     }
 }
@@ -1137,12 +1281,15 @@ struct MissionSaveView: View {
     var distanceKm: Double
     var pauseLog: [PauseEntry]
     var totalPauseDuration: TimeInterval
+    var rawRoute: [CLLocation]
+    var photoHighlights: [PhotoHighlight]
     var onDismissTracker: () -> Void
 
     @State private var summitName: String = ""
     @State private var storyComment: String = ""
     @State private var photoItem: PhotosPickerItem? = nil
     @State private var photoData: Data? = nil
+    @State private var showExportSheet = false
 
     var isVerifiedSummit: Bool {
         guard let mountain = targetMountain else { return false }
@@ -1227,6 +1374,40 @@ struct MissionSaveView: View {
                     HStack { Text("XP Gained:"); Spacer(); Text("+\(xpGained) XP").foregroundColor(.blue).fontWeight(.bold) }
                 }
 
+                // Photo highlights from tour
+                if !photoHighlights.isEmpty {
+                    Section(header: Text("Photo Highlights (\(photoHighlights.count))")) {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 8) {
+                                ForEach(photoHighlights) { highlight in
+                                    if let data = highlight.localImageData, let uiImage = UIImage(data: data) {
+                                        Image(uiImage: uiImage)
+                                            .resizable().scaledToFill()
+                                            .frame(width: 80, height: 80)
+                                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Export section
+                if !rawRoute.isEmpty {
+                    Section(header: Text("Export")) {
+                        Button(action: { showExportSheet = true }) {
+                            HStack {
+                                Image(systemName: "square.and.arrow.up")
+                                    .foregroundColor(Color(red: 0.1, green: 0.5, blue: 0.95))
+                                Text("Export as GPX / KML")
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .foregroundColor(.gray)
+                            }
+                        }
+                    }
+                }
+
                 if !pauseLog.isEmpty {
                     Section(header: Text("Pauses")) {
                         ForEach(pauseLog) { pause in
@@ -1265,7 +1446,8 @@ struct MissionSaveView: View {
                             distance: distanceKm,
                             xp: xpGained,
                             pauses: pauseLog,
-                            photoData: photoData
+                            photoData: photoData,
+                            rawRoute: rawRoute
                         )
                         dismiss()
                         onDismissTracker()
@@ -1278,6 +1460,13 @@ struct MissionSaveView: View {
                 if let prefilledName = targetMountain?.name {
                     summitName = prefilledName
                 }
+            }
+            .sheet(isPresented: $showExportSheet) {
+                ExportSheetView(
+                    tourName: summitName.isEmpty ? "Tour" : summitName,
+                    tourDate: Date(),
+                    routePoints: rawRoute
+                )
             }
         }
         .preferredColorScheme(.light)

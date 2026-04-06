@@ -23,7 +23,8 @@ final class ImageCache: @unchecked Sendable {
     }
 
     func store(_ image: UIImage, for url: URL) {
-        let cost = image.jpegData(compressionQuality: 1.0)?.count ?? 0
+        // Estimate cost from pixel dimensions instead of expensive JPEG re-encoding
+        let cost = Int(image.size.width * image.scale * image.size.height * image.scale * 4)
         cache.setObject(image, forKey: url as NSURL, cost: cost)
     }
 }

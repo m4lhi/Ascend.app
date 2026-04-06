@@ -99,7 +99,7 @@ serve(async (req) => {
 
     // 5. Activity Modifiers
     if (activity_type === 'prestige_peak') {
-      let mult = prestige_multiplier || 2.5;
+      let mult = Math.min(Math.max(parseFloat(prestige_multiplier) || 2.5, 2.5), 5.0);
       baseXP *= mult;
       p.prestige_mountains_completed += 1;
     }
@@ -122,10 +122,10 @@ serve(async (req) => {
 
     // 7. Anti-Exploit XP Caps
     // Repeat activity omitted for simplicity, but dailyXP cap applies:
-    if (p.daily_xp > 10000) {
+    if (p.daily_xp >= 10000) {
       baseXP = 0;
-    } else if (p.daily_xp > 5000) {
-      baseXP *= 0.4;
+    } else if (p.daily_xp >= 5000) {
+      baseXP *= 0.5;
     }
 
     p.daily_xp += baseXP;
