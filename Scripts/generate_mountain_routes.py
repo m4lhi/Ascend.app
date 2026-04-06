@@ -59,18 +59,25 @@ def fetch_walking_route(start_lon, start_lat, end_lon, end_lat):
                     
                     if dist_to_peak > 0.25:
                         print(f"⚠️ Route discarded. It ended {dist_to_peak:.1f}km away from the actual peak (Snapping issue).")
-                        return None
+                        return None, None
                         
+                    # Extract elevation profile
+                    elevations = [c[2] if len(c) > 2 else 0 for c in coords]
+                    # Downsample to max 100 points
+                    if len(elevations) > 100:
+                        step = len(elevations) / 100.0
+                        elevations = [elevations[int(i * step)] for i in range(100)]
+                    
                     # Convert [lon, lat, elev] back to (lat, lon) for standard Google Polyline encoding
                     path_tuples = [(c[1], c[0]) for c in coords]
-                    return polyline.encode(path_tuples)
+                    return polyline.encode(path_tuples), elevations
                     
         print(f"⚠️ BRouter failed to find a valid trail (Status {response.status_code}).")
                 
     except Exception as e:
         print(f"Request failed: {e}")
         
-    return None
+    return None, None
 
 def find_start_point(peak_lat, peak_lon, retries=3):
     """
@@ -195,15 +202,16 @@ def process_mountains():
         trailhead_lat, trailhead_lon = find_start_point(peak_lat, peak_lon)
         
         print(f"Fetching route for {peak['name']} ...")
-        polyline = fetch_walking_route(trailhead_lon, trailhead_lat, peak_lon, peak_lat)
+        polyline_str, elevation_profile = fetch_walking_route(trailhead_lon, trailhead_lat, peak_lon, peak_lat)
         
-        if polyline:
+        if polyline_str:
             route_data = {
                 "mountain_id": mountain_id,
                 "route_name": f"{peak['name']} Standard Route",
                 "start_lat": trailhead_lat,
                 "start_lon": trailhead_lon,
-                "route_polyline": polyline
+                "route_polyline": polyline_str,
+                "elevation_profile": elevation_profile
             }
             
             # Immediately push to Supabase so we don't lose data if stopped early

@@ -124,6 +124,7 @@ struct MountainRoute: Identifiable, Hashable, Codable {
     let start_lat: Double
     let start_lon: Double
     let route_polyline: String
+    let elevation_profile: [Int]?
 }
 
 // =========================================
