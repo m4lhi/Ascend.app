@@ -3,17 +3,16 @@ import MapKit
 
 // =========================================
 // === DATEI: ActivityCardView.swift ===
-// === Social Feed Card mit Route Map ===
+// === Komoot-Style Social Feed Card ===
 // =========================================
 
 struct ActivityCardView: View {
     @EnvironmentObject var appState: AppState
-
     let tour: Tour
 
     @State private var showComments = false
+    @State private var showFullImage = false
 
-    // Static formatters — allocated once, reused across all cards
     private static let durationFormatter: DateComponentsFormatter = {
         let f = DateComponentsFormatter()
         f.allowedUnits = [.hour, .minute]
@@ -22,215 +21,367 @@ struct ActivityCardView: View {
     }()
     private static let relativeFormatter: RelativeDateTimeFormatter = {
         let f = RelativeDateTimeFormatter()
-        f.unitsStyle = .full
+        f.unitsStyle = .short
+        return f
+    }()
+    private static let dateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "d. MMMM yyyy"
         return f
     }()
 
     var formattedDuration: String {
         Self.durationFormatter.string(from: tour.durationSeconds) ?? "0m"
     }
-
     var timeAgo: String {
-        Self.relativeFormatter.string(for: tour.date)?.uppercased() ?? "JUST NOW"
+        Self.relativeFormatter.string(for: tour.date) ?? "just now"
+    }
+    var formattedDate: String {
+        Self.dateFormatter.string(from: tour.date)
     }
 
-    private let accentBlue = Color(red: 0.1, green: 0.5, blue: 0.95)
+    private let accent = Color(red: 0.1, green: 0.5, blue: 0.95)
+
+    // Does this card have any visual media?
+    private var validPhotoURL: URL? {
+        guard let urlString = tour.photoURL, !urlString.trimmingCharacters(in: .whitespaces).isEmpty else { return nil }
+        return URL(string: urlString)
+    }
+    private var hasPhoto: Bool { validPhotoURL != nil }
+    private var hasRoute: Bool { !tour.routeCoordinates.isEmpty }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
 
-            // === HEADER ROW ===
-            HStack(alignment: .center, spacing: 12) {
-                // Avatar
-                if let urlString = tour.playerAvatarURL, let url = URL(string: urlString) {
-                    CachedAsyncImage(url: url) { image in
-                        image.resizable().scaledToFill()
-                    } placeholder: {
-                        RoundedRectangle(cornerRadius: 12).fill(Color.gray.opacity(0.3))
-                    }
-                    .frame(width: 42, height: 42)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                } else {
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(LinearGradient(colors: [Color.pink.opacity(0.3), Color.blue.opacity(0.3)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                        .frame(width: 42, height: 42)
-                        .overlay(Text(String(tour.playerName.prefix(1))).fontWeight(.bold).foregroundColor(.white))
-                }
+            // ========== 1. USER HEADER ==========
+            userHeader
+                .padding(.horizontal, 16)
+                .padding(.top, 14)
+                .padding(.bottom, 10)
 
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 6) {
-                        Text(tour.playerName)
-                            .font(.system(.subheadline, design: .rounded))
-                            .fontWeight(.bold)
-                            .foregroundColor(.primary)
-                        if !tour.isCurrentUser {
-                            Text("@\(tour.playerHandle)")
-                                .font(.system(.caption2, design: .rounded))
-                                .foregroundColor(.gray)
-                        }
-                    }
-                    Text(timeAgo)
-                        .font(.system(size: 10, weight: .semibold, design: .rounded))
-                        .foregroundColor(.gray)
-                }
-                Spacer()
+            // ========== 2. ACTIVITY TYPE BANNER ==========
+            activityBanner
+                .padding(.horizontal, 16)
+                .padding(.bottom, 12)
 
-                if tour.isCurrentUser {
-                    Menu {
-                        Button(role: .destructive, action: {
-                            appState.deleteTour(tour: tour)
-                        }) {
-                            Label("Delete Mission", systemImage: "trash")
-                        }
-                    } label: {
-                        Image(systemName: "ellipsis")
-                            .font(.system(size: 16)).foregroundColor(.gray)
-                            .padding(8).contentShape(Rectangle())
-                    }
-                }
-            }
-            .padding(.horizontal, 18)
-            .padding(.top, 16)
-            .padding(.bottom, 12)
+            // ========== 3. MEDIA SECTION (Route Map + Photo Carousel) ==========
+            mediaBlock
+                .frame(height: 240)
+                .clipped()
 
-            // === ROUTE MAP (if route data exists) ===
-            if !tour.routeCoordinates.isEmpty {
-                RouteMapPreview(coordinates: tour.routeCoordinates)
-                    .frame(height: 160)
-                    .clipShape(Rectangle())
+            // ========== 4. STORY / DESCRIPTION ==========
+            if !tour.storyComment.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                Text(tour.storyComment)
+                    .font(.system(.subheadline, design: .rounded))
+                    .foregroundColor(.primary.opacity(0.85))
+                    .lineSpacing(3)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 12)
             }
 
-            // === TOUR PHOTO ===
-            if let photoURL = tour.photoURL, let url = URL(string: photoURL) {
-                CachedAsyncImage(url: url) { image in
-                    image.resizable().scaledToFill()
-                        .frame(maxWidth: .infinity).frame(height: tour.routeCoordinates.isEmpty ? 200 : 140)
-                        .clipped()
-                } placeholder: {
-                    Rectangle().fill(Color.gray.opacity(0.1))
-                        .frame(height: tour.routeCoordinates.isEmpty ? 200 : 140)
-                        .overlay(ProgressView().tint(.gray))
-                }
-            }
+            // ========== 5. STATS GRID (Komoot-style) ==========
+            statsGrid
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
 
-            // === CONTENT ===
-            VStack(alignment: .leading, spacing: 10) {
-
-                // Summit tag
-                HStack(spacing: 5) {
-                    Image(systemName: "mappin.and.ellipse")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundColor(accentBlue)
-                    Text(tour.summitName.uppercased())
-                        .font(.system(size: 11, weight: .black, design: .rounded))
-                        .foregroundColor(accentBlue)
-                        .tracking(1)
-                }
-
-                // Story text
-                if !tour.storyComment.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    Text(tour.storyComment)
-                        .font(.system(.subheadline, design: .rounded))
-                        .foregroundColor(.primary.opacity(0.9))
-                        .lineSpacing(3)
-                        .lineLimit(3)
-                }
-
-                // === STATS BAR ===
-                HStack(spacing: 0) {
-                    MiniStat(icon: "arrow.up.right", value: "+\(tour.elevationGainMeters)m")
-                    MiniStat(icon: "clock.fill", value: formattedDuration)
-                    if tour.distanceKilometers > 0 {
-                        MiniStat(icon: "figure.walk", value: String(format: "%.1fkm", tour.distanceKilometers))
-                    }
-                    Spacer()
-                    Text("+\(tour.xpGained) XP")
-                        .font(.system(size: 11, weight: .bold, design: .rounded))
-                        .foregroundColor(accentBlue)
-                        .padding(.horizontal, 8).padding(.vertical, 4)
-                        .background(accentBlue.opacity(0.12))
-                        .clipShape(Capsule())
-                }
-
-                // === SOCIAL ACTION BAR ===
-                Divider().opacity(0.3)
-
-                HStack(spacing: 0) {
-                    // Fist Bump
-                    Button(action: {
-                        HapticManager.shared.light()
-                        appState.toggleFistBump(tour: tour)
-                    }) {
-                        HStack(spacing: 5) {
-                            Image(systemName: tour.isFistBumped ? "hand.thumbsup.fill" : "hand.thumbsup")
-                                .font(.system(size: 14))
-                                .foregroundColor(tour.isFistBumped ? accentBlue : .gray)
-                            if tour.fistBumpCount > 0 {
-                                Text("\(tour.fistBumpCount)")
-                                    .font(.system(size: 12, weight: .bold, design: .rounded))
-                                    .foregroundColor(tour.isFistBumped ? accentBlue : .gray)
-                            }
-                        }
-                        .frame(maxWidth: .infinity)
-                    }
-
-                    // Comments
-                    Button(action: { showComments = true }) {
-                        HStack(spacing: 5) {
-                            Image(systemName: "bubble.left")
-                                .font(.system(size: 14))
-                                .foregroundColor(tour.commentCount > 0 ? .primary : .gray)
-                            if tour.commentCount > 0 {
-                                Text("\(tour.commentCount)")
-                                    .font(.system(size: 12, weight: .bold, design: .rounded))
-                                    .foregroundColor(.primary)
-                            }
-                        }
-                        .frame(maxWidth: .infinity)
-                    }
-
-                    // Bookmark
-                    Button(action: {
-                        HapticManager.shared.light()
-                        appState.toggleBookmark(tour: tour)
-                    }) {
-                        Image(systemName: tour.isBookmarked ? "bookmark.fill" : "bookmark")
-                            .font(.system(size: 14))
-                            .foregroundColor(tour.isBookmarked ? accentBlue : .gray)
-                            .frame(maxWidth: .infinity)
-                    }
-
-                    // Share
-                    ShareLink(item: "\(tour.playerName) conquered \(tour.summitName) — +\(tour.elevationGainMeters)m elevation! Tracked with Ascent.") {
-                        Image(systemName: "square.and.arrow.up")
-                            .font(.system(size: 14))
-                            .foregroundColor(.gray)
-                            .frame(maxWidth: .infinity)
-                    }
-                }
-                .padding(.top, 2)
-            }
-            .padding(.horizontal, 18)
-            .padding(.top, 14)
-            .padding(.bottom, 16)
+            // ========== 6. SOCIAL BAR ==========
+            socialBar
+                .padding(.horizontal, 16)
+                .padding(.top, 10)
+                .padding(.bottom, 14)
         }
-        .background(.ultraThinMaterial)
-        .environment(\.colorScheme, .light)
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .stroke(Color.white.opacity(0.5), lineWidth: 0.5)
-        )
-        .shadow(color: .black.opacity(0.06), radius: 15, y: 6)
+        .background(Color.white)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .shadow(color: .black.opacity(0.08), radius: 12, y: 4)
         .sheet(isPresented: $showComments) {
             CommentSheetView(tour: tour)
                 .presentationDetents([.medium, .large])
                 .preferredColorScheme(.light)
         }
     }
+
+    // MARK: - User Header
+    private var userHeader: some View {
+        HStack(alignment: .center, spacing: 10) {
+            // Avatar
+            Group {
+                if let urlString = tour.playerAvatarURL, let url = URL(string: urlString) {
+                    CachedAsyncImage(url: url) { image in
+                        image.resizable().scaledToFill()
+                    } placeholder: {
+                        Circle().fill(Color.gray.opacity(0.2))
+                    }
+                } else {
+                    Circle()
+                        .fill(LinearGradient(colors: [accent.opacity(0.4), Color.purple.opacity(0.3)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                        .overlay(
+                            Text(String(tour.playerName.prefix(1)))
+                                .font(.system(size: 16, weight: .bold, design: .rounded))
+                                .foregroundColor(.white)
+                        )
+                }
+            }
+            .frame(width: 40, height: 40)
+            .clipShape(Circle())
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(tour.playerName)
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .foregroundColor(.primary)
+                Text(timeAgo)
+                    .font(.system(size: 12, design: .rounded))
+                    .foregroundColor(.secondary)
+            }
+
+            Spacer()
+
+            if tour.isCurrentUser {
+                Menu {
+                    Button(role: .destructive, action: {
+                        appState.deleteTour(tour: tour)
+                    }) {
+                        Label("Delete", systemImage: "trash")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.system(size: 14))
+                        .foregroundColor(.secondary)
+                        .padding(8)
+                        .contentShape(Rectangle())
+                }
+            }
+        }
+    }
+
+    // MARK: - Activity Banner (summit + type info like Komoot)
+    private var activityBanner: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            // Activity type tag
+            HStack(spacing: 6) {
+                Image(systemName: "figure.hiking")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(accent)
+                Text("Hiking")
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .foregroundColor(accent)
+                Text("·")
+                    .foregroundColor(.secondary)
+                Text(formattedDate)
+                    .font(.system(size: 12, design: .rounded))
+                    .foregroundColor(.secondary)
+            }
+
+            // Summit name as main title
+            HStack(spacing: 6) {
+                Image(systemName: "mountain.2.fill")
+                    .font(.system(size: 14))
+                    .foregroundColor(.primary.opacity(0.7))
+                Text(tour.summitName)
+                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                    .foregroundColor(.primary)
+            }
+        }
+    }
+
+    // MARK: - Unified Media Block
+    @ViewBuilder
+    private var mediaBlock: some View {
+        if hasPhoto && hasRoute {
+            TabView {
+                tourPhoto
+                    .tag(0)
+                RouteMapPreview(coordinates: tour.routeCoordinates)
+                    .tag(1)
+            }
+            .tabViewStyle(PageTabViewStyle(indexDisplayMode: .always))
+            .indexViewStyle(.page(backgroundDisplayMode: .always))
+        } else if hasPhoto {
+            tourPhoto
+        } else if hasRoute {
+            RouteMapPreview(coordinates: tour.routeCoordinates)
+        } else {
+            defaultPlaceholder
+        }
+    }
+
+    // MARK: - Tour Photo
+    @ViewBuilder
+    private var tourPhoto: some View {
+        if let url = validPhotoURL {
+            CachedAsyncImage(url: url) { image in
+                image.resizable().scaledToFill()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .clipped()
+            } placeholder: {
+                Rectangle()
+                    .fill(Color.gray.opacity(0.1))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .overlay(ProgressView().tint(.gray))
+            }
+        }
+    }
+
+    // MARK: - Default Placeholder
+    private var defaultPlaceholder: some View {
+        ZStack {
+            LinearGradient(colors: [Color(red: 0.15, green: 0.2, blue: 0.25), Color(red: 0.05, green: 0.1, blue: 0.15)], startPoint: .topLeading, endPoint: .bottomTrailing)
+            VStack(spacing: 8) {
+                Image(systemName: "mountain.2.fill")
+                    .font(.system(size: 40))
+                    .foregroundColor(.white.opacity(0.3))
+                Text("No media captured")
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .foregroundColor(.white.opacity(0.4))
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    // MARK: - Stats Grid (Komoot-style 3-column)
+    private var statsGrid: some View {
+        HStack(spacing: 0) {
+            StatCell(label: "Distance", value: tour.distanceKilometers > 0 ? String(format: "%.1f km", tour.distanceKilometers) : "—")
+
+            Rectangle()
+                .fill(Color.gray.opacity(0.15))
+                .frame(width: 1, height: 32)
+
+            StatCell(label: "Elevation", value: "+\(tour.elevationGainMeters) m")
+
+            Rectangle()
+                .fill(Color.gray.opacity(0.15))
+                .frame(width: 1, height: 32)
+
+            StatCell(label: "Duration", value: formattedDuration)
+
+            Rectangle()
+                .fill(Color.gray.opacity(0.15))
+                .frame(width: 1, height: 32)
+
+            // XP earned
+            VStack(spacing: 2) {
+                Text("+\(tour.xpGained)")
+                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .foregroundColor(accent)
+                Text("XP")
+                    .font(.system(size: 10, weight: .medium, design: .rounded))
+                    .foregroundColor(accent.opacity(0.7))
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .padding(.vertical, 10)
+        .background(Color(white: 0.97))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
+
+    // MARK: - Social Bar
+    private var socialBar: some View {
+        VStack(spacing: 8) {
+            // Like count text (like Komoot: "Max and 3 others gave kudos")
+            if tour.fistBumpCount > 0 {
+                HStack(spacing: 4) {
+                    Image(systemName: "hand.thumbsup.fill")
+                        .font(.system(size: 10))
+                        .foregroundColor(accent)
+                    Text("\(tour.fistBumpCount) fist bump\(tour.fistBumpCount == 1 ? "" : "s")")
+                        .font(.system(size: 12, design: .rounded))
+                        .foregroundColor(.secondary)
+                    if tour.commentCount > 0 {
+                        Text("·")
+                            .foregroundColor(.secondary)
+                        Text("\(tour.commentCount) comment\(tour.commentCount == 1 ? "" : "s")")
+                            .font(.system(size: 12, design: .rounded))
+                            .foregroundColor(.secondary)
+                    }
+                    Spacer()
+                }
+            }
+
+            Divider()
+
+            // Action buttons
+            HStack(spacing: 0) {
+                // Fist Bump
+                Button(action: {
+                    HapticManager.shared.light()
+                    appState.toggleFistBump(tour: tour)
+                }) {
+                    HStack(spacing: 6) {
+                        Image(systemName: tour.isFistBumped ? "hand.thumbsup.fill" : "hand.thumbsup")
+                            .font(.system(size: 15))
+                        Text(tour.isFistBumped ? "Bumped" : "Fist Bump")
+                            .font(.system(size: 13, weight: .medium, design: .rounded))
+                    }
+                    .foregroundColor(tour.isFistBumped ? accent : .secondary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 6)
+                }
+
+                // Comment
+                Button(action: { showComments = true }) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "bubble.left")
+                            .font(.system(size: 15))
+                        Text("Comment")
+                            .font(.system(size: 13, weight: .medium, design: .rounded))
+                    }
+                    .foregroundColor(.secondary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 6)
+                }
+
+                // Bookmark
+                Button(action: {
+                    HapticManager.shared.light()
+                    appState.toggleBookmark(tour: tour)
+                }) {
+                    HStack(spacing: 6) {
+                        Image(systemName: tour.isBookmarked ? "bookmark.fill" : "bookmark")
+                            .font(.system(size: 15))
+                        Text("Save")
+                            .font(.system(size: 13, weight: .medium, design: .rounded))
+                    }
+                    .foregroundColor(tour.isBookmarked ? accent : .secondary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 6)
+                }
+
+                // Share
+                ShareLink(item: "\(tour.playerName) conquered \(tour.summitName) — +\(tour.elevationGainMeters)m! Tracked with Ascent.") {
+                    HStack(spacing: 6) {
+                        Image(systemName: "square.and.arrow.up")
+                            .font(.system(size: 15))
+                        Text("Share")
+                            .font(.system(size: 13, weight: .medium, design: .rounded))
+                    }
+                    .foregroundColor(.secondary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 6)
+                }
+            }
+        }
+    }
 }
 
-// MARK: - Mini Route Map Preview
+// MARK: - Stat Cell
+private struct StatCell: View {
+    let label: String
+    let value: String
+
+    var body: some View {
+        VStack(spacing: 2) {
+            Text(value)
+                .font(.system(size: 15, weight: .bold, design: .rounded))
+                .foregroundColor(.primary)
+            Text(label)
+                .font(.system(size: 10, weight: .medium, design: .rounded))
+                .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
+
+// MARK: - Route Map Preview
 struct RouteMapPreview: View {
     let coordinates: [CLLocationCoordinate2D]
 
@@ -249,18 +400,12 @@ struct RouteMapPreview: View {
         Map {
             MapPolyline(coordinates: coordinates)
                 .stroke(routeColor, lineWidth: 3)
-
-            // Start marker
             if let first = coordinates.first {
                 Annotation("", coordinate: first) {
-                    Circle()
-                        .fill(.green)
-                        .frame(width: 10, height: 10)
+                    Circle().fill(.green).frame(width: 10, height: 10)
                         .overlay(Circle().stroke(.white, lineWidth: 2))
                 }
             }
-
-            // End marker
             if let last = coordinates.last, coordinates.count > 1 {
                 Annotation("", coordinate: last) {
                     Image(systemName: "flag.fill")
@@ -270,104 +415,112 @@ struct RouteMapPreview: View {
             }
         }
         .mapStyle(.standard(elevation: .realistic, pointsOfInterest: .excludingAll))
-        .disabled(true) // Non-interactive preview
+        .disabled(true)
         .allowsHitTesting(false)
     }
 }
 
-// MARK: - Mini Stat
-private struct MiniStat: View {
-    let icon: String
-    let value: String
-
-    var body: some View {
-        HStack(spacing: 3) {
-            Image(systemName: icon)
-                .font(.system(size: 9, weight: .bold))
-                .foregroundColor(.gray)
-            Text(value)
-                .font(.system(size: 11, weight: .semibold, design: .rounded))
-                .foregroundColor(.primary.opacity(0.8))
-        }
-        .padding(.trailing, 12)
-    }
-}
-
+// =========================================
 // === COMMENT SHEET ===
+// =========================================
+
 struct CommentSheetView: View {
     @EnvironmentObject var appState: AppState
     @Environment(\.dismiss) var dismiss
-
     let tour: Tour
 
     @State private var comments: [CommentDisplay] = []
     @State private var newCommentText = ""
     @State private var isLoading = true
 
+    private let accent = Color(red: 0.1, green: 0.5, blue: 0.95)
+
     var body: some View {
         NavigationView {
-            ZStack {
-                Color(white: 0.98).ignoresSafeArea()
-
-                VStack(spacing: 0) {
-                    if isLoading {
-                        Spacer()
-                        ProgressView().tint(.gray)
-                        Spacer()
-                    } else if comments.isEmpty {
-                        Spacer()
-                        VStack(spacing: 10) {
-                            Image(systemName: "bubble.left.and.bubble.right")
-                                .font(.system(size: 36, design: .rounded)).foregroundColor(.gray.opacity(0.5))
-                            Text("No comments yet").font(.system(.headline, design: .rounded)).foregroundColor(.gray)
-                            Text("Be the first to comment!").font(.system(.caption, design: .rounded)).foregroundColor(.gray.opacity(0.7))
-                        }
-                        Spacer()
-                    } else {
-                        ScrollView {
-                            LazyVStack(spacing: 16) {
-                                ForEach(comments) { comment in
-                                    CommentRow(comment: comment)
-                                }
-                            }
-                            .padding(20)
-                        }
+            VStack(spacing: 0) {
+                // Tour info header
+                HStack(spacing: 10) {
+                    Image(systemName: "mountain.2.fill")
+                        .foregroundColor(accent)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(tour.summitName)
+                            .font(.system(.subheadline, design: .rounded))
+                            .fontWeight(.bold)
+                        Text("by \(tour.playerName)")
+                            .font(.system(.caption, design: .rounded))
+                            .foregroundColor(.secondary)
                     }
-
-                    // Input field
-                    HStack(spacing: 12) {
-                        TextField("Write a comment...", text: $newCommentText)
-                            .foregroundColor(.primary)
-                            .padding(12)
-                            .background(Color(white: 0.93))
-                            .cornerRadius(20)
-
-                        Button(action: {
-                            appState.postComment(tour: tour, body: newCommentText)
-                            newCommentText = ""
-                            Task {
-                                try? await Task.sleep(nanoseconds: 500_000_000)
-                                comments = await appState.fetchComments(tour: tour)
-                            }
-                        }) {
-                            Image(systemName: "arrow.up.circle.fill")
-                                .font(.system(size: 32, design: .rounded))
-                                .foregroundColor(newCommentText.isEmpty ? .gray : Color(red: 0.1, green: 0.5, blue: 0.95))
-                        }
-                        .disabled(newCommentText.isEmpty)
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
-                    .background(Color.white)
+                    Spacer()
                 }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 12)
+                .background(Color(white: 0.97))
+
+                // Comments list
+                if isLoading {
+                    Spacer()
+                    ProgressView().tint(.gray)
+                    Spacer()
+                } else if comments.isEmpty {
+                    Spacer()
+                    VStack(spacing: 10) {
+                        Image(systemName: "bubble.left.and.bubble.right")
+                            .font(.system(size: 36)).foregroundColor(.gray.opacity(0.4))
+                        Text("No comments yet")
+                            .font(.system(.headline, design: .rounded)).foregroundColor(.gray)
+                        Text("Be the first to leave a comment!")
+                            .font(.system(.caption, design: .rounded)).foregroundColor(.gray.opacity(0.7))
+                    }
+                    Spacer()
+                } else {
+                    ScrollView {
+                        LazyVStack(spacing: 0) {
+                            ForEach(comments) { comment in
+                                CommentRow(comment: comment)
+                                    .padding(.horizontal, 20)
+                                    .padding(.vertical, 10)
+                                Divider().padding(.leading, 62)
+                            }
+                        }
+                    }
+                }
+
+                // Input
+                HStack(spacing: 10) {
+                    TextField("Write a comment...", text: $newCommentText)
+                        .font(.system(.subheadline, design: .rounded))
+                        .padding(10)
+                        .padding(.horizontal, 4)
+                        .background(Color(white: 0.94))
+                        .clipShape(Capsule())
+
+                    Button(action: {
+                        let text = newCommentText
+                        newCommentText = ""
+                        appState.postComment(tour: tour, body: text)
+                        Task {
+                            try? await Task.sleep(nanoseconds: 500_000_000)
+                            comments = await appState.fetchComments(tour: tour)
+                        }
+                    }) {
+                        Image(systemName: "paperplane.fill")
+                            .font(.system(size: 18))
+                            .foregroundColor(newCommentText.isEmpty ? .gray : accent)
+                    }
+                    .disabled(newCommentText.isEmpty)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(Color.white)
+                .overlay(alignment: .top) { Divider() }
             }
-            .navigationTitle("Comments")
+            .background(Color(white: 0.99))
+            .navigationTitle("Comments (\(comments.count))")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarColorScheme(.light, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: { dismiss() }) {
-                        Image(systemName: "xmark.circle.fill").foregroundColor(.gray).font(.system(.title3, design: .rounded))
+                        Image(systemName: "xmark.circle.fill").foregroundColor(.gray)
                     }
                 }
             }
@@ -383,58 +536,57 @@ struct CommentSheetView: View {
 struct CommentRow: View {
     let comment: CommentDisplay
 
-    private static let commentTimeFormatter: RelativeDateTimeFormatter = {
+    private static let fmt: RelativeDateTimeFormatter = {
         let f = RelativeDateTimeFormatter()
         f.unitsStyle = .abbreviated
         return f
     }()
 
-    var timeAgo: String {
-        Self.commentTimeFormatter.localizedString(for: comment.date, relativeTo: Date())
-    }
-
     var body: some View {
-        HStack(alignment: .top, spacing: 10) {
-            if let urlString = comment.avatarURL, let url = URL(string: urlString) {
-                CachedAsyncImage(url: url) { image in
-                    image.resizable().scaledToFill()
-                } placeholder: {
-                    Circle().fill(Color.gray.opacity(0.3))
+        HStack(alignment: .top, spacing: 12) {
+            Group {
+                if let urlString = comment.avatarURL, let url = URL(string: urlString) {
+                    CachedAsyncImage(url: url) { image in
+                        image.resizable().scaledToFill()
+                    } placeholder: {
+                        Circle().fill(Color.gray.opacity(0.2))
+                    }
+                } else {
+                    Circle().fill(Color.gray.opacity(0.15))
+                        .overlay(Text(String(comment.userName.prefix(1))).font(.system(.caption2, weight: .bold)).foregroundColor(.gray))
                 }
-                .frame(width: 32, height: 32).clipShape(Circle())
-            } else {
-                Circle().fill(Color.gray.opacity(0.2)).frame(width: 32, height: 32)
-                    .overlay(Text(String(comment.userName.prefix(1))).font(.system(.caption2, design: .rounded)).fontWeight(.bold).foregroundColor(.gray))
             }
+            .frame(width: 32, height: 32)
+            .clipShape(Circle())
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
-                    Text(comment.userName).font(.system(.caption, design: .rounded)).fontWeight(.bold).foregroundColor(.primary)
-                    Text(timeAgo).font(.system(.caption2, design: .rounded)).foregroundColor(.gray)
+                    Text(comment.userName)
+                        .font(.system(.subheadline, design: .rounded))
+                        .fontWeight(.semibold)
+                    Text(Self.fmt.localizedString(for: comment.date, relativeTo: Date()))
+                        .font(.system(.caption2, design: .rounded))
+                        .foregroundColor(.secondary)
                 }
-                Text(comment.body).font(.system(.subheadline, design: .rounded)).foregroundColor(.primary.opacity(0.9))
+                Text(comment.body)
+                    .font(.system(.subheadline, design: .rounded))
+                    .foregroundColor(.primary.opacity(0.85))
             }
             Spacer()
         }
     }
 }
 
-// === STAT BLOCK (kept for backward compat) ===
+// === STAT BLOCK (backward compat) ===
 struct StatBlock: View {
-    let icon: String
-    let value: String
-    let isXP: Bool
-
+    let icon: String; let value: String; let isXP: Bool
     var body: some View {
         HStack(spacing: 6) {
-            if !icon.isEmpty {
-                Image(systemName: icon).font(.system(size: 10, design: .rounded)).foregroundColor(isXP ? .blue : .gray)
-            }
+            if !icon.isEmpty { Image(systemName: icon).font(.system(size: 10)).foregroundColor(isXP ? .blue : .gray) }
             Text(value).font(.system(size: 12, weight: .bold, design: .rounded)).foregroundColor(isXP ? Color(red: 0.1, green: 0.5, blue: 0.95) : .primary)
         }
         .padding(.horizontal, 10).padding(.vertical, 8)
         .background(isXP ? Color.blue.opacity(0.15) : Color(white: 0.95))
         .cornerRadius(8)
-        .overlay(RoundedRectangle(cornerRadius: 8).stroke(isXP ? Color.blue.opacity(0.3) : Color.clear, lineWidth: 1))
     }
 }

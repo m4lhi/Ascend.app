@@ -19,6 +19,23 @@ struct CloudProfile: Codable, Identifiable {
     var level: Int
     var avatar_url: String?
     var region: String?
+    
+    // Custom decoder for robust parsing in case DB rows have nulls
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        username = try container.decodeIfPresent(String.self, forKey: .username) ?? "Alpinist"
+        handle = try container.decodeIfPresent(String.self, forKey: .handle) ?? "climber"
+        xp = try container.decodeIfPresent(Int.self, forKey: .xp) ?? 0
+        level = try container.decodeIfPresent(Int.self, forKey: .level) ?? 1
+        avatar_url = try container.decodeIfPresent(String.self, forKey: .avatar_url)
+        region = try container.decodeIfPresent(String.self, forKey: .region)
+    }
+    
+    // Standard initializer to manually create profiles
+    init(id: UUID, username: String, handle: String, xp: Int, level: Int, avatar_url: String?, region: String?) {
+        self.id = id; self.username = username; self.handle = handle; self.xp = xp; self.level = level; self.avatar_url = avatar_url; self.region = region
+    }
 }
 
 struct AscendProfile: Codable {
@@ -134,9 +151,10 @@ struct FriendshipRule: Codable {
 struct Tour: Identifiable {
     let id = UUID()
     let cloudId: UUID?
-    let playerName: String
-    let playerHandle: String
-    let playerAvatarURL: String?
+    var userId: UUID?
+    var playerName: String
+    var playerHandle: String
+    var playerAvatarURL: String?
     let date: Date
     let summitName: String
     let storyComment: String
@@ -197,6 +215,18 @@ struct HeroBannerItem: Identifiable {
     let mountain: Mountain?  // nil for community highlights
 }
 
+// --- EQUIPMENT MODEL ---
+
+struct Equipment: Codable, Equatable {
+    var head: String = "Beanie"
+    var jacket: String = "Arc'teryx Alpha SV"
+    var backpack: String = "Osprey Mutant 38"
+    var pants: String = "Fjallraven Keb"
+    var boots: String = "La Sportiva Nepal"
+    var extras: String = "Petzl Ice Axes"
+}
+
+
 // --- HAUPTKLASSE ---
 
 @MainActor
@@ -209,6 +239,11 @@ class AppState: ObservableObject {
     @Published var profileImage: Data? = nil
     @Published var avatarURL: String? = nil
     @Published var userRegion: String = "" // Standardmäßig leer
+    // Neue Profile-Eigenschaften (Mock für UI)
+    @Published var instaHandle: String = "alpinist_life"
+    @Published var mountaineeringSpecialties: [String] = ["Ice Climbing", "Scrambling"]
+    @Published var otherHobbies: [String] = ["Boxing", "Soccer"]
+    @Published var equipment: Equipment = Equipment()
     
     // Fortschritt
     @Published var currentXP: Int = 0
@@ -355,13 +390,22 @@ class AppState: ObservableObject {
     }
     
     // Speichert Profil-Einstellungen aus dem Edit-Fenster
-    func updateProfileSettings(newName: String, newHandle: String, newRegion: String, newSports: [String]) async -> Bool {
+    func updateProfileSettings(newName: String, newHandle: String, newRegion: String, newSports: [String], newInsta: String, newHobbies: [String], newSpecialties: [String]) async -> Bool {
         do {
             let session = try await supabase.auth.session
             let updatedProfile = CloudProfile(id: session.user.id, username: newName, handle: newHandle, xp: self.currentXP, level: self.currentLevel, avatar_url: self.avatarURL, region: newRegion)
             try await supabase.from("profiles").upsert(updatedProfile).execute()
             
             self.userName = newName; self.userHandle = newHandle; self.userRegion = newRegion; self.selectedSports = newSports
+            self.instaHandle = newInsta; self.otherHobbies = newHobbies; self.mountaineeringSpecialties = newSpecialties
+            
+            // Reactively update Feed 
+            for i in self.recentTours.indices where self.recentTours[i].userId == session.user.id {
+                self.recentTours[i].playerName = newName
+                self.recentTours[i].playerHandle = newHandle
+                self.recentTours[i].playerAvatarURL = self.avatarURL
+            }
+            
             fetchLeaderboard()  // Region may change → local leaderboard must refresh
             return true
         } catch { return false }
@@ -483,6 +527,7 @@ class AppState: ObservableObject {
 
                         let feedTour = Tour(
                             cloudId: tour.id,
+                            userId: player.id,
                             playerName: player.username,
                             playerHandle: player.handle,
                             playerAvatarURL: player.avatar_url,
@@ -765,37 +810,65 @@ class AppState: ObservableObject {
         }
     }
     
-    // Holt die drei Leaderboard-Listen parallel
+    // Holt die drei Leaderboard-Listen parallel, aber fehlertolerant
     func fetchLeaderboard() {
         Task {
+            let myId: UUID
             do {
-                let myId = try await supabase.auth.session.user.id
-                let myProfile = CloudProfile(id: myId, username: self.userName, handle: self.userHandle, xp: self.currentXP, level: self.currentLevel, avatar_url: self.avatarURL, region: self.userRegion)
-                let region = self.userRegion
+                myId = try await supabase.auth.session.user.id
+            } catch {
+                print("❌ Fetch Leaderboard failed: no active session.")
+                return
+            }
+            
+            let myProfile = CloudProfile(id: myId, username: self.userName, handle: self.userHandle, xp: self.currentXP, level: self.currentLevel, avatar_url: self.avatarURL, region: self.userRegion)
+            let region = self.userRegion
 
-                // Fetch friendships first (needed for friends query)
+            // 1. Fetch Friendships
+            var friendIds: [UUID] = []
+            do {
                 let myFriendships: [FriendshipRule] = try await supabase.from("friendships").select("friend_id").eq("user_id", value: myId).execute().value
-                let friendIds = myFriendships.map { $0.friend_id }
+                friendIds = myFriendships.map { $0.friend_id }
+            } catch {
+                print("⚠️ Warning: Fetching friendships failed: \(error)")
+            }
 
-                // Run all 3 leaderboard queries in parallel
-                async let friendsTask: [CloudProfile] = !friendIds.isEmpty
-                    ? (try supabase.from("profiles").select().in("id", values: friendIds).execute().value)
-                    : []
-                async let globalTask: [CloudProfile] = try supabase.from("profiles").select().order("xp", ascending: false).limit(50).execute().value
-                async let localTask: [CloudProfile] = !region.isEmpty
-                    ? (try supabase.from("profiles").select().eq("region", value: region).order("xp", ascending: false).limit(50).execute().value)
-                    : []
+            // 2. Load Global
+            do {
+                var globalData: [CloudProfile] = try await supabase.from("profiles").select().order("xp", ascending: false).limit(50).execute().value
+                await MainActor.run { self.globalLeaderboard = globalData }
+            } catch {
+                print("⚠️ Warning: Loading global leaderboard failed: \(error)")
+            }
 
-                let (friendsData, globalData, localData) = try await (friendsTask, globalTask, localTask)
+            // 3. Load Local
+            if !region.isEmpty {
+                do {
+                    var localData: [CloudProfile] = try await supabase.from("profiles").select().eq("region", value: region).order("xp", ascending: false).limit(50).execute().value
+                    await MainActor.run { self.localLeaderboard = localData }
+                } catch {
+                    print("⚠️ Warning: Loading local leaderboard failed: \(error)")
+                }
+            } else {
+                await MainActor.run { self.localLeaderboard = [] }
+            }
 
-                var friendsPlayers: [CloudProfile] = [myProfile]
-                friendsPlayers.append(contentsOf: friendsData)
-                friendsPlayers.sort { $0.xp > $1.xp }
-
-                self.friendsLeaderboard = friendsPlayers
-                self.globalLeaderboard = globalData
-                self.localLeaderboard = localData
-            } catch { print("❌ Fehler beim Leaderboard laden: \(error)") }
+            // 4. Load Friends
+            if !friendIds.isEmpty {
+                do {
+                    let friendsData: [CloudProfile] = try await supabase.from("profiles").select().in("id", values: friendIds).execute().value
+                    var friendsPlayers = [myProfile]
+                    friendsPlayers.append(contentsOf: friendsData)
+                    friendsPlayers.sort { $0.xp > $1.xp }
+                    await MainActor.run { self.friendsLeaderboard = friendsPlayers }
+                } catch {
+                    print("⚠️ Warning: Loading friends leaderboard failed: \(error)")
+                    // Keep just ourselves if it fails
+                    await MainActor.run { self.friendsLeaderboard = [myProfile] }
+                }
+            } else {
+                await MainActor.run { self.friendsLeaderboard = [myProfile] }
+            }
         }
     }
 
