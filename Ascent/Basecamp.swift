@@ -166,7 +166,7 @@ struct BasecampView: View {
                         CachedAsyncImage(url: url) { image in
                             image.resizable().scaledToFill()
                         } placeholder: {
-                            Circle().fill(cardBg)
+                            Circle().fill(Color.gray.opacity(0.2))
                         }
                         .frame(width: 44, height: 44).clipShape(Circle())
                     } else {
@@ -382,7 +382,7 @@ struct BasecampView: View {
                         .frame(maxWidth: .infinity)
                         .overlay(
                             Group {
-                                if let urlString = peak.imageUrl, !urlString.isEmpty, let url = URL(string: urlString) {
+                                if let urlString = peak.effectiveImageUrl, !urlString.isEmpty, let url = URL(string: urlString) {
                                     CachedAsyncImage(url: url) { image in
                                         image.resizable().scaledToFill()
                                     } placeholder: {
@@ -397,6 +397,20 @@ struct BasecampView: View {
 
                     LinearGradient(colors: [.clear, .clear, .black.opacity(0.85)],
                                    startPoint: .top, endPoint: .bottom)
+                                   
+                    if let credit = peak.image_credit, !credit.isEmpty {
+                        VStack {
+                            Spacer()
+                            HStack {
+                                Spacer()
+                                Text("Foto: \(credit)")
+                                    .font(.system(size: 7, weight: .medium, design: .rounded))
+                                    .foregroundColor(.white.opacity(0.35))
+                                    .padding(.trailing, 16)
+                                    .padding(.bottom, 6)
+                            }
+                        }
+                    }
 
                     HStack(alignment: .bottom) {
                         VStack(alignment: .leading, spacing: 4) {
@@ -628,7 +642,7 @@ struct RouteCard: View {
                         .frame(width: 180, height: 100)
                         .overlay(
                             Group {
-                                if let urlString = mountain.imageUrl, !urlString.isEmpty, let url = URL(string: urlString) {
+                                if let urlString = mountain.effectiveImageUrl, !urlString.isEmpty, let url = URL(string: urlString) {
                                     CachedAsyncImage(url: url) { image in
                                         image.resizable().scaledToFill()
                                     } placeholder: {
@@ -640,6 +654,20 @@ struct RouteCard: View {
                             }
                         )
                         .clipped()
+                        
+                    if let credit = mountain.image_credit, !credit.isEmpty {
+                        VStack {
+                            Spacer()
+                            HStack {
+                                Spacer()
+                                Text("Foto: \(credit)")
+                                    .font(.system(size: 6, weight: .medium, design: .rounded))
+                                    .foregroundColor(.white.opacity(0.4))
+                                    .padding(.trailing, 6)
+                                    .padding(.bottom, 4)
+                            }
+                        }
+                    }
 
                     Text(mountain.difficulty.rawValue.uppercased())
                         .font(.system(size: 8, weight: .black, design: .rounded))

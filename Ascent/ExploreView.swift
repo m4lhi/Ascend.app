@@ -186,13 +186,13 @@ struct ExploreView: View {
         .task {
             await mountainManager.fetchSavedRoutes()
             if let loc = locationManager.userLocation, !hasCenteredOnUser {
-                flyToUserArea(location: loc)
+                flyToMyLocation()
                 hasCenteredOnUser = true
             }
         }
         .onChange(of: locationManager.userLocation) { _, newLoc in
             if let loc = newLoc, !hasCenteredOnUser {
-                flyToUserArea(location: loc)
+                flyToMyLocation()
                 hasCenteredOnUser = true
             }
         }
@@ -698,8 +698,8 @@ struct ExploreView: View {
         VStack(alignment: .leading, spacing: 0) {
             
             // 🟢 FIX: Der ZStack (Bild + Farbverlauf) ist jetzt fest auf 120 Höhe beschränkt.
-            ZStack(alignment: .topTrailing) {
-                if let urlStr = mountain.imageUrl, !urlStr.isEmpty, let url = URL(string: urlStr) {
+            ZStack {
+                if let urlStr = mountain.effectiveImageUrl, !urlStr.isEmpty, let url = URL(string: urlStr) {
                     CachedAsyncImage(url: url) { img in
                         img.resizable().scaledToFill()
                     } placeholder: {
@@ -709,14 +709,27 @@ struct ExploreView: View {
                     imagePlaceholder
                 }
 
-                LinearGradient(colors: [.clear, Color.white], startPoint: .center, endPoint: .bottom)
+                LinearGradient(colors: [.clear, Color.black.opacity(0.6)], startPoint: .center, endPoint: .bottom)
                     .frame(height: 120) // Verhindert das unendliche Ausdehnen!
+                    
+                // 🟢 NEU: Image Credit Overlay
+                if let credit = mountain.image_credit, !credit.isEmpty {
+                    Text("Foto: \(credit)")
+                        .font(.system(size: 8, weight: .medium, design: .rounded))
+                        .foregroundColor(.white.opacity(0.6))
+                        .shadow(color: .black.opacity(0.8), radius: 2, x: 0, y: 1)
+                        .padding(.horizontal, 10)
+                        .padding(.bottom, 8)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                }
 
                 Button {
                     withAnimation(.spring()) { selectedMountain = nil; selectedMarkerTag = nil; selectedRouteToShow = nil }
                 } label: {
                     Image(systemName: "xmark.circle.fill").font(.system(size: 26, design: .rounded)).foregroundStyle(.white.opacity(0.8), .black.opacity(0.5))
-                }.padding(12)
+                }
+                .padding(12)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
             }
             .frame(height: 120)
 
@@ -884,7 +897,9 @@ struct ExploreView: View {
             try? await Task.sleep(nanoseconds: 300_000_000)
             guard !Task.isCancelled else { return }
             withAnimation(.easeInOut) {
-                mountainManager.searchMountains(query: searchText, in: selectedDifficulty, nearby: showNearby, radiusKm: nearbyRadiusKm)
+                Task {
+                    await mountainManager.searchMountains(query: searchText, difficulty: selectedDifficulty)
+                }
             }
         }
     }
@@ -896,7 +911,10 @@ struct ExploreView: View {
             name: routeName,
             mountainIds: routeMountains.map { $0.id },
             createdAt: Date(),
-            updatedAt: Date()
+            totalDistanceKm: routeDistanceKm,
+            totalElevationGain: routeElevationGain,
+            estimatedDurationMinutes: Int(routeDistanceKm * 15 + Double(routeElevationGain) / 10),
+            difficulty: "Medium"
         )
         Task {
             await mountainManager.saveRoute(newRoute)
@@ -919,61 +937,226 @@ struct MountainElevationPreview: View {
 
     // Simulate a simple ascent profile: start → approach → steep → summit
     private var profilePoints: [(x: Double, y: Double)] {
+        let rawPoints: [(x: Double, y: Double)]
         if let route = route, let elevs = route.elevation_profile, !elevs.isEmpty {
             let maxPoints = min(elevs.count, 100)
             let step = Double(elevs.count) / Double(maxPoints)
-            return (0..<maxPoints).map { i in
+            rawPoints = (0..<maxPoints).map { i in
                 let index = min(Int(Double(i) * step), elevs.count - 1)
                 return (Double(i) / Double(max(1, maxPoints - 1)), Double(elevs[index]))
             }
+        } else {
+            let summit = Double(elevation)
+            let start = max(0, summit * 0.15)
+            rawPoints = [
+                (0.0, start),
+                (0.15, start + summit * 0.05),
+                (0.3, start + summit * 0.2),
+                (0.5, start + summit * 0.45),
+                (0.7, start + summit * 0.75),
+                (0.85, start + summit * 0.92),
+                (1.0, summit)
+            ]
         }
-        let summit = Double(elevation)
-        let start = max(0, summit * 0.15)
-        return [
-            (0.0, start),
-            (0.15, start + summit * 0.05),
-            (0.3, start + summit * 0.2),
-            (0.5, start + summit * 0.45),
-            (0.7, start + summit * 0.75),
-            (0.85, start + summit * 0.92),
-            (1.0, summit)
-        ]
+        
+        let maxY = rawPoints.map(\.y).max() ?? 1.0
+        let minY = rawPoints.map(\.y).min() ?? 0.0
+        let range = max(maxY - minY, 1.0)
+        
+        return rawPoints.map { (x: $0.x, y: ($0.y - minY) / range) }
     }
 
     var body: some View {
         GeometryReader { geo in
-            let points = profilePoints
-            let path = Path { path in
-                for i in 0..<points.count {
-                    let x = points[i].x * geo.size.width
-                    let y = geo.size.height - points[i].y * geo.size.height
-                    if i == 0 {
-                        path.move(to: CGPoint(x: x, y: y))
-                    } else {
-                        path.addLine(to: CGPoint(x: x, y: y))
-                    }
+            let w = geo.size.width
+            let h = geo.size.height
+            let padY: CGFloat = 6
+            let usableHeight = max(h - padY * 2, 10)
+            
+            let mappedPoints = profilePoints.map { 
+                CGPoint(x: $0.x * w, y: padY + usableHeight - $0.y * usableHeight)
+            }
+            
+            let path = Path { p in
+                guard !mappedPoints.isEmpty else { return }
+                var previousPoint = mappedPoints[0]
+                p.move(to: previousPoint)
+                
+                for i in 1..<mappedPoints.count {
+                    let currentPoint = mappedPoints[i]
+                    let controlPoint1 = CGPoint(x: (previousPoint.x + currentPoint.x) / 2, y: previousPoint.y)
+                    let controlPoint2 = CGPoint(x: (previousPoint.x + currentPoint.x) / 2, y: currentPoint.y)
+                    p.addCurve(to: currentPoint, control1: controlPoint1, control2: controlPoint2)
+                    previousPoint = currentPoint
                 }
             }
 
+            let fillPath = Path { p in
+                guard !mappedPoints.isEmpty else { return }
+                p.move(to: CGPoint(x: w, y: h))
+                p.addLine(to: CGPoint(x: 0, y: h))
+                
+                var previousPoint = mappedPoints[0]
+                p.addLine(to: previousPoint)
+                
+                for i in 1..<mappedPoints.count {
+                    let currentPoint = mappedPoints[i]
+                    let controlPoint1 = CGPoint(x: (previousPoint.x + currentPoint.x) / 2, y: previousPoint.y)
+                    let controlPoint2 = CGPoint(x: (previousPoint.x + currentPoint.x) / 2, y: currentPoint.y)
+                    p.addCurve(to: currentPoint, control1: controlPoint1, control2: controlPoint2)
+                    previousPoint = currentPoint
+                }
+            }
+            
             ZStack(alignment: .leading) {
                 // Background gradient
-                LinearGradient(colors: [accentColor.opacity(0.2), accentColor.opacity(0.1)], startPoint: .top, endPoint: .bottom)
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                LinearGradient(colors: [accentColor.opacity(0.15), accentColor.opacity(0.05)], startPoint: .top, endPoint: .bottom)
 
-                // Elevation profile line
-                path.stroke(accentColor, lineWidth: 3)
+                // Fill underneath curve
+                fillPath
+                    .fill(LinearGradient(colors: [accentColor.opacity(0.4), accentColor.opacity(0.0)], startPoint: .top, endPoint: .bottom))
 
-                // Add circles at each point
-                ForEach(0..<points.count, id: \.self) { i in
-                    let x = points[i].x * geo.size.width
-                    let y = geo.size.height - points[i].y * geo.size.height
-                    Circle()
-                        .fill(accentColor)
-                        .frame(width: 6, height: 6)
-                        .position(x: x, y: y)
-                }
+                // Smooth elevation line
+                path.stroke(accentColor, style: StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
             }
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
-        .frame(height: 40)
+        .frame(height: 50)
+    }
+}
+
+// MARK: - Reusable UI Components
+struct FloatingMapButton: View {
+    let icon: String
+    let action: () -> Void
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: icon)
+                .font(.system(size: 20, weight: .semibold, design: .rounded))
+                .foregroundColor(.black)
+                .frame(width: 44, height: 44)
+                .background(.ultraThinMaterial)
+                .clipShape(Circle())
+                .shadow(color: .black.opacity(0.15), radius: 8, y: 4)
+        }
+    }
+}
+
+struct ToolbarButton: View {
+    let icon: String
+    let label: String
+    let isActive: Bool
+    let action: () -> Void
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                Text(label)
+                    .fontWeight(.semibold)
+            }
+            .font(.system(size: 13, design: .rounded))
+            .foregroundColor(isActive ? .white : .primary)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(isActive ? Color(red: 0.1, green: 0.5, blue: 0.95) : Color(.systemGray6))
+            .clipShape(Capsule())
+        }
+    }
+}
+
+struct DifficultyChip: View {
+    let label: String
+    let color: Color
+    let isSelected: Bool
+    let action: () -> Void
+    var body: some View {
+        Button(action: action) {
+            Text(label)
+                .font(.system(size: 13, weight: .bold, design: .rounded))
+                .foregroundColor(isSelected ? .white : color)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(isSelected ? color : color.opacity(0.1))
+                .clipShape(Capsule())
+        }
+    }
+}
+
+struct DetailStat: View {
+    let icon: String
+    let value: String
+    let label: String
+    var body: some View {
+        VStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(.gray)
+            Text(value)
+                .font(.system(size: 14, weight: .bold, design: .rounded))
+            Text(label)
+                .font(.system(size: 10, design: .rounded))
+                .foregroundColor(.gray)
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
+
+struct RouteElevationProfile: View {
+    let mountains: [Mountain]
+    let accentColor: Color
+    var body: some View {
+        MountainElevationPreview(elevation: mountains.max(by: { $0.elevation < $1.elevation })?.elevation ?? 0, accentColor: accentColor, route: nil)
+    }
+}
+
+struct ExploreDiscoveryCard: View {
+    let mountain: Mountain
+    let userLocation: CLLocation?
+    let compact: Bool
+    let action: () -> Void
+    var body: some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(mountain.name)
+                    .font(.headline)
+                    .foregroundColor(.primary)
+                Text("\(mountain.elevation)m • \(mountain.difficulty.rawValue)")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+            .padding()
+            .frame(width: compact ? 160 : 200, alignment: .leading)
+            .background(.ultraThinMaterial)
+            .cornerRadius(16)
+            .shadow(color: .black.opacity(0.1), radius: 5, y: 2)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+struct SavedRouteCard: View {
+    let route: SavedRoute
+    let onTap: () -> Void
+    let onDelete: () -> Void
+    var body: some View {
+        Button(action: onTap) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(route.name)
+                    .font(.headline)
+                    .foregroundColor(.primary)
+                Text("\(route.totalDistanceKm, specifier: "%.1f")km • \(route.totalElevationGain)m")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+            .padding()
+            .frame(width: 200, alignment: .leading)
+            .background(.ultraThinMaterial)
+            .cornerRadius(16)
+            .shadow(color: .black.opacity(0.1), radius: 5, y: 2)
+        }
+        .buttonStyle(.plain)
+        .contextMenu {
+            Button("Delete", role: .destructive, action: onDelete)
+        }
     }
 }

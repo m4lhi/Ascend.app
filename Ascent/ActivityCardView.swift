@@ -107,7 +107,7 @@ struct ActivityCardView: View {
                         .frame(maxWidth: .infinity).frame(height: tour.routeCoordinates.isEmpty ? 200 : 140)
                         .clipped()
                 } placeholder: {
-                    Rectangle().fill(Color.white.opacity(0.05))
+                    Rectangle().fill(Color.gray.opacity(0.1))
                         .frame(height: tour.routeCoordinates.isEmpty ? 200 : 140)
                         .overlay(ProgressView().tint(.gray))
                 }

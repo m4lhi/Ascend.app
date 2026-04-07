@@ -35,11 +35,17 @@ struct Mountain: Identifiable, Hashable, Codable {
     let description: String
     let isPrestigePeak: Bool
     let imageUrl: String?
+    let image_url: String?
+    var image_credit: String?
     var photographer_name: String?
     var photographer_link: String?
     let latitude: Double?
     let longitude: Double?
     var routes: [MountainRoute]?
+    
+    var effectiveImageUrl: String? {
+        return image_url ?? imageUrl
+    }
 
     // Explicit CodingKeys mapping exactly to Supabase column names (case-sensitive)
     enum CodingKeys: String, CodingKey {
@@ -52,6 +58,8 @@ struct Mountain: Identifiable, Hashable, Codable {
         case description      = "description"
         case isPrestigePeak   = "isPrestigePeak"
         case imageUrl         = "imageUrl"
+        case image_url        = "image_url"
+        case image_credit     = "image_credit"
         case photographer_name = "photographer_name"
         case photographer_link = "photographer_link"
         case latitude         = "latitude"
@@ -79,6 +87,8 @@ struct Mountain: Identifiable, Hashable, Codable {
         
         self.isPrestigePeak = try container.decodeIfPresent(Bool.self, forKey: .isPrestigePeak) ?? false
         self.imageUrl = try container.decodeIfPresent(String.self, forKey: .imageUrl)
+        self.image_url = try container.decodeIfPresent(String.self, forKey: .image_url)
+        self.image_credit = try container.decodeIfPresent(String.self, forKey: .image_credit)
         self.photographer_name = try container.decodeIfPresent(String.self, forKey: .photographer_name)
         self.photographer_link = try container.decodeIfPresent(String.self, forKey: .photographer_link)
         
@@ -91,12 +101,12 @@ struct Mountain: Identifiable, Hashable, Codable {
     // Manual init for code that creates Mountain directly
     init(id: UUID = UUID(), name: String, elevation: Int, difficulty: Difficulty,
          country: String, region: String, description: String, isPrestigePeak: Bool,
-         imageUrl: String? = nil, photographer_name: String? = nil,
+         imageUrl: String? = nil, image_url: String? = nil, image_credit: String? = nil, photographer_name: String? = nil,
          photographer_link: String? = nil, latitude: Double? = nil, longitude: Double? = nil) {
         self.id = id; self.name = name; self.elevation = elevation
         self.difficulty = difficulty; self.country = country; self.region = region
         self.description = description; self.isPrestigePeak = isPrestigePeak
-        self.imageUrl = imageUrl; self.photographer_name = photographer_name
+        self.imageUrl = imageUrl; self.image_url = image_url; self.image_credit = image_credit; self.photographer_name = photographer_name
         self.photographer_link = photographer_link
         self.latitude = latitude; self.longitude = longitude
     }
