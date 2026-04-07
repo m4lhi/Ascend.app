@@ -186,13 +186,13 @@ struct ExploreView: View {
         .task {
             await mountainManager.fetchSavedRoutes()
             if let loc = locationManager.userLocation, !hasCenteredOnUser {
-                flyToUserArea(location: loc)
+                flyToMyLocation()
                 hasCenteredOnUser = true
             }
         }
         .onChange(of: locationManager.userLocation) { _, newLoc in
             if let loc = newLoc, !hasCenteredOnUser {
-                flyToUserArea(location: loc)
+                flyToMyLocation()
                 hasCenteredOnUser = true
             }
         }
@@ -698,8 +698,8 @@ struct ExploreView: View {
         VStack(alignment: .leading, spacing: 0) {
             
             // 🟢 FIX: Der ZStack (Bild + Farbverlauf) ist jetzt fest auf 120 Höhe beschränkt.
-            ZStack(alignment: .topTrailing) {
-                if let urlStr = mountain.imageUrl, !urlStr.isEmpty, let url = URL(string: urlStr) {
+            ZStack {
+                if let urlStr = mountain.effectiveImageUrl, !urlStr.isEmpty, let url = URL(string: urlStr) {
                     CachedAsyncImage(url: url) { img in
                         img.resizable().scaledToFill()
                     } placeholder: {
@@ -709,14 +709,27 @@ struct ExploreView: View {
                     imagePlaceholder
                 }
 
-                LinearGradient(colors: [.clear, Color.white], startPoint: .center, endPoint: .bottom)
+                LinearGradient(colors: [.clear, Color.black.opacity(0.6)], startPoint: .center, endPoint: .bottom)
                     .frame(height: 120) // Verhindert das unendliche Ausdehnen!
+                    
+                // 🟢 NEU: Image Credit Overlay
+                if let credit = mountain.image_credit, !credit.isEmpty {
+                    Text("Foto: \(credit)")
+                        .font(.system(size: 8, weight: .medium, design: .rounded))
+                        .foregroundColor(.white.opacity(0.6))
+                        .shadow(color: .black.opacity(0.8), radius: 2, x: 0, y: 1)
+                        .padding(.horizontal, 10)
+                        .padding(.bottom, 8)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                }
 
                 Button {
                     withAnimation(.spring()) { selectedMountain = nil; selectedMarkerTag = nil; selectedRouteToShow = nil }
                 } label: {
                     Image(systemName: "xmark.circle.fill").font(.system(size: 26, design: .rounded)).foregroundStyle(.white.opacity(0.8), .black.opacity(0.5))
-                }.padding(12)
+                }
+                .padding(12)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
             }
             .frame(height: 120)
 
@@ -751,7 +764,7 @@ struct ExploreView: View {
                 }
 
                 // Mini elevation preview
-                MountainElevationPreview(elevation: mountain.elevation, accentColor: gold)
+                MountainElevationPreview(elevation: mountain.elevation, accentColor: gold, route: mountain.routes?.first)
                     .frame(height: 40)
 
                 // Action buttons row
@@ -868,55 +881,14 @@ struct ExploreView: View {
     }
 
     func flyTo(lat: Double, lon: Double, distance: Double) {
-        withAnimation(.easeInOut(duration: 1.5)) { cameraPosition = .camera(MapCamera(centerCoordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon), distance: distance, heading: 0, pitch: 0)) }
-    }
-
-    func flyToUserArea(location: CLLocation) {
-        withAnimation(.easeInOut(duration: 2.0)) {
-            cameraPosition = .camera(MapCamera(centerCoordinate: location.coordinate, distance: 15000, heading: 0, pitch: 0))
+        withAnimation(.easeInOut(duration: 1.5)) {
+            cameraPosition = .camera(MapCamera(centerCoordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon), distance: distance, heading: 0, pitch: 0))
         }
     }
 
-    func saveCreatedRoute() {
-        guard routeMountains.count >= 2 else { return }
-
-        // Calculate real distance between waypoints
-        var totalDistanceKm = 0.0
-        for i in 1..<routeMountains.count {
-            guard let lat1 = routeMountains[i-1].latitude, let lon1 = routeMountains[i-1].longitude,
-                  let lat2 = routeMountains[i].latitude, let lon2 = routeMountains[i].longitude else { continue }
-            let loc1 = CLLocation(latitude: lat1, longitude: lon1)
-            let loc2 = CLLocation(latitude: lat2, longitude: lon2)
-            totalDistanceKm += loc1.distance(from: loc2) / 1000.0
-        }
-
-        // Sum elevation gain (ascent between peaks)
-        var totalElevationGain = 0
-        for i in 1..<routeMountains.count {
-            let delta = routeMountains[i].elevation - routeMountains[i-1].elevation
-            if delta > 0 { totalElevationGain += delta }
-        }
-        // Add estimated gain for first peak (half elevation as rough estimate)
-        totalElevationGain += routeMountains[0].elevation / 2
-
-        // Estimate duration: ~400m elevation/hour + 4km/hour horizontal
-        let elevationHours = Double(totalElevationGain) / 400.0
-        let horizontalHours = totalDistanceKm / 4.0
-        let estimatedMinutes = Int((max(elevationHours, horizontalHours) + min(elevationHours, horizontalHours) * 0.5) * 60)
-
-        let route = SavedRoute(
-            id: UUID(),
-            name: routeName.isEmpty ? "\(routeMountains[0].region) Route" : routeName,
-            mountainIds: routeMountains.map { $0.id },
-            createdAt: Date(),
-            totalDistanceKm: round(totalDistanceKm * 10) / 10,
-            totalElevationGain: totalElevationGain,
-            estimatedDurationMinutes: estimatedMinutes,
-            difficulty: routeMountains.map { $0.difficulty.rawValue }.max() ?? "Medium"
-        )
-        Task { await mountainManager.saveRoute(route) }
-        HapticManager.shared.success()
-        withAnimation(.spring()) { isRouteCreationMode = false; routeMountains = []; routeName = "" }
+    func refreshResults() async {
+        await mountainManager.fetchTopMountains()
+        performDebouncedSearch()
     }
 
     func performDebouncedSearch() {
@@ -924,223 +896,34 @@ struct ExploreView: View {
         searchTask = Task {
             try? await Task.sleep(nanoseconds: 300_000_000)
             guard !Task.isCancelled else { return }
-            await refreshResults()
-        }
-    }
-
-    func refreshResults() async {
-        if showNearby, let loc = locationManager.userLocation {
-            // Fetch mountains and POIs in parallel
-            async let mountains: () = mountainManager.fetchNearbyMountains(latitude: loc.coordinate.latitude, longitude: loc.coordinate.longitude, radiusKm: nearbyRadiusKm)
-            async let pois: () = mountainManager.fetchNearbyPOIs(latitude: loc.coordinate.latitude, longitude: loc.coordinate.longitude, radiusKm: nearbyRadiusKm)
-            _ = await (mountains, pois)
-        } else if !searchText.isEmpty || selectedDifficulty != nil {
-            await mountainManager.searchMountains(query: searchText, difficulty: selectedDifficulty)
-        } else {
-            mountainManager.clearNearby()
-        }
-    }
-}
-
-// =========================================
-// === FLOATING MAP BUTTON ===
-// =========================================
-struct FloatingMapButton: View {
-    let icon: String
-    var isActive: Bool = false
-    let action: () -> Void
-    private let gold = Color(red: 0.1, green: 0.5, blue: 0.95)
-
-    var body: some View {
-        Button(action: action) {
-            Image(systemName: icon)
-                .font(.system(size: 18, weight: .semibold, design: .rounded))
-                .foregroundColor(isActive ? .white : .primary)
-                .frame(width: 44, height: 44)
-                .background(isActive ? gold : Color(white: 0.95))
-                .clipShape(Circle())
-                .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 4)
-                .overlay(Circle().stroke(Color.black.opacity(0.04), lineWidth: 1))
-        }
-        .buttonStyle(PlainButtonStyle())
-    }
-}
-
-// =========================================
-// === RESTLICHE KOMPONENTEN ===
-// =========================================
-struct ToolbarButton: View {
-    let icon: String; let label: String; let isActive: Bool; let action: () -> Void
-    private let gold = Color(red: 0.1, green: 0.5, blue: 0.95)
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 4) { Image(systemName: icon).font(.system(size: 11, weight: .bold, design: .rounded)); Text(label).font(.system(size: 11, weight: .bold, design: .rounded)) }
-            .foregroundColor(isActive ? .white : .primary).padding(.horizontal, 10).padding(.vertical, 8)
-            .background(isActive ? gold : Color.white).clipShape(Capsule())
-            .overlay(Capsule().stroke(Color.black.opacity(isActive ? 0 : 0.05), lineWidth: 0.5))
-        }
-    }
-}
-
-struct DifficultyChip: View {
-    let label: String; var color: Color = .white; let isSelected: Bool; let action: () -> Void
-    var body: some View {
-        Button(action: action) {
-            Text(label).font(.system(size: 12, weight: .bold, design: .rounded)).foregroundColor(isSelected ? .white : .primary)
-                .padding(.horizontal, 12).padding(.vertical, 6).background(isSelected ? color : Color.white).cornerRadius(8)
-                .shadow(color: .black.opacity(0.03), radius: 2)
-        }
-    }
-}
-
-struct ExploreDiscoveryCard: View {
-    let mountain: Mountain; let userLocation: CLLocation?; var compact: Bool = false; let onTap: () -> Void
-    @State private var isPressed = false; private let gold = Color(red: 0.1, green: 0.5, blue: 0.95)
-    var body: some View {
-        Button(action: onTap) {
-            VStack(alignment: .leading, spacing: 6) {
-                if let urlString = mountain.imageUrl, let url = URL(string: urlString) {
-                    CachedAsyncImage(url: url) { i in i.resizable().scaledToFill() } placeholder: { Color.black.opacity(0.05) }.frame(width: 140, height: 65).clipped().cornerRadius(8)
-                } else {
-                    RoundedRectangle(cornerRadius: 8).fill(Color.black.opacity(0.05)).frame(width: 140, height: 65)
-                }
-                Text(mountain.name).font(.system(size: 12, weight: .bold, design: .rounded)).foregroundColor(.primary).lineLimit(1)
-                HStack {
-                    Text("\(mountain.elevation)m").font(.system(size: 10, design: .rounded)).foregroundColor(.gray)
-                    Spacer()
-                    Text(mountain.difficulty.rawValue.uppercased()).font(.system(size: 7, weight: .black, design: .rounded)).foregroundColor(.white).padding(.horizontal, 4).padding(.vertical, 2).background(mountain.difficulty.color).cornerRadius(3)
-                }
-            }.padding(8).frame(width: 156).background(Color.white).cornerRadius(12).shadow(color: .black.opacity(0.04), radius: 4, y: 2)
-        }.buttonStyle(PlainButtonStyle())
-    }
-}
-
-struct SavedRouteCard: View {
-    let route: SavedRoute; let onTap: () -> Void; let onDelete: () -> Void
-    private let gold = Color(red: 0.1, green: 0.5, blue: 0.95)
-
-    private var durationText: String {
-        let mins = route.estimatedDurationMinutes
-        if mins < 60 { return "\(mins)min" }
-        return "\(mins / 60)h \(mins % 60)m"
-    }
-
-    var body: some View {
-        Button(action: onTap) {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 6) {
-                    Image(systemName: "map.fill").font(.system(size: 10, design: .rounded)).foregroundColor(gold)
-                    Text(route.name).font(.system(size: 13, weight: .bold, design: .rounded)).foregroundColor(.primary).lineLimit(1)
-                }
-                HStack(spacing: 10) {
-                    Label("\(route.mountainIds.count)", systemImage: "mountain.2.fill")
-                    if route.totalDistanceKm > 0 {
-                        Label(String(format: "%.1fkm", route.totalDistanceKm), systemImage: "point.topleft.down.to.point.bottomright.curvepath")
-                    }
-                    if route.totalElevationGain > 0 {
-                        Label("+\(route.totalElevationGain)m", systemImage: "arrow.up.right")
-                    }
-                }
-                .font(.system(size: 10, weight: .medium, design: .rounded))
-                .foregroundColor(.gray)
-
-                if route.estimatedDurationMinutes > 0 {
-                    HStack(spacing: 4) {
-                        Image(systemName: "clock").font(.system(size: 9, design: .rounded))
-                        Text(durationText).font(.system(size: 10, weight: .semibold, design: .rounded))
-                        Spacer()
-                        Text(route.difficulty.uppercased()).font(.system(size: 8, weight: .black, design: .rounded))
-                            .foregroundColor(.white).padding(.horizontal, 6).padding(.vertical, 2)
-                            .background(difficultyColorForString(route.difficulty)).cornerRadius(4)
-                    }.foregroundColor(.gray)
+            withAnimation(.easeInOut) {
+                Task {
+                    await mountainManager.searchMountains(query: searchText, difficulty: selectedDifficulty)
                 }
             }
-            .padding(12)
-            .frame(width: 170)
-            .background(Color.white)
-            .cornerRadius(12)
-            .shadow(color: .black.opacity(0.06), radius: 6, y: 3)
-        }
-        .buttonStyle(PlainButtonStyle())
-        .contextMenu {
-            Button(role: .destructive) { onDelete() } label: {
-                Label("Delete Route", systemImage: "trash")
-            }
         }
     }
 
-    private func difficultyColorForString(_ diff: String) -> Color {
-        switch diff {
-        case "Easy": return .green
-        case "Medium": return .blue
-        case "Hard": return .orange
-        case "Extreme": return .red
-        case "Expert": return .purple
-        default: return .gray
-        }
-    }
-}
-
-// =========================================
-// === ROUTE ELEVATION PROFILE ===
-// =========================================
-struct RouteElevationProfile: View {
-    let mountains: [Mountain]
-    let accentColor: Color
-
-    private var elevationPoints: [(index: Int, name: String, elevation: Int)] {
-        mountains.enumerated().map { (index: $0.offset, name: $0.element.name, elevation: $0.element.elevation) }
-    }
-
-    private var minElevation: Int {
-        (mountains.map { $0.elevation }.min() ?? 0) - 200
-    }
-
-    var body: some View {
-        let chartMinElevation = max(0, minElevation)
-        let chartMaxElevation = (mountains.map { $0.elevation }.max() ?? 1000) + 100
-        let areaFillGradient = LinearGradient(
-            colors: [accentColor.opacity(0.3), accentColor.opacity(0.05)],
-            startPoint: .top, endPoint: .bottom
+    func saveCreatedRoute() {
+        guard !routeMountains.isEmpty, !routeName.isEmpty else { return }
+        let newRoute = SavedRoute(
+            id: UUID(),
+            name: routeName,
+            mountainIds: routeMountains.map { $0.id },
+            createdAt: Date(),
+            totalDistanceKm: routeDistanceKm,
+            totalElevationGain: routeElevationGain,
+            estimatedDurationMinutes: Int(routeDistanceKm * 15 + Double(routeElevationGain) / 10),
+            difficulty: "Medium"
         )
-
-        Chart {
-            ForEach(elevationPoints, id: \.index) { point in
-                AreaMark(
-                    x: .value("Point", point.index),
-                    yStart: .value("Base", chartMinElevation),
-                    yEnd: .value("Elevation", point.elevation)
-                )
-                .foregroundStyle(areaFillGradient)
-                .interpolationMethod(.catmullRom)
-
-                LineMark(
-                    x: .value("Point", point.index),
-                    y: .value("Elevation", point.elevation)
-                )
-                .foregroundStyle(accentColor)
-                .lineStyle(StrokeStyle(lineWidth: 2))
-                .interpolationMethod(.catmullRom)
-
-                PointMark(
-                    x: .value("Point", point.index),
-                    y: .value("Elevation", point.elevation)
-                )
-                .foregroundStyle(accentColor)
-                .symbolSize(20)
+        Task {
+            await mountainManager.saveRoute(newRoute)
+            withAnimation(.spring()) {
+                isRouteCreationMode = false
+                routeMountains = []
+                routeName = ""
             }
         }
-        .chartXAxis(.hidden)
-        .chartYAxis {
-            AxisMarks(position: .leading, values: .automatic(desiredCount: 3)) { value in
-                AxisValueLabel {
-                    if let elev = value.as(Int.self) {
-                        Text("\(elev)m").font(.system(size: 7, design: .rounded)).foregroundColor(.gray)
-                    }
-                }
-            }
-        }
-        .chartYScale(domain: chartMinElevation...chartMaxElevation)
     }
 }
 
@@ -1150,54 +933,230 @@ struct RouteElevationProfile: View {
 struct MountainElevationPreview: View {
     let elevation: Int
     let accentColor: Color
+    let route: MountainRoute?
 
     // Simulate a simple ascent profile: start → approach → steep → summit
     private var profilePoints: [(x: Double, y: Double)] {
-        let summit = Double(elevation)
-        let start = max(0, summit * 0.15)
-        return [
-            (0.0, start),
-            (0.15, start + summit * 0.05),
-            (0.3, start + summit * 0.2),
-            (0.5, start + summit * 0.45),
-            (0.7, start + summit * 0.75),
-            (0.85, start + summit * 0.92),
-            (1.0, summit)
-        ]
+        let rawPoints: [(x: Double, y: Double)]
+        if let route = route, let elevs = route.elevation_profile, !elevs.isEmpty {
+            let maxPoints = min(elevs.count, 100)
+            let step = Double(elevs.count) / Double(maxPoints)
+            rawPoints = (0..<maxPoints).map { i in
+                let index = min(Int(Double(i) * step), elevs.count - 1)
+                return (Double(i) / Double(max(1, maxPoints - 1)), Double(elevs[index]))
+            }
+        } else {
+            let summit = Double(elevation)
+            let start = max(0, summit * 0.15)
+            rawPoints = [
+                (0.0, start),
+                (0.15, start + summit * 0.05),
+                (0.3, start + summit * 0.2),
+                (0.5, start + summit * 0.45),
+                (0.7, start + summit * 0.75),
+                (0.85, start + summit * 0.92),
+                (1.0, summit)
+            ]
+        }
+        
+        let maxY = rawPoints.map(\.y).max() ?? 1.0
+        let minY = rawPoints.map(\.y).min() ?? 0.0
+        let range = max(maxY - minY, 1.0)
+        
+        return rawPoints.map { (x: $0.x, y: ($0.y - minY) / range) }
     }
 
     var body: some View {
-        let maxElevationRange = Double(elevation) * 1.1
-        let areaFillGradient = LinearGradient(colors: [accentColor.opacity(0.2), accentColor.opacity(0.02)], startPoint: .top, endPoint: .bottom)
-
-        Chart {
-            ForEach(profilePoints, id: \.x) { point in
-                AreaMark(x: .value("D", point.x), yStart: .value("Base", 0), yEnd: .value("E", point.y))
-                    .foregroundStyle(areaFillGradient)
-                    .interpolationMethod(.catmullRom)
-                LineMark(x: .value("D", point.x), y: .value("E", point.y))
-                    .foregroundStyle(accentColor.opacity(0.6))
-                    .lineStyle(StrokeStyle(lineWidth: 1.5))
-                    .interpolationMethod(.catmullRom)
+        GeometryReader { geo in
+            let w = geo.size.width
+            let h = geo.size.height
+            let padY: CGFloat = 6
+            let usableHeight = max(h - padY * 2, 10)
+            
+            let mappedPoints = profilePoints.map { 
+                CGPoint(x: $0.x * w, y: padY + usableHeight - $0.y * usableHeight)
             }
+            
+            let path = Path { p in
+                guard !mappedPoints.isEmpty else { return }
+                var previousPoint = mappedPoints[0]
+                p.move(to: previousPoint)
+                
+                for i in 1..<mappedPoints.count {
+                    let currentPoint = mappedPoints[i]
+                    let controlPoint1 = CGPoint(x: (previousPoint.x + currentPoint.x) / 2, y: previousPoint.y)
+                    let controlPoint2 = CGPoint(x: (previousPoint.x + currentPoint.x) / 2, y: currentPoint.y)
+                    p.addCurve(to: currentPoint, control1: controlPoint1, control2: controlPoint2)
+                    previousPoint = currentPoint
+                }
+            }
+
+            let fillPath = Path { p in
+                guard !mappedPoints.isEmpty else { return }
+                p.move(to: CGPoint(x: w, y: h))
+                p.addLine(to: CGPoint(x: 0, y: h))
+                
+                var previousPoint = mappedPoints[0]
+                p.addLine(to: previousPoint)
+                
+                for i in 1..<mappedPoints.count {
+                    let currentPoint = mappedPoints[i]
+                    let controlPoint1 = CGPoint(x: (previousPoint.x + currentPoint.x) / 2, y: previousPoint.y)
+                    let controlPoint2 = CGPoint(x: (previousPoint.x + currentPoint.x) / 2, y: currentPoint.y)
+                    p.addCurve(to: currentPoint, control1: controlPoint1, control2: controlPoint2)
+                    previousPoint = currentPoint
+                }
+            }
+            
+            ZStack(alignment: .leading) {
+                // Background gradient
+                LinearGradient(colors: [accentColor.opacity(0.15), accentColor.opacity(0.05)], startPoint: .top, endPoint: .bottom)
+
+                // Fill underneath curve
+                fillPath
+                    .fill(LinearGradient(colors: [accentColor.opacity(0.4), accentColor.opacity(0.0)], startPoint: .top, endPoint: .bottom))
+
+                // Smooth elevation line
+                path.stroke(accentColor, style: StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
-        .chartXAxis(.hidden)
-        .chartYAxis(.hidden)
-        .chartYScale(domain: 0...maxElevationRange)
+        .frame(height: 50)
+    }
+}
+
+// MARK: - Reusable UI Components
+struct FloatingMapButton: View {
+    let icon: String
+    let action: () -> Void
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: icon)
+                .font(.system(size: 20, weight: .semibold, design: .rounded))
+                .foregroundColor(.black)
+                .frame(width: 44, height: 44)
+                .background(.ultraThinMaterial)
+                .clipShape(Circle())
+                .shadow(color: .black.opacity(0.15), radius: 8, y: 4)
+        }
+    }
+}
+
+struct ToolbarButton: View {
+    let icon: String
+    let label: String
+    let isActive: Bool
+    let action: () -> Void
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                Text(label)
+                    .fontWeight(.semibold)
+            }
+            .font(.system(size: 13, design: .rounded))
+            .foregroundColor(isActive ? .white : .primary)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(isActive ? Color(red: 0.1, green: 0.5, blue: 0.95) : Color(.systemGray6))
+            .clipShape(Capsule())
+        }
+    }
+}
+
+struct DifficultyChip: View {
+    let label: String
+    let color: Color
+    let isSelected: Bool
+    let action: () -> Void
+    var body: some View {
+        Button(action: action) {
+            Text(label)
+                .font(.system(size: 13, weight: .bold, design: .rounded))
+                .foregroundColor(isSelected ? .white : color)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(isSelected ? color : color.opacity(0.1))
+                .clipShape(Capsule())
+        }
     }
 }
 
 struct DetailStat: View {
-    let icon: String; let value: String; let label: String
+    let icon: String
+    let value: String
+    let label: String
     var body: some View {
         VStack(spacing: 4) {
-            Image(systemName: icon).font(.system(size: 12, design: .rounded)).foregroundColor(.gray)
-            Text(value).font(.system(size: 13, weight: .bold, design: .rounded)).foregroundColor(.primary)
-            Text(label).font(.system(size: 9, weight: .medium, design: .rounded)).foregroundColor(.gray)
-        }.frame(maxWidth: .infinity)
+            Image(systemName: icon)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(.gray)
+            Text(value)
+                .font(.system(size: 14, weight: .bold, design: .rounded))
+            Text(label)
+                .font(.system(size: 10, design: .rounded))
+                .foregroundColor(.gray)
+        }
+        .frame(maxWidth: .infinity)
     }
 }
-#Preview {
-    ExploreView()
-        .environmentObject(AppState())
+
+struct RouteElevationProfile: View {
+    let mountains: [Mountain]
+    let accentColor: Color
+    var body: some View {
+        MountainElevationPreview(elevation: mountains.max(by: { $0.elevation < $1.elevation })?.elevation ?? 0, accentColor: accentColor, route: nil)
+    }
+}
+
+struct ExploreDiscoveryCard: View {
+    let mountain: Mountain
+    let userLocation: CLLocation?
+    let compact: Bool
+    let action: () -> Void
+    var body: some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(mountain.name)
+                    .font(.headline)
+                    .foregroundColor(.primary)
+                Text("\(mountain.elevation)m • \(mountain.difficulty.rawValue)")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+            .padding()
+            .frame(width: compact ? 160 : 200, alignment: .leading)
+            .background(.ultraThinMaterial)
+            .cornerRadius(16)
+            .shadow(color: .black.opacity(0.1), radius: 5, y: 2)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+struct SavedRouteCard: View {
+    let route: SavedRoute
+    let onTap: () -> Void
+    let onDelete: () -> Void
+    var body: some View {
+        Button(action: onTap) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(route.name)
+                    .font(.headline)
+                    .foregroundColor(.primary)
+                Text("\(route.totalDistanceKm, specifier: "%.1f")km • \(route.totalElevationGain)m")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+            .padding()
+            .frame(width: 200, alignment: .leading)
+            .background(.ultraThinMaterial)
+            .cornerRadius(16)
+            .shadow(color: .black.opacity(0.1), radius: 5, y: 2)
+        }
+        .buttonStyle(.plain)
+        .contextMenu {
+            Button("Delete", role: .destructive, action: onDelete)
+        }
+    }
 }

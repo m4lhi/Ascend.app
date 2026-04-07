@@ -47,6 +47,12 @@ struct CachedAsyncImage<Content: View, Placeholder: View>: View {
         self.url = url
         self.content = content
         self.placeholder = placeholder
+        
+        if let url = url, let cached = ImageCache.shared.image(for: url) {
+            self._uiImage = State(initialValue: cached)
+        } else {
+            self._uiImage = State(initialValue: nil)
+        }
     }
 
     var body: some View {

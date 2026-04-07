@@ -898,7 +898,7 @@ class AppState: ObservableObject {
                     bannerItems.append(HeroBannerItem(
                         title: peak.name,
                         subtitle: "\(peak.elevation)m · \(peak.region)",
-                        imageURL: (peak.imageUrl?.isEmpty == false) ? peak.imageUrl : nil,
+                        imageURL: (peak.effectiveImageUrl?.isEmpty == false) ? peak.effectiveImageUrl : nil,
                         badge: "PRESTIGE PEAK",
                         mountain: peak
                     ))
@@ -907,7 +907,7 @@ class AppState: ObservableObject {
                     bannerItems.append(HeroBannerItem(
                         title: peak.name,
                         subtitle: "\(peak.elevation)m · \(peak.region)",
-                        imageURL: (peak.imageUrl?.isEmpty == false) ? peak.imageUrl : nil,
+                        imageURL: (peak.effectiveImageUrl?.isEmpty == false) ? peak.effectiveImageUrl : nil,
                         badge: "RECOMMENDED",
                         mountain: peak
                     ))

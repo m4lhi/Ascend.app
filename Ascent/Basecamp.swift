@@ -130,9 +130,12 @@ struct BasecampView: View {
                         .rotationEffect(.degrees(-90))
 
                     if let urlString = appState.avatarURL, let url = URL(string: urlString) {
-                        CachedAsyncImage(url: url) { img in img.resizable().scaledToFill() }
-                            placeholder: { Circle().fill(Color.white) }
-                            .frame(width: 40, height: 40).clipShape(Circle())
+                        CachedAsyncImage(url: url) { image in
+                            image.resizable().scaledToFill()
+                        } placeholder: {
+                            Circle().fill(Color.gray.opacity(0.2))
+                        }
+                        .frame(width: 40, height: 40).clipShape(Circle())
                     } else {
                         Circle().fill(Color.white).frame(width: 40, height: 40)
                             .overlay(Image(systemName: "person.fill").foregroundColor(.gray))
@@ -353,15 +356,98 @@ struct BasecampView: View {
         .shadow(color: .black.opacity(0.05), radius: 8, y: 4)
     }
 
-    // =========================================
-    // MARK: - Discover Strip (after feed)
-    // =========================================
-    private var discoverStrip: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Discover Routes")
-                .font(.system(size: 17, weight: .bold, design: .rounded))
-                .foregroundColor(.primary)
-                .padding(.horizontal, 16)
+    // MARK: - Hero Banner
+
+    private var heroBannerSection: some View {
+        VStack(spacing: 10) {
+            let peak = appState.recommendedPeaks[heroBannerIndex % appState.recommendedPeaks.count]
+
+            Button {
+                mountainToTrack = peak
+                showTracker = true
+            } label: {
+                ZStack(alignment: .bottomLeading) {
+                    Color.clear
+                        .frame(height: 180)
+                        .frame(maxWidth: .infinity)
+                        .overlay(
+                            Group {
+                                if let urlString = peak.effectiveImageUrl, !urlString.isEmpty, let url = URL(string: urlString) {
+                                    CachedAsyncImage(url: url) { image in
+                                        image.resizable().scaledToFill()
+                                    } placeholder: {
+                                        heroBannerPlaceholder(peak: peak)
+                                    }
+                                } else {
+                                    heroBannerPlaceholder(peak: peak)
+                                }
+                            }
+                        )
+                        .clipped()
+
+                    LinearGradient(colors: [.clear, .clear, .black.opacity(0.85)],
+                                   startPoint: .top, endPoint: .bottom)
+                                   
+                    if let credit = peak.image_credit, !credit.isEmpty {
+                        VStack {
+                            Spacer()
+                            HStack {
+                                Spacer()
+                                Text("Foto: \(credit)")
+                                    .font(.system(size: 7, weight: .medium, design: .rounded))
+                                    .foregroundColor(.white.opacity(0.35))
+                                    .padding(.trailing, 16)
+                                    .padding(.bottom, 6)
+                            }
+                        }
+                    }
+
+                    HStack(alignment: .bottom) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(peak.isPrestigePeak ? "PRESTIGE PEAK" : "FEATURED")
+                                .font(.system(size: 9, weight: .black, design: .rounded))
+                                .foregroundColor(peak.isPrestigePeak ? gold : .cyan)
+                                .tracking(2)
+                            Text(peak.name)
+                                .font(.system(.title3, design: .rounded)).fontWeight(.bold).foregroundColor(.white)
+                            Text("\(peak.elevation)m · \(peak.region)")
+                                .font(.system(.caption, design: .rounded)).foregroundColor(.white.opacity(0.7))
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right.circle.fill")
+                            .font(.system(size: 28)).foregroundColor(.white.opacity(0.5))
+                    }
+                    .padding(16)
+                }
+            }
+            .buttonStyle(PlainButtonStyle())
+            .frame(height: 180)
+            .clipShape(RoundedRectangle(cornerRadius: 20))
+            .padding(.horizontal, 20)
+            .id(heroBannerIndex)
+            .transition(.opacity)
+            .onReceive(bannerTimer) { _ in
+                withAnimation(.easeInOut(duration: 0.6)) {
+                    heroBannerIndex += 1
+                }
+            }
+
+            HStack(spacing: 5) {
+                ForEach(0..<min(appState.recommendedPeaks.count, 8), id: \.self) { i in
+                    Capsule()
+                        .fill(i == heroBannerIndex % appState.recommendedPeaks.count ? gold : Color.gray.opacity(0.2))
+                        .frame(width: i == heroBannerIndex % appState.recommendedPeaks.count ? 16 : 5, height: 4)
+                        .animation(.spring(response: 0.35), value: heroBannerIndex)
+                }
+            }
+        }
+    }
+
+    // MARK: - Suggested Routes
+
+    private var suggestedRoutesSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            sectionHeader("Suggested Routes", icon: "signpost.right.fill", iconColor: .green)
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
@@ -471,13 +557,32 @@ struct RouteCard: View {
                         .frame(width: 180, height: 100)
                         .overlay(
                             Group {
-                                if let urlString = mountain.imageUrl, !urlString.isEmpty, let url = URL(string: urlString) {
-                                    CachedAsyncImage(url: url) { img in img.resizable().scaledToFill() }
-                                        placeholder: { routePlaceholder }
-                                } else { routePlaceholder }
+                                if let urlString = mountain.effectiveImageUrl, !urlString.isEmpty, let url = URL(string: urlString) {
+                                    CachedAsyncImage(url: url) { image in
+                                        image.resizable().scaledToFill()
+                                    } placeholder: {
+                                        routePlaceholder
+                                    }
+                                } else {
+                                    routePlaceholder
+                                }
                             }
                         )
                         .clipped()
+                        
+                    if let credit = mountain.image_credit, !credit.isEmpty {
+                        VStack {
+                            Spacer()
+                            HStack {
+                                Spacer()
+                                Text("Foto: \(credit)")
+                                    .font(.system(size: 6, weight: .medium, design: .rounded))
+                                    .foregroundColor(.white.opacity(0.4))
+                                    .padding(.trailing, 6)
+                                    .padding(.bottom, 4)
+                            }
+                        }
+                    }
 
                     Text(mountain.difficulty.rawValue.uppercased())
                         .font(.system(size: 8, weight: .black, design: .rounded))
