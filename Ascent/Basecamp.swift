@@ -20,6 +20,7 @@ struct BasecampView: View {
     private let bannerTimer = Timer.publish(every: 5, on: .main, in: .common).autoconnect()
     private let accent = Color(red: 0.1, green: 0.5, blue: 0.95)
     private let bg = Color(red: 0.945, green: 0.945, blue: 0.96)
+    private let gold = Color(red: 0.85, green: 0.65, blue: 0.13)
 
     enum FeedTab: String, CaseIterable {
         case all = "All"
@@ -80,7 +81,7 @@ struct BasecampView: View {
                     // MARK: - DISCOVER SECTION (after feed)
                     // ============================
                     if !appState.suggestedRoutes.isEmpty {
-                        discoverStrip
+                        suggestedRoutesSection
                             .padding(.top, 32)
                     }
 
@@ -376,10 +377,10 @@ struct BasecampView: View {
                                     CachedAsyncImage(url: url) { image in
                                         image.resizable().scaledToFill()
                                     } placeholder: {
-                                        heroBannerPlaceholder(peak: peak)
+                                        peakPlaceholder(peak)
                                     }
                                 } else {
-                                    heroBannerPlaceholder(peak: peak)
+                                    peakPlaceholder(peak)
                                 }
                             }
                         )
@@ -464,6 +465,15 @@ struct BasecampView: View {
     }
 
     // MARK: - Helpers
+
+    private func sectionHeader(_ title: String, icon: String, iconColor: Color) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon).font(.system(size: 16, weight: .bold)).foregroundColor(iconColor)
+            Text(title.uppercased()).font(.system(size: 14, weight: .black, design: .rounded)).foregroundColor(.secondary).tracking(1)
+            Spacer()
+        }
+        .padding(.horizontal, 16)
+    }
 
     private var greeting: String {
         let hour = Calendar.current.component(.hour, from: Date())

@@ -1,0 +1,5 @@
+Command line invocation:
+    /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild -workspace Ascent.xcworkspace -scheme Ascent -destination "platform=iOS Simulator,name=iPhone 16 Pro Max" build
+
+2026-04-01 00:09:39.893 xcodebuild[6848:118840] Writing error result bundle to /var/folders/n6/mq6jlt9x4nv5t_ttwf471t8m0000gn/T/ResultBundle_2026-01-04_00-09-0039.xcresult
+xcodebuild: error: 'Ascent.xcworkspace' does not exist.
