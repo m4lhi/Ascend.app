@@ -70,6 +70,24 @@ struct SettingsView: View {
                             OfflineDownloadsView(offlineManager: offlineManager)
                         }
 
+                        SettingsSection(title: "NAVIGATION") {
+                            Toggle(isOn: Binding(
+                                get: { UserDefaults.standard.bool(forKey: "turnByTurnEnabled") },
+                                set: { UserDefaults.standard.set($0, forKey: "turnByTurnEnabled") }
+                            )) {
+                                SettingsRowLabel(icon: "arrow.triangle.turn.up.right.diamond.fill", iconColor: .cyan, text: "Turn-by-Turn Guidance")
+                            }
+                            .tint(accentBlue)
+
+                            Toggle(isOn: Binding(
+                                get: { UserDefaults.standard.bool(forKey: "voiceGuidanceEnabled") },
+                                set: { UserDefaults.standard.set($0, forKey: "voiceGuidanceEnabled") }
+                            )) {
+                                SettingsRowLabel(icon: "speaker.wave.2.fill", iconColor: .purple, text: "Voice Announcements")
+                            }
+                            .tint(accentBlue)
+                        }
+
                         SettingsSection(title: "NOTIFICATIONS") {
                             Toggle(isOn: Binding(
                                 get: { notificationsEnabled },
