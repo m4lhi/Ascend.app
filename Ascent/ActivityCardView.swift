@@ -306,28 +306,20 @@ struct ActivityCardView: View {
                     HapticManager.shared.light()
                     appState.toggleFistBump(tour: tour)
                 }) {
-                    HStack(spacing: 6) {
-                        Image(systemName: tour.isFistBumped ? "hand.thumbsup.fill" : "hand.thumbsup")
-                            .font(.system(size: 15))
-                        Text(tour.isFistBumped ? "Bumped" : "Fist Bump")
-                            .font(.system(size: 13, weight: .medium, design: .rounded))
-                    }
-                    .foregroundColor(tour.isFistBumped ? accent : .secondary)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 6)
+                    Image(systemName: tour.isFistBumped ? "hand.thumbsup.fill" : "hand.thumbsup")
+                        .font(.system(size: 20))
+                        .foregroundColor(tour.isFistBumped ? accent : .secondary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
                 }
 
                 // Comment
                 Button(action: { showComments = true }) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "bubble.left")
-                            .font(.system(size: 15))
-                        Text("Comment")
-                            .font(.system(size: 13, weight: .medium, design: .rounded))
-                    }
-                    .foregroundColor(.secondary)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 6)
+                    Image(systemName: "bubble.left")
+                        .font(.system(size: 20))
+                        .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
                 }
 
                 // Bookmark
@@ -335,28 +327,20 @@ struct ActivityCardView: View {
                     HapticManager.shared.light()
                     appState.toggleBookmark(tour: tour)
                 }) {
-                    HStack(spacing: 6) {
-                        Image(systemName: tour.isBookmarked ? "bookmark.fill" : "bookmark")
-                            .font(.system(size: 15))
-                        Text("Save")
-                            .font(.system(size: 13, weight: .medium, design: .rounded))
-                    }
-                    .foregroundColor(tour.isBookmarked ? accent : .secondary)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 6)
+                    Image(systemName: tour.isBookmarked ? "bookmark.fill" : "bookmark")
+                        .font(.system(size: 20))
+                        .foregroundColor(tour.isBookmarked ? accent : .secondary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
                 }
 
                 // Share
                 ShareLink(item: "\(tour.playerName) conquered \(tour.summitName) — +\(tour.elevationGainMeters)m! Tracked with Ascent.") {
-                    HStack(spacing: 6) {
-                        Image(systemName: "square.and.arrow.up")
-                            .font(.system(size: 15))
-                        Text("Share")
-                            .font(.system(size: 13, weight: .medium, design: .rounded))
-                    }
-                    .foregroundColor(.secondary)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 6)
+                    Image(systemName: "square.and.arrow.up")
+                        .font(.system(size: 20))
+                        .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
                 }
             }
         }

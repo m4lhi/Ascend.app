@@ -1077,6 +1077,7 @@ struct ExploreMountainDetailSheet: View {
     let isPrestigePeak: Bool
     let onDismiss: () -> Void
     let onStartTracking: () -> Void
+    @State private var showCollectionSheet = false
     
     private let gold = Color(red: 0.85, green: 0.65, blue: 0.13)
     private let accent = Color(red: 0.1, green: 0.5, blue: 0.95)
@@ -1165,7 +1166,7 @@ struct ExploreMountainDetailSheet: View {
                         HStack(spacing: 12) {
                             OfflineDownloadButton(mountain: mountain, route: mountain.routes?.first)
                             Spacer()
-                            Button(action: {}) {
+                            Button(action: { showCollectionSheet = true }) {
                                 HStack(spacing: 4) {
                                     Image(systemName: "rectangle.stack.badge.plus")
                                     Text("Collection").font(.system(.subheadline, design: .rounded)).fontWeight(.semibold)
@@ -1216,6 +1217,9 @@ struct ExploreMountainDetailSheet: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
+        }
+        .sheet(isPresented: $showCollectionSheet) {
+            SaveToCollectionSheet(mountain: mountain)
         }
     }
     

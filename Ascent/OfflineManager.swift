@@ -64,16 +64,16 @@ class OfflineManager: ObservableObject {
 
     // MARK: - Download Route for Offline
 
-    func downloadRoute(mountain: Mountain, route: MountainRoute) async {
-        // Check if already downloaded
-        guard !downloadedRoutes.contains(where: { $0.id == route.id }) else { return }
+    func downloadRoute(mountain: Mountain, route: MountainRoute?) async {
+        let routeId = route?.id ?? mountain.id
+        guard !downloadedRoutes.contains(where: { $0.id == routeId }) else { return }
 
         let offlineRoute = OfflineRoute(
-            id: route.id,
+            id: routeId,
             mountainId: mountain.id,
             mountainName: mountain.name,
-            routeName: route.route_name,
-            polyline: route.route_polyline,
+            routeName: route?.route_name ?? "Standard Access",
+            polyline: route?.route_polyline ?? "",
             downloadDate: Date(),
             elevation: mountain.elevation,
             difficulty: mountain.difficulty.rawValue
@@ -298,14 +298,12 @@ struct OfflineDownloadButton: View {
         }
         .disabled(isDownloaded)
         .onAppear {
-            if let r = route {
-                isDownloaded = offlineManager.isRouteDownloaded(r.id)
-            }
+            let routeId = route?.id ?? mountain.id
+            isDownloaded = offlineManager.isRouteDownloaded(routeId)
         }
     }
 
     private func download() {
-        guard let route else { return }
         Task {
             await offlineManager.downloadRoute(mountain: mountain, route: route)
             isDownloaded = true
