@@ -60,6 +60,7 @@ struct ElevationProfileView: View {
     
     @State private var selectedDistance: Double?
     @State private var zoomScale: Double = 1.0
+    @State private var processTask: Task<Void, Never>? = nil
     
     struct RouteSegmentChunk: Identifiable {
         let id = UUID()
@@ -67,71 +68,69 @@ struct ElevationProfileView: View {
         let color: Color
     }
     
-    private var steepnessChunks: [RouteSegmentChunk] {
-        let data = elevationData
-        guard !data.isEmpty else { return [] }
-        var chunks: [RouteSegmentChunk] = []
-        var currentCoords: [CLLocationCoordinate2D] = [data[0].coordinate]
-        var currentSegment = data[0].segment
+    struct ProfileState {
+        var elevationData: [ElevationPoint] = []
+        var totalAscent: Double = 0
+        var totalDescent: Double = 0
+        var maxAltitude: Double = 0
+        var minAltitude: Double = 0
+        var totalDistance: Double = 0
+        var mapCoords: [CLLocationCoordinate2D] = []
+        var gradientStops: [Gradient.Stop] = []
+    }
+    
+    @State private var profile = ProfileState()
 
-        for i in 1..<data.count {
-            let point = data[i]
-            currentCoords.append(point.coordinate)
-            if point.segment != currentSegment || i == data.count - 1 {
-                chunks.append(RouteSegmentChunk(coords: currentCoords, color: currentSegment.color))
-                // Start next chunk with the last point so lines connect!
-                currentCoords = [point.coordinate]
-                currentSegment = point.segment
+    private func processRouteData() {
+        DispatchQueue.global(qos: .userInteractive).async {
+            let data = generateElevationData(from: routePoints)
+            
+            var gain: Double = 0
+            var loss: Double = 0
+            for i in 1..<routePoints.count {
+                let delta = routePoints[i].altitude - routePoints[i-1].altitude
+                if delta > 0 { gain += delta } else { loss += abs(delta) }
+            }
+            
+            let alts = routePoints.map(\.altitude)
+            let maxAlt = alts.max() ?? 0
+            let minAlt = alts.min() ?? 0
+            
+            let coords = routePoints.map(\.coordinate)
+            
+            let distance = data.last?.distance ?? 1.0
+            let stops: [Gradient.Stop] = data.map { point in
+                Gradient.Stop(color: point.segment.color, location: point.distance / distance)
+            }
+            
+            let newState = ProfileState(
+                elevationData: data,
+                totalAscent: gain,
+                totalDescent: loss,
+                maxAltitude: maxAlt,
+                minAltitude: minAlt,
+                totalDistance: distance,
+                mapCoords: coords,
+                gradientStops: stops
+            )
+            
+            DispatchQueue.main.async {
+                self.profile = newState
             }
         }
-        return chunks
-    }
-
-    private var elevationData: [ElevationPoint] {
-        generateElevationData(from: routePoints)
-    }
-
-    private var totalAscent: Double {
-        var gain: Double = 0
-        for i in 1..<routePoints.count {
-            let delta = routePoints[i].altitude - routePoints[i-1].altitude
-            if delta > 0 { gain += delta }
-        }
-        return gain
-    }
-
-    private var totalDescent: Double {
-        var loss: Double = 0
-        for i in 1..<routePoints.count {
-            let delta = routePoints[i].altitude - routePoints[i-1].altitude
-            if delta < 0 { loss += abs(delta) }
-        }
-        return loss
-    }
-
-    private var maxAltitude: Double {
-        routePoints.map(\.altitude).max() ?? 0
-    }
-
-    private var minAltitude: Double {
-        routePoints.map(\.altitude).min() ?? 0
-    }
-
-    private var totalDistance: Double {
-        elevationData.last?.distance ?? 0
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: compact ? 8 : 16) {
             if !compact {
                 // Mini Interactive Map
-                if !routePoints.isEmpty {
+                if !profile.mapCoords.isEmpty {
                     Map(interactionModes: []) {
-                        MapPolyline(coordinates: routePoints.map { $0.coordinate })
+                        MapPolyline(coordinates: profile.mapCoords)
                             .stroke(DesignSystem.Colors.accent.opacity(0.8), lineWidth: 4)
 
                         if let sel = selectedDistance, 
-                           let point = elevationData.min(by: { abs($0.distance - sel) < abs($1.distance - sel) }) {
+                           let point = profile.elevationData.min(by: { abs($0.distance - sel) < abs($1.distance - sel) }) {
                             Annotation("", coordinate: point.coordinate) {
                                 Circle()
                                     .fill(DesignSystem.Colors.accent)
@@ -147,17 +146,17 @@ struct ElevationProfileView: View {
 
                 // Stats row
                 HStack(spacing: 16) {
-                    StatPill(icon: "arrow.up", value: "\(Int(totalAscent))m", label: "Ascent", color: .orange)
-                    StatPill(icon: "arrow.down", value: "\(Int(totalDescent))m", label: "Descent", color: .cyan)
-                    StatPill(icon: "mountain.2.fill", value: "\(Int(maxAltitude))m", label: "Max", color: .purple)
-                    StatPill(icon: "ruler", value: String(format: "%.1f km", totalDistance), label: "Distance", color: .blue)
+                    StatPill(icon: "arrow.up", value: "\(Int(profile.totalAscent))m", label: "Ascent", color: .orange)
+                    StatPill(icon: "arrow.down", value: "\(Int(profile.totalDescent))m", label: "Descent", color: .cyan)
+                    StatPill(icon: "mountain.2.fill", value: "\(Int(profile.maxAltitude))m", label: "Max", color: .purple)
+                    StatPill(icon: "ruler", value: String(format: "%.1f km", profile.totalDistance), label: "Distance", color: .blue)
                 }
             }
 
             // Chart Top HUD (Komoot-Style)
             if !compact {
                 HStack {
-                    if let sel = selectedDistance, let point = elevationData.min(by: { abs($0.distance - sel) < abs($1.distance - sel) }) {
+                    if let sel = selectedDistance, let point = profile.elevationData.min(by: { abs($0.distance - sel) < abs($1.distance - sel) }) {
                         HStack(spacing: 14) {
                             HStack(spacing: 4) {
                                 Image(systemName: "ruler").foregroundColor(.blue)
@@ -186,7 +185,7 @@ struct ElevationProfileView: View {
             }
 
             // Chart
-            if !elevationData.isEmpty {
+            if !profile.elevationData.isEmpty {
                 GeometryReader { geom in
                     ScrollView(.horizontal, showsIndicators: false) {
                         chartView
@@ -226,27 +225,35 @@ struct ElevationProfileView: View {
         .padding(compact ? 12 : 16)
         .background(.ultraThinMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 16))
+        .onAppear {
+            processRouteData()
+        }
+        .onChange(of: routePoints) { _, _ in
+            // Debounce: don't recompute on every single GPS tick during live tracking
+            processTask?.cancel()
+            processTask = Task {
+                try? await Task.sleep(nanoseconds: 3_000_000_000) // 3s
+                guard !Task.isCancelled else { return }
+                processRouteData()
+            }
+        }
     }
 
     // MARK: - Chart View (extracted to help Swift type-checker)
 
     private var chartSteepnessGradient: LinearGradient {
-        guard let last = elevationData.last, last.distance > 0 else {
+        guard !profile.gradientStops.isEmpty else {
             return LinearGradient(colors: [DesignSystem.Colors.accent], startPoint: .leading, endPoint: .trailing)
         }
-        let total = last.distance
-        let stops: [Gradient.Stop] = elevationData.map { point in
-            Gradient.Stop(color: point.segment.color, location: point.distance / total)
-        }
-        return LinearGradient(stops: stops, startPoint: .leading, endPoint: .trailing)
+        return LinearGradient(stops: profile.gradientStops, startPoint: .leading, endPoint: .trailing)
     }
 
     private var chartView: some View {
-        let baseAlt: Double = minAltitude - 50
-        let topAlt: Double = maxAltitude + 50
+        let baseAlt: Double = profile.minAltitude - 50
+        let topAlt: Double = profile.maxAltitude + 50
 
         return Chart {
-            ForEach(elevationData) { point in
+            ForEach(profile.elevationData) { point in
                 AreaMark(
                     x: .value("Distance", point.distance),
                     yStart: .value("Base", baseAlt),
@@ -255,7 +262,7 @@ struct ElevationProfileView: View {
             }
             .foregroundStyle(chartSteepnessGradient.opacity(0.3))
 
-            ForEach(elevationData) { point in
+            ForEach(profile.elevationData) { point in
                 LineMark(
                     x: .value("Distance", point.distance),
                     y: .value("Altitude", point.altitude)
@@ -270,7 +277,7 @@ struct ElevationProfileView: View {
                     .lineStyle(StrokeStyle(lineWidth: 2, dash: [4, 4]))
             }
             
-            if let sel = selectedDistance, let point = elevationData.min(by: { abs($0.distance - sel) < abs($1.distance - sel) }) {
+            if let sel = selectedDistance, let point = profile.elevationData.min(by: { abs($0.distance - sel) < abs($1.distance - sel) }) {
                 RuleMark(x: .value("Selected", point.distance))
                     .foregroundStyle(DesignSystem.Colors.accent)
                     .lineStyle(StrokeStyle(lineWidth: 2))
@@ -303,7 +310,7 @@ struct ElevationProfileView: View {
             }
         }
         .chartXSelection(value: $selectedDistance)
-        .chartXScale(domain: 0...(totalDistance > 0 ? totalDistance : 1))
+        .chartXScale(domain: 0...(profile.totalDistance > 0 ? profile.totalDistance : 1))
         .chartYScale(domain: baseAlt...topAlt)
         .chartXAxis {
             AxisMarks(position: .bottom) { value in
@@ -381,11 +388,11 @@ struct ElevationProfileView: View {
     }
 
     private func segmentSummary() -> [SegmentSummary] {
-        let total = Double(elevationData.count)
+        let total = Double(profile.elevationData.count)
         guard total > 0 else { return [] }
 
         var counts: [TrailSegment: Int] = [:]
-        for point in elevationData {
+        for point in profile.elevationData {
             counts[point.segment, default: 0] += 1
         }
 
