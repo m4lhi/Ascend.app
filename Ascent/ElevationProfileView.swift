@@ -59,6 +59,33 @@ struct ElevationProfileView: View {
     var compact: Bool = false
     
     @State private var selectedDistance: Double?
+    @State private var zoomScale: Double = 1.0
+    
+    struct RouteSegmentChunk: Identifiable {
+        let id = UUID()
+        let coords: [CLLocationCoordinate2D]
+        let color: Color
+    }
+    
+    private var steepnessChunks: [RouteSegmentChunk] {
+        let data = elevationData
+        guard !data.isEmpty else { return [] }
+        var chunks: [RouteSegmentChunk] = []
+        var currentCoords: [CLLocationCoordinate2D] = [data[0].coordinate]
+        var currentSegment = data[0].segment
+
+        for i in 1..<data.count {
+            let point = data[i]
+            currentCoords.append(point.coordinate)
+            if point.segment != currentSegment || i == data.count - 1 {
+                chunks.append(RouteSegmentChunk(coords: currentCoords, color: currentSegment.color))
+                // Start next chunk with the last point so lines connect!
+                currentCoords = [point.coordinate]
+                currentSegment = point.segment
+            }
+        }
+        return chunks
+    }
 
     private var elevationData: [ElevationPoint] {
         generateElevationData(from: routePoints)
@@ -116,7 +143,6 @@ struct ElevationProfileView: View {
                     }
                     .frame(height: 160)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .animation(.default, value: selectedDistance)
                 }
 
                 // Stats row
@@ -161,9 +187,21 @@ struct ElevationProfileView: View {
 
             // Chart
             if !elevationData.isEmpty {
-                chartView
-                    .frame(height: compact ? 120 : 200)
-                    .padding(.trailing, 14)
+                GeometryReader { geom in
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        chartView
+                            .frame(width: max(geom.size.width, geom.size.width * zoomScale))
+                            .frame(height: compact ? 120 : 200)
+                            .padding(.trailing, 14)
+                    }
+                    .gesture(
+                        MagnificationGesture()
+                            .onChanged { val in
+                                zoomScale = max(1.0, min(5.0, val))
+                            }
+                    )
+                }
+                .frame(height: compact ? 120 : 200)
             }
 
             // Segment legend
@@ -192,15 +230,39 @@ struct ElevationProfileView: View {
 
     // MARK: - Chart View (extracted to help Swift type-checker)
 
+    private var chartSteepnessGradient: LinearGradient {
+        guard let last = elevationData.last, last.distance > 0 else {
+            return LinearGradient(colors: [DesignSystem.Colors.accent], startPoint: .leading, endPoint: .trailing)
+        }
+        let total = last.distance
+        let stops: [Gradient.Stop] = elevationData.map { point in
+            Gradient.Stop(color: point.segment.color, location: point.distance / total)
+        }
+        return LinearGradient(stops: stops, startPoint: .leading, endPoint: .trailing)
+    }
+
     private var chartView: some View {
         let baseAlt: Double = minAltitude - 50
         let topAlt: Double = maxAltitude + 50
 
         return Chart {
             ForEach(elevationData) { point in
-                areaFor(point: point, base: baseAlt)
-                lineFor(point: point)
+                AreaMark(
+                    x: .value("Distance", point.distance),
+                    yStart: .value("Base", baseAlt),
+                    yEnd: .value("Altitude", point.altitude)
+                )
             }
+            .foregroundStyle(chartSteepnessGradient.opacity(0.3))
+
+            ForEach(elevationData) { point in
+                LineMark(
+                    x: .value("Distance", point.distance),
+                    y: .value("Altitude", point.altitude)
+                )
+            }
+            .foregroundStyle(chartSteepnessGradient)
+            .lineStyle(StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
 
             if let pos = currentPosition {
                 RuleMark(x: .value("Position", pos))
@@ -263,30 +325,6 @@ struct ElevationProfileView: View {
                 }
             }
         }
-    }
-
-    private func areaFor(point: ElevationPoint, base: Double) -> some ChartContent {
-        let color = point.segment.color
-        return AreaMark(
-            x: .value("Distance", point.distance),
-            yStart: .value("Base", base),
-            yEnd: .value("Altitude", point.altitude)
-        )
-        .foregroundStyle(
-            LinearGradient(
-                colors: [color.opacity(0.3), color.opacity(0.05)],
-                startPoint: .top, endPoint: .bottom
-            )
-        )
-    }
-
-    private func lineFor(point: ElevationPoint) -> some ChartContent {
-        LineMark(
-            x: .value("Distance", point.distance),
-            y: .value("Altitude", point.altitude)
-        )
-        .foregroundStyle(point.segment.color)
-        .lineStyle(StrokeStyle(lineWidth: 2))
     }
 
     // MARK: - Data Generation
