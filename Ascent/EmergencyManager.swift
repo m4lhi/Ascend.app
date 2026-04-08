@@ -233,12 +233,16 @@ struct SOSButtonView: View {
                     cancelHold()
                 }
         )
-        .alert("SOS Active", isPresented: $showSOSConfirm) {
-            Button("Cancel SOS", role: .cancel) {
+        .alert(emergencyManager.contacts.isEmpty ? "No Emergency Contact" : "Calling Emergency Contact", isPresented: $showSOSConfirm) {
+            Button("OK", role: .cancel) {
                 emergencyManager.cancelSOS()
             }
         } message: {
-            Text("Emergency message sent to your emergency contacts with your current location.")
+            if emergencyManager.contacts.isEmpty {
+                Text("Add an emergency contact in Settings to use the SOS feature.")
+            } else if let contact = emergencyManager.contacts.first(where: { $0.isDefault }) {
+                Text("Calling \(contact.name) now.")
+            }
         }
     }
 
@@ -259,7 +263,10 @@ struct SOSButtonView: View {
         holdTimer = nil
         holdProgress = 0
         emergencyManager.triggerSOS(location: currentLocation)
-        showSOSConfirm = true
+        // Delay alert so it doesn't block the phone call
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            showSOSConfirm = true
+        }
     }
 
     private func cancelHold() {
