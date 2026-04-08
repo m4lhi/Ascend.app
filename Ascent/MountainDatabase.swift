@@ -44,7 +44,11 @@ struct Mountain: Identifiable, Hashable, Codable {
     var routes: [MountainRoute]?
     
     var effectiveImageUrl: String? {
-        return image_url ?? imageUrl
+        guard let url = image_url ?? imageUrl else { return nil }
+        if url.contains(" ") {
+            return url.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)
+        }
+        return url
     }
 
     // Explicit CodingKeys mapping exactly to Supabase column names (case-sensitive)
