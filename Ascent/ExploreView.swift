@@ -122,9 +122,9 @@ struct ExploreView: View {
 
     var visibleMountains: [Mountain] {
         switch currentZoomLevel {
-        case .far:    return Array(mapMountains.prefix(50))
-        case .medium: return Array(mapMountains.prefix(150))
-        case .close:  return Array(mapMountains.prefix(400))
+        case .far:    return Array(mapMountains.prefix(30))
+        case .medium: return Array(mapMountains.prefix(80))
+        case .close:  return Array(mapMountains.prefix(200))
         }
     }
 
@@ -392,6 +392,7 @@ struct ExploreView: View {
                 await mountainManager.fetchMountainsInBounds(minLat: minLat, maxLat: maxLat, minLon: minLon, maxLon: maxLon, zoomLevel: newZoom)
             }
         }
+        .mapControls { }
         .ignoresSafeArea()
     }
 
