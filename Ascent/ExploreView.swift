@@ -172,8 +172,8 @@ struct ExploreView: View {
                                 isLayersExpanded.toggle()
                             }
                         }
+                        FloatingMapButton(icon: "location.fill") { flyToMyLocation() }
                     }
-                    FloatingMapButton(icon: "location.fill") { flyToMyLocation() }
                     .padding(.trailing, 12)
                 }
                 Spacer()
@@ -393,6 +393,7 @@ struct ExploreView: View {
             }
         }
         .mapControls { }
+        .safeAreaPadding(.bottom, -40)
         .ignoresSafeArea()
     }
 

@@ -90,12 +90,12 @@ class EmergencyManager: ObservableObject {
         sosTriggered = true
         HapticManager.shared.heavy()
 
-        guard let location else { return }
-
-        // Send location to emergency contacts via SMS
+        // Direct call to emergency contact
         if let defaultContact = contacts.first(where: { $0.isDefault }) {
-            let message = "EMERGENCY SOS from Ascent App! I need help at coordinates: \(location.coordinate.latitude), \(location.coordinate.longitude). Altitude: \(Int(location.altitude))m. Maps: https://maps.apple.com/?ll=\(location.coordinate.latitude),\(location.coordinate.longitude)"
-            shareViaSMS(to: defaultContact.phone, body: message)
+            let cleaned = defaultContact.phone.replacingOccurrences(of: " ", with: "")
+            if let url = URL(string: "tel://\(cleaned)") {
+                UIApplication.shared.open(url)
+            }
         }
     }
 
@@ -193,7 +193,6 @@ class EmergencyManager: ObservableObject {
 struct SOSButtonView: View {
     @ObservedObject var emergencyManager: EmergencyManager
     let currentLocation: CLLocation?
-    @State private var isHolding = false
     @State private var holdProgress: Double = 0
     @State private var holdTimer: Timer?
     @State private var showSOSConfirm = false
@@ -201,37 +200,35 @@ struct SOSButtonView: View {
     private let holdDuration: Double = 3.0
 
     var body: some View {
-        Button(action: {}) {
-            ZStack {
-                Circle()
-                    .fill(emergencyManager.sosTriggered ? Color.red : Color.red.opacity(0.15))
-                    .frame(width: 56, height: 56)
+        ZStack {
+            Circle()
+                .fill(emergencyManager.sosTriggered ? Color.red : Color.red.opacity(0.15))
+                .frame(width: 40, height: 40)
 
-                Circle()
-                    .trim(from: 0, to: holdProgress)
-                    .stroke(Color.red, lineWidth: 3)
-                    .frame(width: 56, height: 56)
-                    .rotationEffect(.degrees(-90))
+            Circle()
+                .trim(from: 0, to: holdProgress)
+                .stroke(Color.red, lineWidth: 3)
+                .frame(width: 40, height: 40)
+                .rotationEffect(.degrees(-90))
 
-                Image(systemName: emergencyManager.sosTriggered ? "sos.circle.fill" : "sos")
-                    .font(.system(size: emergencyManager.sosTriggered ? 24 : 18, weight: .black))
-                    .foregroundColor(emergencyManager.sosTriggered ? .white : .red)
-            }
+            Image(systemName: emergencyManager.sosTriggered ? "sos.circle.fill" : "sos")
+                .font(.system(size: emergencyManager.sosTriggered ? 18 : 13, weight: .black))
+                .foregroundColor(emergencyManager.sosTriggered ? .white : .red)
         }
-        .simultaneousGesture(
+        .contentShape(Circle())
+        .gesture(
             LongPressGesture(minimumDuration: holdDuration)
-                .onChanged { _ in
-                    if !isHolding {
-                        isHolding = true
-                        startHoldTimer()
-                    }
-                }
                 .onEnded { _ in
                     triggerSOS()
                 }
         )
         .simultaneousGesture(
             DragGesture(minimumDistance: 0)
+                .onChanged { _ in
+                    if holdTimer == nil {
+                        startHoldTimer()
+                    }
+                }
                 .onEnded { _ in
                     cancelHold()
                 }
@@ -260,17 +257,17 @@ struct SOSButtonView: View {
     private func triggerSOS() {
         holdTimer?.invalidate()
         holdTimer = nil
-        isHolding = false
         holdProgress = 0
         emergencyManager.triggerSOS(location: currentLocation)
         showSOSConfirm = true
     }
 
     private func cancelHold() {
-        holdTimer?.invalidate()
-        holdTimer = nil
-        isHolding = false
-        withAnimation { holdProgress = 0 }
+        if holdProgress < 1.0 {
+            holdTimer?.invalidate()
+            holdTimer = nil
+            withAnimation { holdProgress = 0 }
+        }
     }
 }
 

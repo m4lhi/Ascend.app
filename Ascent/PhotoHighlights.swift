@@ -84,38 +84,106 @@ class PhotoHighlightManager: ObservableObject {
 struct PhotoCaptureButton: View {
     let currentLocation: CLLocation?
     @ObservedObject var photoManager: PhotoHighlightManager
-    @State private var showPhotoPicker = false
+    @State private var showCamera = false
+    @State private var showFallbackPicker = false
     @State private var selectedItem: PhotosPickerItem?
 
-    var body: some View {
-        PhotosPicker(selection: $selectedItem, matching: .images) {
-            ZStack {
-                Circle()
-                    .fill(.ultraThinMaterial)
-                    .frame(width: 48, height: 48)
-                Image(systemName: "camera.fill")
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundColor(DesignSystem.Colors.accent)
+    private var cameraAvailable: Bool {
+        UIImagePickerController.isSourceTypeAvailable(.camera)
+    }
 
-                // Badge showing photo count
-                if !photoManager.highlights.isEmpty {
-                    Text("\(photoManager.highlights.count)")
-                        .font(.system(size: 10, weight: .bold, design: .rounded))
-                        .foregroundColor(.white)
-                        .padding(4)
-                        .background(Circle().fill(Color.orange))
-                        .offset(x: 16, y: -16)
+    var body: some View {
+        Group {
+            if cameraAvailable {
+                Button(action: { showCamera = true }) {
+                    captureButtonLabel
+                }
+                .fullScreenCover(isPresented: $showCamera) {
+                    CameraCaptureView { imageData in
+                        if let data = imageData, let location = currentLocation {
+                            photoManager.addPhoto(data: data, at: location)
+                        }
+                    }
+                    .ignoresSafeArea()
+                }
+            } else {
+                // Fallback: photo library on simulator or devices without camera
+                PhotosPicker(selection: $selectedItem, matching: .images) {
+                    captureButtonLabel
+                }
+                .onChange(of: selectedItem) { _, newItem in
+                    guard let item = newItem, let location = currentLocation else { return }
+                    Task {
+                        if let data = try? await item.loadTransferable(type: Data.self) {
+                            photoManager.addPhoto(data: data, at: location)
+                        }
+                        selectedItem = nil
+                    }
                 }
             }
         }
-        .onChange(of: selectedItem) { _, newItem in
-            guard let item = newItem, let location = currentLocation else { return }
-            Task {
-                if let data = try? await item.loadTransferable(type: Data.self) {
-                    photoManager.addPhoto(data: data, at: location)
-                }
-                selectedItem = nil
+    }
+
+    private var captureButtonLabel: some View {
+        ZStack {
+            Circle()
+                .fill(.ultraThinMaterial)
+                .frame(width: 40, height: 40)
+            Image(systemName: "camera.fill")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundColor(DesignSystem.Colors.accent)
+
+            if !photoManager.highlights.isEmpty {
+                Text("\(photoManager.highlights.count)")
+                    .font(.system(size: 9, weight: .bold, design: .rounded))
+                    .foregroundColor(.white)
+                    .padding(3)
+                    .background(Circle().fill(Color.orange))
+                    .offset(x: 14, y: -14)
             }
+        }
+    }
+}
+
+// MARK: - Camera Capture (UIImagePickerController wrapper)
+struct CameraCaptureView: UIViewControllerRepresentable {
+    let onCapture: (Data?) -> Void
+    @Environment(\.dismiss) var dismiss
+
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.sourceType = .camera
+        picker.delegate = context.coordinator
+        return picker
+    }
+
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onCapture: onCapture, dismiss: dismiss)
+    }
+
+    class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+        let onCapture: (Data?) -> Void
+        let dismiss: DismissAction
+
+        init(onCapture: @escaping (Data?) -> Void, dismiss: DismissAction) {
+            self.onCapture = onCapture
+            self.dismiss = dismiss
+        }
+
+        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
+            if let image = info[.originalImage] as? UIImage {
+                onCapture(image.jpegData(compressionQuality: 0.8))
+            } else {
+                onCapture(nil)
+            }
+            dismiss()
+        }
+
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            onCapture(nil)
+            dismiss()
         }
     }
 }
