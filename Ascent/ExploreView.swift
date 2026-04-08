@@ -171,9 +171,6 @@ struct ExploreView: View {
                 if isRouteCreationMode {
                     routeCreationPanel
                         .transition(.move(edge: .bottom).combined(with: .opacity))
-                } else if let mountain = selectedMountain {
-                    detailCard(for: mountain)
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
                 } else if !isSearchActive {
                     discoverySheet
                         .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -183,6 +180,33 @@ struct ExploreView: View {
             .animation(.spring(response: 0.4, dampingFraction: 0.8), value: selectedMountain?.id)
         }
         .ignoresSafeArea(.keyboard, edges: .bottom)
+        .sheet(item: $selectedMountain, onDismiss: {
+            selectedMarkerTag = nil
+            selectedRouteToShow = nil
+        }) { mountain in
+            ExploreMountainDetailSheet(
+                mountain: mountain,
+                locationManager: locationManager,
+                isPrestigePeak: mountain.isPrestigePeak,
+                onDismiss: {
+                    selectedMountain = nil
+                    selectedMarkerTag = nil
+                    selectedRouteToShow = nil
+                },
+                onStartTracking: {
+                    selectedMountain = nil
+                    selectedMarkerTag = nil
+                    selectedRouteToShow = nil
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        mountainToTrack = mountain
+                        showTracker = true
+                    }
+                }
+            )
+            .presentationDetents([.fraction(0.4), .large])
+            .presentationDragIndicator(.visible)
+            .preferredColorScheme(.light)
+        }
         .task {
             await mountainManager.fetchSavedRoutes()
             if let loc = locationManager.userLocation, !hasCenteredOnUser {
@@ -693,124 +717,7 @@ struct ExploreView: View {
     }
 
     // 🟢 NEU: Die Detail-Karte ist schlanker und hat keinen leeren Block mehr!
-    @ViewBuilder
-    func detailCard(for mountain: Mountain) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            
-            // 🟢 FIX: Der ZStack (Bild + Farbverlauf) ist jetzt fest auf 120 Höhe beschränkt.
-            ZStack {
-                if let urlStr = mountain.effectiveImageUrl, !urlStr.isEmpty, let url = URL(string: urlStr) {
-                    CachedAsyncImage(url: url) { img in
-                        img.resizable().scaledToFill()
-                    } placeholder: {
-                        imagePlaceholder
-                    }.frame(height: 120).clipped()
-                } else {
-                    imagePlaceholder
-                }
 
-                LinearGradient(colors: [.clear, Color.black.opacity(0.6)], startPoint: .center, endPoint: .bottom)
-                    .frame(height: 120) // Verhindert das unendliche Ausdehnen!
-                    
-                // 🟢 NEU: Image Credit Overlay
-                if let credit = mountain.image_credit, !credit.isEmpty {
-                    Text("Foto: \(credit)")
-                        .font(.system(size: 8, weight: .medium, design: .rounded))
-                        .foregroundColor(.white.opacity(0.6))
-                        .shadow(color: .black.opacity(0.8), radius: 2, x: 0, y: 1)
-                        .padding(.horizontal, 10)
-                        .padding(.bottom, 8)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
-                }
-
-                Button {
-                    withAnimation(.spring()) { selectedMountain = nil; selectedMarkerTag = nil; selectedRouteToShow = nil }
-                } label: {
-                    Image(systemName: "xmark.circle.fill").font(.system(size: 26, design: .rounded)).foregroundStyle(.white.opacity(0.8), .black.opacity(0.5))
-                }
-                .padding(12)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-            }
-            .frame(height: 120)
-
-            // 🟢 KOMPAKTERES INFO-MENÜ
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(alignment: .top) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(mountain.name).font(.system(.headline, design: .rounded)).fontWeight(.bold).foregroundColor(.white)
-                        Text("\(mountain.region), \(mountain.country)").font(.system(.caption, design: .rounded)).foregroundColor(.gray)
-                    }
-                    Spacer()
-                    VStack(alignment: .trailing, spacing: 4) {
-                        Text(mountain.difficulty.rawValue.uppercased()).font(.system(size: 9, weight: .black, design: .rounded)).foregroundColor(.black).padding(.horizontal, 8).padding(.vertical, 4).background(difficultyColor(mountain.difficulty)).clipShape(Capsule())
-                        if mountain.isPrestigePeak {
-                            HStack(spacing: 3) { Image(systemName: "crown.fill").font(.system(size: 8, design: .rounded)); Text("PRESTIGE").font(.system(size: 8, weight: .black, design: .rounded)) }.foregroundColor(gold)
-                        }
-                    }
-                }
-
-                HStack(spacing: 0) {
-                    DetailStat(icon: "arrow.up.right", value: "\(mountain.elevation)m", label: "Elevation")
-                    DetailStat(icon: "chart.line.uptrend.xyaxis", value: "~\(mountain.elevation / 2)m", label: "Est. Gain")
-                    DetailStat(icon: "clock", value: estimatedDuration(for: mountain), label: "Est. Time")
-                    if let userLoc = locationManager.userLocation, let lat = mountain.latitude, let lon = mountain.longitude {
-                        let dist = userLoc.distance(from: CLLocation(latitude: lat, longitude: lon)) / 1000
-                        DetailStat(icon: "location", value: String(format: "%.0fkm", dist), label: "Away")
-                    }
-                }
-
-                if !mountain.description.isEmpty {
-                    Text(mountain.description).font(.system(.caption2, design: .rounded)).foregroundColor(.gray).lineLimit(2)
-                }
-
-                // Mini elevation preview
-                MountainElevationPreview(elevation: mountain.elevation, accentColor: gold, route: mountain.routes?.first)
-                    .frame(height: 40)
-
-                // Action buttons row
-                HStack(spacing: 8) {
-                    // Offline download
-                    OfflineDownloadButton(
-                        mountain: mountain,
-                        route: mountain.routes?.first
-                    )
-
-                    Spacer()
-
-                    // Add to collection
-                    Button(action: {}) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "rectangle.stack.badge.plus")
-                            Text("Collection")
-                                .font(.system(.caption, design: .rounded))
-                                .fontWeight(.semibold)
-                        }
-                        .foregroundColor(gold)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 8)
-                        .background(gold.opacity(0.1))
-                        .clipShape(Capsule())
-                    }
-                }
-
-                Button { HapticManager.shared.heavy(); mountainToTrack = mountain; showTracker = true } label: {
-                    HStack { Image(systemName: "play.fill"); Text("Commence Mission") }.font(.system(.subheadline, design: .rounded)).fontWeight(.bold).foregroundColor(.white).frame(maxWidth: .infinity).padding(.vertical, 10).background(gold).clipShape(RoundedRectangle(cornerRadius: 12))
-                }
-            }.padding(16)
-        }
-        .background(Color.white).clipShape(RoundedRectangle(cornerRadius: 20))
-        .shadow(color: .black.opacity(0.1), radius: 15, y: 5)
-        .padding(.horizontal, 16)
-        .padding(.bottom, 120)
-    }
-
-    @ViewBuilder
-    var imagePlaceholder: some View {
-        ZStack {
-            Color(white: 0.95).frame(height: 120)
-            Image(systemName: "mountain.2.fill").font(.system(size: 30, design: .rounded)).foregroundColor(.black.opacity(0.1))
-        }
-    }
 
     func flyToMyLocation() {
         if let loc = locationManager.userLocation {
@@ -1158,5 +1065,172 @@ struct SavedRouteCard: View {
         .contextMenu {
             Button("Delete", role: .destructive, action: onDelete)
         }
+    }
+}
+
+// =========================================
+// MARK: - Explore Mountain Detail Sheet
+// =========================================
+struct ExploreMountainDetailSheet: View {
+    let mountain: Mountain
+    @ObservedObject var locationManager: ExploreLocationManager
+    let isPrestigePeak: Bool
+    let onDismiss: () -> Void
+    let onStartTracking: () -> Void
+    
+    private let gold = Color(red: 0.85, green: 0.65, blue: 0.13)
+    private let accent = Color(red: 0.1, green: 0.5, blue: 0.95)
+
+    var body: some View {
+        ZStack {
+            Color.white.ignoresSafeArea()
+            
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(spacing: 0) {
+                    // Header Image
+                    ZStack(alignment: .topTrailing) {
+                        if let urlStr = mountain.effectiveImageUrl, !urlStr.isEmpty, let url = URL(string: urlStr) {
+                            CachedAsyncImage(url: url) { img in
+                                img.resizable().scaledToFill()
+                            } placeholder: {
+                                Color(white: 0.9)
+                            }.frame(height: 250).clipped()
+                        } else {
+                            Color(white: 0.9).frame(height: 250)
+                            Image(systemName: "mountain.2.fill").font(.system(size: 50)).foregroundColor(Color.black.opacity(0.1))
+                        }
+                        
+                        LinearGradient(colors: [.clear, .white], startPoint: .center, endPoint: .bottom)
+                            .frame(height: 250)
+                            
+                        if let credit = mountain.image_credit, !credit.isEmpty {
+                            VStack {
+                                Spacer()
+                                HStack {
+                                    Spacer()
+                                    Text("Foto: \(credit)")
+                                        .font(.system(size: 9, weight: .medium, design: .rounded))
+                                        .foregroundColor(.white.opacity(0.8))
+                                        .shadow(color: .black.opacity(0.8), radius: 3, x: 0, y: 1)
+                                        .padding(.trailing, 16)
+                                        .padding(.bottom, 16)
+                                }
+                            }
+                        }
+                        
+                        Button { onDismiss() } label: {
+                            Image(systemName: "xmark.circle.fill").font(.system(size: 28)).foregroundColor(.primary.opacity(0.6))
+                                .background(Circle().fill(Color.white.opacity(0.8)))
+                        }.padding(16)
+                    }.frame(height: 250)
+
+                    // Info Section
+                    VStack(alignment: .leading, spacing: 16) {
+                        HStack(alignment: .top) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(mountain.name).font(.system(size: 28, weight: .bold, design: .rounded)).foregroundColor(.primary)
+                                Text("\(mountain.region), \(mountain.country)").font(.system(size: 15, design: .rounded)).foregroundColor(.secondary)
+                            }
+                            Spacer()
+                            VStack(alignment: .trailing, spacing: 4) {
+                                Text(mountain.difficulty.rawValue.uppercased())
+                                    .font(.system(size: 10, weight: .black, design: .rounded))
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 10).padding(.vertical, 5)
+                                    .background(mountain.difficulty.color)
+                                    .clipShape(Capsule())
+                                if isPrestigePeak {
+                                    HStack(spacing: 3) {
+                                        Image(systemName: "crown.fill").font(.system(size: 9, design: .rounded))
+                                        Text("PRESTIGE").font(.system(size: 9, weight: .black, design: .rounded))
+                                    }.foregroundColor(gold)
+                                }
+                            }
+                        }
+                        
+                        HStack(spacing: 0) {
+                            statItem(icon: "arrow.up.right", value: "\(mountain.elevation)m", label: "Elevation")
+                            statItem(icon: "chart.line.uptrend.xyaxis", value: "~\(mountain.elevation / 2)m", label: "Est. Gain")
+                            statItem(icon: "clock", value: estimatedDuration, label: "Est. Time")
+                            if let userLoc = locationManager.userLocation, let lat = mountain.latitude, let lon = mountain.longitude {
+                                let dist = userLoc.distance(from: CLLocation(latitude: lat, longitude: lon)) / 1000
+                                statItem(icon: "location", value: String(format: "%.0fkm", dist), label: "Distance")
+                            }
+                        }
+                        .padding(.vertical, 16)
+                        .background(Color(white: 0.95))
+                        .cornerRadius(12)
+                        
+                        // Action buttons row
+                        HStack(spacing: 12) {
+                            OfflineDownloadButton(mountain: mountain, route: mountain.routes?.first)
+                            Spacer()
+                            Button(action: {}) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "rectangle.stack.badge.plus")
+                                    Text("Collection").font(.system(.subheadline, design: .rounded)).fontWeight(.semibold)
+                                }
+                                .foregroundColor(gold)
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 10)
+                                .background(gold.opacity(0.1))
+                                .clipShape(Capsule())
+                            }
+                        }
+                        .padding(.bottom, 6)
+                        
+                        if !mountain.description.isEmpty {
+                            Text(mountain.description)
+                                .font(.system(size: 14, design: .rounded))
+                                .foregroundColor(.secondary)
+                                .lineSpacing(4)
+                        }
+                        
+                        // Detailed Elevation Profile
+                        if let route = mountain.routes?.first, route.elevation_profile != nil {
+                            Text("Elevation Profile").font(.headline).padding(.top, 10)
+                            MountainElevationPreview(elevation: mountain.elevation, accentColor: gold, route: route)
+                                .frame(height: 70)
+                        }
+                        
+                        Spacer(minLength: 20)
+                        
+                        Button {
+                            onStartTracking()
+                        } label: {
+                            HStack {
+                                Image(systemName: "play.fill")
+                                Text("Commence Mission")
+                            }
+                            .font(.system(size: 18, weight: .bold, design: .rounded))
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                            .background(gold)
+                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                            .shadow(color: gold.opacity(0.3), radius: 10, y: 5)
+                        }
+                        .padding(.bottom, 30)
+                    }
+                    .padding(20)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+        }
+    }
+    
+    private var estimatedDuration: String {
+        let hours = Double(mountain.elevation) / 800.0
+        if hours < 1 { return "\(Int(hours * 60))min" }
+        return String(format: "%.0f-%.0fh", hours, hours * 1.3)
+    }
+    
+    private func statItem(icon: String, value: String, label: String) -> some View {
+        VStack(spacing: 6) {
+            Image(systemName: icon).font(.system(size: 18)).foregroundColor(.secondary)
+            Text(value).font(.system(size: 18, weight: .bold, design: .rounded)).foregroundColor(.primary)
+            Text(label).font(.system(size: 12, design: .rounded)).foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity)
     }
 }

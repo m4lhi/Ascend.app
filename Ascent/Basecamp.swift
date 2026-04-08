@@ -1,5 +1,6 @@
 import SwiftUI
 import Combine
+import MapKit
 
 // =========================================
 // === DATEI: BasecampView.swift ===
@@ -11,6 +12,7 @@ struct BasecampView: View {
     @State private var showXPDetails = false
     @State private var showTracker = false
     @State private var mountainToTrack: Mountain? = nil
+    @State private var mountainDetailToShow: Mountain? = nil
     @State private var heroBannerIndex = 0
     @State private var showObjectiveDetail = false
     @State private var selectedObjective: (title: String, icon: String, current: Int, target: Int, unit: String)?
@@ -111,6 +113,17 @@ struct BasecampView: View {
         }) {
             LiveRecordView(targetMountain: mountainToTrack)
         }
+        .sheet(item: $mountainDetailToShow) { mountain in
+            BasecampMountainDetailSheet(mountain: mountain) {
+                mountainDetailToShow = nil
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    mountainToTrack = mountain
+                    showTracker = true
+                }
+            }
+            .presentationDetents([.fraction(0.85), .large])
+            .preferredColorScheme(.light)
+        }
     }
 
     // =========================================
@@ -207,8 +220,7 @@ struct BasecampView: View {
     private var featuredPeak: some View {
         let peak = appState.recommendedPeaks[heroBannerIndex % appState.recommendedPeaks.count]
         return Button {
-            mountainToTrack = peak
-            showTracker = true
+            mountainDetailToShow = peak
         } label: {
             ZStack(alignment: .bottomLeading) {
                 // Image
@@ -216,7 +228,7 @@ struct BasecampView: View {
                     .frame(height: 160)
                     .overlay(
                         Group {
-                            if let urlString = peak.imageUrl, !urlString.isEmpty, let url = URL(string: urlString) {
+                            if let urlString = peak.effectiveImageUrl, !urlString.isEmpty, let url = URL(string: urlString) {
                                 CachedAsyncImage(url: url) { img in img.resizable().scaledToFill() }
                                     placeholder: { peakPlaceholder(peak) }
                             } else {
@@ -357,95 +369,7 @@ struct BasecampView: View {
         .shadow(color: .black.opacity(0.05), radius: 8, y: 4)
     }
 
-    // MARK: - Hero Banner
-
-    private var heroBannerSection: some View {
-        VStack(spacing: 10) {
-            let peak = appState.recommendedPeaks[heroBannerIndex % appState.recommendedPeaks.count]
-
-            Button {
-                mountainToTrack = peak
-                showTracker = true
-            } label: {
-                ZStack(alignment: .bottomLeading) {
-                    Color.clear
-                        .frame(height: 180)
-                        .frame(maxWidth: .infinity)
-                        .overlay(
-                            Group {
-                                if let urlString = peak.effectiveImageUrl, !urlString.isEmpty, let url = URL(string: urlString) {
-                                    CachedAsyncImage(url: url) { image in
-                                        image.resizable().scaledToFill()
-                                    } placeholder: {
-                                        peakPlaceholder(peak)
-                                    }
-                                } else {
-                                    peakPlaceholder(peak)
-                                }
-                            }
-                        )
-                        .clipped()
-
-                    LinearGradient(colors: [.clear, .clear, .black.opacity(0.85)],
-                                   startPoint: .top, endPoint: .bottom)
-                                   
-                    if let credit = peak.image_credit, !credit.isEmpty {
-                        VStack {
-                            Spacer()
-                            HStack {
-                                Spacer()
-                                Text("Foto: \(credit)")
-                                    .font(.system(size: 7, weight: .medium, design: .rounded))
-                                    .foregroundColor(.white.opacity(0.35))
-                                    .padding(.trailing, 16)
-                                    .padding(.bottom, 6)
-                            }
-                        }
-                    }
-
-                    HStack(alignment: .bottom) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(peak.isPrestigePeak ? "PRESTIGE PEAK" : "FEATURED")
-                                .font(.system(size: 9, weight: .black, design: .rounded))
-                                .foregroundColor(peak.isPrestigePeak ? gold : .cyan)
-                                .tracking(2)
-                            Text(peak.name)
-                                .font(.system(.title3, design: .rounded)).fontWeight(.bold).foregroundColor(.white)
-                            Text("\(peak.elevation)m · \(peak.region)")
-                                .font(.system(.caption, design: .rounded)).foregroundColor(.white.opacity(0.7))
-                        }
-                        Spacer()
-                        Image(systemName: "chevron.right.circle.fill")
-                            .font(.system(size: 28)).foregroundColor(.white.opacity(0.5))
-                    }
-                    .padding(16)
-                }
-            }
-            .buttonStyle(PlainButtonStyle())
-            .frame(height: 180)
-            .clipShape(RoundedRectangle(cornerRadius: 20))
-            .padding(.horizontal, 20)
-            .id(heroBannerIndex)
-            .transition(.opacity)
-            .onReceive(bannerTimer) { _ in
-                withAnimation(.easeInOut(duration: 0.6)) {
-                    heroBannerIndex += 1
-                }
-            }
-
-            HStack(spacing: 5) {
-                ForEach(0..<min(appState.recommendedPeaks.count, 8), id: \.self) { i in
-                    Capsule()
-                        .fill(i == heroBannerIndex % appState.recommendedPeaks.count ? gold : Color.gray.opacity(0.2))
-                        .frame(width: i == heroBannerIndex % appState.recommendedPeaks.count ? 16 : 5, height: 4)
-                        .animation(.spring(response: 0.35), value: heroBannerIndex)
-                }
-            }
-        }
-    }
-
-    // MARK: - Suggested Routes
-
+    // MARK: - Suggested Routes Section
     private var suggestedRoutesSection: some View {
         VStack(alignment: .leading, spacing: 14) {
             sectionHeader("Suggested Routes", icon: "signpost.right.fill", iconColor: .green)
@@ -454,8 +378,7 @@ struct BasecampView: View {
                 HStack(spacing: 12) {
                     ForEach(appState.suggestedRoutes) { mountain in
                         RouteCard(mountain: mountain) {
-                            mountainToTrack = mountain
-                            showTracker = true
+                            mountainDetailToShow = mountain
                         }
                     }
                 }
@@ -771,6 +694,135 @@ struct AllActivitiesView: View {
                 }
             }
         }
+    }
+}
+
+// =========================================
+// MARK: - Mountain Detail Preview Sheet
+// =========================================
+
+struct BasecampMountainDetailSheet: View {
+    let mountain: Mountain
+    let onStartTracking: () -> Void
+    @Environment(\.dismiss) var dismiss
+    private let gold = Color(red: 0.85, green: 0.65, blue: 0.13)
+    private let accent = Color(red: 0.1, green: 0.5, blue: 0.95)
+
+    var body: some View {
+        ZStack {
+            Color.white.ignoresSafeArea()
+            
+            VStack(spacing: 0) {
+                // Header Image
+                ZStack(alignment: .topTrailing) {
+                    if let urlStr = mountain.effectiveImageUrl, !urlStr.isEmpty, let url = URL(string: urlStr) {
+                        CachedAsyncImage(url: url) { img in
+                            img.resizable().scaledToFill()
+                        } placeholder: {
+                            Color(white: 0.9)
+                        }.frame(height: 200).clipped()
+                    } else {
+                        Color(white: 0.9).frame(height: 200)
+                        Image(systemName: "mountain.2.fill").font(.system(size: 40)).foregroundColor(Color.black.opacity(0.1))
+                    }
+                    
+                    LinearGradient(colors: [.clear, .white], startPoint: .center, endPoint: .bottom)
+                        .frame(height: 200)
+                        
+                    Button { dismiss() } label: {
+                        Image(systemName: "xmark.circle.fill").font(.system(size: 28)).foregroundColor(.primary.opacity(0.6))
+                            .background(Circle().fill(Color.white.opacity(0.8)))
+                    }.padding(16)
+                }.frame(height: 200)
+
+                // Info Section
+                VStack(alignment: .leading, spacing: 16) {
+                    HStack(alignment: .top) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(mountain.name).font(.system(size: 24, weight: .bold, design: .rounded)).foregroundColor(.primary)
+                            Text("\(mountain.region), \(mountain.country)").font(.system(size: 14, design: .rounded)).foregroundColor(.secondary)
+                        }
+                        Spacer()
+                        Text(mountain.difficulty.rawValue.uppercased())
+                            .font(.system(size: 10, weight: .black, design: .rounded))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 10).padding(.vertical, 5)
+                            .background(mountain.difficulty.color)
+                            .clipShape(Capsule())
+                    }
+                    
+                    HStack(spacing: 0) {
+                        statItem(icon: "arrow.up.right", value: "\(mountain.elevation)m", label: "Elevation")
+                        statItem(icon: "chart.line.uptrend.xyaxis", value: "~\(mountain.elevation / 2)m", label: "Est. Gain")
+                        statItem(icon: "clock", value: estimatedDuration, label: "Est. Time")
+                    }
+                    .padding(.vertical, 12)
+                    .background(Color(white: 0.95))
+                    .cornerRadius(12)
+                    
+                    if !mountain.description.isEmpty {
+                        Text(mountain.description)
+                            .font(.system(size: 13, design: .rounded))
+                            .foregroundColor(.secondary)
+                            .lineLimit(4)
+                    }
+                    
+                    if let lat = mountain.latitude, let lon = mountain.longitude {
+                        let center = CLLocationCoordinate2D(latitude: lat, longitude: lon)
+                        Map(position: .constant(.region(MKCoordinateRegion(center: center, latitudinalMeters: 4000, longitudinalMeters: 4000))), interactionModes: []) {
+                            if let routeStr = mountain.routes?.first?.route_polyline {
+                                let coords = PolylineUtility.decode(polyline: routeStr)
+                                if !coords.isEmpty {
+                                    MapPolyline(coordinates: coords)
+                                        .stroke(accent, lineWidth: 4)
+                                }
+                            }
+                            Marker(mountain.name, coordinate: center)
+                                .tint(gold)
+                        }
+                        .frame(height: 120)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(white: 0.9), lineWidth: 1))
+                    }
+                    
+                    Spacer()
+                    
+                    Button {
+                        onStartTracking()
+                    } label: {
+                        HStack {
+                            Image(systemName: "play.fill")
+                            Text("Commence Mission")
+                        }
+                        .font(.system(size: 18, weight: .bold, design: .rounded))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(gold)
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .shadow(color: gold.opacity(0.3), radius: 10, y: 5)
+                    }
+                    .padding(.bottom, 20)
+                }
+                .padding(20)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+    }
+    
+    private var estimatedDuration: String {
+        let hours = Double(mountain.elevation) / 800.0
+        if hours < 1 { return "\(Int(hours * 60))min" }
+        return String(format: "%.0f-%.0fh", hours, hours * 1.3)
+    }
+    
+    private func statItem(icon: String, value: String, label: String) -> some View {
+        VStack(spacing: 6) {
+            Image(systemName: icon).font(.system(size: 16)).foregroundColor(.secondary)
+            Text(value).font(.system(size: 16, weight: .bold, design: .rounded)).foregroundColor(.primary)
+            Text(label).font(.system(size: 11, design: .rounded)).foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity)
     }
 }
 
