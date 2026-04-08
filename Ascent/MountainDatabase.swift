@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import CoreLocation
 
 // =========================================
 // === 1. ENUMS ===
@@ -139,6 +140,17 @@ struct MountainRoute: Identifiable, Hashable, Codable {
     let start_lon: Double
     let route_polyline: String
     let elevation_profile: [Int]?
+    
+    var locations: [CLLocation] {
+        let coords = PolylineUtility.decode(polyline: route_polyline)
+        let elevs = elevation_profile ?? []
+        return coords.enumerated().map { (i, coord) in
+            let elevIndex = Int(round(Double(i) / Double(max(1, coords.count - 1)) * Double(max(0, elevs.count - 1))))
+            let safeIndex = max(0, min(elevIndex, elevs.count - 1))
+            let alt = elevs.isEmpty ? 0.0 : Double(elevs[safeIndex])
+            return CLLocation(coordinate: coord, altitude: alt, horizontalAccuracy: 0, verticalAccuracy: 0, timestamp: Date())
+        }
+    }
 }
 
 // =========================================

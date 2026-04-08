@@ -375,10 +375,10 @@ struct ExploreView: View {
             let minLon = region.center.longitude - (lonDelta / 2)
             let maxLon = region.center.longitude + (lonDelta / 2)
 
-            // Debounce: cancel pending fetch, wait 300ms before firing
+            // Debounce: cancel pending fetch, wait 500ms before firing to avoid map lag
             mapFetchTask?.cancel()
             mapFetchTask = Task {
-                try? await Task.sleep(nanoseconds: 300_000_000)
+                try? await Task.sleep(nanoseconds: 500_000_000)
                 guard !Task.isCancelled else { return }
                 await mountainManager.fetchMountainsInBounds(minLat: minLat, maxLat: maxLat, minLon: minLon, maxLon: maxLon, zoomLevel: newZoom)
             }
@@ -801,7 +801,7 @@ struct ExploreView: View {
     func performDebouncedSearch() {
         searchTask?.cancel()
         searchTask = Task {
-            try? await Task.sleep(nanoseconds: 300_000_000)
+            try? await Task.sleep(nanoseconds: 500_000_000)
             guard !Task.isCancelled else { return }
             withAnimation(.easeInOut) {
                 Task {
@@ -1188,10 +1188,9 @@ struct ExploreMountainDetailSheet: View {
                         }
                         
                         // Detailed Elevation Profile
-                        if let route = mountain.routes?.first, route.elevation_profile != nil {
+                        if let route = mountain.routes?.first, !route.locations.isEmpty {
                             Text("Elevation Profile").font(.headline).padding(.top, 10)
-                            MountainElevationPreview(elevation: mountain.elevation, accentColor: gold, route: route)
-                                .frame(height: 70)
+                            ElevationProfileView(routePoints: route.locations, compact: false)
                         }
                         
                         Spacer(minLength: 20)

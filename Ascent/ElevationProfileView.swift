@@ -1,6 +1,7 @@
 import SwiftUI
 import Charts
 import CoreLocation
+import MapKit
 
 // =========================================
 // === DATEI: ElevationProfileView.swift ===
@@ -13,6 +14,7 @@ struct ElevationPoint: Identifiable {
     let altitude: Double // meters
     let gradient: Double // % steepness
     let segment: TrailSegment
+    let coordinate: CLLocationCoordinate2D
 }
 
 enum TrailSegment: String, CaseIterable {
@@ -55,6 +57,8 @@ struct ElevationProfileView: View {
     let routePoints: [CLLocation]
     var currentPosition: Double? = nil // distance km from start for live tracker
     var compact: Bool = false
+    
+    @State private var selectedDistance: Double?
 
     private var elevationData: [ElevationPoint] {
         generateElevationData(from: routePoints)
@@ -93,6 +97,28 @@ struct ElevationProfileView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: compact ? 8 : 16) {
             if !compact {
+                // Mini Interactive Map
+                if !routePoints.isEmpty {
+                    Map(interactionModes: []) {
+                        MapPolyline(coordinates: routePoints.map { $0.coordinate })
+                            .stroke(DesignSystem.Colors.accent.opacity(0.8), lineWidth: 4)
+
+                        if let sel = selectedDistance, 
+                           let point = elevationData.min(by: { abs($0.distance - sel) < abs($1.distance - sel) }) {
+                            Annotation("", coordinate: point.coordinate) {
+                                Circle()
+                                    .fill(DesignSystem.Colors.accent)
+                                    .frame(width: 16, height: 16)
+                                    .overlay(Circle().stroke(Color.white, lineWidth: 3))
+                                    .shadow(radius: 4)
+                            }
+                        }
+                    }
+                    .frame(height: 160)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .animation(.default, value: selectedDistance)
+                }
+
                 // Stats row
                 HStack(spacing: 16) {
                     StatPill(icon: "arrow.up", value: "\(Int(totalAscent))m", label: "Ascent", color: .orange)
@@ -102,23 +128,58 @@ struct ElevationProfileView: View {
                 }
             }
 
+            // Chart Top HUD (Komoot-Style)
+            if !compact {
+                HStack {
+                    if let sel = selectedDistance, let point = elevationData.min(by: { abs($0.distance - sel) < abs($1.distance - sel) }) {
+                        HStack(spacing: 14) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "ruler").foregroundColor(.blue)
+                                Text(String(format: "%.1f km", point.distance)).fontWeight(.bold)
+                            }
+                            HStack(spacing: 4) {
+                                Image(systemName: "arrow.up.right").foregroundColor(.orange)
+                                Text("\(Int(point.altitude)) m").fontWeight(.bold)
+                            }
+                            HStack(spacing: 4) {
+                                Image(systemName: "chart.line.uptrend.xyaxis").foregroundColor(point.segment.color)
+                                Text(String(format: "%.0f%%", point.gradient)).fontWeight(.bold).foregroundColor(point.segment.color)
+                            }
+                        }
+                        .font(.system(size: 12, design: .rounded))
+                        .animation(.none, value: point.id)
+                    } else {
+                        Text("Touch and drag chart for details")
+                            .font(.system(size: 11, weight: .medium, design: .rounded))
+                            .foregroundColor(.secondary)
+                    }
+                    Spacer()
+                }
+                .padding(.horizontal, 4)
+                .frame(height: 16)
+            }
+
             // Chart
             if !elevationData.isEmpty {
                 chartView
                     .frame(height: compact ? 120 : 200)
+                    .padding(.trailing, 14)
             }
 
             // Segment legend
             if !compact {
-                HStack(spacing: 12) {
-                    ForEach(segmentSummary(), id: \.segment) { item in
-                        HStack(spacing: 4) {
-                            Circle().fill(item.segment.color).frame(width: 8, height: 8)
-                            Text("\(item.segment.rawValue)")
-                                .font(.system(size: 10, design: .rounded))
-                            Text(String(format: "%.0f%%", item.percentage))
-                                .font(.system(size: 10, weight: .bold, design: .rounded))
-                                .foregroundColor(.secondary)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 16) {
+                        ForEach(segmentSummary(), id: \.segment) { item in
+                            HStack(spacing: 4) {
+                                Circle().fill(item.segment.color).frame(width: 8, height: 8)
+                                Text("\(item.segment.rawValue)")
+                                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                                    .fixedSize(horizontal: true, vertical: false)
+                                Text(String(format: "%.0f%%", item.percentage))
+                                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                                    .foregroundColor(.secondary)
+                            }
                         }
                     }
                 }
@@ -146,10 +207,62 @@ struct ElevationProfileView: View {
                     .foregroundStyle(.white)
                     .lineStyle(StrokeStyle(lineWidth: 2, dash: [4, 4]))
             }
+            
+            if let sel = selectedDistance, let point = elevationData.min(by: { abs($0.distance - sel) < abs($1.distance - sel) }) {
+                RuleMark(x: .value("Selected", point.distance))
+                    .foregroundStyle(DesignSystem.Colors.accent)
+                    .lineStyle(StrokeStyle(lineWidth: 2))
+                
+                PointMark(
+                    x: .value("Selected Dist", point.distance),
+                    y: .value("Selected Alt", point.altitude)
+                )
+                .foregroundStyle(DesignSystem.Colors.accent)
+                .symbolSize(80)
+            }
         }
+        .chartOverlay { proxy in
+            GeometryReader { geometry in
+                Rectangle().fill(.clear).contentShape(Rectangle())
+                    .gesture(
+                        DragGesture(minimumDistance: 0)
+                            .onChanged { value in
+                                let x = value.location.x - geometry[proxy.plotAreaFrame].origin.x
+                                if let distance: Double = proxy.value(atX: x) {
+                                    withAnimation(.interactiveSpring(response: 0.2, dampingFraction: 0.8)) {
+                                        selectedDistance = distance
+                                    }
+                                }
+                            }
+                            .onEnded { _ in
+                                withAnimation(.spring()) { selectedDistance = nil }
+                            }
+                    )
+            }
+        }
+        .chartXSelection(value: $selectedDistance)
+        .chartXScale(domain: 0...(totalDistance > 0 ? totalDistance : 1))
         .chartYScale(domain: baseAlt...topAlt)
-        .chartXAxisLabel("Distance (km)")
-        .chartYAxisLabel("Altitude (m)")
+        .chartXAxis {
+            AxisMarks(position: .bottom) { value in
+                AxisGridLine().foregroundStyle(.gray.opacity(0.1))
+                AxisValueLabel {
+                    if let ds = value.as(Double.self) {
+                        Text(String(format: "%.0f km", ds)).font(.system(size: 10, design: .rounded))
+                    }
+                }
+            }
+        }
+        .chartYAxis {
+            AxisMarks(position: .leading) { value in
+                AxisGridLine().foregroundStyle(.gray.opacity(0.1))
+                AxisValueLabel {
+                    if let alt = value.as(Double.self) {
+                        Text("\(Int(alt)) m").font(.system(size: 10, design: .rounded))
+                    }
+                }
+            }
+        }
     }
 
     private func areaFor(point: ElevationPoint, base: Double) -> some ChartContent {
@@ -201,13 +314,13 @@ struct ElevationProfileView: View {
                 gradient = 0
             }
 
-            // Sample every Nth point for performance
-            if i % max(1, points.count / 200) == 0 || i == points.count - 1 {
+            if i % max(1, points.count / 1000) == 0 || i == points.count - 1 {
                 result.append(ElevationPoint(
                     distance: cumulativeDistance,
                     altitude: smoothed[i],
                     gradient: gradient,
-                    segment: TrailSegment.fromGradient(gradient)
+                    segment: TrailSegment.fromGradient(gradient),
+                    coordinate: points[i].coordinate
                 ))
             }
         }

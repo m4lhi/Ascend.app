@@ -450,12 +450,14 @@ struct LiveRecordView: View {
 
             // === LAYER 2: Lightening overlay ===
             Color.white.opacity(0.4).ignoresSafeArea()
+                .allowsHitTesting(false)
 
             // === LAYER 3: Top gradient ===
             VStack {
                 LinearGradient(colors: [.white.opacity(0.95), .white.opacity(0.5), .clear],
                                startPoint: .top, endPoint: .bottom)
                     .frame(height: 200).ignoresSafeArea()
+                    .allowsHitTesting(false)
                 Spacer()
             }
 
@@ -465,6 +467,7 @@ struct LiveRecordView: View {
                 LinearGradient(colors: [.clear, .white.opacity(0.8)],
                                startPoint: .top, endPoint: .bottom)
                     .frame(height: 300).ignoresSafeArea()
+                    .allowsHitTesting(false)
             }
             
             // === LAYER 5: Map Controls (Buttons) ===

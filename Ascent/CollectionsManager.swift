@@ -15,14 +15,13 @@ struct TourCollection: Identifiable, Codable {
     var description: String
     var cover_image_url: String?
     var mountain_ids: [UUID]
-    var is_public: Bool
     var created_at: Date
     var updated_at: Date
 
     enum CodingKeys: String, CodingKey {
         case id, user_id, name, description
         case cover_image_url, mountain_ids
-        case is_public, created_at, updated_at
+        case created_at, updated_at
     }
 }
 
@@ -63,7 +62,6 @@ class CollectionsManager: ObservableObject {
             let results: [TourCollection] = try await supabase
                 .from("collections")
                 .select()
-                .eq("is_public", value: true)
                 .order("created_at", ascending: false)
                 .limit(30)
                 .execute()
@@ -74,7 +72,7 @@ class CollectionsManager: ObservableObject {
         }
     }
 
-    func createCollection(name: String, description: String, mountainIds: [UUID], isPublic: Bool) async -> Bool {
+    func createCollection(name: String, description: String, mountainIds: [UUID]) async -> Bool {
         do {
             let userId = try await supabase.auth.session.user.id
             let collection = TourCollection(
@@ -84,7 +82,6 @@ class CollectionsManager: ObservableObject {
                 description: description,
                 cover_image_url: nil,
                 mountain_ids: mountainIds,
-                is_public: isPublic,
                 created_at: Date(),
                 updated_at: Date()
             )
@@ -165,11 +162,6 @@ struct CollectionCardView: View {
                             .fontWeight(.bold)
                             .foregroundColor(.primary)
                         Spacer()
-                        if collection.is_public {
-                            Image(systemName: "globe")
-                                .font(.system(size: 12))
-                                .foregroundColor(.secondary)
-                        }
                     }
 
                     Text("\(collection.mountain_ids.count) peaks")
@@ -288,7 +280,6 @@ struct CreateCollectionSheet: View {
     @Environment(\.dismiss) var dismiss
     @State private var name = ""
     @State private var description = ""
-    @State private var isPublic = false
     @State private var isSaving = false
 
     var body: some View {
@@ -312,22 +303,6 @@ struct CreateCollectionSheet: View {
                         .textFieldStyle(.roundedBorder)
                         .lineLimit(3...5)
                 }
-
-                Toggle(isOn: $isPublic) {
-                    HStack(spacing: 10) {
-                        Image(systemName: "globe")
-                            .foregroundColor(.blue)
-                        VStack(alignment: .leading) {
-                            Text("Public Collection")
-                                .font(.system(.subheadline, design: .rounded))
-                                .fontWeight(.semibold)
-                            Text("Visible to all users")
-                                .font(.system(.caption, design: .rounded))
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                }
-                .tint(DesignSystem.Colors.accent)
 
                 Spacer()
 
@@ -359,7 +334,7 @@ struct CreateCollectionSheet: View {
         isSaving = true
         Task {
             let success = await manager.createCollection(
-                name: name, description: description, mountainIds: [], isPublic: isPublic
+                name: name, description: description, mountainIds: []
             )
             if success { dismiss() }
             isSaving = false
@@ -456,8 +431,7 @@ struct SaveToCollectionSheet: View {
             .sheet(isPresented: $showCreateSheet) {
                 CreateCollectionSheet(manager: manager)
             }
-            // Auto reload collections when returning from create sheet
-            .onChange(of: showCreateSheet) { isPresented in
+            .onChange(of: showCreateSheet) { _, isPresented in
                 if !isPresented {
                     Task { await manager.fetchMyCollections() }
                 }
