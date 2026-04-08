@@ -7,17 +7,23 @@ import MapKit
 // === Komoot-Style Social Feed Homepage ===
 // =========================================
 
+
+
 struct BasecampView: View {
     @EnvironmentObject var appState: AppState
     @State private var showXPDetails = false
     @State private var showTracker = false
     @State private var mountainToTrack: Mountain? = nil
     @State private var mountainDetailToShow: Mountain? = nil
+    @State private var scrollInitialOffset: CGFloat? = nil
+    @State private var scrollLastOffset: CGFloat = 0
+    @State private var scrollAccDown: CGFloat = 0
+    @State private var scrollAccUp: CGFloat = 0
+    @State private var selectedFeedTab: FeedTab = .all
     @State private var heroBannerIndex = 0
     @State private var showObjectiveDetail = false
     @State private var selectedObjective: (title: String, icon: String, current: Int, target: Int, unit: String)?
     @State private var showAllActivities = false
-    @State private var selectedFeedTab: FeedTab = .all
 
     private let bannerTimer = Timer.publish(every: 5, on: .main, in: .common).autoconnect()
     private let accent = Color(red: 0.1, green: 0.5, blue: 0.95)
@@ -55,41 +61,59 @@ struct BasecampView: View {
             bg.ignoresSafeArea()
 
             ScrollView(showsIndicators: false) {
-                LazyVStack(spacing: 0) {
-
-                    // ============================
-                    // MARK: - FEED DASHBOARD HEADER
-                    // ============================
-                    VStack(spacing: 16) {
-                        topBar
-                            .padding(.top, 8)
-                        
-                        weeklyStrip
+                ZStack(alignment: .top) {
+                    // Invisible scroll-position tracker pinned at the top of content
+                    GeometryReader { geo in
+                        Color.clear
+                            .onChange(of: geo.frame(in: .named("bcScroll")).minY) { newValue in
+                                handleScrollOffset(newValue)
+                            }
+                            .onAppear {
+                                // Capture initial position
+                                let initial = geo.frame(in: .named("bcScroll")).minY
+                                scrollInitialOffset = initial
+                                scrollLastOffset = initial
+                            }
                     }
-                    .padding(.bottom, 24)
+                    .frame(height: 0)
+                    
+                    LazyVStack(spacing: 0) {
 
-                    // ============================
-                    // MARK: - FEED TABS
-                    // ============================
-                    feedTabBar
-                        .padding(.bottom, 16)
+                        // ============================
+                        // MARK: - FEED DASHBOARD HEADER
+                        // ============================
+                        VStack(spacing: 16) {
+                            topBar
+                                .padding(.top, 8)
+                            
+                            weeklyStrip
+                        }
+                        .padding(.bottom, 24)
 
-                    // ============================
-                    // MARK: - SOCIAL FEED
-                    // ============================
-                    feedContent
+                        // ============================
+                        // MARK: - FEED TABS
+                        // ============================
+                        feedTabBar
+                            .padding(.bottom, 16)
 
-                    // ============================
-                    // MARK: - DISCOVER SECTION (after feed)
-                    // ============================
-                    if !appState.suggestedRoutes.isEmpty {
-                        suggestedRoutesSection
-                            .padding(.top, 32)
+                        // ============================
+                        // MARK: - SOCIAL FEED
+                        // ============================
+                        feedContent
+
+                        // ============================
+                        // MARK: - DISCOVER SECTION (after feed)
+                        // ============================
+                        if !appState.suggestedRoutes.isEmpty {
+                            suggestedRoutesSection
+                                .padding(.top, 32)
+                        }
+
+                        Spacer().frame(height: 100)
                     }
-
-                    Spacer().frame(height: 100)
                 }
             }
+            .coordinateSpace(name: "bcScroll")
         }
         .onAppear {
             appState.fetchFeed()
@@ -123,6 +147,45 @@ struct BasecampView: View {
             }
             .presentationDetents([.fraction(0.85), .large])
             .preferredColorScheme(.light)
+        }
+    }
+
+    // MARK: - Scroll-based FAB visibility
+    private func handleScrollOffset(_ newOffset: CGFloat) {
+        // First call: record initial position
+        if scrollInitialOffset == nil {
+            scrollInitialOffset = newOffset
+            scrollLastOffset = newOffset
+            return
+        }
+        
+        let delta = newOffset - scrollLastOffset
+        scrollLastOffset = newOffset
+        
+        // Near the top? Always show FAB
+        if newOffset >= (scrollInitialOffset! - 15) {
+            scrollAccDown = 0
+            scrollAccUp = 0
+            if !appState.isFABVisible {
+                withAnimation(.easeOut(duration: 0.25)) { appState.isFABVisible = true }
+            }
+            return
+        }
+        
+        if delta < -2 {
+            // Scrolling DOWN
+            scrollAccDown += abs(delta)
+            scrollAccUp = 0
+            if scrollAccDown > 50 && appState.isFABVisible {
+                withAnimation(.easeOut(duration: 0.25)) { appState.isFABVisible = false }
+            }
+        } else if delta > 2 {
+            // Scrolling UP
+            scrollAccUp += delta
+            scrollAccDown = 0
+            if scrollAccUp > 25 && !appState.isFABVisible {
+                withAnimation(.easeOut(duration: 0.25)) { appState.isFABVisible = true }
+            }
         }
     }
 

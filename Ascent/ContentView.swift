@@ -5,9 +5,14 @@ import SwiftUI
 // === Steuert das Menü und die Tabs ===
 // =========================================
 
+
+// MARK: - Content View
+
 struct ContentView: View {
+    @EnvironmentObject var appState: AppState
     @State private var selectedTab = 0
     @State private var showTracker = false
+    @State private var showAIChat = false
 
     init() {
         UITabBar.appearance().isHidden = true
@@ -30,10 +35,49 @@ struct ContentView: View {
             .transition(.opacity)
 
             CustomTabBar(selectedTab: $selectedTab, showTracker: $showTracker)
+            
+            // Smart Floating Action Button (AI Guide) – nur auf Basecamp
+            if selectedTab == 0 {
+                VStack {
+                    Spacer()
+                    HStack {
+                        Spacer()
+                        Button(action: {
+                            HapticManager.shared.light()
+                            showAIChat = true
+                        }) {
+                            Image(systemName: "sparkles")
+                                .font(.system(size: appState.isFABVisible ? 24 : 16, weight: .bold))
+                                .foregroundColor(.white)
+                                .frame(
+                                    width: appState.isFABVisible ? 56 : 36,
+                                    height: appState.isFABVisible ? 56 : 36
+                                )
+                                .background(Color(red: 0.15, green: 0.5, blue: 0.35))
+                                .clipShape(Circle())
+                                .shadow(color: Color(red: 0.15, green: 0.5, blue: 0.35).opacity(appState.isFABVisible ? 0.4 : 0.15), radius: appState.isFABVisible ? 10 : 4, y: 4)
+                                .opacity(appState.isFABVisible ? 1 : 0.45)
+                        }
+                        .padding(.trailing, 20)
+                        .padding(.bottom, 120)
+                        .animation(.spring(response: 0.35, dampingFraction: 0.75), value: appState.isFABVisible)
+                    }
+                }
+                .transition(.opacity)
+            }
         }
         .preferredColorScheme(.light)
         .fullScreenCover(isPresented: $showTracker) {
             LiveRecordView(targetMountain: nil)
+        }
+        .fullScreenCover(isPresented: $showAIChat) {
+            AIChatGuideView()
+        }
+        .onChange(of: selectedTab) { _ in
+            // Reset FAB when switching tabs
+            withAnimation(.easeOut(duration: 0.2)) {
+                appState.isFABVisible = true
+            }
         }
     }
 }
@@ -100,3 +144,4 @@ struct TabBarIcon: View {
         }
     }
 }
+

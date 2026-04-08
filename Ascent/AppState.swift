@@ -268,6 +268,9 @@ class AppState: ObservableObject {
     // Collections (shared across all pages)
     @Published var myCollections: [TourCollection] = []
 
+    // FAB Visibility (driven by scroll direction in child views)
+    @Published var isFABVisible: Bool = true
+
     // Pagination
     @Published var isLoadingMoreFeed: Bool = false
     @Published var hasMoreFeed: Bool = true
