@@ -306,6 +306,7 @@ struct LiveRecordView: View {
 
     @State private var hasCalculatedRoute = false
     @State private var isTooFarForRoute = false
+    @State private var isMapCenteredOnUser = true
 
     private let gold = Color(red: 0.1, green: 0.5, blue: 0.95)
     @AppStorage("routeColor") private var routeColorName: String = "blue"
@@ -338,7 +339,21 @@ struct LiveRecordView: View {
         return gpsManager.elevationGain.truncatingRemainder(dividingBy: 500.0) / 500.0
     }
 
-    private var liveXP: Int { 100 + Int(gpsManager.elevationGain) }
+    private var liveXP: Int {
+        if let target = targetMountain {
+            // XP = base 50 + 1 XP per meter of elevation gained, capped at mountain height
+            let gained = min(gpsManager.elevationGain, Double(target.elevation))
+            return 50 + Int(gained)
+        }
+        return 50 + Int(gpsManager.elevationGain)
+    }
+    
+    private var mountainXPPotential: Int {
+        if let target = targetMountain {
+            return 50 + target.elevation
+        }
+        return 0
+    }
 
     private var statusLabel: String {
         if isRunning && gpsManager.isAutoPaused { return "AUTO-PAUSED" }
@@ -423,7 +438,19 @@ struct LiveRecordView: View {
                 }
             }
             .mapStyle(.imagery(elevation: .realistic))
+            .mapControls { }
+            .safeAreaPadding(.bottom, -40)
             .ignoresSafeArea()
+            .onMapCameraChange(frequency: .onEnd) { context in
+                if let userLoc = gpsManager.currentLocation {
+                    let camCenter = context.region.center
+                    let camLoc = CLLocation(latitude: camCenter.latitude, longitude: camCenter.longitude)
+                    let distance = userLoc.distance(from: camLoc)
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                        isMapCenteredOnUser = distance < 500
+                    }
+                }
+            }
             .onChange(of: gpsManager.currentLocation) { _, newLoc in
                 guard let loc = newLoc else { return }
 
@@ -451,7 +478,6 @@ struct LiveRecordView: View {
             // === LAYER 2: Lightening overlay ===
             Color.white.opacity(0.4).ignoresSafeArea()
                 .allowsHitTesting(false)
-                .drawingGroup()
 
             // === LAYER 3: Top gradient ===
             VStack {
@@ -461,7 +487,6 @@ struct LiveRecordView: View {
                     .allowsHitTesting(false)
                 Spacer()
             }
-            .drawingGroup()
 
             // === LAYER 4: Bottom gradient ===
             VStack {
@@ -471,30 +496,32 @@ struct LiveRecordView: View {
                     .frame(height: 300).ignoresSafeArea()
                     .allowsHitTesting(false)
             }
-            .drawingGroup()
             
             // === LAYER 5: Map Controls (Buttons) ===
-            VStack(spacing: 14) {
+            VStack(spacing: 10) {
                 if targetMountain != nil {
                     Button(action: viewFullRoute) {
                         Image(systemName: "map")
-                            .font(.system(size: 20, design: .rounded))
+                            .font(.system(size: 16, design: .rounded))
                             .foregroundColor(.primary)
-                            .frame(width: 48, height: 48)
+                            .frame(width: 40, height: 40)
                             .background(.ultraThinMaterial, in: Circle())
                             .overlay(Circle().stroke(Color.black.opacity(0.04), lineWidth: 1))
-                            .shadow(color: .black.opacity(0.1), radius: 8, y: 4)
+                            .shadow(color: .black.opacity(0.1), radius: 6, y: 3)
                     }
                 }
 
-                Button(action: centerOnUser) {
-                    Image(systemName: "location.fill")
-                        .font(.system(size: 20, design: .rounded))
-                        .foregroundColor(gold)
-                        .frame(width: 48, height: 48)
-                        .background(.ultraThinMaterial, in: Circle())
-                        .overlay(Circle().stroke(Color.black.opacity(0.04), lineWidth: 1))
-                        .shadow(color: .black.opacity(0.1), radius: 8, y: 4)
+                if !isMapCenteredOnUser {
+                    Button(action: centerOnUser) {
+                        Image(systemName: "location.fill")
+                            .font(.system(size: 16, design: .rounded))
+                            .foregroundColor(gold)
+                            .frame(width: 40, height: 40)
+                            .background(.ultraThinMaterial, in: Circle())
+                            .overlay(Circle().stroke(Color.black.opacity(0.04), lineWidth: 1))
+                            .shadow(color: .black.opacity(0.1), radius: 6, y: 3)
+                    }
+                    .transition(.scale.combined(with: .opacity))
                 }
 
                 // Weather button
@@ -503,14 +530,14 @@ struct LiveRecordView: View {
                         VStack(spacing: 2) {
                             Image(systemName: weatherManager.currentWeather?.conditionSymbol ?? "cloud")
                                 .symbolRenderingMode(.multicolor)
-                                .font(.system(size: 18))
+                                .font(.system(size: 15))
                             Text(weatherManager.currentWeather?.temperatureFormatted ?? "")
-                                .font(.system(size: 9, weight: .bold, design: .rounded))
+                                .font(.system(size: 8, weight: .bold, design: .rounded))
                         }
-                        .frame(width: 48, height: 48)
+                        .frame(width: 40, height: 40)
                         .background(.ultraThinMaterial, in: Circle())
                         .overlay(Circle().stroke(Color.black.opacity(0.04), lineWidth: 1))
-                        .shadow(color: .black.opacity(0.1), radius: 8, y: 4)
+                        .shadow(color: .black.opacity(0.1), radius: 6, y: 3)
                     }
                 }
 
@@ -528,19 +555,6 @@ struct LiveRecordView: View {
                         emergencyManager: emergencyManager,
                         currentLocation: gpsManager.currentLocation
                     )
-                }
-
-                // Share location
-                if isRunning {
-                    Button(action: shareLocation) {
-                        Image(systemName: "location.circle.fill")
-                            .font(.system(size: 20, design: .rounded))
-                            .foregroundColor(.blue)
-                            .frame(width: 48, height: 48)
-                            .background(.ultraThinMaterial, in: Circle())
-                            .overlay(Circle().stroke(Color.black.opacity(0.04), lineWidth: 1))
-                            .shadow(color: .black.opacity(0.1), radius: 8, y: 4)
-                    }
                 }
             }
             .padding(.trailing, 16)
@@ -635,6 +649,7 @@ struct LiveRecordView: View {
         if let userLoc = gpsManager.currentLocation {
             withAnimation(.easeInOut(duration: 1.0)) {
                 cameraPosition = .camera(MapCamera(centerCoordinate: userLoc.coordinate, distance: 3000))
+                isMapCenteredOnUser = true
             }
         }
     }
@@ -889,11 +904,17 @@ struct LiveRecordView: View {
 
                 VStack(spacing: 0) {
                     Text("+\(liveXP)")
-                        .font(.system(size: 12, weight: .black, design: .rounded))
+                        .font(.system(size: 11, weight: .black, design: .rounded))
                         .foregroundColor(gold)
-                    Text("XP")
-                        .font(.system(size: 7, weight: .black, design: .rounded))
-                        .foregroundColor(gold.opacity(0.6))
+                    if mountainXPPotential > 0 {
+                        Text("/\(mountainXPPotential)")
+                            .font(.system(size: 7, weight: .bold, design: .rounded))
+                            .foregroundColor(gold.opacity(0.4))
+                    } else {
+                        Text("XP")
+                            .font(.system(size: 7, weight: .black, design: .rounded))
+                            .foregroundColor(gold.opacity(0.6))
+                    }
                 }
                 .frame(width: 40, height: 40)
                 .background(.ultraThinMaterial, in: Circle())
@@ -924,9 +945,15 @@ struct LiveRecordView: View {
                             .foregroundColor(.primary.opacity(0.4)).tracking(1.5)
                     }
                     Spacer()
-                    Text("\(Int(gpsManager.elevationGain))m")
-                        .font(.system(size: 9, weight: .bold, design: .rounded))
-                        .foregroundColor(gold.opacity(0.9))
+                    if let mt = targetMountain {
+                        Text("\(Int(gpsManager.elevationGain))m / \(mt.elevation)m")
+                            .font(.system(size: 9, weight: .bold, design: .rounded))
+                            .foregroundColor(gold.opacity(0.9))
+                    } else {
+                        Text("\(Int(gpsManager.elevationGain))m")
+                            .font(.system(size: 9, weight: .bold, design: .rounded))
+                            .foregroundColor(gold.opacity(0.9))
+                    }
                 }
             }
         }
@@ -1134,6 +1161,11 @@ struct LiveRecordView: View {
     private func startRecording() {
         HapticManager.shared.medium()
         isRunning = true
+        
+        // Collapse panel when recording starts for more map visibility
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+            panelCollapsed = true
+        }
 
         gpsManager.logManualResume()
         gpsManager.startTracking()
