@@ -91,7 +91,7 @@ struct ExploreView: View {
     @State private var nearbyRadiusKm: Double = 25
 
     @State private var currentMapLayer: MapLayerType = .satellite
-    @State private var showLayersSheet = false
+    @State private var isLayersExpanded = false
 
     @State private var showLocationDeniedAlert = false
     @State private var isRouteCreationMode = false
@@ -157,10 +157,23 @@ struct ExploreView: View {
                 Spacer()
                 HStack {
                     Spacer()
-                    VStack(spacing: 12) {
-                        FloatingMapButton(icon: "square.3.layers.3d") { showLayersSheet = true }
-                        FloatingMapButton(icon: "location.fill") { flyToMyLocation() }
+                    VStack(spacing: 8) {
+                        if isLayersExpanded {
+                            ForEach(MapLayerType.allCases.filter { $0 != currentMapLayer }) { layer in 
+                                FloatingMapButton(icon: layer.icon) {
+                                    currentMapLayer = layer
+                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { isLayersExpanded = false }
+                                }
+                                .transition(.scale(scale: 0.5).combined(with: .opacity))
+                            }
+                        }
+                        FloatingMapButton(icon: "square.3.layers.3d", active: isLayersExpanded) {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                isLayersExpanded.toggle()
+                            }
+                        }
                     }
+                    FloatingMapButton(icon: "location.fill") { flyToMyLocation() }
                     .padding(.trailing, 12)
                 }
                 Spacer()
@@ -250,12 +263,8 @@ struct ExploreView: View {
                 }
             }
         }
-        // 🟢 FIX: Wir nutzen 'item:', damit der Tracker erst öffnet, wenn der Berg zu 100% geladen ist!
         .fullScreenCover(item: $mountainToTrack) { mountain in
             LiveRecordView(targetMountain: mountain)
-        }
-        .sheet(isPresented: $showLayersSheet) {
-            layersSheet.presentationDetents([.medium]).presentationDragIndicator(.visible)
         }
         .alert("Location Access Denied", isPresented: $showLocationDeniedAlert) {
             Button("OK", role: .cancel) { }
@@ -514,31 +523,7 @@ struct ExploreView: View {
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black.opacity(0.08), lineWidth: 0.5))
     }
 
-    @ViewBuilder
-    var layersSheet: some View {
-        NavigationView {
-            ScrollView {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 140), spacing: 12)], spacing: 12) {
-                    ForEach(MapLayerType.allCases) { layer in
-                        Button {
-                            withAnimation(.spring()) { currentMapLayer = layer }
-                            showLayersSheet = false
-                        } label: {
-                            VStack(spacing: 8) {
-                                ZStack {
-                                    RoundedRectangle(cornerRadius: 12).fill(layerPreviewColor(layer)).frame(height: 80)
-                                    Image(systemName: layer.icon).font(.system(size: 28, design: .rounded)).foregroundColor(.white)
-                                }.overlay(RoundedRectangle(cornerRadius: 12).stroke(currentMapLayer == layer ? gold : Color.clear, lineWidth: 2))
-                                Text(layer.rawValue).font(.system(size: 13, weight: .bold, design: .rounded)).foregroundColor(currentMapLayer == layer ? gold : .primary)
-                                Text(layer.subtitle).font(.system(size: 10, design: .rounded)).foregroundColor(.gray)
-                            }
-                        }
-                    }
-                }.padding(16)
-            }
-            .background(Color(white: 0.98)).navigationTitle("Map Layers").navigationBarTitleDisplayMode(.inline)
-        }.preferredColorScheme(.light)
-    }
+
 
     func layerPreviewColor(_ layer: MapLayerType) -> LinearGradient {
         switch layer {
@@ -935,14 +920,15 @@ struct MountainElevationPreview: View {
 // MARK: - Reusable UI Components
 struct FloatingMapButton: View {
     let icon: String
+    var active: Bool = false
     let action: () -> Void
     var body: some View {
         Button(action: action) {
             Image(systemName: icon)
                 .font(.system(size: 20, weight: .semibold, design: .rounded))
-                .foregroundColor(.black)
+                .foregroundColor(active ? .white : .black)
                 .frame(width: 44, height: 44)
-                .background(.ultraThinMaterial)
+                .background(active ? AnyShapeStyle(Color(red: 0.1, green: 0.5, blue: 0.95)) : AnyShapeStyle(.ultraThinMaterial))
                 .clipShape(Circle())
                 .shadow(color: .black.opacity(0.15), radius: 8, y: 4)
         }
