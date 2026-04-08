@@ -102,7 +102,9 @@ class MountainManager: ObservableObject {
                 }
                 
                 await MainActor.run {
-                    self.mountains = visiblePeaks
+                    var currentSet = Set(self.mountains)
+                    currentSet.formUnion(visiblePeaks)
+                    self.mountains = Array(currentSet)
                 }
             } catch {
                 print("❌ Fehler beim Laden der Bounding Box: \(error)")
