@@ -266,6 +266,12 @@ class LocationFetcher: NSObject, ObservableObject, CLLocationManagerDelegate {
 // MARK: - Trophy Room View (Profile)
 // =========================================
 
+enum ProfileTab: String, CaseIterable {
+    case missions = "Missions"
+    case saved = "Saved"
+    case collections = "Collections"
+}
+
 struct TrophyRoomView: View {
     @EnvironmentObject var appState: AppState
     
@@ -277,6 +283,7 @@ struct TrophyRoomView: View {
     @State private var selectedCategory: AchievementCategory? = nil
     @State private var selectedAchievement: Achievement? = nil
     @State private var showAllAchievements = false
+    @State private var selectedProfileTab: ProfileTab = .missions
     
     private let gold = Color(red: 0.1, green: 0.5, blue: 0.95)
     private let cardBg = Color.white
@@ -668,34 +675,55 @@ struct TrophyRoomView: View {
                     .offset(y: animateIn ? 0 : 10)
 
                     // ============================================
-                    // MARK: - TRACK RECORD (PERSONAL FEED)
+                    // MARK: - LOGBOOK & COLLECTIONS (TABS)
                     // ============================================
                     VStack(alignment: .leading, spacing: 16) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "list.bullet.rectangle.portrait.fill")
-                                .font(.system(size: 14, weight: .bold, design: .rounded))
-                                .foregroundColor(.cyan)
-                            Text("Track Record")
-                                .font(.system(size: 19, weight: .bold, design: .rounded))
-                                .foregroundColor(.primary)
+                        Picker("Profile Tabs", selection: $selectedProfileTab) {
+                            ForEach(ProfileTab.allCases, id: \.self) { tab in
+                                Text(tab.rawValue).tag(tab)
+                            }
                         }
+                        .pickerStyle(SegmentedPickerStyle())
                         .padding(.horizontal, 20)
                         
-                        let myTours = appState.recentTours.filter { $0.isCurrentUser }
-                        if myTours.isEmpty {
-                            Text("No missions completed yet.")
-                                .font(.system(.subheadline, design: .rounded))
-                                .foregroundColor(.gray)
-                                .padding(.horizontal, 20)
-                                .padding(.vertical, 10)
-                        } else {
-                            VStack(spacing: 16) {
-                                ForEach(myTours) { tour in
-                                    // Make sure ActivityCardView exists globally. Assuming from Basecamp.
-                                    ActivityCardView(tour: tour)
-                                        .padding(.horizontal, 16)
+                        switch selectedProfileTab {
+                        case .missions:
+                            let myTours = appState.recentTours.filter { $0.isCurrentUser }
+                            if myTours.isEmpty {
+                                Text("No missions completed yet.")
+                                    .font(.system(.subheadline, design: .rounded))
+                                    .foregroundColor(.gray)
+                                    .padding(.horizontal, 20)
+                                    .padding(.vertical, 10)
+                            } else {
+                                VStack(spacing: 16) {
+                                    ForEach(myTours) { tour in
+                                        ActivityCardView(tour: tour)
+                                            .padding(.horizontal, 16)
+                                    }
                                 }
                             }
+                        case .saved:
+                            if appState.bookmarkedTours.isEmpty {
+                                Text("No saved tours from the community yet.")
+                                    .font(.system(.subheadline, design: .rounded))
+                                    .foregroundColor(.gray)
+                                    .padding(.horizontal, 20)
+                                    .padding(.vertical, 10)
+                            } else {
+                                VStack(spacing: 16) {
+                                    ForEach(appState.bookmarkedTours) { tour in
+                                        ActivityCardView(tour: tour)
+                                            .padding(.horizontal, 16)
+                                    }
+                                }
+                            }
+                        case .collections:
+                            // Because CollectionsView is a ScrollView and TrophyRoom is already a ScrollView,
+                            // we extract the content to avoid nested scroll views intercepting touches.
+                            // CollectionsView internally creates a ScrollView, so let's render the list directly.
+                            ProfileCollectionsList()
+                                .environmentObject(appState)
                         }
                     }
                     .padding(.top, 28)
@@ -1646,6 +1674,65 @@ struct AllAchievementsSheet: View {
                 AchievementDetailSheet(achievement: achievement)
                     .presentationDetents([.medium])
                     .preferredColorScheme(.light)
+            }
+        }
+    }
+}
+
+// MARK: - Profile Collections List (For Profile Tab)
+struct ProfileCollectionsList: View {
+    @EnvironmentObject var appState: AppState
+    @State private var showCreateSheet = false
+    @StateObject private var tempManager = CollectionsManager()
+
+    var body: some View {
+        VStack(spacing: 24) {
+            HStack {
+                Text("My Curated Peaks")
+                    .font(.system(.headline, design: .rounded))
+                    .foregroundColor(.secondary)
+                Spacer()
+                Button(action: { showCreateSheet = true }) {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 22))
+                        .foregroundColor(Color(red: 0.1, green: 0.5, blue: 0.95))
+                }
+            }
+            .padding(.horizontal, 20)
+
+            if appState.myCollections.isEmpty {
+                VStack(spacing: 12) {
+                    Image(systemName: "rectangle.stack.fill")
+                        .font(.system(size: 40))
+                        .foregroundColor(.gray.opacity(0.3))
+                    Text("No collections yet")
+                        .font(.system(.subheadline, design: .rounded))
+                        .foregroundColor(.secondary)
+                    Text("Create a collection to organize your favorite peaks and routes.")
+                        .font(.system(.caption, design: .rounded))
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                .padding(32)
+                .frame(maxWidth: .infinity)
+                .background(.ultraThinMaterial)
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+                .padding(.horizontal, 20)
+            } else {
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
+                    ForEach(appState.myCollections) { collection in
+                        CollectionCardView(collection: collection)
+                    }
+                }
+                .padding(.horizontal, 20)
+            }
+        }
+        .sheet(isPresented: $showCreateSheet) {
+            CreateCollectionSheet(manager: tempManager)
+        }
+        .onChange(of: showCreateSheet) { isPresented in
+            if !isPresented {
+                appState.fetchCollections()
             }
         }
     }

@@ -366,3 +366,102 @@ struct CreateCollectionSheet: View {
         }
     }
 }
+
+// MARK: - Save To Collection Sheet
+struct SaveToCollectionSheet: View {
+    let mountain: Mountain
+    @StateObject private var manager = CollectionsManager()
+    @Environment(\.dismiss) var dismiss
+    @State private var showCreateSheet = false
+
+    var body: some View {
+        NavigationView {
+            Group {
+                if manager.isLoading {
+                    ProgressView()
+                } else if manager.myCollections.isEmpty {
+                    VStack(spacing: 16) {
+                        Image(systemName: "rectangle.stack.badge.plus")
+                            .font(.system(size: 40))
+                            .foregroundColor(.gray.opacity(0.4))
+                        Text("No Collections yet")
+                            .font(.system(.headline, design: .rounded))
+                        Text("Create your first collection to save this peak.")
+                            .font(.system(.subheadline, design: .rounded))
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
+                        
+                        Button(action: { showCreateSheet = true }) {
+                            Text("Create Collection")
+                                .fontWeight(.bold)
+                                .foregroundColor(.white)
+                                .padding()
+                                .frame(maxWidth: .infinity)
+                                .background(DesignSystem.Colors.accent)
+                                .cornerRadius(12)
+                        }
+                        .padding(.top, 10)
+                        .padding(.horizontal, 32)
+                    }
+                } else {
+                    List {
+                        ForEach(manager.myCollections) { collection in
+                            Button {
+                                Task {
+                                    await manager.addMountainToCollection(collectionId: collection.id, mountainId: mountain.id)
+                                    HapticManager.shared.success()
+                                    dismiss()
+                                }
+                            } label: {
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(collection.name)
+                                            .font(.system(.headline, design: .rounded))
+                                            .foregroundColor(.primary)
+                                        Text("\(collection.mountain_ids.count) peaks")
+                                            .font(.system(.caption, design: .rounded))
+                                            .foregroundColor(.secondary)
+                                    }
+                                    Spacer()
+                                    if collection.mountain_ids.contains(mountain.id) {
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .foregroundColor(.green)
+                                    }
+                                }
+                            }
+                            .disabled(collection.mountain_ids.contains(mountain.id))
+                        }
+                    }
+                    .listStyle(InsetGroupedListStyle())
+                }
+            }
+            .navigationTitle("Save to Collection")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: { dismiss() }) {
+                        Text("Cancel").fontWeight(.medium)
+                    }
+                }
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(action: { showCreateSheet = true }) {
+                        Image(systemName: "plus")
+                    }
+                }
+            }
+            .task {
+                await manager.fetchMyCollections()
+            }
+            .sheet(isPresented: $showCreateSheet) {
+                CreateCollectionSheet(manager: manager)
+            }
+            // Auto reload collections when returning from create sheet
+            .onChange(of: showCreateSheet) { isPresented in
+                if !isPresented {
+                    Task { await manager.fetchMyCollections() }
+                }
+            }
+        }
+    }
+}
