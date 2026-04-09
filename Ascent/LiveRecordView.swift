@@ -310,6 +310,7 @@ struct LiveRecordView: View {
 
     private let gold = Color(red: 0.1, green: 0.5, blue: 0.95)
     @AppStorage("routeColor") private var routeColorName: String = "blue"
+    @AppStorage("turnByTurnEnabled") private var turnByTurnEnabled = false
 
     private var userRouteColor: Color {
         switch routeColorName {
@@ -323,11 +324,13 @@ struct LiveRecordView: View {
     init(targetMountain: Mountain?) {
         self.targetMountain = targetMountain
         
-        // 🟢 Wenn ein Berg da ist, zentriere direkt darauf, ansonsten nutze .automatic
         if let target = targetMountain, let lat = target.latitude, let lon = target.longitude {
+            // Center on mountain initially, recenter button will appear
             _cameraPosition = State(initialValue: .camera(MapCamera(centerCoordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon), distance: 15000)))
+            _isMapCenteredOnUser = State(initialValue: false)
         } else {
-            _cameraPosition = State(initialValue: .automatic)
+            // Center on user location
+            _cameraPosition = State(initialValue: .userLocation(fallback: .automatic))
         }
     }
 
@@ -467,6 +470,8 @@ struct LiveRecordView: View {
                 // Off-Route Detection: Snapping & Splitting update
                 updateClosestRouteIndex(to: loc.coordinate)
                 
+                print("🧭 GPS: onChange fired — target=\(targetMountain?.name ?? "nil"), hasCalc=\(hasCalculatedRoute), lat=\(targetMountain?.latitude ?? -1)")
+                
                 guard let target = targetMountain, !hasCalculatedRoute,
                       let targetLat = target.latitude, let targetLon = target.longitude else { return }
                 
@@ -558,16 +563,17 @@ struct LiveRecordView: View {
                 }
             }
             .padding(.trailing, 16)
-            .padding(.top, 140)
+            .padding(.top, navigationManager.isNavigating ? 280 : 140)
 
             // Navigation HUD overlay
             if navigationManager.isNavigating {
                 VStack {
-                    Spacer().frame(height: 120)
+                    Spacer().frame(height: 180)
                     NavigationHUDView(navManager: navigationManager)
                         .padding(.horizontal, 16)
                     Spacer()
                 }
+                .allowsHitTesting(true)
             }
 
             // === LAYER 6: Content ===
@@ -641,6 +647,42 @@ struct LiveRecordView: View {
                 }
             }
         }
+        .onChange(of: offlineAscentRoute?.count) { _, _ in
+            if isRunning, turnByTurnEnabled, !navigationManager.isNavigating {
+                startNavigationIfReady()
+            }
+        }
+        .onChange(of: appleApproachRoute?.count) { _, _ in
+            if isRunning, turnByTurnEnabled, !navigationManager.isNavigating {
+                startNavigationIfReady()
+            }
+        }
+    }
+
+    // 🟢 Navigation starten sobald irgendeine Route verfügbar ist
+    private func startNavigationIfReady() {
+        print("🧭 NAV: startNavigationIfReady called — isNavigating=\(navigationManager.isNavigating)")
+        guard !navigationManager.isNavigating else { return }
+        
+        print("🧭 NAV: offlineRoute=\(offlineAscentRoute?.count ?? 0), appleRoute=\(appleApproachRoute?.count ?? 0)")
+        
+        // Priority 1: Offline ascent route (from database)
+        if let route = offlineAscentRoute, !route.isEmpty {
+            let startIndex = min(max(0, interceptIndex), route.count - 1)
+            let navCoords = Array(route[startIndex...])
+            print("🧭 NAV: ✅ Starting with offline route (\(navCoords.count) points)")
+            navigationManager.startNavigation(coordinates: navCoords, mountainName: targetMountain?.name)
+            return
+        }
+        
+        // Priority 2: Apple Maps approach route
+        if let route = appleApproachRoute, !route.isEmpty {
+            print("🧭 NAV: ✅ Starting with Apple route (\(route.count) points)")
+            navigationManager.startNavigation(coordinates: route, mountainName: targetMountain?.name)
+            return
+        }
+        
+        print("🧭 NAV: ❌ No route available yet")
     }
 
     // 🟢 BUTTON-FUNKTION: Zurück auf User zoomen
@@ -720,10 +762,14 @@ struct LiveRecordView: View {
     private func calculateRouteToMountain(from userLoc: CLLocationCoordinate2D, to dest: CLLocationCoordinate2D) {
         let userCLLoc = CLLocation(latitude: userLoc.latitude, longitude: userLoc.longitude)
         
+        print("🧭 ROUTE: calculateRouteToMountain called")
+        print("🧭 ROUTE: target.routes = \(targetMountain?.routes?.count ?? -1)")
+        
         // 1. Check if we have a predefined MountainRoute in the database
         if let target = targetMountain, let routes = target.routes, let firstRoute = routes.first {
             let decodedAscent = PolylineUtility.decode(polyline: firstRoute.route_polyline)
             
+            print("🧭 ROUTE: Decoded ascent route with \(decodedAscent.count) points")
             guard !decodedAscent.isEmpty else { return }
             
             // Finde den Interception Point! Wo steigt der User am nächsten ein?
@@ -802,6 +848,10 @@ struct LiveRecordView: View {
                                 }
                             }
                         }
+                        // Trigger navigation if recording is already active
+                        if self.isRunning && self.turnByTurnEnabled {
+                            self.startNavigationIfReady()
+                        }
                     }
                 }
             }
@@ -855,6 +905,10 @@ struct LiveRecordView: View {
                         if !self.isRunning {
                             self.cameraPosition = .rect(self.padMapRect(route.polyline.boundingMapRect))
                         }
+                    }
+                    // Trigger navigation if recording is already active
+                    if self.isRunning && self.turnByTurnEnabled {
+                        self.startNavigationIfReady()
                     }
                 }
             }
@@ -1170,11 +1224,41 @@ struct LiveRecordView: View {
         gpsManager.logManualResume()
         gpsManager.startTracking()
 
-        // Start navigation if we have a route
-        if let route = offlineAscentRoute, !route.isEmpty {
-            let startIndex = min(max(0, interceptIndex), route.count - 1)
-            let navCoords = Array(route[startIndex...])
-            navigationManager.startNavigation(coordinates: navCoords, mountainName: targetMountain?.name)
+        // Force route calculation if it hasn't happened yet (e.g. simulator with static location)
+        if !hasCalculatedRoute, let target = targetMountain,
+           let targetLat = target.latitude, let targetLon = target.longitude {
+            hasCalculatedRoute = true
+            
+            // Use current location or fallback to target coords
+            let userCoord: CLLocationCoordinate2D
+            if let loc = gpsManager.currentLocation {
+                userCoord = loc.coordinate
+            } else {
+                // On simulator, CLLocationManager may have a cached location
+                let locManager = CLLocationManager()
+                if let loc = locManager.location {
+                    userCoord = loc.coordinate
+                } else {
+                    userCoord = CLLocationCoordinate2D(latitude: targetLat, longitude: targetLon)
+                }
+            }
+            
+            print("🧭 NAV: Force calculating route from \(userCoord.latitude),\(userCoord.longitude)")
+            calculateRouteToMountain(from: userCoord, to: CLLocationCoordinate2D(latitude: targetLat, longitude: targetLon))
+        }
+
+        // Start navigation if we have a route AND user has enabled turn-by-turn
+        print("🧭 NAV: startRecording — turnByTurnEnabled=\(turnByTurnEnabled)")
+        if turnByTurnEnabled {
+            startNavigationIfReady()
+            
+            // Retry after 3 seconds in case route was being calculated async
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                if self.isRunning && self.turnByTurnEnabled && !self.navigationManager.isNavigating {
+                    print("🧭 NAV: Retry after 3s — offlineRoute=\(self.offlineAscentRoute?.count ?? 0), appleRoute=\(self.appleApproachRoute?.count ?? 0)")
+                    self.startNavigationIfReady()
+                }
+            }
         }
 
         // Fetch weather for current/target location
