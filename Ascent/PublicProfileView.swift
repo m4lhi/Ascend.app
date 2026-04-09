@@ -224,7 +224,7 @@ struct PublicProfileView: View {
                             .padding(.horizontal, 24)
                             
                             // We pass binding, but we don't handle clicks
-                            EquipmentLockerView(equipment: $equipment)
+                            EquipmentLockerView(equipment: equipment)
                                 .disabled(true) // Read only
                         }
                         .padding(.top, 10)
