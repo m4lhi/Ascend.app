@@ -626,6 +626,21 @@ struct LiveRecordView: View {
             appState.trackerDistanceKm = gpsManager.distance / 1000.0
             appState.trackerElevationGain = gpsManager.elevationGain
             appState.isTrackerPaused = !isRunning || gpsManager.isAutoPaused
+            
+            #if canImport(ActivityKit)
+            if #available(iOS 16.2, *) {
+                let isPaused = !isRunning || gpsManager.isAutoPaused
+                let speedMps = timeElapsed > 0 ? (Double(gpsManager.distance) / Double(timeElapsed)) : 0
+                LiveActivityManager.shared.updateActivity(
+                    duration: Double(timeElapsed),
+                    distanceMeter: gpsManager.distance,
+                    remainingDistanceMeter: navigationManager.totalRemainingDistance,
+                    speedMetersPerSecond: speedMps,
+                    isPaused: isPaused
+                )
+            }
+            #endif
+
         }
         .sheet(isPresented: $showSaveForm, onDismiss: {
             sliderResetToken = UUID()
@@ -1254,6 +1269,12 @@ struct LiveRecordView: View {
     }
 
     private func startRecording() {
+        #if canImport(ActivityKit)
+        if #available(iOS 16.2, *) {
+            LiveActivityManager.shared.startActivity(mountainName: targetMountain?.name ?? "Mission")
+        }
+        #endif
+
         HapticManager.shared.medium()
         isRunning = true
         
@@ -1344,6 +1365,12 @@ struct LiveRecordView: View {
     }
 
     func endMission() {
+        #if canImport(ActivityKit)
+        if #available(iOS 16.2, *) {
+            LiveActivityManager.shared.endActivity()
+        }
+        #endif
+
         isRunning = false
         gpsManager.stopTracking()
         gpsManager.finalizeSession()
