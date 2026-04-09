@@ -293,13 +293,14 @@ struct LiveRecordView: View {
     @State private var showElevationProfile = false
     @State private var showExportSheet = false
     @State private var showWeatherDetail = false
+    @State private var showTrackerSettings = false
     @State private var panelCollapsed = false
+    @State private var navHUDCollapsed = false
     @State private var sliderResetToken = UUID()
     
     // 🟢 Speichert die berechneten Routen
     @State private var appleApproachRoute: [CLLocationCoordinate2D]? = nil
     @State private var offlineAscentRoute: [CLLocationCoordinate2D]? = nil
-    @State private var fallbackRoute: [CLLocationCoordinate2D]? = nil
     
     @State private var interceptIndex: Int = 0
     @State private var closestRouteIndex: Int? = nil
@@ -377,14 +378,9 @@ struct LiveRecordView: View {
             Map(position: $cameraPosition, bounds: MapCameraBounds(maximumDistance: 150_000)) {
                 UserAnnotation()
                 
-                // 🟢 Zieht den dynamischen Zustieg (Approach) als durchgehende graue Linie (perfekter Übergang)
                 if let approach = appleApproachRoute {
                     MapPolyline(coordinates: approach)
-                        .stroke(.gray.opacity(0.8), style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round))
-                } else if let fallback = fallbackRoute {
-                    // Falls die API noch lädt oder ausfällt: leicht gestrichelte Luftlinie
-                    MapPolyline(coordinates: fallback)
-                        .stroke(.gray.opacity(0.4), style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round, dash: [8, 8]))
+                        .stroke(.gray.opacity(0.82), style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round))
                 }
                 
                 // 🟢 Zeichnet die Offline Ascent Polyline (z.T. ignoriert, z.T. aktiv)
@@ -396,13 +392,13 @@ struct LiveRecordView: View {
                     // Der ignorierte untere Teil (vor dem Interception Point)
                     if safeIntercept > 0 {
                         MapPolyline(coordinates: Array(routeCoords[0...safeIntercept]))
-                            .stroke(.gray.opacity(0.3), style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round))
+                            .stroke(.gray.opacity(0.35), style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round))
                     }
                     
                     // Das Stück vom Interception-Point bis zur aktuellen User-Position (bereits gelaufen / grau)
                     if safeActiveStart > safeIntercept {
                         MapPolyline(coordinates: Array(routeCoords[safeIntercept...safeActiveStart]))
-                            .stroke(.gray.opacity(0.6), style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round))
+                            .stroke(.gray.opacity(0.68), style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round))
                     }
                     
                     // Das restliche, noch zu laufende Stück in die Zukunft (Sattes Cyan)
@@ -561,19 +557,38 @@ struct LiveRecordView: View {
                         currentLocation: gpsManager.currentLocation
                     )
                 }
+
+                // Restart Navigation button (visible when nav was stopped but route exists)
+                if isRunning && !navigationManager.isNavigating && turnByTurnEnabled &&
+                   (offlineAscentRoute != nil || appleApproachRoute != nil) {
+                    Button(action: {
+                        HapticManager.shared.light()
+                        startNavigationIfReady()
+                    }) {
+                        Image(systemName: "arrow.triangle.turn.up.right.diamond.fill")
+                            .font(.system(size: 16, design: .rounded))
+                            .foregroundColor(.cyan)
+                            .frame(width: 40, height: 40)
+                            .background(.ultraThinMaterial, in: Circle())
+                            .overlay(Circle().stroke(Color.black.opacity(0.04), lineWidth: 1))
+                            .shadow(color: .black.opacity(0.1), radius: 6, y: 3)
+                    }
+                    .transition(.scale.combined(with: .opacity))
+                }
             }
             .padding(.trailing, 16)
-            .padding(.top, navigationManager.isNavigating ? 280 : 140)
+            .padding(.top, navigationManager.isNavigating ? (navHUDCollapsed ? 200 : 280) : 140)
 
             // Navigation HUD overlay
             if navigationManager.isNavigating {
                 VStack {
-                    Spacer().frame(height: 180)
-                    NavigationHUDView(navManager: navigationManager)
+                    Spacer().frame(height: navHUDCollapsed ? 140 : 180)
+                    NavigationHUDView(navManager: navigationManager, isCollapsed: $navHUDCollapsed)
                         .padding(.horizontal, 16)
                     Spacer()
                 }
                 .allowsHitTesting(true)
+                .animation(.spring(response: 0.35, dampingFraction: 0.8), value: navHUDCollapsed)
             }
 
             // === LAYER 6: Content ===
@@ -646,6 +661,9 @@ struct LiveRecordView: View {
                     }
                 }
             }
+        }
+        .sheet(isPresented: $showTrackerSettings) {
+            TrackerSettingsSheet()
         }
         .onChange(of: offlineAscentRoute?.count) { _, _ in
             if isRunning, turnByTurnEnabled, !navigationManager.isNavigating {
@@ -733,9 +751,7 @@ struct LiveRecordView: View {
         
         var allPoints: [CLLocationCoordinate2D] = []
         if let approach = appleApproachRoute { allPoints += approach }
-        else if let fallback = fallbackRoute { allPoints += fallback }
-        
-        if let ascent = offlineAscentRoute, !ascent.isEmpty {
+        else if let ascent = offlineAscentRoute, !ascent.isEmpty {
             let safeIntercept = min(max(0, interceptIndex), ascent.count - 1)
             allPoints += Array(ascent[safeIntercept...])
         }
@@ -789,8 +805,6 @@ struct LiveRecordView: View {
             withAnimation {
                 self.offlineAscentRoute = decodedAscent
                 self.interceptIndex = bestIndex
-                // Sofortige Luftlinie zeichnen, falls Berechnung dauert
-                self.fallbackRoute = [userLoc, interceptCoord]
                 self.appleApproachRoute = nil
                 self.updateClosestRouteIndex(to: userLoc)
             }
@@ -834,7 +848,6 @@ struct LiveRecordView: View {
                     DispatchQueue.main.async {
                         withAnimation(.easeInOut(duration: 1.0)) {
                             self.appleApproachRoute = coords
-                            self.fallbackRoute = nil // Luftlinie verschwindet, wenn echte Route da ist
                             
                             if !self.isRunning {
                                 let safeBestIndex = min(bestIndex, decodedAscent.count - 1)
@@ -860,7 +873,7 @@ struct LiveRecordView: View {
 
         // --- OLD LOGIC (Falls Berg noch keine offizielle Route in der Datenbank hat) ---
         withAnimation(.easeInOut(duration: 0.5)) {
-            self.fallbackRoute = [userLoc, dest]
+            self.appleApproachRoute = [userLoc, dest]
             if !self.isRunning {
                 let p1 = MKMapPoint(userLoc)
                 let p2 = MKMapPoint(dest)
@@ -901,7 +914,6 @@ struct LiveRecordView: View {
                 DispatchQueue.main.async {
                     withAnimation(.easeInOut(duration: 1.0)) {
                         self.appleApproachRoute = coords
-                        self.fallbackRoute = nil
                         if !self.isRunning {
                             self.cameraPosition = .rect(self.padMapRect(route.polyline.boundingMapRect))
                         }
@@ -1025,6 +1037,23 @@ struct LiveRecordView: View {
                 .padding(.bottom, 6)
 
             VStack(spacing: 20) {
+                HStack {
+                    Spacer()
+                    Button(action: { showTrackerSettings = true }) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "gearshape.fill")
+                            Text("Settings")
+                        }
+                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                        .foregroundColor(.primary.opacity(0.88))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(.ultraThinMaterial, in: Capsule())
+                        .overlay(Capsule().stroke(Color.black.opacity(0.05), lineWidth: 1))
+                    }
+                }
+                .padding(.bottom, 2)
+
                 if panelCollapsed {
                     HStack(spacing: 16) {
                         HStack(alignment: .lastTextBaseline, spacing: 3) {
@@ -1309,6 +1338,110 @@ struct LiveRecordView: View {
         navigationManager.stopNavigation()
         Task { await emergencyManager.stopLiveTracking() }
         showSaveForm = true
+    }
+}
+
+// =========================================
+// === Tracker Settings Sheet ===
+// =========================================
+struct TrackerSettingsSheet: View {
+    @Environment(\.dismiss) var dismiss
+
+    @AppStorage("turnByTurnEnabled") private var turnByTurnEnabled = false
+    @AppStorage("voiceGuidanceEnabled") private var voiceGuidanceEnabled = true
+    @AppStorage("routeColor") private var routeColorName: String = "blue"
+
+    private let accentBlue = Color(red: 0.1, green: 0.5, blue: 0.95)
+
+    var body: some View {
+        NavigationView {
+            ZStack {
+                Color(red: 0.95, green: 0.95, blue: 0.97).ignoresSafeArea()
+
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 20) {
+
+                        // MARK: - Navigation
+                        SettingsSection(title: "NAVIGATION") {
+                            Toggle(isOn: $turnByTurnEnabled) {
+                                SettingsRowLabel(icon: "arrow.triangle.turn.up.right.diamond.fill", iconColor: .cyan, text: "Turn-by-Turn Guidance")
+                            }
+                            .tint(accentBlue)
+
+                            if turnByTurnEnabled {
+                                Divider().background(Color.black.opacity(0.1))
+
+                                Toggle(isOn: $voiceGuidanceEnabled) {
+                                    SettingsRowLabel(icon: "speaker.wave.2.fill", iconColor: .purple, text: "Voice Announcements")
+                                }
+                                .tint(accentBlue)
+                                .transition(.opacity.combined(with: .move(edge: .top)))
+                            }
+                        }
+                        .animation(.spring(response: 0.35, dampingFraction: 0.8), value: turnByTurnEnabled)
+
+                        // MARK: - Route Appearance
+                        SettingsSection(title: "ROUTE APPEARANCE") {
+                            VStack(alignment: .leading, spacing: 12) {
+                                SettingsRowLabel(icon: "paintbrush.fill", iconColor: .orange, text: "Route Color")
+
+                                HStack(spacing: 14) {
+                                    ForEach(RouteColorOption.allCases, id: \.rawValue) { option in
+                                        Button(action: { routeColorName = option.rawValue }) {
+                                            ZStack {
+                                                Circle()
+                                                    .fill(option.color)
+                                                    .frame(width: 36, height: 36)
+                                                    .shadow(color: option.color.opacity(0.4), radius: routeColorName == option.rawValue ? 6 : 0)
+
+                                                if routeColorName == option.rawValue {
+                                                    Circle()
+                                                        .stroke(Color.white, lineWidth: 3)
+                                                        .frame(width: 36, height: 36)
+                                                    Image(systemName: "checkmark")
+                                                        .font(.system(size: 12, weight: .black))
+                                                        .foregroundColor(.white)
+                                                }
+                                            }
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
+                                }
+                                .padding(.leading, 47) // align with label text
+                            }
+                        }
+
+                        // MARK: - Info
+                        VStack(spacing: 4) {
+                            Text("Navigation settings apply to the current and future sessions.")
+                                .font(.system(size: 11, design: .rounded))
+                                .foregroundColor(.gray.opacity(0.6))
+                                .multilineTextAlignment(.center)
+                        }
+                        .padding(.top, 8)
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 12)
+                    .padding(.bottom, 40)
+                }
+            }
+            .navigationTitle("Tracker Settings")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbarColorScheme(.light, for: .navigationBar)
+            .toolbarBackground(Color(white: 0.98), for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: { dismiss() }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(.gray)
+                            .font(.system(.title3, design: .rounded))
+                    }
+                }
+            }
+        }
+        .presentationDetents([.medium])
+        .preferredColorScheme(.light)
     }
 }
 

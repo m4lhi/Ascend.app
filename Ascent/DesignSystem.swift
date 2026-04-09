@@ -120,6 +120,20 @@ enum DesignSystem {
         // Pop-Effekt (z.B. Kartenmarker)
         static let pop      = Animation.spring(response: 0.35, dampingFraction: 0.55)
     }
+
+    // =========================================
+    // === TYPOGRAFIE ===
+    // Einheitliche, weiche Schrift-Hierarchie
+    // =========================================
+    enum Typography {
+        static let heroTitle    = Font.system(size: 34, weight: .bold, design: .rounded)
+        static let title        = Font.system(size: 24, weight: .bold, design: .rounded)
+        static let subtitle     = Font.system(size: 18, weight: .semibold, design: .rounded)
+        static let body         = Font.system(size: 16, weight: .medium, design: .rounded)
+        static let bodySecondary = Font.system(size: 15, weight: .regular, design: .rounded)
+        static let caption      = Font.system(size: 13, weight: .medium, design: .rounded)
+        static let micro        = Font.system(size: 11, weight: .semibold, design: .rounded)
+    }
 }
 
 // === Schatten-Hilfsstruct ===
