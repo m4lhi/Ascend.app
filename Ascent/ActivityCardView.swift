@@ -13,6 +13,15 @@ struct ActivityCardView: View {
     @State private var showComments = false
     @State private var showFullImage = false
 
+    // Micro-animation state
+    @State private var fistBumpScale: CGFloat = 1.0
+    @State private var fistBumpPulse: Bool = false
+    @State private var bookmarkScale: CGFloat = 1.0
+    @State private var commentScale: CGFloat = 1.0
+    @State private var shareScale: CGFloat = 1.0
+    @State private var fistBumpTrigger: Int = 0
+    @State private var bookmarkTrigger: Int = 0
+
     private static let durationFormatter: DateComponentsFormatter = {
         let f = DateComponentsFormatter()
         f.allowedUnits = [.hour, .minute]
@@ -128,15 +137,11 @@ struct ActivityCardView: View {
                     .frame(width: 40, height: 40)
                     .clipShape(Circle())
 
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(tour.playerName)
-                            .font(.system(size: 15, weight: .semibold, design: .rounded))
-                            .foregroundColor(.primary)
-                        Text(timeAgo)
-                            .font(.system(size: 12, design: .rounded))
-                            .foregroundColor(.secondary)
-                    }
+                    Text(tour.playerName)
+                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                        .foregroundColor(.primary)
                 }
+                .contentShape(Rectangle())
             }
             .buttonStyle(PlainButtonStyle())
 
@@ -324,47 +329,119 @@ struct ActivityCardView: View {
 
             // Action buttons
             HStack(spacing: 0) {
-                // Fist Bump
+                // Fist Bump — pop + ring pulse + symbol bounce
                 Button(action: {
                     HapticManager.shared.light()
+                    let wasBumped = tour.isFistBumped
                     appState.toggleFistBump(tour: tour)
+                    fistBumpTrigger += 1
+                    // Pop scale
+                    withAnimation(.spring(response: 0.22, dampingFraction: 0.4)) {
+                        fistBumpScale = wasBumped ? 0.82 : 1.35
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.55)) {
+                            fistBumpScale = 1.0
+                        }
+                    }
+                    // Radial pulse only when liking
+                    if !wasBumped {
+                        fistBumpPulse = false
+                        withAnimation(.easeOut(duration: 0.55)) {
+                            fistBumpPulse = true
+                        }
+                    }
                 }) {
-                    Image(systemName: tour.isFistBumped ? "hand.thumbsup.fill" : "hand.thumbsup")
-                        .font(.system(size: 20))
-                        .foregroundColor(tour.isFistBumped ? accent : .secondary)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
-                }
+                    ZStack {
+                        // Pulse ring
+                        Circle()
+                            .stroke(accent.opacity(fistBumpPulse ? 0 : 0.55), lineWidth: fistBumpPulse ? 1 : 8)
+                            .frame(width: 36, height: 36)
+                            .scaleEffect(fistBumpPulse ? 1.9 : 0.6)
+                            .opacity(fistBumpPulse ? 0 : 0.0)
 
-                // Comment
-                Button(action: { showComments = true }) {
+                        Image(systemName: tour.isFistBumped ? "hand.thumbsup.fill" : "hand.thumbsup")
+                            .font(.system(size: 20))
+                            .foregroundColor(tour.isFistBumped ? accent : .secondary)
+                            .scaleEffect(fistBumpScale)
+                            .symbolEffect(.bounce, value: fistBumpTrigger)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(PlainButtonStyle())
+
+                // Comment — subtle tilt/scale
+                Button(action: {
+                    HapticManager.shared.light()
+                    withAnimation(.spring(response: 0.25, dampingFraction: 0.5)) {
+                        commentScale = 0.82
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.55)) {
+                            commentScale = 1.0
+                        }
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.16) {
+                        showComments = true
+                    }
+                }) {
                     Image(systemName: "bubble.left")
                         .font(.system(size: 20))
                         .foregroundColor(.secondary)
+                        .scaleEffect(commentScale)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 8)
+                        .contentShape(Rectangle())
                 }
+                .buttonStyle(PlainButtonStyle())
 
-                // Bookmark
+                // Bookmark — overshoot bounce
                 Button(action: {
                     HapticManager.shared.light()
                     appState.toggleBookmark(tour: tour)
+                    bookmarkTrigger += 1
+                    withAnimation(.spring(response: 0.22, dampingFraction: 0.38)) {
+                        bookmarkScale = 1.4
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
+                        withAnimation(.spring(response: 0.45, dampingFraction: 0.55)) {
+                            bookmarkScale = 1.0
+                        }
+                    }
                 }) {
                     Image(systemName: tour.isBookmarked ? "bookmark.fill" : "bookmark")
                         .font(.system(size: 20))
                         .foregroundColor(tour.isBookmarked ? accent : .secondary)
+                        .scaleEffect(bookmarkScale)
+                        .symbolEffect(.bounce, value: bookmarkTrigger)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 8)
+                        .contentShape(Rectangle())
                 }
+                .buttonStyle(PlainButtonStyle())
 
                 // Share
                 ShareLink(item: "\(tour.playerName) conquered \(tour.summitName) — +\(tour.elevationGainMeters)m! Tracked with Ascent.") {
                     Image(systemName: "square.and.arrow.up")
                         .font(.system(size: 20))
                         .foregroundColor(.secondary)
+                        .scaleEffect(shareScale)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 8)
+                        .contentShape(Rectangle())
                 }
+                .simultaneousGesture(TapGesture().onEnded {
+                    withAnimation(.spring(response: 0.25, dampingFraction: 0.45)) {
+                        shareScale = 0.85
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.55)) {
+                            shareScale = 1.0
+                        }
+                    }
+                })
             }
         }
     }

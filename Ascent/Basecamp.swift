@@ -19,7 +19,6 @@ struct BasecampView: View {
     @State private var scrollLastOffset: CGFloat = 0
     @State private var scrollAccDown: CGFloat = 0
     @State private var scrollAccUp: CGFloat = 0
-    @State private var selectedFeedTab: FeedTab = .all
     @State private var heroBannerIndex = 0
     @State private var showObjectiveDetail = false
     @State private var selectedObjective: (title: String, icon: String, current: Int, target: Int, unit: String)?
@@ -29,20 +28,6 @@ struct BasecampView: View {
     private let accent = Color(red: 0.1, green: 0.5, blue: 0.95)
     private let bg = Color(red: 0.945, green: 0.945, blue: 0.96)
     private let gold = Color(red: 0.85, green: 0.65, blue: 0.13)
-
-    enum FeedTab: String, CaseIterable {
-        case all = "All"
-        case mine = "My Tours"
-        case friends = "Friends"
-    }
-
-    private var filteredTours: [Tour] {
-        switch selectedFeedTab {
-        case .all: return appState.recentTours
-        case .mine: return appState.recentTours.filter { $0.isCurrentUser }
-        case .friends: return appState.recentTours.filter { !$0.isCurrentUser }
-        }
-    }
 
     private var tierColor: Color {
         guard let profile = appState.ascendProfile else { return Color(red: 0.8, green: 0.45, blue: 0.15) }
@@ -65,7 +50,7 @@ struct BasecampView: View {
                     // Invisible scroll-position tracker pinned at the top of content
                     GeometryReader { geo in
                         Color.clear
-                            .onChange(of: geo.frame(in: .named("bcScroll")).minY) { newValue in
+                            .onChange(of: geo.frame(in: .named("bcScroll")).minY) { _, newValue in
                                 handleScrollOffset(newValue)
                             }
                             .onAppear {
@@ -82,23 +67,16 @@ struct BasecampView: View {
                         // ============================
                         // MARK: - FEED DASHBOARD HEADER
                         // ============================
-                        VStack(spacing: 16) {
-                            topBar
-                                .padding(.top, 8)
-                            
-                            weeklyStrip
-                        }
-                        .padding(.bottom, 24)
-
-                        // ============================
-                        // MARK: - FEED TABS
-                        // ============================
-                        feedTabBar
-                            .padding(.bottom, 16)
+                        topBar
+                            .padding(.top, 4)
+                            .padding(.bottom, 14)
 
                         // ============================
                         // MARK: - SOCIAL FEED
                         // ============================
+                        feedSectionHeader
+                            .padding(.bottom, 12)
+
                         feedContent
 
                         // ============================
@@ -135,7 +113,7 @@ struct BasecampView: View {
         .sheet(isPresented: $showAllActivities) {
             AllActivitiesView().preferredColorScheme(.light)
         }
-        .onChange(of: showTracker) { show in
+        .onChange(of: showTracker) { _, show in
             if show {
                 appState.activeMountain = mountainToTrack
                 withAnimation { appState.isTrackerActive = true }
@@ -198,17 +176,17 @@ struct BasecampView: View {
     // MARK: - Top Bar
     // =========================================
     private var topBar: some View {
-        HStack(alignment: .center, spacing: 12) {
-            // Avatar with level ring
+        HStack(alignment: .center, spacing: 8) {
+            // Compact avatar with thin level ring
             Button(action: { showXPDetails = true }) {
                 ZStack {
                     Circle()
-                        .stroke(tierColor.opacity(0.25), lineWidth: 2.5)
-                        .frame(width: 48, height: 48)
+                        .stroke(tierColor.opacity(0.18), lineWidth: 1.5)
+                        .frame(width: 32, height: 32)
                     Circle()
                         .trim(from: 0, to: Double(appState.currentLevelProgressXP) / Double(max(appState.xpNeededForNextLevel, 1)))
-                        .stroke(tierColor, style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
-                        .frame(width: 48, height: 48)
+                        .stroke(tierColor, style: StrokeStyle(lineWidth: 1.5, lineCap: .round))
+                        .frame(width: 32, height: 32)
                         .rotationEffect(.degrees(-90))
 
                     if let urlString = appState.avatarURL, let url = URL(string: urlString) {
@@ -217,41 +195,39 @@ struct BasecampView: View {
                         } placeholder: {
                             Circle().fill(Color.gray.opacity(0.2))
                         }
-                        .frame(width: 40, height: 40).clipShape(Circle())
+                        .frame(width: 26, height: 26).clipShape(Circle())
                     } else {
-                        Circle().fill(Color.white).frame(width: 40, height: 40)
-                            .overlay(Image(systemName: "person.fill").foregroundColor(.gray))
+                        Circle().fill(Color.white).frame(width: 26, height: 26)
+                            .overlay(Image(systemName: "person.fill").font(.system(size: 11)).foregroundColor(.gray))
                     }
                 }
             }
+            .buttonStyle(PressableButtonStyle())
 
-            VStack(alignment: .leading, spacing: 1) {
-                Text(greeting)
-                    .font(.system(size: 13, design: .rounded))
-                    .foregroundColor(.secondary)
-                Text(appState.userName)
-                    .font(.system(size: 20, weight: .bold, design: .rounded))
-                    .foregroundColor(.primary)
-            }
+            Text(appState.userName)
+                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                .foregroundColor(.primary)
+                .lineLimit(1)
 
-            Spacer()
+            Spacer(minLength: 8)
 
-            // XP badge
+            // Tiny XP badge in the corner
             Button(action: { showXPDetails = true }) {
-                HStack(spacing: 4) {
+                HStack(spacing: 3) {
                     Image(systemName: "bolt.fill")
-                        .font(.system(size: 10, weight: .bold))
+                        .font(.system(size: 9, weight: .bold))
                     Text("\(appState.currentXP)")
-                        .font(.system(size: 13, weight: .bold, design: .rounded))
+                        .font(.system(size: 11, weight: .bold, design: .rounded))
                 }
                 .foregroundColor(accent)
-                .padding(.horizontal, 12).padding(.vertical, 6)
+                .padding(.horizontal, 9).padding(.vertical, 4)
                 .background(accent.opacity(0.1))
                 .clipShape(Capsule())
             }
+            .buttonStyle(PressableButtonStyle())
         }
         .padding(.horizontal, 16)
-        .padding(.top, 12)
+        .padding(.top, 6)
     }
 
     // =========================================
@@ -342,25 +318,18 @@ struct BasecampView: View {
     }
 
     // =========================================
-    // MARK: - Feed Tab Bar
+    // MARK: - Feed Section Header (minimalist)
     // =========================================
-    private var feedTabBar: some View {
-        HStack(spacing: 0) {
-            ForEach(FeedTab.allCases, id: \.self) { tab in
-                Button(action: {
-                    withAnimation(.easeInOut(duration: 0.2)) { selectedFeedTab = tab }
-                }) {
-                    VStack(spacing: 6) {
-                        Text(tab.rawValue)
-                            .font(.system(size: 14, weight: selectedFeedTab == tab ? .bold : .medium, design: .rounded))
-                            .foregroundColor(selectedFeedTab == tab ? .primary : .secondary)
-
-                        Rectangle()
-                            .fill(selectedFeedTab == tab ? accent : Color.clear)
-                            .frame(height: 2)
-                    }
-                    .frame(maxWidth: .infinity)
-                }
+    private var feedSectionHeader: some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text("Recent Activity")
+                .font(.system(size: 22, weight: .bold, design: .rounded))
+                .foregroundColor(.primary)
+            Spacer()
+            if !appState.recentTours.isEmpty {
+                Text("\(appState.recentTours.count)")
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .foregroundColor(.secondary)
             }
         }
         .padding(.horizontal, 16)
@@ -371,13 +340,13 @@ struct BasecampView: View {
     // =========================================
     @ViewBuilder
     private var feedContent: some View {
-        if filteredTours.isEmpty && !appState.isLoadingMoreFeed {
+        if appState.recentTours.isEmpty && !appState.isLoadingMoreFeed {
             emptyFeed
                 .padding(.horizontal, 16)
                 .padding(.top, 20)
         } else {
             LazyVStack(spacing: 12) {
-                let toursWithIndex = Array(filteredTours.enumerated())
+                let toursWithIndex = Array(appState.recentTours.enumerated())
                 ForEach(toursWithIndex, id: \.element.id) { index, tour in
                     ActivityCardView(tour: tour)
                         .padding(.horizontal, 16)
@@ -403,7 +372,7 @@ struct BasecampView: View {
                         .padding(.vertical, 20)
                 }
 
-                if !appState.hasMoreFeed && !filteredTours.isEmpty {
+                if !appState.hasMoreFeed && !appState.recentTours.isEmpty {
                     Text("You're all caught up!")
                         .font(.system(.caption, design: .rounded))
                         .foregroundColor(.secondary)
@@ -415,17 +384,15 @@ struct BasecampView: View {
 
     private var emptyFeed: some View {
         VStack(spacing: 16) {
-            Image(systemName: selectedFeedTab == .friends ? "person.2" : "figure.hiking")
+            Image(systemName: "figure.hiking")
                 .font(.system(size: 40))
                 .foregroundColor(.secondary.opacity(0.4))
 
-            Text(selectedFeedTab == .friends ? "No friend activity yet" : "No tours yet")
+            Text("No activity yet")
                 .font(.system(.headline, design: .rounded))
                 .foregroundColor(.primary)
 
-            Text(selectedFeedTab == .friends
-                 ? "Add friends to see their tours here."
-                 : "Start your first mission to build your feed!")
+            Text("Start your first mission or follow other alpinists to build your feed.")
                 .font(.system(.subheadline, design: .rounded))
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
@@ -514,7 +481,7 @@ struct WeekPill: View {
 
             HStack(alignment: .lastTextBaseline, spacing: 3) {
                 Text(value)
-                    .font(.system(size: 18, weight: .black, design: .rounded))
+                    .font(.system(size: 15, weight: .black, design: .rounded))
                     .foregroundColor(.primary)
                 if let target {
                     Text(target)
@@ -534,11 +501,12 @@ struct WeekPill: View {
                 .frame(height: 3)
             }
         }
-        .padding(12)
-        .frame(width: 130)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 9)
+        .frame(width: 108)
         .background(Color.white)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .shadow(color: color.opacity(0.08), radius: 6, y: 3)
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .shadow(color: color.opacity(0.06), radius: 4, y: 2)
     }
 }
 
@@ -712,6 +680,18 @@ struct StatColumn: View {
             Text(unit).font(.system(.caption2, design: .rounded)).foregroundColor(.gray)
         }
         .frame(maxWidth: .infinity)
+    }
+}
+
+// =========================================
+// MARK: - Micro-interaction Button Style
+// =========================================
+struct PressableButtonStyle: ButtonStyle {
+    var scale: CGFloat = 0.92
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? scale : 1.0)
+            .animation(.spring(response: 0.32, dampingFraction: 0.55), value: configuration.isPressed)
     }
 }
 

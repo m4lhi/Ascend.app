@@ -1997,7 +1997,7 @@ struct ProfileCollectionsList: View {
         .sheet(isPresented: $showCreateSheet) {
             CreateCollectionSheet(manager: tempManager)
         }
-        .onChange(of: showCreateSheet) { isPresented in
+        .onChange(of: showCreateSheet) { _, isPresented in
             if !isPresented {
                 appState.fetchCollections()
             }

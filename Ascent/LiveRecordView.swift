@@ -837,8 +837,8 @@ struct LiveRecordView: View {
             
             Task {
                 let request = MKDirections.Request()
-                request.source = MKMapItem(placemark: MKPlacemark(coordinate: userLoc))
-                request.destination = MKMapItem(placemark: MKPlacemark(coordinate: interceptCoord))
+                request.source = MKMapItem(placemark: .init(coordinate: userLoc))
+                request.destination = MKMapItem(placemark: .init(coordinate: interceptCoord))
                 
                 // WICHTIG: Zuerst Auto probieren! Apple weigert sich oft, weite Strecken als "Walking" zu berechnen.
                 request.transportType = .automobile
@@ -908,8 +908,8 @@ struct LiveRecordView: View {
 
         Task {
             let request = MKDirections.Request()
-            request.source = MKMapItem(placemark: MKPlacemark(coordinate: userLoc))
-            request.destination = MKMapItem(placemark: MKPlacemark(coordinate: dest))
+            request.source = MKMapItem(placemark: .init(coordinate: userLoc))
+            request.destination = MKMapItem(placemark: .init(coordinate: dest))
             request.transportType = .automobile // Auch hier .automobile als Standard setzen
 
             var calculatedRoute: MKRoute? = nil

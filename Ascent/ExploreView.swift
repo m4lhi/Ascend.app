@@ -223,13 +223,13 @@ struct ExploreView: View {
         }
         .task {
             await mountainManager.fetchSavedRoutes()
-            if let loc = locationManager.userLocation, !hasCenteredOnUser {
+            if let _ = locationManager.userLocation, !hasCenteredOnUser {
                 flyToMyLocation()
                 hasCenteredOnUser = true
             }
         }
         .onChange(of: locationManager.userLocation) { _, newLoc in
-            if let loc = newLoc, !hasCenteredOnUser {
+            if let _ = newLoc, !hasCenteredOnUser {
                 flyToMyLocation()
                 hasCenteredOnUser = true
             }
@@ -264,7 +264,7 @@ struct ExploreView: View {
                 }
             }
         }
-        .onChange(of: mountainToTrack) { mt in
+        .onChange(of: mountainToTrack) { _, mt in
             if let target = mt {
                 appState.activeMountain = target
                 withAnimation { appState.isTrackerActive = true }
@@ -795,10 +795,8 @@ struct ExploreView: View {
         searchTask = Task {
             try? await Task.sleep(nanoseconds: 500_000_000)
             guard !Task.isCancelled else { return }
-            withAnimation(.easeInOut) {
-                Task {
-                    await mountainManager.searchMountains(query: searchText, difficulty: selectedDifficulty)
-                }
+            Task {
+                await mountainManager.searchMountains(query: searchText, difficulty: selectedDifficulty)
             }
         }
     }

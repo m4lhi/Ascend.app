@@ -11,7 +11,8 @@ import SwiftUI
 struct ContentView: View {
     @EnvironmentObject var appState: AppState
     @State private var selectedTab = 0
-        @State private var showAIChat = false
+    @State private var showAIChat = false
+    @State private var showCoachingGateway = false
 
     init() {
         UITabBar.appearance().isHidden = true
@@ -43,7 +44,7 @@ struct ContentView: View {
                         Spacer()
                         Button(action: {
                             HapticManager.shared.light()
-                            showAIChat = true
+                            showCoachingGateway = true
                         }) {
                             Image(systemName: "sparkles")
                                 .font(.system(size: appState.isFABVisible ? 24 : 16, weight: .bold))
@@ -67,14 +68,16 @@ struct ContentView: View {
 
             // --- Live Tracker Overlay (Full Screen & Mini Player) ---
             if appState.isTrackerActive {
-                LiveRecordView(targetMountain: appState.activeMountain)
-                    .environmentObject(appState)
-                    // Push the view completely off-screen if minimized (add safe padding)
-                    .offset(y: appState.isTrackerMinimized ? UIScreen.main.bounds.height + 200 : 0)
-                    .opacity(appState.isTrackerMinimized ? 0 : 1)
-                    .allowsHitTesting(!appState.isTrackerMinimized)
-                    .animation(.spring(response: 0.5, dampingFraction: 0.8), value: appState.isTrackerMinimized)
-                    .zIndex(100)
+                GeometryReader { geo in
+                    LiveRecordView(targetMountain: appState.activeMountain)
+                        .environmentObject(appState)
+                        // Push the view completely off-screen if minimized (add safe padding)
+                        .offset(y: appState.isTrackerMinimized ? geo.size.height + 200 : 0)
+                        .opacity(appState.isTrackerMinimized ? 0 : 1)
+                        .allowsHitTesting(!appState.isTrackerMinimized)
+                        .animation(.spring(response: 0.5, dampingFraction: 0.8), value: appState.isTrackerMinimized)
+                }
+                .zIndex(100)
             }
             
             // --- Mini Player Banner ---
@@ -97,7 +100,11 @@ struct ContentView: View {
         .fullScreenCover(isPresented: $showAIChat) {
             AIChatGuideView()
         }
-        .onChange(of: selectedTab) { _ in
+        .fullScreenCover(isPresented: $showCoachingGateway) {
+            AICoachingGatewayView()
+                .environmentObject(appState)
+        }
+        .onChange(of: selectedTab) { _, _ in
             // Reset FAB when switching tabs
             withAnimation(.easeOut(duration: 0.2)) {
                 appState.isFABVisible = true

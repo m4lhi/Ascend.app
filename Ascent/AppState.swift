@@ -1076,7 +1076,7 @@ class AppState: ObservableObject {
 
             // 2. Load Global
             do {
-                var globalData: [CloudProfile] = try await supabase.from("profiles").select().order("xp", ascending: false).limit(50).execute().value
+                let globalData: [CloudProfile] = try await supabase.from("profiles").select().order("xp", ascending: false).limit(50).execute().value
                 await MainActor.run { self.globalLeaderboard = globalData }
             } catch {
                 print("⚠️ Warning: Loading global leaderboard failed: \(error)")
@@ -1085,7 +1085,7 @@ class AppState: ObservableObject {
             // 3. Load Local
             if !region.isEmpty {
                 do {
-                    var localData: [CloudProfile] = try await supabase.from("profiles").select().eq("region", value: region).order("xp", ascending: false).limit(50).execute().value
+                    let localData: [CloudProfile] = try await supabase.from("profiles").select().eq("region", value: region).order("xp", ascending: false).limit(50).execute().value
                     await MainActor.run { self.localLeaderboard = localData }
                 } catch {
                     print("⚠️ Warning: Loading local leaderboard failed: \(error)")
