@@ -115,6 +115,72 @@ CREATE POLICY "Authenticated users can bump usage"
 ON public.hobbies FOR UPDATE USING (auth.uid() IS NOT NULL);
 
 -- RPC: register or bump a hobby (normalized), returns canonical row
+-- ============================================
+-- Privacy + follow counts on profiles
+-- ============================================
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_public BOOLEAN DEFAULT true;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS follower_count INT DEFAULT 0;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS following_count INT DEFAULT 0;
+
+-- ============================================
+-- Follows (directional follow graph)
+-- ============================================
+CREATE TABLE IF NOT EXISTS public.follows (
+    follower_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    followed_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    PRIMARY KEY (follower_id, followed_id),
+    CHECK (follower_id <> followed_id)
+);
+
+CREATE INDEX IF NOT EXISTS follows_follower_idx ON public.follows(follower_id);
+CREATE INDEX IF NOT EXISTS follows_followed_idx ON public.follows(followed_id);
+
+ALTER TABLE public.follows ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Follows readable by all" ON public.follows;
+CREATE POLICY "Follows readable by all" ON public.follows FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Users can follow" ON public.follows;
+CREATE POLICY "Users can follow"
+ON public.follows FOR INSERT WITH CHECK (auth.uid() = follower_id);
+
+DROP POLICY IF EXISTS "Users can unfollow" ON public.follows;
+CREATE POLICY "Users can unfollow"
+ON public.follows FOR DELETE USING (auth.uid() = follower_id);
+
+-- Keep follower/following counts in sync
+CREATE OR REPLACE FUNCTION public.handle_follow_change()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF TG_OP = 'INSERT' THEN
+        UPDATE public.profiles SET follower_count = follower_count + 1 WHERE id = NEW.followed_id;
+        UPDATE public.profiles SET following_count = following_count + 1 WHERE id = NEW.follower_id;
+        RETURN NEW;
+    ELSIF TG_OP = 'DELETE' THEN
+        UPDATE public.profiles SET follower_count = GREATEST(follower_count - 1, 0) WHERE id = OLD.followed_id;
+        UPDATE public.profiles SET following_count = GREATEST(following_count - 1, 0) WHERE id = OLD.follower_id;
+        RETURN OLD;
+    END IF;
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS trg_follows_change ON public.follows;
+CREATE TRIGGER trg_follows_change
+AFTER INSERT OR DELETE ON public.follows
+FOR EACH ROW EXECUTE FUNCTION public.handle_follow_change();
+
+-- Search users by name or handle (public metadata only)
+CREATE OR REPLACE FUNCTION public.search_users(q TEXT, lim INT DEFAULT 20)
+RETURNS SETOF public.profiles AS $$
+    SELECT * FROM public.profiles
+    WHERE q IS NOT NULL AND length(trim(q)) > 0
+      AND (username ILIKE '%' || q || '%' OR handle ILIKE '%' || q || '%')
+    ORDER BY xp DESC
+    LIMIT LEAST(COALESCE(lim, 20), 50);
+$$ LANGUAGE sql STABLE SECURITY DEFINER;
+
 CREATE OR REPLACE FUNCTION public.register_hobby(p_name TEXT)
 RETURNS public.hobbies AS $$
 DECLARE

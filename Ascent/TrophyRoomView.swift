@@ -518,8 +518,38 @@ struct TrophyRoomView: View {
                                     .foregroundColor(gold)
                                     .padding(.top, 2)
                                 }
+
+                                HStack(spacing: 14) {
+                                    HStack(spacing: 3) {
+                                        Text("\(appState.followerCount)")
+                                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                                            .foregroundColor(.primary)
+                                        Text("Followers")
+                                            .font(.system(size: 11, design: .rounded))
+                                            .foregroundColor(.gray)
+                                    }
+                                    HStack(spacing: 3) {
+                                        Text("\(appState.followingCount)")
+                                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                                            .foregroundColor(.primary)
+                                        Text("Following")
+                                            .font(.system(size: 11, design: .rounded))
+                                            .foregroundColor(.gray)
+                                    }
+                                    if !appState.isProfilePublic {
+                                        HStack(spacing: 3) {
+                                            Image(systemName: "lock.fill").font(.system(size: 9))
+                                            Text("Private").font(.system(size: 10, weight: .bold, design: .rounded))
+                                        }
+                                        .foregroundColor(.orange)
+                                        .padding(.horizontal, 6).padding(.vertical, 2)
+                                        .background(Color.orange.opacity(0.12))
+                                        .clipShape(Capsule())
+                                    }
+                                }
+                                .padding(.top, 4)
                             }
-                            
+
                             Spacer()
                         }
                         
@@ -1359,7 +1389,45 @@ struct EditAccountView: View {
                             .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black.opacity(0.06), lineWidth: 1))
                         }
                         .padding(.horizontal, 20)
-                        
+
+                        // === PRIVACY TOGGLE ===
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("PRIVACY")
+                                .font(.system(size: 11, weight: .black, design: .rounded))
+                                .foregroundColor(.gray)
+                                .tracking(2)
+                            HStack(spacing: 12) {
+                                ZStack {
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .fill(appState.isProfilePublic ? Color.green.opacity(0.12) : Color.orange.opacity(0.12))
+                                        .frame(width: 38, height: 38)
+                                    Image(systemName: appState.isProfilePublic ? "globe" : "lock.fill")
+                                        .font(.system(size: 15, weight: .bold))
+                                        .foregroundColor(appState.isProfilePublic ? .green : .orange)
+                                }
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(appState.isProfilePublic ? "Public profile" : "Private profile")
+                                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                                        .foregroundColor(.primary)
+                                    Text(appState.isProfilePublic ? "Anyone can see your activity" : "Only followers can see your activity")
+                                        .font(.system(size: 11, design: .rounded))
+                                        .foregroundColor(.gray)
+                                }
+                                Spacer()
+                                Toggle("", isOn: Binding(
+                                    get: { appState.isProfilePublic },
+                                    set: { appState.setProfilePublic($0) }
+                                ))
+                                .labelsHidden()
+                                .tint(.green)
+                            }
+                            .padding(12)
+                            .background(cardBg)
+                            .cornerRadius(14)
+                            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black.opacity(0.06), lineWidth: 1))
+                        }
+                        .padding(.horizontal, 20)
+
                         // === SPORTS SECTION ===
                         VStack(alignment: .leading, spacing: 14) {
                             HStack {

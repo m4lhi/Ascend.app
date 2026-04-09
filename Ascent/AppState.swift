@@ -23,6 +23,9 @@ struct CloudProfile: Codable, Identifiable {
     var disciplines: [String]?
     var specialties: [String]?
     var hobbies: [String]?
+    var is_public: Bool?
+    var follower_count: Int?
+    var following_count: Int?
 
     // Custom decoder for robust parsing in case DB rows have nulls
     init(from decoder: Decoder) throws {
@@ -38,12 +41,16 @@ struct CloudProfile: Codable, Identifiable {
         disciplines = try container.decodeIfPresent([String].self, forKey: .disciplines)
         specialties = try container.decodeIfPresent([String].self, forKey: .specialties)
         hobbies = try container.decodeIfPresent([String].self, forKey: .hobbies)
+        is_public = try container.decodeIfPresent(Bool.self, forKey: .is_public)
+        follower_count = try container.decodeIfPresent(Int.self, forKey: .follower_count)
+        following_count = try container.decodeIfPresent(Int.self, forKey: .following_count)
     }
 
     // Standard initializer to manually create profiles
-    init(id: UUID, username: String, handle: String, xp: Int, level: Int, avatar_url: String?, region: String?, insta_handle: String? = nil, disciplines: [String]? = nil, specialties: [String]? = nil, hobbies: [String]? = nil) {
+    init(id: UUID, username: String, handle: String, xp: Int, level: Int, avatar_url: String?, region: String?, insta_handle: String? = nil, disciplines: [String]? = nil, specialties: [String]? = nil, hobbies: [String]? = nil, is_public: Bool? = nil, follower_count: Int? = nil, following_count: Int? = nil) {
         self.id = id; self.username = username; self.handle = handle; self.xp = xp; self.level = level; self.avatar_url = avatar_url; self.region = region
         self.insta_handle = insta_handle; self.disciplines = disciplines; self.specialties = specialties; self.hobbies = hobbies
+        self.is_public = is_public; self.follower_count = follower_count; self.following_count = following_count
     }
 }
 
@@ -337,6 +344,12 @@ class AppState: ObservableObject {
     @Published var mountaineeringSpecialties: [String] = ["Ice Climbing", "Scrambling"]
     @Published var otherHobbies: [String] = ["Boxing", "Soccer"]
     @Published var equipment: Equipment = Equipment()
+
+    // Privacy & follow graph
+    @Published var isProfilePublic: Bool = true
+    @Published var followerCount: Int = 0
+    @Published var followingCount: Int = 0
+    @Published var followingIds: Set<UUID> = []
     
     // Fortschritt
     @Published var currentXP: Int = 0
@@ -428,7 +441,11 @@ class AppState: ObservableObject {
                 self.selectedSports = profile.disciplines ?? []
                 self.mountaineeringSpecialties = profile.specialties ?? []
                 self.otherHobbies = profile.hobbies ?? []
+                self.isProfilePublic = profile.is_public ?? true
+                self.followerCount = profile.follower_count ?? 0
+                self.followingCount = profile.following_count ?? 0
 
+                fetchFollowing()
                 fetchLeaderboard()
                 fetchFeed()
                 fetchAscendProfile()
@@ -1007,6 +1024,139 @@ class AppState: ObservableObject {
         }
     }
 
+    // --- FOLLOW / SEARCH / PRIVACY ---
+
+    /// Load the IDs of all users I currently follow.
+    func fetchFollowing() {
+        Task {
+            do {
+                let myId = try await supabase.auth.session.user.id
+                struct Row: Codable { let followed_id: UUID }
+                let rows: [Row] = try await supabase
+                    .from("follows")
+                    .select("followed_id")
+                    .eq("follower_id", value: myId)
+                    .execute()
+                    .value
+                await MainActor.run {
+                    self.followingIds = Set(rows.map { $0.followed_id })
+                    self.followingCount = rows.count
+                }
+            } catch { print("⚠️ fetchFollowing: \(error)") }
+        }
+    }
+
+    func isFollowing(_ userId: UUID) -> Bool {
+        followingIds.contains(userId)
+    }
+
+    /// Follow another user. Optimistic update.
+    func follow(userId: UUID) {
+        guard !followingIds.contains(userId) else { return }
+        followingIds.insert(userId)
+        followingCount += 1
+        Task {
+            do {
+                let myId = try await supabase.auth.session.user.id
+                guard myId != userId else { return }
+                struct NewFollow: Codable { let follower_id: UUID; let followed_id: UUID }
+                try await supabase.from("follows").insert(NewFollow(follower_id: myId, followed_id: userId)).execute()
+            } catch {
+                print("❌ follow: \(error)")
+                await MainActor.run {
+                    self.followingIds.remove(userId)
+                    self.followingCount = max(0, self.followingCount - 1)
+                }
+            }
+        }
+    }
+
+    /// Unfollow a user. Optimistic update.
+    func unfollow(userId: UUID) {
+        guard followingIds.contains(userId) else { return }
+        followingIds.remove(userId)
+        followingCount = max(0, followingCount - 1)
+        Task {
+            do {
+                let myId = try await supabase.auth.session.user.id
+                try await supabase
+                    .from("follows")
+                    .delete()
+                    .eq("follower_id", value: myId)
+                    .eq("followed_id", value: userId)
+                    .execute()
+            } catch {
+                print("❌ unfollow: \(error)")
+                await MainActor.run {
+                    self.followingIds.insert(userId)
+                    self.followingCount += 1
+                }
+            }
+        }
+    }
+
+    /// Toggle my own profile visibility.
+    func setProfilePublic(_ isPublic: Bool) {
+        self.isProfilePublic = isPublic
+        Task {
+            do {
+                let myId = try await supabase.auth.session.user.id
+                struct PrivacyPatch: Codable { let is_public: Bool }
+                try await supabase
+                    .from("profiles")
+                    .update(PrivacyPatch(is_public: isPublic))
+                    .eq("id", value: myId)
+                    .execute()
+            } catch { print("❌ setProfilePublic: \(error)") }
+        }
+    }
+
+    /// Fetch live follower/following count for any user.
+    func fetchFollowCounts(for userId: UUID) async -> (followers: Int, following: Int) {
+        do {
+            let profiles: [CloudProfile] = try await supabase
+                .from("profiles")
+                .select("id,follower_count,following_count,username,handle,xp,level,avatar_url,region")
+                .eq("id", value: userId)
+                .execute()
+                .value
+            if let p = profiles.first {
+                return (p.follower_count ?? 0, p.following_count ?? 0)
+            }
+        } catch { print("⚠️ fetchFollowCounts: \(error)") }
+        return (0, 0)
+    }
+
+    /// Search users by username or handle via RPC.
+    func searchUsers(query: String) async -> [CloudProfile] {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count >= 1 else { return [] }
+        do {
+            let params: [String: String] = ["q": trimmed]
+            let results: [CloudProfile] = try await supabase
+                .rpc("search_users", params: params)
+                .execute()
+                .value
+            return results
+        } catch {
+            // Fallback: direct ilike query
+            do {
+                let results: [CloudProfile] = try await supabase
+                    .from("profiles")
+                    .select()
+                    .or("username.ilike.%\(trimmed)%,handle.ilike.%\(trimmed)%")
+                    .order("xp", ascending: false)
+                    .limit(30)
+                    .execute()
+                    .value
+                return results
+            } catch {
+                print("❌ searchUsers fallback: \(error)")
+                return []
+            }
+        }
+    }
+
     // Fügt einen Freund anhand des Handles hinzu
     func addFriend(handleToSearch: String) {
         Task {
@@ -1064,7 +1214,7 @@ class AppState: ObservableObject {
 
             // 2. Load Global
             do {
-                var globalData: [CloudProfile] = try await supabase.from("profiles").select().order("xp", ascending: false).limit(50).execute().value
+                var globalData: [CloudProfile] = try await supabase.from("profiles").select().order("xp", ascending: false).limit(1000).execute().value
                 await MainActor.run { self.globalLeaderboard = globalData }
             } catch {
                 print("⚠️ Warning: Loading global leaderboard failed: \(error)")

@@ -5,7 +5,7 @@ import SwiftUI
 // === Leaderboard — Emotionally Intelligent ===
 // =========================================
 
-struct Player: Identifiable {
+struct Player: Identifiable, Hashable {
     let id: UUID
     let name: String
     let handle: String
@@ -24,6 +24,8 @@ struct ArenaView: View {
     @State private var showAddFriendAlert = false
     @State private var friendHandleInput = ""
     @State private var animateIn = false
+    @State private var showUserSearch = false
+    @State private var selectedPlayer: Player? = nil
     @State private var podiumRevealed = false
     @State private var rowsRevealed = false
     @State private var headerGlow = false
@@ -129,19 +131,31 @@ struct ArenaView: View {
 
                         Spacer()
 
-                        Button(action: { showAddFriendAlert = true }) {
-                            ZStack {
-                                Circle()
-                                    .fill(.ultraThinMaterial)
-                                    .environment(\.colorScheme, .light)
-                                    .frame(width: 48, height: 48)
-                                    .overlay(
-                                        Circle().stroke(gold.opacity(0.2), lineWidth: 1)
-                                    )
+                        HStack(spacing: 10) {
+                            Button(action: { showUserSearch = true }) {
+                                ZStack {
+                                    Circle()
+                                        .fill(.ultraThinMaterial)
+                                        .environment(\.colorScheme, .light)
+                                        .frame(width: 48, height: 48)
+                                        .overlay(Circle().stroke(gold.opacity(0.2), lineWidth: 1))
+                                    Image(systemName: "magnifyingglass")
+                                        .font(.system(size: 17, weight: .semibold, design: .rounded))
+                                        .foregroundColor(gold)
+                                }
+                            }
 
-                                Image(systemName: "person.badge.plus")
-                                    .font(.system(size: 17, weight: .semibold, design: .rounded))
-                                    .foregroundColor(gold)
+                            Button(action: { showAddFriendAlert = true }) {
+                                ZStack {
+                                    Circle()
+                                        .fill(.ultraThinMaterial)
+                                        .environment(\.colorScheme, .light)
+                                        .frame(width: 48, height: 48)
+                                        .overlay(Circle().stroke(gold.opacity(0.2), lineWidth: 1))
+                                    Image(systemName: "person.badge.plus")
+                                        .font(.system(size: 17, weight: .semibold, design: .rounded))
+                                        .foregroundColor(gold)
+                                }
                             }
                         }
                         .opacity(animateIn ? 1 : 0)
@@ -187,15 +201,18 @@ struct ArenaView: View {
                             if !remaining.isEmpty {
                                 VStack(spacing: 0) {
                                     ForEach(Array(remaining.enumerated()), id: \.element.id) { index, player in
-                                        PremiumLeaderboardRow(
-                                            rank: index + 4,
-                                            player: player,
-                                            gold: gold,
-                                            isRevealed: rowsRevealed,
-                                            delay: Double(index) * 0.05,
-                                            isFirst: index == 0,
-                                            isLast: index == remaining.count - 1
-                                        )
+                                        Button { if !player.isCurrentUser { selectedPlayer = player } } label: {
+                                            PremiumLeaderboardRow(
+                                                rank: index + 4,
+                                                player: player,
+                                                gold: gold,
+                                                isRevealed: rowsRevealed,
+                                                delay: Double(index) * 0.05,
+                                                isFirst: index == 0,
+                                                isLast: index == remaining.count - 1
+                                            )
+                                        }
+                                        .buttonStyle(.plain)
 
                                         if index < remaining.count - 1 {
                                             Rectangle()
@@ -275,6 +292,199 @@ struct ArenaView: View {
         } message: {
             Text("Enter the exact handle of your friend to add them to your live leaderboard.")
         }
+        .sheet(isPresented: $showUserSearch) {
+            UserSearchSheet()
+                .environmentObject(appState)
+        }
+        .sheet(item: $selectedPlayer) { player in
+            PublicProfileView(
+                userId: player.id,
+                userName: player.name,
+                userHandle: player.handle,
+                avatarURL: player.avatarURL,
+                xp: player.xp
+            )
+            .environmentObject(appState)
+        }
+    }
+}
+
+// =========================================
+// MARK: - User Search Sheet
+// =========================================
+
+struct UserSearchSheet: View {
+    @EnvironmentObject var appState: AppState
+    @Environment(\.dismiss) var dismiss
+
+    @State private var query: String = ""
+    @State private var results: [CloudProfile] = []
+    @State private var isSearching = false
+    @State private var searchTask: Task<Void, Never>? = nil
+    @State private var selectedProfile: CloudProfile? = nil
+
+    private let accent = Color(red: 0.1, green: 0.5, blue: 0.95)
+
+    var body: some View {
+        NavigationView {
+            ZStack {
+                Color(white: 0.97).ignoresSafeArea()
+                VStack(spacing: 0) {
+                    HStack(spacing: 10) {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundColor(.gray)
+                        TextField("Search alpinists by name or @handle", text: $query)
+                            .font(.system(size: 15, design: .rounded))
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                            .onChange(of: query) { _, v in scheduleSearch(v) }
+                        if isSearching {
+                            ProgressView().scaleEffect(0.7)
+                        } else if !query.isEmpty {
+                            Button { query = ""; results = [] } label: {
+                                Image(systemName: "xmark.circle.fill").foregroundColor(.gray)
+                            }
+                        }
+                    }
+                    .padding(12)
+                    .background(Color.white)
+                    .cornerRadius(14)
+                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black.opacity(0.06), lineWidth: 1))
+                    .padding(.horizontal, 20)
+                    .padding(.top, 16)
+
+                    if results.isEmpty && !query.isEmpty && !isSearching {
+                        VStack(spacing: 8) {
+                            Image(systemName: "person.crop.circle.badge.questionmark")
+                                .font(.system(size: 38))
+                                .foregroundColor(.gray.opacity(0.5))
+                            Text("No alpinists found")
+                                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                                .foregroundColor(.gray)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, 60)
+                    } else if results.isEmpty && query.isEmpty {
+                        VStack(spacing: 8) {
+                            Image(systemName: "magnifyingglass")
+                                .font(.system(size: 38))
+                                .foregroundColor(.gray.opacity(0.5))
+                            Text("Start typing to find other alpinists")
+                                .font(.system(size: 13, weight: .medium, design: .rounded))
+                                .foregroundColor(.gray)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, 60)
+                    } else {
+                        ScrollView {
+                            LazyVStack(spacing: 8) {
+                                ForEach(results) { profile in
+                                    Button {
+                                        selectedProfile = profile
+                                    } label: {
+                                        UserSearchRow(profile: profile, isFollowing: appState.isFollowing(profile.id), isMe: profile.handle == appState.userHandle)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                            .padding(.horizontal, 20)
+                            .padding(.top, 14)
+                            .padding(.bottom, 40)
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Find Alpinists")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") { dismiss() }.foregroundColor(accent)
+                }
+            }
+            .sheet(item: $selectedProfile) { profile in
+                PublicProfileView(
+                    userId: profile.id,
+                    userName: profile.username,
+                    userHandle: profile.handle,
+                    avatarURL: profile.avatar_url,
+                    xp: profile.xp
+                )
+                .environmentObject(appState)
+            }
+        }
+    }
+
+    private func scheduleSearch(_ raw: String) {
+        searchTask?.cancel()
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            results = []
+            return
+        }
+        isSearching = true
+        searchTask = Task {
+            try? await Task.sleep(nanoseconds: 250_000_000)
+            if Task.isCancelled { return }
+            let found = await appState.searchUsers(query: trimmed)
+            if Task.isCancelled { return }
+            await MainActor.run {
+                self.results = found
+                self.isSearching = false
+            }
+        }
+    }
+}
+
+struct UserSearchRow: View {
+    let profile: CloudProfile
+    let isFollowing: Bool
+    let isMe: Bool
+
+    var body: some View {
+        HStack(spacing: 12) {
+            if let urlString = profile.avatar_url, let url = URL(string: urlString) {
+                CachedAsyncImage(url: url) { image in
+                    image.resizable().scaledToFill()
+                } placeholder: {
+                    Circle().fill(Color.gray.opacity(0.15))
+                }
+                .frame(width: 44, height: 44)
+                .clipShape(Circle())
+            } else {
+                Circle().fill(Color.gray.opacity(0.15)).frame(width: 44, height: 44)
+                    .overlay(Image(systemName: "person.fill").foregroundColor(.gray))
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Text(profile.username)
+                        .font(.system(size: 15, weight: .bold, design: .rounded))
+                        .foregroundColor(.primary)
+                    if profile.is_public == false {
+                        Image(systemName: "lock.fill")
+                            .font(.system(size: 10))
+                            .foregroundColor(.gray)
+                    }
+                }
+                Text("@\(profile.handle)")
+                    .font(.system(size: 12, design: .rounded))
+                    .foregroundColor(.gray)
+            }
+            Spacer()
+            VStack(alignment: .trailing, spacing: 2) {
+                Text("\(profile.xp) XP")
+                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .foregroundColor(Color(red: 0.1, green: 0.5, blue: 0.95))
+                if isMe {
+                    Text("YOU").font(.system(size: 9, weight: .black, design: .rounded)).foregroundColor(.gray)
+                } else if isFollowing {
+                    Text("FOLLOWING").font(.system(size: 9, weight: .black, design: .rounded)).foregroundColor(.green)
+                }
+            }
+        }
+        .padding(12)
+        .background(Color.white)
+        .cornerRadius(14)
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black.opacity(0.05), lineWidth: 1))
     }
 }
 

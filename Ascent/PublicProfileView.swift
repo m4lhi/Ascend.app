@@ -31,6 +31,10 @@ struct PublicProfileView: View {
     @State private var isSelf = true
     @State private var isFriend = true
     @State private var addingFriend = false
+    @State private var isPublic: Bool = true
+    @State private var followerCount: Int = 0
+    @State private var followingCount: Int = 0
+    @State private var isFollowing: Bool = false
     
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var appState: AppState
@@ -151,44 +155,81 @@ struct PublicProfileView: View {
                             } else {
                                 HStack(spacing: 16) {
                                     StatPill(title: "XP", value: "\(xp)", icon: "bolt.fill", color: accent)
-                                    StatPill(title: "Reputation", value: "Level \(level)", icon: rank.icon, color: rank.color)
+                                    StatPill(title: "Level", value: "\(level)", icon: rank.icon, color: rank.color)
                                 }
                                 .padding(.top, 8)
-                            }
-                        }
-                        
-                        // Add Friend Button
-                        if !isLoading && !isSelf && !isFriend {
-                            Button(action: {
-                                addingFriend = true
-                                Task {
-                                    appState.addFriend(handleToSearch: userHandle)
-                                    await MainActor.run {
-                                        // Assume it works locally for UI feedback
-                                        isFriend = true
-                                        addingFriend = false
+
+                                // Follower / Following counts
+                                HStack(spacing: 28) {
+                                    VStack(spacing: 2) {
+                                        Text("\(followerCount)")
+                                            .font(.system(size: 18, weight: .bold, design: .rounded))
+                                            .foregroundColor(.primary)
+                                        Text("Followers")
+                                            .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                            .foregroundColor(.gray)
+                                    }
+                                    Rectangle().fill(Color.gray.opacity(0.2)).frame(width: 1, height: 28)
+                                    VStack(spacing: 2) {
+                                        Text("\(followingCount)")
+                                            .font(.system(size: 18, weight: .bold, design: .rounded))
+                                            .foregroundColor(.primary)
+                                        Text("Following")
+                                            .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                            .foregroundColor(.gray)
                                     }
                                 }
-                            }) {
+                                .padding(.top, 12)
+                            }
+                        }
+
+                        // Follow / Following Button
+                        if !isLoading && !isSelf {
+                            Button(action: toggleFollow) {
                                 HStack {
-                                    if addingFriend {
-                                        ProgressView().tint(.white)
-                                    } else {
-                                        Image(systemName: "person.badge.plus")
-                                        Text("Add Crew")
-                                    }
+                                    Image(systemName: isFollowing ? "checkmark" : "person.badge.plus")
+                                    Text(isFollowing ? "Following" : "Follow")
                                 }
                                 .font(.system(size: 15, weight: .bold, design: .rounded))
-                                .foregroundColor(.white)
+                                .foregroundColor(isFollowing ? accent : .white)
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 14)
-                                .background(accent)
+                                .background(isFollowing ? Color.white : accent)
+                                .overlay(
+                                    Capsule().stroke(accent, lineWidth: isFollowing ? 1.5 : 0)
+                                )
                                 .clipShape(Capsule())
-                                .shadow(color: accent.opacity(0.3), radius: 6, y: 3)
+                                .shadow(color: accent.opacity(isFollowing ? 0 : 0.3), radius: 6, y: 3)
                             }
                             .padding(.horizontal, 24)
-                            .padding(.top, 4)
+                            .padding(.top, 10)
                         }
+
+                        // PRIVATE GATE: if profile is private and viewer is not following & not self,
+                        // hide sensitive content.
+                        if !isLoading && !isSelf && !isPublic && !isFollowing {
+                            VStack(spacing: 10) {
+                                Image(systemName: "lock.fill")
+                                    .font(.system(size: 32))
+                                    .foregroundColor(.gray.opacity(0.6))
+                                Text("This profile is private")
+                                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                                    .foregroundColor(.primary)
+                                Text("Follow @\(userHandle) to see their achievements and equipment.")
+                                    .font(.system(size: 13, design: .rounded))
+                                    .foregroundColor(.gray)
+                                    .multilineTextAlignment(.center)
+                                    .padding(.horizontal, 24)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 40)
+                            .background(Color(UIColor.secondarySystemGroupedBackground))
+                            .clipShape(RoundedRectangle(cornerRadius: 20))
+                            .padding(.horizontal, 24)
+                            .padding(.top, 20)
+
+                            Spacer().frame(height: 40)
+                        } else {
                         // Fake Top Badges Showcase
                         VStack(alignment: .leading, spacing: 14) {
                             HStack {
@@ -228,8 +269,9 @@ struct PublicProfileView: View {
                                 .disabled(true) // Read only
                         }
                         .padding(.top, 10)
-                        
+
                         Spacer().frame(height: 40)
+                        } // end of public/self branch
                     }
                 }
             }
@@ -253,6 +295,7 @@ struct PublicProfileView: View {
     }
     
     private func fetchUserProfileAsync() async {
+        await MainActor.run { isLoading = true }
         guard let id = userId else {
             await MainActor.run { isLoading = false }
             return
@@ -286,12 +329,32 @@ struct PublicProfileView: View {
                     self.avatarURL = profile.avatar_url
                     self.region = profile.region
                     self.xp = profile.xp
+                    self.isPublic = profile.is_public ?? true
+                    self.followerCount = profile.follower_count ?? 0
+                    self.followingCount = profile.following_count ?? 0
+                    self.isFollowing = appState.isFollowing(id)
+                    self.isLoading = false
                 }
             } else {
                 print("Profile not found in DB - using dummy stats")
+                await MainActor.run { self.isLoading = false }
             }
         } catch {
             print("Failed to fetch public profile: \(error)")
+            await MainActor.run { self.isLoading = false }
+        }
+    }
+
+    private func toggleFollow() {
+        guard let id = userId else { return }
+        if isFollowing {
+            appState.unfollow(userId: id)
+            isFollowing = false
+            followerCount = max(0, followerCount - 1)
+        } else {
+            appState.follow(userId: id)
+            isFollowing = true
+            followerCount += 1
         }
     }
     
