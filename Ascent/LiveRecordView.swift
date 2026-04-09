@@ -583,7 +583,7 @@ struct LiveRecordView: View {
             if navigationManager.isNavigating {
                 VStack {
                     Spacer().frame(height: navHUDCollapsed ? 140 : 180)
-                    NavigationHUDView(navManager: navigationManager, isCollapsed: $navHUDCollapsed)
+                    HStack { NavigationHUDView(navManager: navigationManager, isCollapsed: $navHUDCollapsed); if navHUDCollapsed { Spacer() } }
                         .padding(.horizontal, 16)
                     Spacer()
                 }
