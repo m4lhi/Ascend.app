@@ -553,7 +553,9 @@ class AppState: ObservableObject {
     // --- TOUR FUNKTIONEN ---
     
     // Holt die erste Seite des Feeds (Reset)
-    func fetchFeed() {
+    func fetchFeed(forceRefresh: Bool = false) {
+        if !forceRefresh && !recentTours.isEmpty { return }
+
         feedPage = 0
         hasMoreFeed = true
         recentTours = []
@@ -1114,6 +1116,8 @@ class AppState: ObservableObject {
     // --- DISCOVERY ---
 
     func fetchRecommendedPeaks() {
+        guard recommendedPeaks.isEmpty else { return }
+
         Task {
             do {
                 // 1. Lade alle Berge von Supabase.

@@ -403,9 +403,22 @@ struct RouteMapPreview: View {
         }
     }
 
+    private var simplifiedCoordinates: [CLLocationCoordinate2D] {
+        guard coordinates.count > 30 else { return coordinates }
+        let step = coordinates.count / 30
+        var result: [CLLocationCoordinate2D] = []
+        for i in stride(from: 0, to: coordinates.count, by: step) {
+            result.append(coordinates[i])
+        }
+        if let last = coordinates.last {
+            result.append(last)
+        }
+        return result
+    }
+
     var body: some View {
         Map {
-            MapPolyline(coordinates: coordinates)
+            MapPolyline(coordinates: simplifiedCoordinates)
                 .stroke(routeColor, lineWidth: 3)
             if let first = coordinates.first {
                 Annotation("", coordinate: first) {
@@ -421,7 +434,8 @@ struct RouteMapPreview: View {
                 }
             }
         }
-        .mapStyle(.standard(elevation: .realistic, pointsOfInterest: .excludingAll))
+        .mapStyle(.standard(elevation: .flat, pointsOfInterest: .excludingAll))
+        .mapControlVisibility(.hidden)
         .disabled(true)
         .allowsHitTesting(false)
     }

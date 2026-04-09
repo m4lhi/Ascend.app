@@ -114,6 +114,9 @@ struct BasecampView: View {
                 }
             }
             .coordinateSpace(name: "bcScroll")
+            .refreshable {
+                appState.fetchFeed(forceRefresh: true)
+            }
         }
         .onAppear {
             appState.fetchFeed()
