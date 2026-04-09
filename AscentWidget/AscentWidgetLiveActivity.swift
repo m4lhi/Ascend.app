@@ -2,10 +2,6 @@ import ActivityKit
 import WidgetKit
 import SwiftUI
 
-// Make sure to add this file to your new Widget Extension Target!
-// Also make sure MountaineeringAttributes is checked for both targets.
-
-
 struct AscentWidgetLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: MountaineeringAttributes.self) { context in
@@ -16,7 +12,7 @@ struct AscentWidgetLiveActivity: Widget {
                         .foregroundColor(.cyan)
                     Text(context.attributes.mountainName)
                         .font(.headline)
-                        .foregroundColor(.primary)
+                        .foregroundColor(.white)
                     Spacer()
                     Text(context.state.isPaused ? "Paused" : "In Progress")
                         .font(.caption)
@@ -25,40 +21,40 @@ struct AscentWidgetLiveActivity: Widget {
                         .padding(.vertical, 4)
                         .background(context.state.isPaused ? Color.orange : Color.green)
                         .cornerRadius(8)
-                        .foregroundColor(.primary)
+                        .foregroundColor(.white)
                 }
                 
                 HStack {
                     VStack(alignment: .leading) {
                         Text("Distance")
                             .font(.caption2)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(.gray)
                         Text(String(format: "%.2f km", context.state.distanceKm))
                             .font(.system(.title3, design: .rounded).bold())
-                            .foregroundColor(.primary)
+                            .foregroundColor(.white)
                     }
                     Spacer()
                     VStack(alignment: .center) {
                         Text("Remaining")
                             .font(.caption2)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(.gray)
                         Text(String(format: "%.2f km", context.state.remainingDistanceKm))
                             .font(.system(.title3, design: .rounded).bold())
-                            .foregroundColor(.primary)
+                            .foregroundColor(.white)
                     }
                     Spacer()
                     VStack(alignment: .trailing) {
                         Text("Avg Speed")
                             .font(.caption2)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(.gray)
                         Text(String(format: "%.1f km/h", context.state.averageSpeedKmh))
                             .font(.system(.title3, design: .rounded).bold())
-                            .foregroundColor(.primary)
+                            .foregroundColor(.white)
                     }
                 }
             }
             .padding()
-            
+            .activityBackgroundTint(Color.black.opacity(0.8))
             .activitySystemActionForegroundColor(Color.cyan)
 
         } dynamicIsland: { context in
@@ -76,9 +72,15 @@ struct AscentWidgetLiveActivity: Widget {
                 }
                 
                 DynamicIslandExpandedRegion(.trailing) {
-                    Text(formatDuration(context.state.duration))
-                        .font(.system(.caption, design: .rounded).monospacedDigit())
-                        .foregroundColor(.primary)
+                    if context.state.isPaused {
+                        Text(formatDuration(context.state.duration))
+                            .font(.system(.caption, design: .rounded).monospacedDigit())
+                            .foregroundColor(.white)
+                    } else {
+                        Text(timerInterval: Date(timeIntervalSinceNow: -context.state.duration)...Date(timeIntervalSinceNow: 10000000), countsDown: false)
+                            .font(.system(.caption, design: .rounded).monospacedDigit())
+                            .foregroundColor(.white)
+                    }
                 }
                 
                 DynamicIslandExpandedRegion(.bottom) {
@@ -86,28 +88,28 @@ struct AscentWidgetLiveActivity: Widget {
                         VStack(alignment: .leading) {
                             Text("Dist")
                                 .font(.caption2)
-                                .foregroundColor(.secondary)
+                                .foregroundColor(.gray)
                             Text(String(format: "%.1f km", context.state.distanceKm))
                                 .font(.system(.headline, design: .rounded))
-                                .foregroundColor(.primary)
+                                .foregroundColor(.white)
                         }
                         
                         VStack(alignment: .center) {
                             Text("Remaining")
                                 .font(.caption2)
-                                .foregroundColor(.secondary)
+                                .foregroundColor(.gray)
                             Text(String(format: "%.1f km", context.state.remainingDistanceKm))
                                 .font(.system(.headline, design: .rounded))
-                                .foregroundColor(.primary)
+                                .foregroundColor(.white)
                         }
                         
                         VStack(alignment: .trailing) {
                             Text("Avg Spd")
                                 .font(.caption2)
-                                .foregroundColor(.secondary)
+                                .foregroundColor(.gray)
                             Text(String(format: "%.1f km/h", context.state.averageSpeedKmh))
                                 .font(.system(.headline, design: .rounded))
-                                .foregroundColor(.primary)
+                                .foregroundColor(.white)
                         }
                     }
                     .padding(.top, 5)
@@ -133,16 +135,4 @@ struct AscentWidgetLiveActivity: Widget {
         if h > 0 { return String(format: "%d:%02d:%02d", h, m, s) }
         return String(format: "%02d:%02d", m, s)
     }
-}
-
-#Preview("Live Activity", as: .dynamicIsland(.expanded), using: MountaineeringAttributes(mountainName: "Mt. Everest")) {
-    AscentWidgetLiveActivity()
-} contentStates: {
-    MountaineeringAttributes.ContentState(
-        duration: 3600,
-        distanceKm: 2.5,
-        remainingDistanceKm: 1.2,
-        averageSpeedKmh: 4.0,
-        isPaused: false
-    )
 }
