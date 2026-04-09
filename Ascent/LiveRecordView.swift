@@ -619,7 +619,13 @@ struct LiveRecordView: View {
         .preferredColorScheme(.light)
         .onReceive(timer) { _ in
             blinkToggle.toggle()
-            if isRunning && !gpsManager.isAutoPaused { timeElapsed += 1 }
+            if isRunning && !gpsManager.isAutoPaused { 
+                timeElapsed += 1 
+                appState.trackerElapsedSeconds = timeElapsed
+            }
+            appState.trackerDistanceKm = gpsManager.distance / 1000.0
+            appState.trackerElevationGain = gpsManager.elevationGain
+            appState.isTrackerPaused = !isRunning || gpsManager.isAutoPaused
         }
         .sheet(isPresented: $showSaveForm, onDismiss: {
             sliderResetToken = UUID()
