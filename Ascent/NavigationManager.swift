@@ -284,72 +284,138 @@ class NavigationManager: ObservableObject {
 // MARK: - Navigation HUD View
 struct NavigationHUDView: View {
     @ObservedObject var navManager: NavigationManager
+    @Binding var isCollapsed: Bool
+
+    private let accentBlue = Color(red: 0.1, green: 0.5, blue: 0.95)
 
     var body: some View {
         if navManager.isNavigating, let instruction = navManager.currentInstruction {
-            VStack(spacing: 0) {
-                // Off-route warning
-                if navManager.isOffRoute {
-                    HStack {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundColor(.red)
-                        Text("Off Route - Return to trail")
-                            .font(.system(.caption, design: .rounded))
-                            .fontWeight(.bold)
-                            .foregroundColor(.red)
+            if isCollapsed {
+                // === COMPACT MODE: Just arrow + distance ===
+                Button(action: {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                        isCollapsed = false
                     }
-                    .padding(8)
-                    .frame(maxWidth: .infinity)
-                    .background(Color.red.opacity(0.15))
-                }
-
-                HStack(spacing: 16) {
-                    // Direction icon
-                    ZStack {
-                        Circle()
-                            .fill(DesignSystem.Colors.accent.opacity(0.15))
-                            .frame(width: 52, height: 52)
-                        Image(systemName: instruction.type.icon)
-                            .font(.system(size: 24, weight: .bold))
-                            .foregroundColor(instruction.type.color)
-                    }
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(instruction.text)
-                            .font(.system(.subheadline, design: .rounded))
-                            .fontWeight(.semibold)
-                            .lineLimit(2)
-
-                        HStack(spacing: 12) {
-                            Label(formatDistance(navManager.distanceToNext), systemImage: "location.fill")
-                            Label(formatTime(navManager.estimatedTimeRemaining), systemImage: "clock.fill")
+                }) {
+                    HStack(spacing: 10) {
+                        ZStack {
+                            Circle()
+                                .fill(accentBlue.opacity(0.15))
+                                .frame(width: 38, height: 38)
+                            Image(systemName: instruction.type.icon)
+                                .font(.system(size: 18, weight: .bold))
+                                .foregroundColor(instruction.type.color)
                         }
-                        .font(.system(.caption, design: .rounded))
-                        .foregroundColor(.secondary)
+
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(formatDistance(navManager.distanceToNext))
+                                .font(.system(size: 16, weight: .black, design: .rounded))
+                                .foregroundColor(.primary)
+                            if navManager.isOffRoute {
+                                Text("OFF ROUTE")
+                                    .font(.system(size: 8, weight: .black, design: .rounded))
+                                    .foregroundColor(.red)
+                                    .tracking(1)
+                            }
+                        }
+
+                        Spacer()
+
+                        // Stop navigation button
+                        Button(action: { navManager.stopNavigation() }) {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundColor(.gray)
+                                .frame(width: 28, height: 28)
+                                .background(Color.gray.opacity(0.15), in: Circle())
+                        }
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(.ultraThinMaterial)
+                    .clipShape(Capsule())
+                    .overlay(Capsule().stroke(Color.black.opacity(0.06), lineWidth: 1))
+                    .shadow(color: .black.opacity(0.1), radius: 8, y: 4)
+                }
+                .buttonStyle(.plain)
+                .transition(.asymmetric(
+                    insertion: .scale(scale: 0.8).combined(with: .opacity),
+                    removal: .scale(scale: 0.8).combined(with: .opacity)
+                ))
+            } else {
+                // === EXPANDED MODE: Full HUD ===
+                VStack(spacing: 0) {
+                    // Off-route warning
+                    if navManager.isOffRoute {
+                        HStack {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundColor(.red)
+                            Text("Off Route - Return to trail")
+                                .font(.system(.caption, design: .rounded))
+                                .fontWeight(.bold)
+                                .foregroundColor(.red)
+                        }
+                        .padding(8)
+                        .frame(maxWidth: .infinity)
+                        .background(Color.red.opacity(0.15))
                     }
 
-                    Spacer()
+                    HStack(spacing: 16) {
+                        // Direction icon
+                        ZStack {
+                            Circle()
+                                .fill(accentBlue.opacity(0.15))
+                                .frame(width: 52, height: 52)
+                            Image(systemName: instruction.type.icon)
+                                .font(.system(size: 24, weight: .bold))
+                                .foregroundColor(instruction.type.color)
+                        }
 
-                    // Stop button
-                    Button(action: { navManager.stopNavigation() }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 28))
-                            .foregroundColor(.gray)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(instruction.text)
+                                .font(.system(.subheadline, design: .rounded))
+                                .fontWeight(.semibold)
+                                .lineLimit(2)
+
+                            HStack(spacing: 12) {
+                                Label(formatDistance(navManager.distanceToNext), systemImage: "location.fill")
+                                Label(formatTime(navManager.estimatedTimeRemaining), systemImage: "clock.fill")
+                            }
+                            .font(.system(.caption, design: .rounded))
+                            .foregroundColor(.secondary)
+                        }
+
+                        Spacer()
+
+                        // Minimize button (collapse to compact)
+                        Button(action: {
+                            withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                                isCollapsed = true
+                            }
+                        }) {
+                            Image(systemName: "chevron.up.circle.fill")
+                                .font(.system(size: 28))
+                                .foregroundColor(.gray)
+                        }
                     }
-                }
-                .padding(16)
+                    .padding(16)
 
-                // Progress bar
-                GeometryReader { geo in
-                    Rectangle()
-                        .fill(DesignSystem.Colors.accent)
-                        .frame(width: geo.size.width * navManager.progress, height: 3)
+                    // Progress bar
+                    GeometryReader { geo in
+                        Rectangle()
+                            .fill(accentBlue)
+                            .frame(width: geo.size.width * navManager.progress, height: 3)
+                    }
+                    .frame(height: 3)
                 }
-                .frame(height: 3)
+                .background(.ultraThinMaterial)
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+                .shadow(color: .black.opacity(0.1), radius: 10, y: 5)
+                .transition(.asymmetric(
+                    insertion: .scale(scale: 0.95).combined(with: .opacity),
+                    removal: .scale(scale: 0.95).combined(with: .opacity)
+                ))
             }
-            .background(.ultraThinMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: 16))
-            .shadow(color: .black.opacity(0.1), radius: 10, y: 5)
         }
     }
 
