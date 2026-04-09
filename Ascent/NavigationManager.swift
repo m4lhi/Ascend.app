@@ -319,7 +319,7 @@ struct NavigationHUDView: View {
                             }
                         }
 
-                        Spacer()
+                        // Spacer() // removed to keep compact width
 
                         // Stop navigation button
                         Button(action: { navManager.stopNavigation() }) {
@@ -329,6 +329,7 @@ struct NavigationHUDView: View {
                                 .frame(width: 28, height: 28)
                                 .background(Color.gray.opacity(0.15), in: Circle())
                         }
+                        .padding(.leading, 4)
                     }
                     .padding(.horizontal, 14)
                     .padding(.vertical, 8)
