@@ -72,6 +72,7 @@ enum MapLayerType: String, CaseIterable, Identifiable {
 
 // MARK: - ExploreView
 struct ExploreView: View {
+    @EnvironmentObject var appState: AppState
     @StateObject private var mountainManager = MountainManager()
     @StateObject private var locationManager = ExploreLocationManager()
 
