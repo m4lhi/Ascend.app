@@ -6,7 +6,7 @@ import SwiftUI
 // =========================================
 
 struct Player: Identifiable {
-    let id = UUID()
+    let id: UUID
     let name: String
     let handle: String
     let xp: Int
@@ -40,7 +40,7 @@ struct ArenaView: View {
         default: sourceArray = appState.friendsLeaderboard
         }
         return sourceArray.map { p in
-            Player(name: p.username, handle: p.handle, xp: p.xp,
+            Player(id: p.id, name: p.username, handle: p.handle, xp: p.xp,
                    isCurrentUser: p.handle == appState.userHandle,
                    avatarURL: p.avatar_url)
         }
@@ -378,6 +378,8 @@ struct AnimatedScopeSelector: View {
 struct PremiumPodiumView: View {
     let players: [Player]
     var isRevealed: Bool = true
+    
+    @EnvironmentObject var appState: AppState
 
     private let gold = Color(red: 0.1, green: 0.5, blue: 0.95)
     private let silver = Color(red: 0.6, green: 0.65, blue: 0.75)
@@ -387,41 +389,57 @@ struct PremiumPodiumView: View {
         switch rank { case 1: return gold; case 2: return silver; case 3: return bronze; default: return .gray }
     }
 
+    @State private var selectedProfile: Player?
+
     var body: some View {
-        if players.count >= 3 {
-            HStack(alignment: .bottom, spacing: 6) {
-                // 2nd place — appears first in choreography
-                podiumColumn(player: players[1], rank: 2, avatarSize: 60, pillarHeight: 72)
-                    .opacity(isRevealed ? 1 : 0)
-                    .offset(y: isRevealed ? 0 : 30)
-                    .animation(.spring(response: 0.7, dampingFraction: 0.75).delay(0.0), value: isRevealed)
+        Group {
+            if players.count >= 3 {
+                HStack(alignment: .bottom, spacing: 6) {
+                    // 2nd place — appears first in choreography
+                    podiumColumn(player: players[1], rank: 2, avatarSize: 60, pillarHeight: 72)
+                        .opacity(isRevealed ? 1 : 0)
+                        .offset(y: isRevealed ? 0 : 30)
+                        .animation(.spring(response: 0.7, dampingFraction: 0.75).delay(0.0), value: isRevealed)
 
-                // 1st place — the star, appears second
-                podiumColumn(player: players[0], rank: 1, avatarSize: 78, pillarHeight: 105)
-                    .opacity(isRevealed ? 1 : 0)
-                    .offset(y: isRevealed ? 0 : 40)
-                    .animation(.spring(response: 0.7, dampingFraction: 0.75).delay(0.12), value: isRevealed)
+                    // 1st place — the star, appears second
+                    podiumColumn(player: players[0], rank: 1, avatarSize: 78, pillarHeight: 105)
+                        .opacity(isRevealed ? 1 : 0)
+                        .offset(y: isRevealed ? 0 : 40)
+                        .animation(.spring(response: 0.7, dampingFraction: 0.75).delay(0.12), value: isRevealed)
 
-                // 3rd place — appears third
-                podiumColumn(player: players[2], rank: 3, avatarSize: 54, pillarHeight: 56)
-                    .opacity(isRevealed ? 1 : 0)
-                    .offset(y: isRevealed ? 0 : 25)
-                    .animation(.spring(response: 0.7, dampingFraction: 0.75).delay(0.06), value: isRevealed)
-            }
-            .padding(.horizontal, 14)
-        } else if players.count == 2 {
-            HStack(alignment: .bottom, spacing: 12) {
-                podiumColumn(player: players[0], rank: 1, avatarSize: 78, pillarHeight: 105)
-                podiumColumn(player: players[1], rank: 2, avatarSize: 60, pillarHeight: 72)
-            }
-            .padding(.horizontal, 40)
-            .opacity(isRevealed ? 1 : 0)
-            .offset(y: isRevealed ? 0 : 30)
-        } else if players.count == 1 {
-            podiumColumn(player: players[0], rank: 1, avatarSize: 78, pillarHeight: 105)
-                .padding(.horizontal, 80)
+                    // 3rd place — appears third
+                    podiumColumn(player: players[2], rank: 3, avatarSize: 54, pillarHeight: 56)
+                        .opacity(isRevealed ? 1 : 0)
+                        .offset(y: isRevealed ? 0 : 25)
+                        .animation(.spring(response: 0.7, dampingFraction: 0.75).delay(0.06), value: isRevealed)
+                }
+                .padding(.horizontal, 14)
+            } else if players.count == 2 {
+                HStack(alignment: .bottom, spacing: 12) {
+                    podiumColumn(player: players[0], rank: 1, avatarSize: 78, pillarHeight: 105)
+                    podiumColumn(player: players[1], rank: 2, avatarSize: 60, pillarHeight: 72)
+                }
+                .padding(.horizontal, 40)
                 .opacity(isRevealed ? 1 : 0)
                 .offset(y: isRevealed ? 0 : 30)
+            } else if players.count == 1 {
+                podiumColumn(player: players[0], rank: 1, avatarSize: 78, pillarHeight: 105)
+                    .padding(.horizontal, 80)
+                    .opacity(isRevealed ? 1 : 0)
+                    .offset(y: isRevealed ? 0 : 30)
+            }
+        }
+        .sheet(item: $selectedProfile) { p in
+            PublicProfileView(
+                userId: p.id,
+                userName: p.name,
+                userHandle: p.handle,
+                avatarURL: p.avatarURL,
+                xp: p.xp
+            )
+            .presentationDetents([.fraction(0.85), .large])
+            .preferredColorScheme(.light)
+            .environmentObject(appState)
         }
     }
 
@@ -429,7 +447,10 @@ struct PremiumPodiumView: View {
     private func podiumColumn(player: Player, rank: Int, avatarSize: CGFloat, pillarHeight: CGFloat) -> some View {
         let color = rankColor(rank)
 
-        VStack(spacing: 0) {
+        Button(action: {
+            selectedProfile = player
+        }) {
+            VStack(spacing: 0) {
             // Crown for #1 with glow
             if rank == 1 {
                 ZStack {
@@ -558,8 +579,10 @@ struct PremiumPodiumView: View {
                         .stroke(color.opacity(0.3), lineWidth: 1)
                 )
                 .shadow(color: color.opacity(rank == 1 ? 0.2 : 0.1), radius: rank == 1 ? 12 : 6, y: 4)
+            }
+            .frame(maxWidth: .infinity)
         }
-        .frame(maxWidth: .infinity)
+        .buttonStyle(.plain)
     }
 
     private func formatXP(_ xp: Int) -> String {
@@ -617,13 +640,19 @@ struct PremiumLeaderboardRow: View {
     var isFirst: Bool = false
     var isLast: Bool = false
 
+    @State private var showPublicProfile = false
+    @EnvironmentObject var appState: AppState
+
     var body: some View {
-        HStack(spacing: 14) {
-            // Rank number
-            Text("\(rank)")
-                .font(.system(size: 15, weight: .bold, design: .rounded))
-                .foregroundColor(player.isCurrentUser ? gold : .black.opacity(0.4))
-                .frame(width: 30, alignment: .center)
+        Button(action: {
+            showPublicProfile = true
+        }) {
+            HStack(spacing: 14) {
+                // Rank number
+                Text("\(rank)")
+                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .foregroundColor(player.isCurrentUser ? gold : .black.opacity(0.4))
+                    .frame(width: 30, alignment: .center)
 
             // Avatar with mini progress ring
             ZStack {
@@ -723,12 +752,26 @@ struct PremiumLeaderboardRow: View {
                 .frame(width: 3.5)
             }
         }
+        }
+        .buttonStyle(.plain)
         .opacity(isRevealed ? 1 : 0)
         .offset(x: isRevealed ? 0 : 20)
         .animation(
             .spring(response: 0.5, dampingFraction: 0.8).delay(delay),
             value: isRevealed
         )
+        .sheet(isPresented: $showPublicProfile) {
+            PublicProfileView(
+                userId: player.id,
+                userName: player.name,
+                userHandle: player.handle,
+                avatarURL: player.avatarURL,
+                xp: player.xp
+            )
+            .presentationDetents([.fraction(0.85), .large])
+            .preferredColorScheme(.light)
+            .environmentObject(appState)
+        }
     }
 }
 
