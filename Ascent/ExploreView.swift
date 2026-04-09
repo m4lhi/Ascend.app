@@ -72,7 +72,6 @@ enum MapLayerType: String, CaseIterable, Identifiable {
 
 // MARK: - ExploreView
 struct ExploreView: View {
-    @EnvironmentObject var appState: AppState
     @StateObject private var mountainManager = MountainManager()
     @StateObject private var locationManager = ExploreLocationManager()
 
@@ -110,6 +109,7 @@ struct ExploreView: View {
     @State private var selectedRouteToShow: SavedRoute? = nil
 
     @State private var hasCenteredOnUser = false
+    @State private var showRoutePlanner = false
 
     private let gold = Color(red: 0.1, green: 0.5, blue: 0.95)
 
@@ -160,7 +160,7 @@ struct ExploreView: View {
                     Spacer()
                     VStack(spacing: 8) {
                         if isLayersExpanded {
-                            ForEach(MapLayerType.allCases.filter { $0 != currentMapLayer }) { layer in 
+                            ForEach(MapLayerType.allCases.filter { $0 != currentMapLayer }) { layer in
                                 FloatingMapButton(icon: layer.icon) {
                                     currentMapLayer = layer
                                     withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { isLayersExpanded = false }
@@ -264,12 +264,11 @@ struct ExploreView: View {
                 }
             }
         }
-        .onChange(of: mountainToTrack) { mt in
-            if let target = mt {
-                appState.activeMountain = target
-                withAnimation { appState.isTrackerActive = true }
-                mountainToTrack = nil // reset
-            }
+        .fullScreenCover(item: $mountainToTrack) { mountain in
+            LiveRecordView(targetMountain: mountain)
+        }
+        .fullScreenCover(isPresented: $showRoutePlanner) {
+            RoutePlannerView()
         }
         .alert("Location Access Denied", isPresented: $showLocationDeniedAlert) {
             Button("OK", role: .cancel) { }
@@ -450,6 +449,10 @@ struct ExploreView: View {
                                 .background(nearbyRadiusKm == radius ? gold : Color.black.opacity(0.05)).clipShape(Capsule())
                         }
                     }
+                }
+
+                ToolbarButton(icon: "map.fill", label: "Plan Route", isActive: showRoutePlanner) {
+                    showRoutePlanner = true
                 }
 
                 ToolbarButton(icon: isRouteCreationMode ? "xmark" : "pencil.line", label: isRouteCreationMode ? "Cancel" : "Route", isActive: isRouteCreationMode) {
@@ -872,7 +875,7 @@ struct MountainElevationPreview: View {
             let padY: CGFloat = 6
             let usableHeight = max(h - padY * 2, 10)
             
-            let mappedPoints = profilePoints.map { 
+            let mappedPoints = profilePoints.map {
                 CGPoint(x: $0.x * w, y: padY + usableHeight - $0.y * usableHeight)
             }
             

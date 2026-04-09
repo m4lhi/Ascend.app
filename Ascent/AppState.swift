@@ -329,11 +329,11 @@ class AppState: ObservableObject {
     @Published var isTrackerActive: Bool = false
     @Published var isTrackerMinimized: Bool = false
     @Published var activeMountain: Mountain? = nil
+    @Published var activeCustomRoute: [CLLocationCoordinate2D]? = nil
     @Published var trackerElapsedSeconds: Int = 0
     @Published var trackerDistanceKm: Double = 0.0
     @Published var trackerElevationGain: Double = 0.0
     @Published var isTrackerPaused: Bool = false
-    
     
     // Lokale User-Daten
     @Published var userName: String = "New Alpinist"
@@ -516,7 +516,7 @@ class AppState: ObservableObject {
             self.userName = newName; self.userHandle = newHandle; self.userRegion = newRegion; self.selectedSports = newSports
             self.instaHandle = newInsta; self.otherHobbies = newHobbies; self.mountaineeringSpecialties = newSpecialties
             
-            // Reactively update Feed 
+            // Reactively update Feed
             for i in self.recentTours.indices where self.recentTours[i].userId == session.user.id {
                 self.recentTours[i].playerName = newName
                 self.recentTours[i].playerHandle = newHandle
@@ -554,8 +554,7 @@ class AppState: ObservableObject {
     
     // Holt die erste Seite des Feeds (Reset)
     func fetchFeed(forceRefresh: Bool = false) {
-        if !forceRefresh && !recentTours.isEmpty { return }
-
+        if !forceRefresh && !recentTours.isEmpty { return } // Avoid lag/flicker when just switching tabs
         feedPage = 0
         hasMoreFeed = true
         recentTours = []
@@ -1116,14 +1115,9 @@ class AppState: ObservableObject {
     // --- DISCOVERY ---
 
     func fetchRecommendedPeaks() {
-        guard recommendedPeaks.isEmpty else { return }
-
+        guard recommendedPeaks.isEmpty else { return } // Prevent extreme lag when re-opening Basecamp tab
         Task {
             do {
-                // 1. Lade alle Berge von Supabase.
-                // HINWEIS: Wir lassen die datenbankseitige Sortierung (.order) weg,
-                // da Postgres bei CamelCase-Namen (isPrestigePeak) oft abstürzt, wenn man sie nicht in Quotes setzt.
-                // Das Limit sichert uns gegen zu große Datenmengen ab.
                 let allPeaks: [Mountain] = try await supabase
                     .from("mountains")
                     .select("*, routes:mountain_routes(*)")

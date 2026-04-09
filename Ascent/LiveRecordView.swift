@@ -583,7 +583,7 @@ struct LiveRecordView: View {
             if navigationManager.isNavigating {
                 VStack {
                     Spacer().frame(height: navHUDCollapsed ? 140 : 180)
-                    HStack { NavigationHUDView(navManager: navigationManager, isCollapsed: $navHUDCollapsed); if navHUDCollapsed { Spacer() } }
+                    NavigationHUDView(navManager: navigationManager, isCollapsed: $navHUDCollapsed)
                         .padding(.horizontal, 16)
                     Spacer()
                 }
@@ -619,13 +619,7 @@ struct LiveRecordView: View {
         .preferredColorScheme(.light)
         .onReceive(timer) { _ in
             blinkToggle.toggle()
-            if isRunning && !gpsManager.isAutoPaused { 
-                timeElapsed += 1 
-                appState.trackerElapsedSeconds = timeElapsed
-            }
-            appState.trackerDistanceKm = gpsManager.distance / 1000.0
-            appState.trackerElevationGain = gpsManager.elevationGain
-            appState.isTrackerPaused = !isRunning || gpsManager.isAutoPaused
+            if isRunning && !gpsManager.isAutoPaused { timeElapsed += 1 }
         }
         .sheet(isPresented: $showSaveForm, onDismiss: {
             sliderResetToken = UUID()
@@ -788,7 +782,69 @@ struct LiveRecordView: View {
         print("🧭 ROUTE: target.routes = \(targetMountain?.routes?.count ?? -1)")
         
         // 1. Check if we have a predefined MountainRoute in the database
-        if let target = targetMountain, let routes = target.routes, let firstRoute = routes.first {
+        if let customRoute = appState.activeCustomRoute, !customRoute.isEmpty {
+            let decodedAscent = customRoute
+            
+            print("🧭 ROUTE: Loaded CUSTOM route with \(decodedAscent.count) points")
+            
+            // Finde den Interception Point!
+            var minDistance: CLLocationDistance = .infinity
+            var bestIndex = 0
+            for (i, coord) in decodedAscent.enumerated() {
+                let dist = userCLLoc.distance(from: CLLocation(latitude: coord.latitude, longitude: coord.longitude))
+                if dist < minDistance {
+                    minDistance = dist
+                    bestIndex = i
+                }
+            }
+            
+            let interceptCoord = decodedAscent[bestIndex]
+            let interceptCLLoc = CLLocation(latitude: interceptCoord.latitude, longitude: interceptCoord.longitude)
+            
+            withAnimation {
+                self.offlineAscentRoute = decodedAscent
+                self.interceptIndex = bestIndex
+                self.appleApproachRoute = nil
+                self.updateClosestRouteIndex(to: userLoc)
+            }
+            
+            if userCLLoc.distance(from: interceptCLLoc) > 2_000_000 { return }
+            
+            // Generate approach driving route to the trailhead (start of custom route!)
+            let request = MKDirections.Request()
+            request.source = MKMapItem(placemark: MKPlacemark(coordinate: userLoc))
+            request.destination = MKMapItem(placemark: MKPlacemark(coordinate: CLLocationCoordinate2D(latitude: interceptCoord.latitude, longitude: interceptCoord.longitude)))
+            request.transportType = .automobile
+            
+            let directions = MKDirections(request: request)
+            directions.calculate { response, error in
+                if let route = response?.routes.first {
+                    let pointCount = route.polyline.pointCount
+                    var coords = [CLLocationCoordinate2D](repeating: kCLLocationCoordinate2DInvalid, count: pointCount)
+                    route.polyline.getCoordinates(&coords, range: NSRange(location: 0, length: pointCount))
+                    
+                    DispatchQueue.main.async {
+                        withAnimation(.easeInOut(duration: 1.0)) {
+                            self.appleApproachRoute = coords
+                            
+                            if !self.isRunning {
+                                let safeBestIndex = min(bestIndex, decodedAscent.count - 1)
+                                let allActiveCoords = coords + Array(decodedAscent[safeBestIndex...])
+                                if !allActiveCoords.isEmpty {
+                                    let rects = allActiveCoords.map { MKMapRect(origin: MKMapPoint($0), size: MKMapSize(width: 1, height: 1)) }
+                                    if var finalRect = rects.first {
+                                        for r in rects { finalRect = finalRect.union(r) }
+                                        self.cameraPosition = .rect(self.padMapRect(finalRect))
+                                    }
+                                }
+                            }
+                        }
+                        if self.isRunning && self.turnByTurnEnabled { self.startNavigationIfReady() }
+                    }
+                }
+            }
+        }
+        else if let target = targetMountain, let routes = target.routes, let firstRoute = routes.first {
             let decodedAscent = PolylineUtility.decode(polyline: firstRoute.route_polyline)
             
             print("🧭 ROUTE: Decoded ascent route with \(decodedAscent.count) points")
@@ -946,13 +1002,7 @@ struct LiveRecordView: View {
     private var topBar: some View {
         VStack(spacing: 14) {
             HStack {
-                Button(action: {
-                    if isRunning || timeElapsed > 0 || appState.isTrackerPaused {
-                        withAnimation { appState.isTrackerMinimized = true }
-                    } else {
-                        withAnimation { appState.isTrackerActive = false }
-                    }
-                }) {
+                Button(action: { dismiss() }) {
                     Image(systemName: "xmark")
                         .font(.system(size: 14, weight: .bold, design: .rounded))
                         .foregroundColor(.primary)
