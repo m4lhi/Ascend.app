@@ -15,6 +15,7 @@ struct SettingsView: View {
 
     @AppStorage("notificationsEnabled") private var notificationsEnabled = true
     @AppStorage("isLoggedIn") private var isLoggedIn = true
+    @AppStorage("animationProfile") private var animationProfileRaw: String = AnimationProfile.alpine.rawValue
 
     @ObservedObject private var emergencyManager = EmergencyManager.shared
     @ObservedObject private var offlineManager = OfflineManager.shared
@@ -68,6 +69,38 @@ struct SettingsView: View {
 
                         SettingsSection(title: "OFFLINE") {
                             OfflineDownloadsView(offlineManager: offlineManager)
+                        }
+
+                        SettingsSection(title: "APPEARANCE") {
+                            ForEach(AnimationProfile.allCases) { profile in
+                                Button(action: { animationProfileRaw = profile.rawValue }) {
+                                    HStack(spacing: 12) {
+                                        Image(systemName: profile.icon)
+                                            .font(.system(size: 16, weight: .semibold))
+                                            .foregroundColor(accentBlue)
+                                            .frame(width: 28)
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text(profile.displayName)
+                                                .font(.system(size: 15, weight: .semibold, design: .rounded))
+                                                .foregroundColor(.primary)
+                                            Text(profile.subtitle)
+                                                .font(.system(size: 11, design: .rounded))
+                                                .foregroundColor(.secondary)
+                                        }
+                                        Spacer()
+                                        if animationProfileRaw == profile.rawValue {
+                                            Image(systemName: "checkmark.circle.fill")
+                                                .foregroundColor(accentBlue)
+                                        }
+                                    }
+                                    .padding(.vertical, 8)
+                                    .padding(.horizontal, 4)
+                                    .contentShape(Rectangle())
+                                }
+                                if profile != AnimationProfile.allCases.last {
+                                    Divider().background(Color.black.opacity(0.1))
+                                }
+                            }
                         }
 
                         SettingsSection(title: "NOTIFICATIONS") {
@@ -191,7 +224,7 @@ struct SettingsView: View {
                 try await supabase.from("profiles").delete().eq("id", value: userId).execute()
                 
                 // Attempt to call RPC delete_user if the DB supports it
-                try? await supabase.rpc("delete_user").execute()
+                _ = try? await supabase.rpc("delete_user").execute()
                 
                 try await supabase.auth.signOut()
             } catch {

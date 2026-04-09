@@ -296,7 +296,7 @@ struct ElevationProfileView: View {
                     .gesture(
                         DragGesture(minimumDistance: 0)
                             .onChanged { value in
-                                let x = value.location.x - geometry[proxy.plotAreaFrame].origin.x
+                                let x = value.location.x - geometry[proxy.plotFrame!].origin.x
                                 if let distance: Double = proxy.value(atX: x) {
                                     withAnimation(.interactiveSpring(response: 0.2, dampingFraction: 0.8)) {
                                         selectedDistance = distance

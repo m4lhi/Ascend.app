@@ -94,12 +94,12 @@ struct AIChatGuideView: View {
                         .padding(.vertical, 20)
                     }
                     .background(Color.white.ignoresSafeArea())
-                    .onChange(of: viewModel.messages.count) { _ in
+                    .onChange(of: viewModel.messages.count) {
                         withAnimation {
                             proxy.scrollTo(viewModel.messages.last?.id, anchor: .bottom)
                         }
                     }
-                    .onChange(of: viewModel.isTyping) { isTyping in
+                    .onChange(of: viewModel.isTyping) { _, isTyping in
                         if isTyping {
                             withAnimation { proxy.scrollTo("TYPING_INDICATOR", anchor: .bottom) }
                         }

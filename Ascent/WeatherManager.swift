@@ -154,7 +154,7 @@ class WeatherManager: ObservableObject {
                     }
                     return WeatherAlert(
                         title: alert.summary,
-                        summary: alert.detailsURL.absoluteString ?? "",
+                        summary: alert.detailsURL.absoluteString,
                         severity: severity
                     )
                 }
