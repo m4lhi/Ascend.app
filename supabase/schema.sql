@@ -70,3 +70,70 @@ WITH CHECK (true);
 -- Add route_polyline to tours table for map display in social feed
 -- ============================================
 ALTER TABLE public.tours ADD COLUMN IF NOT EXISTS route_polyline TEXT;
+
+-- ============================================
+-- Extend profiles: specialties, hobbies, insta_handle
+-- ============================================
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS insta_handle TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS specialties TEXT[] DEFAULT '{}';
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS hobbies TEXT[] DEFAULT '{}';
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS disciplines TEXT[] DEFAULT '{}';
+
+-- Friends should be able to read profile details (friend-visible info)
+DROP POLICY IF EXISTS "Profiles are viewable by everyone" ON public.profiles;
+CREATE POLICY "Profiles are viewable by everyone"
+ON public.profiles FOR SELECT
+USING (true);
+
+-- ============================================
+-- Shared hobbies dictionary (user-submitted, searchable)
+-- ============================================
+CREATE TABLE IF NOT EXISTS public.hobbies (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL,
+    normalized_name TEXT NOT NULL UNIQUE,
+    usage_count INT DEFAULT 1,
+    created_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS hobbies_normalized_idx ON public.hobbies(normalized_name);
+CREATE INDEX IF NOT EXISTS hobbies_usage_idx ON public.hobbies(usage_count DESC);
+
+ALTER TABLE public.hobbies ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Hobbies readable by all" ON public.hobbies;
+CREATE POLICY "Hobbies readable by all"
+ON public.hobbies FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Authenticated users can add hobbies" ON public.hobbies;
+CREATE POLICY "Authenticated users can add hobbies"
+ON public.hobbies FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
+
+DROP POLICY IF EXISTS "Authenticated users can bump usage" ON public.hobbies;
+CREATE POLICY "Authenticated users can bump usage"
+ON public.hobbies FOR UPDATE USING (auth.uid() IS NOT NULL);
+
+-- RPC: register or bump a hobby (normalized), returns canonical row
+CREATE OR REPLACE FUNCTION public.register_hobby(p_name TEXT)
+RETURNS public.hobbies AS $$
+DECLARE
+    v_clean TEXT;
+    v_norm TEXT;
+    v_row public.hobbies;
+BEGIN
+    v_clean := btrim(regexp_replace(p_name, '\s+', ' ', 'g'));
+    IF length(v_clean) < 2 OR length(v_clean) > 40 THEN
+        RAISE EXCEPTION 'Invalid hobby name';
+    END IF;
+    v_norm := lower(v_clean);
+
+    INSERT INTO public.hobbies (name, normalized_name, created_by)
+    VALUES (initcap(v_clean), v_norm, auth.uid())
+    ON CONFLICT (normalized_name)
+    DO UPDATE SET usage_count = public.hobbies.usage_count + 1
+    RETURNING * INTO v_row;
+
+    RETURN v_row;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;

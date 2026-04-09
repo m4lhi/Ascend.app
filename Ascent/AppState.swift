@@ -19,7 +19,11 @@ struct CloudProfile: Codable, Identifiable {
     var level: Int
     var avatar_url: String?
     var region: String?
-    
+    var insta_handle: String?
+    var disciplines: [String]?
+    var specialties: [String]?
+    var hobbies: [String]?
+
     // Custom decoder for robust parsing in case DB rows have nulls
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -30,11 +34,16 @@ struct CloudProfile: Codable, Identifiable {
         level = try container.decodeIfPresent(Int.self, forKey: .level) ?? 1
         avatar_url = try container.decodeIfPresent(String.self, forKey: .avatar_url)
         region = try container.decodeIfPresent(String.self, forKey: .region)
+        insta_handle = try container.decodeIfPresent(String.self, forKey: .insta_handle)
+        disciplines = try container.decodeIfPresent([String].self, forKey: .disciplines)
+        specialties = try container.decodeIfPresent([String].self, forKey: .specialties)
+        hobbies = try container.decodeIfPresent([String].self, forKey: .hobbies)
     }
-    
+
     // Standard initializer to manually create profiles
-    init(id: UUID, username: String, handle: String, xp: Int, level: Int, avatar_url: String?, region: String?) {
+    init(id: UUID, username: String, handle: String, xp: Int, level: Int, avatar_url: String?, region: String?, insta_handle: String? = nil, disciplines: [String]? = nil, specialties: [String]? = nil, hobbies: [String]? = nil) {
         self.id = id; self.username = username; self.handle = handle; self.xp = xp; self.level = level; self.avatar_url = avatar_url; self.region = region
+        self.insta_handle = insta_handle; self.disciplines = disciplines; self.specialties = specialties; self.hobbies = hobbies
     }
 }
 
@@ -415,7 +424,11 @@ class AppState: ObservableObject {
                 self.currentLevel = profile.level
                 self.avatarURL = profile.avatar_url
                 self.userRegion = profile.region ?? ""
-                
+                self.instaHandle = profile.insta_handle ?? ""
+                self.selectedSports = profile.disciplines ?? []
+                self.mountaineeringSpecialties = profile.specialties ?? []
+                self.otherHobbies = profile.hobbies ?? []
+
                 fetchLeaderboard()
                 fetchFeed()
                 fetchAscendProfile()
@@ -435,7 +448,7 @@ class AppState: ObservableObject {
         Task {
             do {
                 let session = try await supabase.auth.session
-                let updatedProfile = CloudProfile(id: session.user.id, username: self.userName, handle: self.userHandle, xp: self.currentXP, level: self.currentLevel, avatar_url: self.avatarURL, region: self.userRegion)
+                let updatedProfile = CloudProfile(id: session.user.id, username: self.userName, handle: self.userHandle, xp: self.currentXP, level: self.currentLevel, avatar_url: self.avatarURL, region: self.userRegion, insta_handle: self.instaHandle, disciplines: self.selectedSports, specialties: self.mountaineeringSpecialties, hobbies: self.otherHobbies)
                 try await supabase.from("profiles").upsert(updatedProfile).execute()
                 if refreshLeaderboard { fetchLeaderboard() }
             } catch { print("❌ Fehler beim Speichern: \(error)") }
@@ -482,9 +495,14 @@ class AppState: ObservableObject {
     func updateProfileSettings(newName: String, newHandle: String, newRegion: String, newSports: [String], newInsta: String, newHobbies: [String], newSpecialties: [String]) async -> Bool {
         do {
             let session = try await supabase.auth.session
-            let updatedProfile = CloudProfile(id: session.user.id, username: newName, handle: newHandle, xp: self.currentXP, level: self.currentLevel, avatar_url: self.avatarURL, region: newRegion)
+            let updatedProfile = CloudProfile(id: session.user.id, username: newName, handle: newHandle, xp: self.currentXP, level: self.currentLevel, avatar_url: self.avatarURL, region: newRegion, insta_handle: newInsta, disciplines: newSports, specialties: newSpecialties, hobbies: newHobbies)
             try await supabase.from("profiles").upsert(updatedProfile).execute()
-            
+
+            // Register each custom-ish hobby into shared dictionary (fire-and-forget)
+            for hobby in newHobbies {
+                Task.detached { try? await HobbiesRepository.shared.register(name: hobby) }
+            }
+
             self.userName = newName; self.userHandle = newHandle; self.userRegion = newRegion; self.selectedSports = newSports
             self.instaHandle = newInsta; self.otherHobbies = newHobbies; self.mountaineeringSpecialties = newSpecialties
             
@@ -497,7 +515,10 @@ class AppState: ObservableObject {
             
             fetchLeaderboard()  // Region may change → local leaderboard must refresh
             return true
-        } catch { return false }
+        } catch {
+            print("❌ updateProfileSettings error: \(error)")
+            return false
+        }
     }
     
     // Lädt ein neues Profilbild hoch und aktualisiert die URL
@@ -512,7 +533,7 @@ class AppState: ObservableObject {
                 let cacheBusterURL = publicURL.absoluteString + "?v=\(Int(Date().timeIntervalSince1970))"
                 await MainActor.run { self.avatarURL = cacheBusterURL }
                 
-                let updatedProfile = CloudProfile(id: userId, username: self.userName, handle: self.userHandle, xp: self.currentXP, level: self.currentLevel, avatar_url: cacheBusterURL, region: self.userRegion)
+                let updatedProfile = CloudProfile(id: userId, username: self.userName, handle: self.userHandle, xp: self.currentXP, level: self.currentLevel, avatar_url: cacheBusterURL, region: self.userRegion, insta_handle: self.instaHandle, disciplines: self.selectedSports, specialties: self.mountaineeringSpecialties, hobbies: self.otherHobbies)
                 try await supabase.from("profiles").upsert(updatedProfile).execute()
                 // No leaderboard/feed refresh needed — only avatar URL changed
             } catch { print("❌ Fehler beim Bild-Upload: \(error)") }
