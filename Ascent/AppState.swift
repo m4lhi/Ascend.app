@@ -325,6 +325,16 @@ struct EquipmentCatalog {
 @MainActor
 class AppState: ObservableObject {
     
+    // --- GLOBAL TRACKER STATE ---
+    @Published var isTrackerActive: Bool = false
+    @Published var isTrackerMinimized: Bool = false
+    @Published var activeMountain: Mountain? = nil
+    @Published var trackerElapsedSeconds: Int = 0
+    @Published var trackerDistanceKm: Double = 0.0
+    @Published var trackerElevationGain: Double = 0.0
+    @Published var isTrackerPaused: Bool = false
+    
+    
     // Lokale User-Daten
     @Published var userName: String = "New Alpinist"
     @Published var userHandle: String = "climber"

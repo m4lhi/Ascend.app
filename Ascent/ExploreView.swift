@@ -263,8 +263,12 @@ struct ExploreView: View {
                 }
             }
         }
-        .fullScreenCover(item: $mountainToTrack) { mountain in
-            LiveRecordView(targetMountain: mountain)
+        .onChange(of: mountainToTrack) { mt in
+            if let target = mt {
+                appState.activeMountain = target
+                withAnimation { appState.isTrackerActive = true }
+                mountainToTrack = nil // reset
+            }
         }
         .alert("Location Access Denied", isPresented: $showLocationDeniedAlert) {
             Button("OK", role: .cancel) { }

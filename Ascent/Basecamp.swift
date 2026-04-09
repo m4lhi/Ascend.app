@@ -132,10 +132,12 @@ struct BasecampView: View {
         .sheet(isPresented: $showAllActivities) {
             AllActivitiesView().preferredColorScheme(.light)
         }
-        .fullScreenCover(isPresented: $showTracker, onDismiss: {
-            appState.fetchFeed()
-        }) {
-            LiveRecordView(targetMountain: mountainToTrack)
+        .onChange(of: showTracker) { show in
+            if show {
+                appState.activeMountain = mountainToTrack
+                withAnimation { appState.isTrackerActive = true }
+                showTracker = false // reset local state
+            }
         }
         .sheet(item: $mountainDetailToShow) { mountain in
             BasecampMountainDetailSheet(mountain: mountain) {

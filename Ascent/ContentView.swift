@@ -11,8 +11,7 @@ import SwiftUI
 struct ContentView: View {
     @EnvironmentObject var appState: AppState
     @State private var selectedTab = 0
-    @State private var showTracker = false
-    @State private var showAIChat = false
+        @State private var showAIChat = false
 
     init() {
         UITabBar.appearance().isHidden = true
@@ -34,7 +33,7 @@ struct ContentView: View {
             }
             .transition(.opacity)
 
-            CustomTabBar(selectedTab: $selectedTab, showTracker: $showTracker)
+            CustomTabBar(selectedTab: $selectedTab, showTracker: $appState.isTrackerActive)
             
             // Smart Floating Action Button (AI Guide) – nur auf Basecamp
             if selectedTab == 0 {
@@ -65,11 +64,33 @@ struct ContentView: View {
                 }
                 .transition(.opacity)
             }
+
+            // --- Live Tracker Overlay (Full Screen & Mini Player) ---
+            if appState.isTrackerActive {
+                LiveRecordView(targetMountain: appState.activeMountain)
+                    .environmentObject(appState)
+                    // Push the view completely off-screen if minimized (add safe padding)
+                    .offset(y: appState.isTrackerMinimized ? UIScreen.main.bounds.height + 200 : 0)
+                    .opacity(appState.isTrackerMinimized ? 0 : 1)
+                    .allowsHitTesting(!appState.isTrackerMinimized)
+                    .animation(.spring(response: 0.5, dampingFraction: 0.8), value: appState.isTrackerMinimized)
+                    .zIndex(100)
+            }
+            
+            // --- Mini Player Banner ---
+            if appState.isTrackerActive && appState.isTrackerMinimized {
+                MiniTrackerPlayer()
+                    .environmentObject(appState)
+                    // Height of CustomTabBar is ~105 padding included, place it right above
+                    .padding(.bottom, 115) 
+                    .padding(.horizontal, 16)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .zIndex(90)
+            }
+
         }
         .preferredColorScheme(.light)
-        .fullScreenCover(isPresented: $showTracker) {
-            LiveRecordView(targetMountain: nil)
-        }
+        
         .fullScreenCover(isPresented: $showAIChat) {
             AIChatGuideView()
         }

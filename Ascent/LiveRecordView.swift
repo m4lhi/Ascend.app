@@ -620,7 +620,13 @@ struct LiveRecordView: View {
         .preferredColorScheme(.light)
         .onReceive(timer) { _ in
             blinkToggle.toggle()
-            if isRunning && !gpsManager.isAutoPaused { timeElapsed += 1 }
+            if isRunning && !gpsManager.isAutoPaused { 
+                timeElapsed += 1 
+                appState.trackerElapsedSeconds = timeElapsed
+            }
+            appState.trackerDistanceKm = gpsManager.distance / 1000.0
+            appState.trackerElevationGain = gpsManager.elevationGain
+            appState.isTrackerPaused = !isRunning || gpsManager.isAutoPaused
             
             #if canImport(ActivityKit)
             if #available(iOS 16.2, *) {
@@ -649,7 +655,7 @@ struct LiveRecordView: View {
                 totalPauseDuration: gpsManager.totalPauseDuration,
                 rawRoute: gpsManager.rawRoute,
                 photoHighlights: photoHighlightManager.highlights,
-                onDismissTracker: { dismiss() }
+                onDismissTracker: { appState.isTrackerActive = false; appState.activeMountain = nil }
             )
         }
         .sheet(isPresented: $showExportSheet) {
@@ -956,7 +962,13 @@ struct LiveRecordView: View {
     private var topBar: some View {
         VStack(spacing: 14) {
             HStack {
-                Button(action: { dismiss() }) {
+                Button(action: {
+                    if isRunning {
+                        withAnimation { appState.isTrackerMinimized = true }
+                    } else {
+                        withAnimation { appState.isTrackerActive = false }
+                    }
+                }) {
                     Image(systemName: "xmark")
                         .font(.system(size: 14, weight: .bold, design: .rounded))
                         .foregroundColor(.primary)
@@ -1123,7 +1135,7 @@ struct LiveRecordView: View {
                                     .background(.ultraThinMaterial, in: Circle())
                                     .overlay(Circle().stroke(Color.white.opacity(0.1), lineWidth: 1))
                             }
-                            SlideToFinishControl(onComplete: endMission)
+                            HoldToFinishControl(onComplete: endMission)
                                 .id(sliderResetToken)
                         }
                     }
@@ -1222,7 +1234,7 @@ struct LiveRecordView: View {
                                 }
                             }
 
-                            SlideToFinishControl(onComplete: endMission)
+                            HoldToFinishControl(onComplete: endMission)
                                 .id(sliderResetToken)
                         }
                     }
@@ -1472,22 +1484,21 @@ struct TrackerSettingsSheet: View {
 }
 
 // =========================================
-// === Slide-to-Finish Safety Control ===
+// === Hold-to-Finish Safety Control ===
 // =========================================
-struct SlideToFinishControl: View {
+struct HoldToFinishControl: View {
     var onComplete: () -> Void
 
-    @State private var dragOffset: CGFloat = 0
-    @State private var isCompleted = false
+    @State private var pressProgress: CGFloat = 0.0
+    @State private var timer: Timer? = nil
 
-    private let thumbSize: CGFloat = 48
-    private let trackHeight: CGFloat = 56
+    private let holdDuration: TimeInterval = 2.0 // Seconds to hold
+    private let tickInterval: TimeInterval = 0.05
+    private let barHeight: CGFloat = 56
     private let gold = Color(red: 0.1, green: 0.5, blue: 0.95)
 
     var body: some View {
         GeometryReader { geo in
-            let maxDrag = geo.size.width - thumbSize - 8
-
             ZStack(alignment: .leading) {
                 RoundedRectangle(cornerRadius: 28)
                     .fill(Color.red.opacity(0.08))
@@ -1496,56 +1507,55 @@ struct SlideToFinishControl: View {
                             .stroke(Color.red.opacity(0.15), lineWidth: 1)
                     )
                     .overlay(
-                        Text("SLIDE TO FINISH")
-                            .font(.system(size: 9, weight: .black, design: .rounded))
-                            .foregroundColor(.primary.opacity(max(0.35 - (dragOffset / maxDrag) * 0.35, 0)))
+                        Text(pressProgress > 0 ? "HOLDING..." : "HOLD TO FINISH")
+                            .font(.system(size: 10, weight: .black, design: .rounded))
+                            .foregroundColor(.red.opacity(0.8))
                             .tracking(2)
                     )
 
                 RoundedRectangle(cornerRadius: 28)
-                    .fill(Color.red.opacity(0.15))
-                    .frame(width: dragOffset + thumbSize + 8)
-
-                ZStack {
-                    Circle()
-                        .fill(Color(red: 0.25, green: 0.06, blue: 0.06))
-                        .frame(width: thumbSize, height: thumbSize)
-                    Circle()
-                        .stroke(Color.red.opacity(0.5), lineWidth: 1.5)
-                        .frame(width: thumbSize, height: thumbSize)
-                    Image(systemName: "flag.checkered")
-                        .font(.system(size: 16, weight: .bold, design: .rounded))
-                        .foregroundColor(.red)
-                }
-                .offset(x: 4 + dragOffset)
-                .shadow(color: Color.red.opacity(0.3), radius: 10)
-                .gesture(
-                    DragGesture()
-                        .onChanged { value in
-                            guard !isCompleted else { return }
-                            dragOffset = min(max(0, value.translation.width), maxDrag)
+                    .fill(Color.red.opacity(0.4))
+                    .frame(width: max(0, pressProgress * geo.size.width))
+            }
+            .frame(height: barHeight)
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { _ in
+                        if timer == nil {
+                            startTimer()
                         }
-                        .onEnded { _ in
-                            guard !isCompleted else { return }
-                            if dragOffset > maxDrag * 0.8 {
-                                isCompleted = true
-                                HapticManager.shared.heavy()
-                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                    dragOffset = maxDrag
-                                }
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                                    onComplete()
-                                }
-                            } else {
-                                withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
-                                    dragOffset = 0
-                                }
+                    }
+                    .onEnded { _ in
+                        stopTimer()
+                        if pressProgress < 1.0 {
+                            withAnimation(.easeInOut(duration: 0.3)) {
+                                pressProgress = 0.0
                             }
                         }
-                )
+                    }
+            )
+        }
+        .frame(height: barHeight)
+    }
+
+    private func startTimer() {
+        timer = Timer.scheduledTimer(withTimeInterval: tickInterval, repeats: true) { _ in
+            withAnimation(.linear(duration: tickInterval)) {
+                pressProgress += CGFloat(tickInterval / holdDuration)
+            }
+            if pressProgress >= 1.0 {
+                pressProgress = 1.0
+                stopTimer()
+                let generator = UINotificationFeedbackGenerator()
+                generator.notificationOccurred(.success)
+                onComplete()
             }
         }
-        .frame(height: trackHeight)
+    }
+
+    private func stopTimer() {
+        timer?.invalidate()
+        timer = nil
     }
 }
 
@@ -1738,6 +1748,9 @@ struct MissionSaveView: View {
                 }
             }
             .onAppear {
+            if targetMountain != nil {
+                appState.activeMountain = targetMountain
+            }
                 if let prefilledName = targetMountain?.name {
                     summitName = prefilledName
                 }
