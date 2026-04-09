@@ -100,38 +100,45 @@ struct ActivityCardView: View {
         }
     }
 
+    @State private var showPublicProfile = false
+
     // MARK: - User Header
     private var userHeader: some View {
         HStack(alignment: .center, spacing: 10) {
-            // Avatar
-            Group {
-                if let urlString = tour.playerAvatarURL, let url = URL(string: urlString) {
-                    CachedAsyncImage(url: url) { image in
-                        image.resizable().scaledToFill()
-                    } placeholder: {
-                        Circle().fill(Color.gray.opacity(0.2))
+            Button(action: { showPublicProfile = true }) {
+                HStack(alignment: .center, spacing: 10) {
+                    // Avatar
+                    Group {
+                        if let urlString = tour.playerAvatarURL, let url = URL(string: urlString) {
+                            CachedAsyncImage(url: url) { image in
+                                image.resizable().scaledToFill()
+                            } placeholder: {
+                                Circle().fill(Color.gray.opacity(0.2))
+                            }
+                        } else {
+                            Circle()
+                                .fill(LinearGradient(colors: [accent.opacity(0.4), Color.purple.opacity(0.3)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                                .overlay(
+                                    Text(String(tour.playerName.prefix(1)))
+                                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                                        .foregroundColor(.white)
+                                )
+                        }
                     }
-                } else {
-                    Circle()
-                        .fill(LinearGradient(colors: [accent.opacity(0.4), Color.purple.opacity(0.3)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                        .overlay(
-                            Text(String(tour.playerName.prefix(1)))
-                                .font(.system(size: 16, weight: .bold, design: .rounded))
-                                .foregroundColor(.white)
-                        )
+                    .frame(width: 40, height: 40)
+                    .clipShape(Circle())
+
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(tour.playerName)
+                            .font(.system(size: 15, weight: .semibold, design: .rounded))
+                            .foregroundColor(.primary)
+                        Text(timeAgo)
+                            .font(.system(size: 12, design: .rounded))
+                            .foregroundColor(.secondary)
+                    }
                 }
             }
-            .frame(width: 40, height: 40)
-            .clipShape(Circle())
-
-            VStack(alignment: .leading, spacing: 1) {
-                Text(tour.playerName)
-                    .font(.system(size: 15, weight: .semibold, design: .rounded))
-                    .foregroundColor(.primary)
-                Text(timeAgo)
-                    .font(.system(size: 12, design: .rounded))
-                    .foregroundColor(.secondary)
-            }
+            .buttonStyle(PlainButtonStyle())
 
             Spacer()
 
@@ -150,6 +157,22 @@ struct ActivityCardView: View {
                         .contentShape(Rectangle())
                 }
             }
+        }
+        .sheet(isPresented: $showPublicProfile) {
+            let totalUserXP = appState.friendsLeaderboard.first(where: { $0.id == tour.userId })?.xp ??
+                              appState.globalLeaderboard.first(where: { $0.id == tour.userId })?.xp ??
+                              0
+            
+            PublicProfileView(
+                userId: tour.userId,
+                userName: tour.playerName,
+                userHandle: tour.playerHandle,
+                avatarURL: tour.playerAvatarURL,
+                xp: totalUserXP
+            )
+            .presentationDetents([.fraction(0.85), .large])
+            .preferredColorScheme(.light)
+            .environmentObject(appState)
         }
     }
 

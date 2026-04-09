@@ -272,9 +272,34 @@ enum ProfileTab: String, CaseIterable {
     case collections = "Collections"
 }
 
+// =========================================
+// MARK: - Profile Widget System
+// =========================================
+
+enum ProfileWidget: String, CaseIterable, Identifiable, Codable {
+    case rank, equipment, logbook, achievements
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .rank: return "Alpinist Rank"
+        case .equipment: return "Equipment"
+        case .logbook: return "Logbook & Collections"
+        case .achievements: return "Achievements"
+        }
+    }
+    var icon: String {
+        switch self {
+        case .rank: return "rosette"
+        case .equipment: return "tshirt.fill"
+        case .logbook: return "book.closed.fill"
+        case .achievements: return "medal.fill"
+        }
+    }
+}
+
 struct TrophyRoomView: View {
     @EnvironmentObject var appState: AppState
-    
+
     @State private var showEditProfile = false
     @State private var progressAnimated = false
     @State private var showSettings = false
@@ -284,6 +309,25 @@ struct TrophyRoomView: View {
     @State private var selectedAchievement: Achievement? = nil
     @State private var showAllAchievements = false
     @State private var selectedProfileTab: ProfileTab = .missions
+
+    // Persisted widget order
+    @AppStorage("profileWidgetOrder") private var widgetOrderRaw: String = "rank,equipment,logbook,achievements"
+    @State private var showLayoutEditor = false
+
+    private var widgetOrder: [ProfileWidget] {
+        let parts = widgetOrderRaw.split(separator: ",").map(String.init)
+        var seen = Set<String>()
+        var out: [ProfileWidget] = []
+        for p in parts {
+            if let w = ProfileWidget(rawValue: p), seen.insert(p).inserted { out.append(w) }
+        }
+        // Append any missing widgets at the end (forward compatibility)
+        for w in ProfileWidget.allCases where !seen.contains(w.rawValue) { out.append(w) }
+        return out
+    }
+    private func setWidgetOrder(_ order: [ProfileWidget]) {
+        widgetOrderRaw = order.map { $0.rawValue }.joined(separator: ",")
+    }
     
     private let gold = Color(red: 0.1, green: 0.5, blue: 0.95)
     private let cardBg = Color.white
@@ -363,13 +407,20 @@ struct TrophyRoomView: View {
                             .foregroundColor(.primary)
                         Spacer()
                         
+                        Button(action: { showLayoutEditor = true }) {
+                            Image(systemName: "square.grid.2x2.fill")
+                                .font(.system(size: 18, design: .rounded))
+                                .foregroundColor(.gray)
+                        }
+                        .padding(.trailing, 10)
+
                         Button(action: { showEditProfile = true }) {
                             Image(systemName: "pencil.circle.fill")
                                 .font(.system(size: 22, design: .rounded))
                                 .foregroundColor(gold)
                         }
                         .padding(.trailing, 8)
-                        
+
                         Button(action: { showSettings = true }) {
                             Image(systemName: "gearshape.fill")
                                 .font(.system(size: 20, design: .rounded))
@@ -438,17 +489,22 @@ struct TrophyRoomView: View {
                                         .foregroundColor(.gray)
                                     
                                     if !appState.instaHandle.isEmpty {
-                                        HStack(spacing: 3) {
-                                            Image(systemName: "camera.circle.fill")
-                                                .font(.system(size: 11))
-                                            Text(appState.instaHandle)
-                                                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                        Button(action: { openInstagram(appState.instaHandle) }) {
+                                            HStack(spacing: 3) {
+                                                Image(systemName: "camera.circle.fill")
+                                                    .font(.system(size: 11))
+                                                Text("@\(appState.instaHandle)")
+                                                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                            }
+                                            .padding(.horizontal, 8)
+                                            .padding(.vertical, 4)
+                                            .background(
+                                                LinearGradient(colors: [Color.pink.opacity(0.18), Color.purple.opacity(0.18)], startPoint: .topLeading, endPoint: .bottomTrailing)
+                                            )
+                                            .foregroundColor(.pink)
+                                            .clipShape(Capsule())
                                         }
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 4)
-                                        .background(Color.gray.opacity(0.1))
-                                        .foregroundColor(.black.opacity(0.7))
-                                        .clipShape(Capsule())
+                                        .buttonStyle(.plain)
                                     }
                                 }
                                 
@@ -575,9 +631,67 @@ struct TrophyRoomView: View {
                     .offset(y: animateIn ? 0 : 16)
                     
                     // ============================================
-                    // MARK: - ASCEND RANK CARD
+                    // MARK: - WIDGET STACK (reorderable)
                     // ============================================
-                    Button(action: { showAscendRank = true }) {
+                    VStack(spacing: 20) {
+                        ForEach(widgetOrder) { widget in
+                            widgetView(widget)
+                                .transition(.opacity)
+                        }
+                    }
+                    .padding(.top, 20)
+                    .opacity(animateIn ? 1 : 0)
+                    .offset(y: animateIn ? 0 : 10)
+                    .animation(.easeInOut(duration: 0.25), value: widgetOrderRaw)
+
+                    Spacer().frame(height: 130)
+                }
+            }
+        }
+        .onAppear {
+            appState.fetchAscendProfile()
+            withAnimation(.spring(response: 0.7, dampingFraction: 0.85).delay(0.1)) {
+                animateIn = true
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                withAnimation(.spring(response: 1.0, dampingFraction: 0.8)) {
+                    progressAnimated = true
+                }
+            }
+        }
+        .sheet(isPresented: $showEditProfile) { EditAccountView() }
+        .sheet(isPresented: $showSettings) { SettingsView() }
+        .sheet(isPresented: $showAscendRank) { AscendProgressView() }
+        .sheet(item: $selectedAchievement) { achievement in
+            AchievementDetailSheet(achievement: achievement)
+                .presentationDetents([.medium])
+                .preferredColorScheme(.light)
+        }
+        .sheet(isPresented: $showAllAchievements) {
+            AllAchievementsSheet(achievements: achievements, unlockedCount: unlockedCount)
+        }
+        .sheet(isPresented: $showLayoutEditor) {
+            ProfileLayoutEditor(order: widgetOrder) { newOrder in
+                setWidgetOrder(newOrder)
+            }
+            .presentationDetents([.medium, .large])
+            .preferredColorScheme(.light)
+        }
+    }
+
+    // MARK: - Widget builder
+    @ViewBuilder
+    private func widgetView(_ widget: ProfileWidget) -> some View {
+        switch widget {
+        case .rank: rankWidget
+        case .equipment: equipmentWidget
+        case .logbook: logbookWidget
+        case .achievements: achievementsWidget
+        }
+    }
+
+    private var rankWidget: some View {
+        Button(action: { showAscendRank = true }) {
                         HStack(spacing: 15) {
                             if let profile = appState.ascendProfile {
                                 let tColor = tierColor
@@ -634,185 +748,144 @@ struct TrophyRoomView: View {
                     }
                     .buttonStyle(.plain)
                     .padding(.horizontal, 20)
-                    .padding(.top, 20)
-                    .opacity(animateIn ? 1 : 0)
-                    .offset(y: animateIn ? 0 : 12)
-                    
-                    // ============================================
-                    // MARK: - EQUIPMENT LOCKER
-                    // ============================================
-                    VStack(alignment: .leading, spacing: 16) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "tshirt.fill")
-                                .font(.system(size: 14, weight: .bold, design: .rounded))
-                                .foregroundColor(.orange)
-                            Text("Equipment")
-                                .font(.system(size: 19, weight: .bold, design: .rounded))
-                                .foregroundColor(.primary)
-                            
-                            Spacer()
-                            
-                            Button(action: { /* edit equipment hook */ }) {
-                                HStack(spacing: 4) {
-                                    Image(systemName: "pencil")
-                                        .font(.system(size: 11, weight: .bold))
-                                    Text("Edit")
-                                        .font(.system(size: 12, weight: .bold, design: .rounded))
-                                }
-                                .foregroundColor(gold)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 5)
-                                .background(gold.opacity(0.1))
-                                .clipShape(Capsule())
-                            }
-                        }
-                        .padding(.horizontal, 20)
-                        
-                        EquipmentLockerView(equipment: appState.equipment)
-                    }
-                    .padding(.top, 28)
-                    .opacity(animateIn ? 1 : 0)
-                    .offset(y: animateIn ? 0 : 10)
-
-                    // ============================================
-                    // MARK: - LOGBOOK & COLLECTIONS (TABS)
-                    // ============================================
-                    VStack(alignment: .leading, spacing: 16) {
-                        Picker("Profile Tabs", selection: $selectedProfileTab) {
-                            ForEach(ProfileTab.allCases, id: \.self) { tab in
-                                Text(tab.rawValue).tag(tab)
-                            }
-                        }
-                        .pickerStyle(SegmentedPickerStyle())
-                        .padding(.horizontal, 20)
-                        
-                        switch selectedProfileTab {
-                        case .missions:
-                            let myTours = appState.recentTours.filter { $0.isCurrentUser }
-                            if myTours.isEmpty {
-                                Text("No missions completed yet.")
-                                    .font(.system(.subheadline, design: .rounded))
-                                    .foregroundColor(.gray)
-                                    .padding(.horizontal, 20)
-                                    .padding(.vertical, 10)
-                            } else {
-                                VStack(spacing: 16) {
-                                    ForEach(myTours) { tour in
-                                        ActivityCardView(tour: tour)
-                                            .padding(.horizontal, 16)
-                                    }
-                                }
-                            }
-                        case .saved:
-                            if appState.bookmarkedTours.isEmpty {
-                                Text("No saved tours from the community yet.")
-                                    .font(.system(.subheadline, design: .rounded))
-                                    .foregroundColor(.gray)
-                                    .padding(.horizontal, 20)
-                                    .padding(.vertical, 10)
-                            } else {
-                                VStack(spacing: 16) {
-                                    ForEach(appState.bookmarkedTours) { tour in
-                                        ActivityCardView(tour: tour)
-                                            .padding(.horizontal, 16)
-                                    }
-                                }
-                            }
-                        case .collections:
-                            // Because CollectionsView is a ScrollView and TrophyRoom is already a ScrollView,
-                            // we extract the content to avoid nested scroll views intercepting touches.
-                            // CollectionsView internally creates a ScrollView, so let's render the list directly.
-                            ProfileCollectionsList()
-                                .environmentObject(appState)
-                        }
-                    }
-                    .padding(.top, 28)
-                    .opacity(animateIn ? 1 : 0)
-                    .offset(y: animateIn ? 0 : 10)
-                    
-                    // ============================================
-                    // MARK: - ACHIEVEMENTS (SINGLE BUTTON)
-                    // ============================================
-                    Button(action: { showAllAchievements = true }) {
-                        HStack(alignment: .center, spacing: 15) {
-                            ZStack {
-                                RoundedRectangle(cornerRadius: 12)
-                                    .fill(gold.opacity(0.1))
-                                    .frame(width: 48, height: 48)
-                                Image(systemName: "medal.fill")
-                                    .font(.system(size: 20))
-                                    .foregroundColor(gold)
-                            }
-                            
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Achievements")
-                                    .font(.system(.headline, design: .rounded))
-                                    .fontWeight(.bold)
-                                    .foregroundColor(.primary)
-                                Text("\(unlockedCount) / \(achievements.count) Unlocked")
-                                    .font(.system(.caption, design: .rounded))
-                                    .foregroundColor(.gray)
-                            }
-                            
-                            Spacer()
-                            
-                            Image(systemName: "chevron.right")
-                                .font(.system(.caption, design: .rounded))
-                                .foregroundColor(.gray)
-                        }
-                        .padding(16)
-                        .background(Color.white)
-                        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-                        .shadow(color: .black.opacity(0.04), radius: 8, y: 4)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                                .stroke(Color.white.opacity(0.5), lineWidth: 0.5)
-                        )
-                    }
-                    .buttonStyle(.plain)
-                    .padding(.horizontal, 20)
-                    .padding(.top, 20)
-                    .padding(.bottom, 20)
-                    .opacity(animateIn ? 1 : 0)
-                    .offset(y: animateIn ? 0 : 10)
-                    
-                    Spacer().frame(height: 130)
-                }
-            }
-        }
-        .onAppear {
-            // Refresh profile & rank data when tab appears
-            appState.fetchAscendProfile()
-
-            withAnimation(.spring(response: 0.7, dampingFraction: 0.85).delay(0.1)) {
-                animateIn = true
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                withAnimation(.spring(response: 1.0, dampingFraction: 0.8)) {
-                    progressAnimated = true
-                }
-            }
-        }
-        .sheet(isPresented: $showEditProfile) {
-            EditAccountView()
-        }
-        .sheet(isPresented: $showSettings) {
-            SettingsView()
-        }
-        .sheet(isPresented: $showAscendRank) {
-            AscendProgressView()
-        }
-        .sheet(item: $selectedAchievement) { achievement in
-            AchievementDetailSheet(achievement: achievement)
-                .presentationDetents([.medium])
-                .preferredColorScheme(.light)
-        }
-        .sheet(isPresented: $showAllAchievements) {
-            AllAchievementsSheet(achievements: achievements, unlockedCount: unlockedCount)
-        }
-
     }
-    
+
+    // MARK: - Equipment widget
+    private var equipmentWidget: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(spacing: 8) {
+                Image(systemName: "tshirt.fill")
+                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .foregroundColor(.orange)
+                Text("Equipment")
+                    .font(.system(size: 19, weight: .bold, design: .rounded))
+                    .foregroundColor(.primary)
+
+                Spacer()
+
+                Button(action: { /* edit equipment hook */ }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "pencil")
+                            .font(.system(size: 11, weight: .bold))
+                        Text("Edit")
+                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                    }
+                    .foregroundColor(gold)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(gold.opacity(0.1))
+                    .clipShape(Capsule())
+                }
+            }
+            .padding(.horizontal, 20)
+
+            EquipmentLockerView(equipment: appState.equipment)
+        }
+    }
+
+    // MARK: - Logbook widget
+    private var logbookWidget: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Picker("Profile Tabs", selection: $selectedProfileTab) {
+                ForEach(ProfileTab.allCases, id: \.self) { tab in
+                    Text(tab.rawValue).tag(tab)
+                }
+            }
+            .pickerStyle(SegmentedPickerStyle())
+            .padding(.horizontal, 20)
+
+            switch selectedProfileTab {
+            case .missions:
+                let myTours = appState.recentTours.filter { $0.isCurrentUser }
+                if myTours.isEmpty {
+                    Text("No missions completed yet.")
+                        .font(.system(.subheadline, design: .rounded))
+                        .foregroundColor(.gray)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 10)
+                } else {
+                    VStack(spacing: 16) {
+                        ForEach(myTours) { tour in
+                            ActivityCardView(tour: tour)
+                                .padding(.horizontal, 16)
+                        }
+                    }
+                }
+            case .saved:
+                if appState.bookmarkedTours.isEmpty {
+                    Text("No saved tours from the community yet.")
+                        .font(.system(.subheadline, design: .rounded))
+                        .foregroundColor(.gray)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 10)
+                } else {
+                    VStack(spacing: 16) {
+                        ForEach(appState.bookmarkedTours) { tour in
+                            ActivityCardView(tour: tour)
+                                .padding(.horizontal, 16)
+                        }
+                    }
+                }
+            case .collections:
+                ProfileCollectionsList()
+                    .environmentObject(appState)
+            }
+        }
+    }
+
+    // MARK: - Achievements widget
+    private var achievementsWidget: some View {
+        Button(action: { showAllAchievements = true }) {
+            HStack(alignment: .center, spacing: 15) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(gold.opacity(0.1))
+                        .frame(width: 48, height: 48)
+                    Image(systemName: "medal.fill")
+                        .font(.system(size: 20))
+                        .foregroundColor(gold)
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Achievements")
+                        .font(.system(.headline, design: .rounded))
+                        .fontWeight(.bold)
+                        .foregroundColor(.primary)
+                    Text("\(unlockedCount) / \(achievements.count) Unlocked")
+                        .font(.system(.caption, design: .rounded))
+                        .foregroundColor(.gray)
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.system(.caption, design: .rounded))
+                    .foregroundColor(.gray)
+            }
+            .padding(16)
+            .background(Color.white)
+            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .shadow(color: .black.opacity(0.04), radius: 8, y: 4)
+            .overlay(
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .stroke(Color.white.opacity(0.5), lineWidth: 0.5)
+            )
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 20)
+    }
+
+    private func openInstagram(_ handle: String) {
+        let cleaned = handle.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "@", with: "")
+        guard !cleaned.isEmpty else { return }
+        if let appURL = URL(string: "instagram://user?username=\(cleaned)"),
+           UIApplication.shared.canOpenURL(appURL) {
+            UIApplication.shared.open(appURL)
+        } else if let webURL = URL(string: "https://instagram.com/\(cleaned)") {
+            UIApplication.shared.open(webURL)
+        }
+    }
+
     private func formatElevation(_ m: Int) -> String {
         if m >= 10000 {
             return String(format: "%.1fk", Double(m) / 1000.0)
@@ -1089,13 +1162,58 @@ struct EditAccountView: View {
     @State private var draftSpecialties: [String] = []
     @State private var showHandleErrorAlert = false
     @State private var isSaving = false
+
+    // Custom hobby input
+    @State private var customHobbyInput: String = ""
+    @State private var hobbySuggestions: [HobbyEntry] = []
+    @State private var isSearchingHobbies: Bool = false
+    @State private var hobbyInputError: String? = nil
+    @State private var hobbySearchTask: Task<Void, Never>? = nil
     
     private let gold = Color(red: 0.1, green: 0.5, blue: 0.95)
     private let cardBg = Color.white
     
-    let availableSports = ["Mountaineering", "Climbing", "Ski Touring", "Hiking", "Bouldering", "Ice Climbing", "Alpinism"]
-    let availableHobbies = ["Boxing", "Soccer", "Running", "Swimming", "Cycling", "Tennis", "Basketball", "Yoga", "Gym", "CrossFit", "Surfing", "Skiing", "Weightlifting", "Golf"]
-    let availableSpecialties = ["Ice Climbing", "Scrambling", "Bouldering", "Lead Climbing", "Trad Climbing", "Expedition", "Mixed Climbing", "Klettersteig"]
+    let availableSports = [
+        "Mountaineering", "Climbing", "Ski Touring", "Hiking", "Bouldering", "Ice Climbing", "Alpinism",
+        "Trail Running", "Ultra Running", "Fastpacking", "Paragliding", "Speedflying",
+        "Mountain Biking", "Gravel Biking", "Bikepacking",
+        "Freeride Skiing", "Splitboarding", "Snowshoeing",
+        "Kayaking", "Packrafting", "Canyoning", "Caving"
+    ]
+    let availableSpecialties = [
+        "Ice Climbing", "Mixed Climbing", "Dry Tooling", "Scrambling",
+        "Bouldering", "Highball Bouldering", "Lead Climbing", "Sport Climbing",
+        "Trad Climbing", "Aid Climbing", "Big Wall", "Multi-pitch", "Alpine Climbing",
+        "Expedition", "Klettersteig / Via Ferrata", "Deep Water Solo", "Free Solo",
+        "Crack Climbing", "Slab Climbing", "Roof Climbing",
+        "Ski Mountaineering", "Couloir Skiing", "Glacier Travel", "Crevasse Rescue",
+        "Highlining", "Slacklining"
+    ]
+    let availableHobbies = [
+        // Fitness / gym
+        "Gym", "CrossFit", "Calisthenics", "Powerlifting", "Weightlifting", "Pilates", "Yoga", "Stretching", "Mobility",
+        // Combat sports
+        "Boxing", "Kickboxing", "Muay Thai", "MMA", "Jiu-Jitsu", "Judo", "Karate", "Taekwondo", "Wrestling", "Fencing",
+        // Ball sports
+        "Soccer", "Basketball", "Tennis", "Table Tennis", "Badminton", "Squash", "Volleyball",
+        "Baseball", "Rugby", "Hockey", "Handball", "Golf", "Bowling",
+        // Running / endurance
+        "Running", "Marathon", "Triathlon", "Swimming", "Cycling", "Rowing",
+        // Water
+        "Surfing", "Kitesurfing", "Windsurfing", "Wakeboarding", "Sailing", "Diving", "Freediving", "SUP",
+        // Board / wheels
+        "Skateboarding", "Snowboarding", "Skiing", "Longboarding", "Inline Skating", "Parkour", "Freerunning",
+        // Horse / outdoors
+        "Horseback Riding", "Archery", "Fishing", "Hunting", "Camping", "Birdwatching", "Gardening",
+        // Creative
+        "Photography", "Videography", "Drawing", "Painting", "Sculpting", "Writing", "Blogging", "Podcasting",
+        "Music", "Guitar", "Piano", "Drums", "Singing", "DJing", "Dancing",
+        // Mind / indoor
+        "Reading", "Chess", "Meditation", "Cooking", "Baking", "Coffee", "Wine Tasting",
+        "Traveling", "Gaming", "Board Games", "Astronomy",
+        // Tech / maker
+        "Coding", "Electronics", "Robotics", "3D Printing", "Woodworking", "DIY"
+    ]
     
     var body: some View {
         NavigationView {
@@ -1298,13 +1416,96 @@ struct EditAccountView: View {
                             }
                             
                             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
-                                ForEach(availableHobbies, id: \.self) { hobby in
+                                ForEach(combinedHobbies, id: \.self) { hobby in
                                     SportButton(title: hobby, isSelected: draftHobbies.contains(hobby), maxLimit: 10, list: $draftHobbies, color: .purple)
+                                }
+                            }
+
+                            // --- Custom hobby input ---
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Add your own")
+                                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                                    .foregroundColor(.gray)
+                                    .tracking(1.5)
+                                    .padding(.top, 6)
+
+                                HStack(spacing: 8) {
+                                    ZStack {
+                                        RoundedRectangle(cornerRadius: 10).fill(Color.purple.opacity(0.1))
+                                            .frame(width: 38, height: 38)
+                                        Image(systemName: "sparkles")
+                                            .font(.system(size: 14, weight: .bold))
+                                            .foregroundColor(.purple)
+                                    }
+                                    TextField("e.g. Archery", text: $customHobbyInput)
+                                        .font(.system(size: 15, design: .rounded))
+                                        .textInputAutocapitalization(.words)
+                                        .autocorrectionDisabled(false) // keep iOS autocorrect/spellcheck ON
+                                        .onChange(of: customHobbyInput) { _, newValue in
+                                            onCustomHobbyChanged(newValue)
+                                        }
+                                        .onSubmit { commitCustomHobby() }
+
+                                    if isSearchingHobbies {
+                                        ProgressView().scaleEffect(0.7)
+                                    }
+
+                                    Button(action: commitCustomHobby) {
+                                        Text("Add")
+                                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                                            .foregroundColor(.white)
+                                            .padding(.horizontal, 12).padding(.vertical, 8)
+                                            .background(Color.purple)
+                                            .clipShape(Capsule())
+                                    }
+                                    .disabled(!HobbiesRepository.isValid(customHobbyInput) || draftHobbies.count >= 10)
+                                    .opacity(HobbiesRepository.isValid(customHobbyInput) && draftHobbies.count < 10 ? 1 : 0.4)
+                                }
+                                .padding(12)
+                                .background(cardBg)
+                                .cornerRadius(14)
+                                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black.opacity(0.06), lineWidth: 1))
+
+                                if let err = hobbyInputError {
+                                    Text(err)
+                                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                                        .foregroundColor(.red)
+                                }
+
+                                // Suggestions (reuse existing community hobbies to avoid typos / duplicates)
+                                if !hobbySuggestions.isEmpty {
+                                    VStack(alignment: .leading, spacing: 6) {
+                                        Text("Used by others")
+                                            .font(.system(size: 10, weight: .bold, design: .rounded))
+                                            .foregroundColor(.gray)
+                                            .tracking(1)
+                                        FlowRow(spacing: 6) {
+                                            ForEach(hobbySuggestions) { entry in
+                                                Button {
+                                                    addHobby(entry.name)
+                                                    customHobbyInput = ""
+                                                    hobbySuggestions = []
+                                                } label: {
+                                                    HStack(spacing: 4) {
+                                                        Text(entry.name)
+                                                            .font(.system(size: 12, weight: .semibold, design: .rounded))
+                                                        Text("·\(entry.usage_count)")
+                                                            .font(.system(size: 10, weight: .regular, design: .rounded))
+                                                            .foregroundColor(.gray)
+                                                    }
+                                                    .padding(.horizontal, 10).padding(.vertical, 6)
+                                                    .background(Color.purple.opacity(0.08))
+                                                    .foregroundColor(.purple)
+                                                    .clipShape(Capsule())
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
                         .padding(.horizontal, 20)
-                        
+
                         Spacer().frame(height: 40)
                     }
                 }
@@ -1357,6 +1558,72 @@ struct EditAccountView: View {
         .preferredColorScheme(.light)
     }
     
+    // Hobbies list merged with any custom selections the user already has
+    private var combinedHobbies: [String] {
+        var seen = Set<String>()
+        var out: [String] = []
+        for h in availableHobbies + draftHobbies {
+            if seen.insert(h).inserted { out.append(h) }
+        }
+        return out
+    }
+
+    private func addHobby(_ name: String) {
+        let cleaned = HobbiesRepository.clean(name)
+        guard !cleaned.isEmpty, draftHobbies.count < 10 else { return }
+        if !draftHobbies.contains(where: { $0.caseInsensitiveCompare(cleaned) == .orderedSame }) {
+            draftHobbies.append(cleaned)
+        }
+    }
+
+    private func onCustomHobbyChanged(_ raw: String) {
+        hobbyInputError = nil
+        hobbySearchTask?.cancel()
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count >= 2 else {
+            hobbySuggestions = []
+            return
+        }
+        isSearchingHobbies = true
+        hobbySearchTask = Task {
+            try? await Task.sleep(nanoseconds: 250_000_000) // debounce
+            if Task.isCancelled { return }
+            do {
+                let results = try await HobbiesRepository.shared.search(query: trimmed)
+                if Task.isCancelled { return }
+                await MainActor.run {
+                    self.hobbySuggestions = results
+                    self.isSearchingHobbies = false
+                }
+            } catch {
+                await MainActor.run {
+                    self.hobbySuggestions = []
+                    self.isSearchingHobbies = false
+                }
+            }
+        }
+    }
+
+    private func commitCustomHobby() {
+        let cleaned = HobbiesRepository.clean(customHobbyInput)
+        guard HobbiesRepository.isValid(cleaned) else {
+            hobbyInputError = "Use 2–40 letters. No numbers or special characters."
+            return
+        }
+        // Prefer exact suggestion match if there is one (dedupe casing/typos)
+        let canonical: String
+        if let match = hobbySuggestions.first(where: { $0.normalized_name == cleaned.lowercased() }) {
+            canonical = match.name
+        } else {
+            canonical = cleaned
+        }
+        addHobby(canonical)
+        customHobbyInput = ""
+        hobbySuggestions = []
+        hobbyInputError = nil
+        Task.detached { try? await HobbiesRepository.shared.register(name: canonical) }
+    }
+
     private func save() {
         isSaving = true
         Task {
@@ -1733,6 +2000,77 @@ struct ProfileCollectionsList: View {
         .onChange(of: showCreateSheet) { isPresented in
             if !isPresented {
                 appState.fetchCollections()
+            }
+        }
+    }
+}
+
+// =========================================
+// MARK: - Profile Layout Editor
+// =========================================
+
+struct ProfileLayoutEditor: View {
+    @Environment(\.dismiss) var dismiss
+    @State var order: [ProfileWidget]
+    let onSave: ([ProfileWidget]) -> Void
+
+    var body: some View {
+        NavigationView {
+            ZStack {
+                Color(white: 0.97).ignoresSafeArea()
+                VStack(spacing: 0) {
+                    Text("Long-press and drag a tile to rearrange your profile.")
+                        .font(.system(size: 13, design: .rounded))
+                        .foregroundColor(.gray)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 24)
+                        .padding(.top, 16)
+                        .padding(.bottom, 8)
+
+                    List {
+                        ForEach(order) { widget in
+                            HStack(spacing: 14) {
+                                ZStack {
+                                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                        .fill(Color.blue.opacity(0.1))
+                                        .frame(width: 44, height: 44)
+                                    Image(systemName: widget.icon)
+                                        .font(.system(size: 18, weight: .bold))
+                                        .foregroundColor(.blue)
+                                }
+                                Text(widget.title)
+                                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+                                    .foregroundColor(.primary)
+                                Spacer()
+                                Image(systemName: "line.3.horizontal")
+                                    .foregroundColor(.gray)
+                            }
+                            .padding(.vertical, 6)
+                            .listRowBackground(Color.white)
+                        }
+                        .onMove { source, destination in
+                            order.move(fromOffsets: source, toOffset: destination)
+                        }
+                    }
+                    .listStyle(.insetGrouped)
+                    .scrollContentBackground(.hidden)
+                    .environment(\.editMode, .constant(.active))
+                }
+            }
+            .navigationTitle("Edit Layout")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") { dismiss() }
+                        .foregroundColor(.gray)
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        onSave(order)
+                        dismiss()
+                    }
+                    .fontWeight(.bold)
+                }
             }
         }
     }

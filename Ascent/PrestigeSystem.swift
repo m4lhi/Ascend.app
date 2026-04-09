@@ -66,7 +66,7 @@ enum RankTitle: String {
 
     var color: Color {
         switch self {
-        case .wanderer:      return .systemGreen
+        case .wanderer:      return Color(red: 0.8, green: 0.45, blue: 0.15) // Bronze
         case .mountaineer:   return DesignSystem.Colors.accent
         case .alpinist:      return Color(red: 0.50, green: 0.10, blue: 0.88)
         case .expeditionist: return DesignSystem.Colors.prestige

@@ -217,6 +217,18 @@ struct HeroBannerItem: Identifiable {
 
 // --- EQUIPMENT MODEL ---
 
+struct EquipmentItem: Identifiable, Codable, Equatable {
+    let id: String
+    let name: String
+    let brand: String
+    let affiliateURL: String?
+    let icon: String
+    
+    static func == (lhs: EquipmentItem, rhs: EquipmentItem) -> Bool {
+        lhs.id == rhs.id
+    }
+}
+
 struct Equipment: Codable, Equatable {
     var head: String = "Beanie"
     var jacket: String = "Arc'teryx Alpha SV"
@@ -224,6 +236,78 @@ struct Equipment: Codable, Equatable {
     var pants: String = "Fjallraven Keb"
     var boots: String = "La Sportiva Nepal"
     var extras: String = "Petzl Ice Axes"
+    
+    // Affiliate URLs for each slot
+    var headURL: String? = nil
+    var jacketURL: String? = nil
+    var backpackURL: String? = nil
+    var pantsURL: String? = nil
+    var bootsURL: String? = nil
+    var extrasURL: String? = nil
+}
+
+// Equipment catalog with affiliate links
+struct EquipmentCatalog {
+    static let heads: [EquipmentItem] = [
+        EquipmentItem(id: "h1", name: "Beanie", brand: "Patagonia", affiliateURL: nil, icon: "crown.fill"),
+        EquipmentItem(id: "h2", name: "Alpine Helmet", brand: "Petzl", affiliateURL: nil, icon: "crown.fill"),
+        EquipmentItem(id: "h3", name: "Sun Cap", brand: "Outdoor Research", affiliateURL: nil, icon: "crown.fill"),
+        EquipmentItem(id: "h4", name: "Balaclava", brand: "Arc'teryx", affiliateURL: nil, icon: "crown.fill"),
+        EquipmentItem(id: "h5", name: "Buff Headband", brand: "Buff", affiliateURL: nil, icon: "crown.fill"),
+    ]
+    
+    static let jackets: [EquipmentItem] = [
+        EquipmentItem(id: "j1", name: "Alpha SV", brand: "Arc'teryx", affiliateURL: nil, icon: "tshirt.fill"),
+        EquipmentItem(id: "j2", name: "Torrentshell 3L", brand: "Patagonia", affiliateURL: nil, icon: "tshirt.fill"),
+        EquipmentItem(id: "j3", name: "Bergwacht GTX", brand: "Mammut", affiliateURL: nil, icon: "tshirt.fill"),
+        EquipmentItem(id: "j4", name: "Kento HS", brand: "Mammut", affiliateURL: nil, icon: "tshirt.fill"),
+        EquipmentItem(id: "j5", name: "Nano Puff", brand: "Patagonia", affiliateURL: nil, icon: "tshirt.fill"),
+        EquipmentItem(id: "j6", name: "Cerium Down", brand: "Arc'teryx", affiliateURL: nil, icon: "tshirt.fill"),
+    ]
+    
+    static let backpacks: [EquipmentItem] = [
+        EquipmentItem(id: "b1", name: "Mutant 38", brand: "Osprey", affiliateURL: nil, icon: "backpack.fill"),
+        EquipmentItem(id: "b2", name: "Trion 28", brand: "Mammut", affiliateURL: nil, icon: "backpack.fill"),
+        EquipmentItem(id: "b3", name: "Alpinist 35", brand: "Osprey", affiliateURL: nil, icon: "backpack.fill"),
+        EquipmentItem(id: "b4", name: "Storm 25", brand: "Blue Ice", affiliateURL: nil, icon: "backpack.fill"),
+        EquipmentItem(id: "b5", name: "Cirriform 28", brand: "Black Diamond", affiliateURL: nil, icon: "backpack.fill"),
+    ]
+    
+    static let pantsItems: [EquipmentItem] = [
+        EquipmentItem(id: "p1", name: "Keb Trousers", brand: "Fjällräven", affiliateURL: nil, icon: "figure.walk"),
+        EquipmentItem(id: "p2", name: "Gamma MX", brand: "Arc'teryx", affiliateURL: nil, icon: "figure.walk"),
+        EquipmentItem(id: "p3", name: "Courmayeur Pants", brand: "Salewa", affiliateURL: nil, icon: "figure.walk"),
+        EquipmentItem(id: "p4", name: "Eisfeld Light", brand: "Mammut", affiliateURL: nil, icon: "figure.walk"),
+    ]
+    
+    static let bootsItems: [EquipmentItem] = [
+        EquipmentItem(id: "s1", name: "Nepal Cube", brand: "La Sportiva", affiliateURL: nil, icon: "shoe.fill"),
+        EquipmentItem(id: "s2", name: "Trango Tower", brand: "La Sportiva", affiliateURL: nil, icon: "shoe.fill"),
+        EquipmentItem(id: "s3", name: "Kento Advanced", brand: "Mammut", affiliateURL: nil, icon: "shoe.fill"),
+        EquipmentItem(id: "s4", name: "G2 Evo", brand: "Scarpa", affiliateURL: nil, icon: "shoe.fill"),
+        EquipmentItem(id: "s5", name: "Phantom 6000", brand: "Scarpa", affiliateURL: nil, icon: "shoe.fill"),
+    ]
+    
+    static let extrasItems: [EquipmentItem] = [
+        EquipmentItem(id: "e1", name: "Ice Axes", brand: "Petzl", affiliateURL: nil, icon: "hammer.fill"),
+        EquipmentItem(id: "e2", name: "Trekking Poles", brand: "Black Diamond", affiliateURL: nil, icon: "hammer.fill"),
+        EquipmentItem(id: "e3", name: "Headlamp", brand: "Petzl", affiliateURL: nil, icon: "hammer.fill"),
+        EquipmentItem(id: "e4", name: "Crampons", brand: "Grivel", affiliateURL: nil, icon: "hammer.fill"),
+        EquipmentItem(id: "e5", name: "Carabiners Set", brand: "DMM", affiliateURL: nil, icon: "hammer.fill"),
+        EquipmentItem(id: "e6", name: "GPS Watch", brand: "Garmin", affiliateURL: nil, icon: "hammer.fill"),
+    ]
+    
+    static func items(for slot: String) -> [EquipmentItem] {
+        switch slot {
+        case "Head": return heads
+        case "Jacket": return jackets
+        case "Pack": return backpacks
+        case "Pants": return pantsItems
+        case "Boots": return bootsItems
+        case "Extras": return extrasItems
+        default: return []
+        }
+    }
 }
 
 
@@ -911,12 +995,26 @@ class AppState: ObservableObject {
                 
                 guard let friend = friendProfiles.first, friend.id != myId else { return }
                 
+                // First verify client-side if already a friend
+                let alreadyFriends = self.friendsLeaderboard.contains { $0.id == friend.id }
+                if alreadyFriends { return }
+                
                 struct NewFriendship: Codable { let user_id: UUID; let friend_id: UUID }
-                try await supabase.from("friendships").insert(NewFriendship(user_id: myId, friend_id: friend.id)).execute()
+                do {
+                    try await supabase.from("friendships").insert(NewFriendship(user_id: myId, friend_id: friend.id)).execute()
+                } catch {
+                    // Suppress unique constraint violations
+                    let errStr = String(describing: error)
+                    if !errStr.contains("23505") {
+                        print("❌ Fehler beim Einfügen: \(error)")
+                    } else {
+                        print("ℹ️ Friendship already exists in DB.")
+                    }
+                }
                 
                 fetchLeaderboard()
                 fetchFeed()
-            } catch { print("❌ Fehler beim Adden: \(error)") }
+            } catch { print("❌ Fehler in addFriend: \(error)") }
         }
     }
     
