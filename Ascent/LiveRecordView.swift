@@ -1,5 +1,4 @@
 import SwiftUI
-import ActivityKit
 import MapKit
 import Combine
 import CoreLocation
@@ -620,28 +619,7 @@ struct LiveRecordView: View {
         .preferredColorScheme(.light)
         .onReceive(timer) { _ in
             blinkToggle.toggle()
-            if isRunning && !gpsManager.isAutoPaused { 
-                timeElapsed += 1 
-                appState.trackerElapsedSeconds = timeElapsed
-            }
-            appState.trackerDistanceKm = gpsManager.distance / 1000.0
-            appState.trackerElevationGain = gpsManager.elevationGain
-            appState.isTrackerPaused = !isRunning || gpsManager.isAutoPaused
-            
-            #if canImport(ActivityKit)
-            if #available(iOS 16.2, *) {
-                let isPaused = !isRunning || gpsManager.isAutoPaused
-                let speedMps = timeElapsed > 0 ? (Double(gpsManager.distance) / Double(timeElapsed)) : 0
-                LiveActivityManager.shared.updateActivity(
-                    duration: Double(timeElapsed),
-                    distanceMeter: gpsManager.distance,
-                    remainingDistanceMeter: navigationManager.totalRemainingDistance,
-                    averageSpeedMps: speedMps,
-                    isPaused: isPaused
-                )
-            }
-            #endif
-
+            if isRunning && !gpsManager.isAutoPaused { timeElapsed += 1 }
         }
         .sheet(isPresented: $showSaveForm, onDismiss: {
             sliderResetToken = UUID()
@@ -655,7 +633,7 @@ struct LiveRecordView: View {
                 totalPauseDuration: gpsManager.totalPauseDuration,
                 rawRoute: gpsManager.rawRoute,
                 photoHighlights: photoHighlightManager.highlights,
-                onDismissTracker: { appState.isTrackerActive = false; appState.activeMountain = nil }
+                onDismissTracker: { dismiss() }
             )
         }
         .sheet(isPresented: $showExportSheet) {
@@ -963,7 +941,7 @@ struct LiveRecordView: View {
         VStack(spacing: 14) {
             HStack {
                 Button(action: {
-                    if isRunning {
+                    if isRunning || timeElapsed > 0 || appState.isTrackerPaused {
                         withAnimation { appState.isTrackerMinimized = true }
                     } else {
                         withAnimation { appState.isTrackerActive = false }
@@ -1135,7 +1113,7 @@ struct LiveRecordView: View {
                                     .background(.ultraThinMaterial, in: Circle())
                                     .overlay(Circle().stroke(Color.white.opacity(0.1), lineWidth: 1))
                             }
-                            HoldToFinishControl(onComplete: endMission)
+                            SlideToFinishControl(onComplete: endMission)
                                 .id(sliderResetToken)
                         }
                     }
@@ -1234,7 +1212,7 @@ struct LiveRecordView: View {
                                 }
                             }
 
-                            HoldToFinishControl(onComplete: endMission)
+                            SlideToFinishControl(onComplete: endMission)
                                 .id(sliderResetToken)
                         }
                     }
@@ -1270,11 +1248,6 @@ struct LiveRecordView: View {
     }
 
     private func startRecording() {
-        #if canImport(ActivityKit)
-        if #available(iOS 16.2, *) {
-            LiveActivityManager.shared.startActivity(mountainName: targetMountain?.name ?? "Mission")
-        }
-        #endif
         HapticManager.shared.medium()
         isRunning = true
         
@@ -1365,11 +1338,6 @@ struct LiveRecordView: View {
     }
 
     func endMission() {
-        #if canImport(ActivityKit)
-        if #available(iOS 16.2, *) {
-            LiveActivityManager.shared.endActivity()
-        }
-        #endif
         isRunning = false
         gpsManager.stopTracking()
         gpsManager.finalizeSession()
@@ -1484,21 +1452,22 @@ struct TrackerSettingsSheet: View {
 }
 
 // =========================================
-// === Hold-to-Finish Safety Control ===
+// === Slide-to-Finish Safety Control ===
 // =========================================
-struct HoldToFinishControl: View {
+struct SlideToFinishControl: View {
     var onComplete: () -> Void
 
-    @State private var pressProgress: CGFloat = 0.0
-    @State private var timer: Timer? = nil
+    @State private var dragOffset: CGFloat = 0
+    @State private var isCompleted = false
 
-    private let holdDuration: TimeInterval = 2.0 // Seconds to hold
-    private let tickInterval: TimeInterval = 0.05
-    private let barHeight: CGFloat = 56
+    private let thumbSize: CGFloat = 48
+    private let trackHeight: CGFloat = 56
     private let gold = Color(red: 0.1, green: 0.5, blue: 0.95)
 
     var body: some View {
         GeometryReader { geo in
+            let maxDrag = geo.size.width - thumbSize - 8
+
             ZStack(alignment: .leading) {
                 RoundedRectangle(cornerRadius: 28)
                     .fill(Color.red.opacity(0.08))
@@ -1507,55 +1476,56 @@ struct HoldToFinishControl: View {
                             .stroke(Color.red.opacity(0.15), lineWidth: 1)
                     )
                     .overlay(
-                        Text(pressProgress > 0 ? "HOLDING..." : "HOLD TO FINISH")
-                            .font(.system(size: 10, weight: .black, design: .rounded))
-                            .foregroundColor(.red.opacity(0.8))
+                        Text("SLIDE TO FINISH")
+                            .font(.system(size: 9, weight: .black, design: .rounded))
+                            .foregroundColor(.primary.opacity(max(0.35 - (dragOffset / maxDrag) * 0.35, 0)))
                             .tracking(2)
                     )
 
                 RoundedRectangle(cornerRadius: 28)
-                    .fill(Color.red.opacity(0.4))
-                    .frame(width: max(0, pressProgress * geo.size.width))
-            }
-            .frame(height: barHeight)
-            .gesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { _ in
-                        if timer == nil {
-                            startTimer()
+                    .fill(Color.red.opacity(0.15))
+                    .frame(width: dragOffset + thumbSize + 8)
+
+                ZStack {
+                    Circle()
+                        .fill(Color(red: 0.25, green: 0.06, blue: 0.06))
+                        .frame(width: thumbSize, height: thumbSize)
+                    Circle()
+                        .stroke(Color.red.opacity(0.5), lineWidth: 1.5)
+                        .frame(width: thumbSize, height: thumbSize)
+                    Image(systemName: "flag.checkered")
+                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .foregroundColor(.red)
+                }
+                .offset(x: 4 + dragOffset)
+                .shadow(color: Color.red.opacity(0.3), radius: 10)
+                .gesture(
+                    DragGesture()
+                        .onChanged { value in
+                            guard !isCompleted else { return }
+                            dragOffset = min(max(0, value.translation.width), maxDrag)
                         }
-                    }
-                    .onEnded { _ in
-                        stopTimer()
-                        if pressProgress < 1.0 {
-                            withAnimation(.easeInOut(duration: 0.3)) {
-                                pressProgress = 0.0
+                        .onEnded { _ in
+                            guard !isCompleted else { return }
+                            if dragOffset > maxDrag * 0.8 {
+                                isCompleted = true
+                                HapticManager.shared.heavy()
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                    dragOffset = maxDrag
+                                }
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                                    onComplete()
+                                }
+                            } else {
+                                withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
+                                    dragOffset = 0
+                                }
                             }
                         }
-                    }
-            )
-        }
-        .frame(height: barHeight)
-    }
-
-    private func startTimer() {
-        timer = Timer.scheduledTimer(withTimeInterval: tickInterval, repeats: true) { _ in
-            withAnimation(.linear(duration: tickInterval)) {
-                pressProgress += CGFloat(tickInterval / holdDuration)
-            }
-            if pressProgress >= 1.0 {
-                pressProgress = 1.0
-                stopTimer()
-                let generator = UINotificationFeedbackGenerator()
-                generator.notificationOccurred(.success)
-                onComplete()
+                )
             }
         }
-    }
-
-    private func stopTimer() {
-        timer?.invalidate()
-        timer = nil
+        .frame(height: trackHeight)
     }
 }
 
@@ -1748,9 +1718,6 @@ struct MissionSaveView: View {
                 }
             }
             .onAppear {
-            if targetMountain != nil {
-                appState.activeMountain = targetMountain
-            }
                 if let prefilledName = targetMountain?.name {
                     summitName = prefilledName
                 }
@@ -1835,60 +1802,5 @@ struct ElevationProfileChart: View {
         .chartPlotStyle { plotArea in
             plotArea.background(Color.clear)
         }
-    }
-}
-
-// MARK: - Live Activity Manager
-
-@available(iOS 16.2, *)
-class LiveActivityManager {
-    static let shared = LiveActivityManager()
-    private var activity: Activity<MountaineeringAttributes>?
-
-    func startActivity(mountainName: String) {
-        guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
-
-        let attributes = MountaineeringAttributes(mountainName: mountainName)
-        let state = MountaineeringAttributes.ContentState(
-            duration: 0,
-            distanceKm: 0,
-            remainingDistanceKm: 0,
-            averageSpeedKmh: 0,
-            isPaused: false
-        )
-
-        do {
-            activity = try Activity.request(attributes: attributes, content: .init(state: state, staleDate: nil))
-        } catch {
-            print("Failed to start Live Activity: \(error)")
-        }
-    }
-
-    func updateActivity(duration: TimeInterval, distanceMeter: Double, remainingDistanceMeter: Double, averageSpeedMps: Double, isPaused: Bool) {
-        guard let activity = activity else { return }
-
-        let distanceKm = distanceMeter / 1000.0
-        let remainingKm = remainingDistanceMeter / 1000.0
-        let speedKmh = averageSpeedMps * 3.6
-
-        let newState = MountaineeringAttributes.ContentState(
-            duration: duration,
-            distanceKm: distanceKm,
-            remainingDistanceKm: remainingKm,
-            averageSpeedKmh: speedKmh,
-            isPaused: isPaused
-        )
-
-        Task {
-            await activity.update(.init(state: newState, staleDate: nil))
-        }
-    }
-
-    func endActivity() {
-        guard let activity = activity else { return }
-        Task {
-            await activity.end(nil, dismissalPolicy: .immediate)
-        }
-        self.activity = nil
     }
 }

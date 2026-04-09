@@ -3,6 +3,9 @@ import SwiftUI
 struct MiniTrackerPlayer: View {
     @EnvironmentObject var appState: AppState
     
+    // Kleiner pulsierender Effekt wenn aktiv
+    @State private var blinkToggle = false
+    
     private var timeString: String {
         let h = appState.trackerElapsedSeconds / 3600
         let m = (appState.trackerElapsedSeconds % 3600) / 60
@@ -17,61 +20,55 @@ struct MiniTrackerPlayer: View {
                 appState.isTrackerMinimized = false
             }
         } label: {
-            HStack(spacing: 12) {
+            HStack(spacing: 10) {
                 // Status Indicator
                 Circle()
                     .fill(appState.isTrackerPaused ? Color.orange : Color(red: 0.1, green: 0.5, blue: 0.95))
-                    .frame(width: 10, height: 10)
+                    .frame(width: 8, height: 8)
+                    .opacity(appState.isTrackerPaused ? 1 : (blinkToggle ? 1 : 0.4))
+                    .animation(appState.isTrackerPaused ? .default : .easeInOut(duration: 0.8).repeatForever(autoreverses: true), value: blinkToggle)
+                    .onAppear { blinkToggle = true }
                 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(appState.activeMountain?.name ?? "Ascent Mission")
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                    Text(appState.activeMountain?.name ?? "Ascent")
+                        .font(.system(size: 13, weight: .bold, design: .rounded))
                         .foregroundColor(.primary)
                         .lineLimit(1)
                     
-                    HStack(spacing: 8) {
+                    HStack(spacing: 6) {
                         Text(timeString)
-                            .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                            .font(.system(size: 12, weight: .semibold, design: .monospaced))
                             .foregroundColor(appState.isTrackerPaused ? .orange : Color(red: 0.1, green: 0.5, blue: 0.95))
                         
                         Text("•")
-                            .font(.system(size: 12))
+                            .font(.system(size: 10))
                             .foregroundColor(.gray)
                         
                         Text(String(format: "%.1f km", appState.trackerDistanceKm))
-                            .font(.system(size: 12, weight: .medium, design: .rounded))
+                            .font(.system(size: 11, weight: .medium, design: .rounded))
                             .foregroundColor(.gray)
-
-                        Text("•")
-                            .font(.system(size: 12))
-                            .foregroundColor(.gray)
-
-                        Text("\(Int(appState.trackerElevationGain)) Hm")
-                            .font(.system(size: 12, weight: .medium, design: .rounded))
-                            .foregroundColor(.gray)
+                            .lineLimit(1)
                     }
                 }
                 
-                Spacer()
-                
-                // Expand Icon
-                Image(systemName: "chevron.up")
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundColor(.gray.opacity(0.8))
-                    .padding(8)
-                    .background(Color.black.opacity(0.04), in: Circle())
+                // Expand Icon (sehr dezent jetzt)
+                Image(systemName: "hand.tap.fill")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundColor(.gray.opacity(0.6))
+                    .padding(.leading, 4)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 14)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
             .background(
-                RoundedRectangle(cornerRadius: 24)
+                RoundedRectangle(cornerRadius: 18)
                     .fill(.ultraThinMaterial)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 24)
-                            .stroke(Color.black.opacity(0.05), lineWidth: 1)
+                        RoundedRectangle(cornerRadius: 18)
+                            .stroke(Color.black.opacity(0.06), lineWidth: 1)
                     )
             )
-            .shadow(color: .black.opacity(0.12), radius: 25, y: 15)
+            // Kleinerer Schatten, weil das Element kompakter ist
+            .shadow(color: .black.opacity(0.08), radius: 12, y: 6)
         }
         .buttonStyle(.plain)
     }
