@@ -79,13 +79,16 @@ struct ContentView: View {
             
             // --- Mini Player Banner ---
             if appState.isTrackerActive && appState.isTrackerMinimized {
-                MiniTrackerPlayer()
-                    .environmentObject(appState)
-                    // Height of CustomTabBar is ~105 padding included, place it right above
-                    .padding(.bottom, 115) 
-                    .padding(.horizontal, 16)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                    .zIndex(90)
+                HStack {
+                    MiniTrackerPlayer()
+                        .environmentObject(appState)
+                    Spacer()
+                }
+                // Height of CustomTabBar is ~105 padding included, place it right above
+                .padding(.bottom, 115) 
+                .padding(.horizontal, 16)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+                .zIndex(90)
             }
 
         }
