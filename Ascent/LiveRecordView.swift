@@ -1,4 +1,5 @@
 import SwiftUI
+import ActivityKit
 import MapKit
 import Combine
 import CoreLocation
@@ -620,6 +621,21 @@ struct LiveRecordView: View {
         .onReceive(timer) { _ in
             blinkToggle.toggle()
             if isRunning && !gpsManager.isAutoPaused { timeElapsed += 1 }
+            
+            #if canImport(ActivityKit)
+            if #available(iOS 16.2, *) {
+                let isPaused = !isRunning || gpsManager.isAutoPaused
+                let speedMps = timeElapsed > 0 ? (Double(gpsManager.distance) / Double(timeElapsed)) : 0
+                LiveActivityManager.shared.updateActivity(
+                    duration: Double(timeElapsed),
+                    distanceMeter: gpsManager.distance,
+                    remainingDistanceMeter: navigationManager.totalRemainingDistance,
+                    averageSpeedMps: speedMps,
+                    isPaused: isPaused
+                )
+            }
+            #endif
+
         }
         .sheet(isPresented: $showSaveForm, onDismiss: {
             sliderResetToken = UUID()
@@ -1242,6 +1258,11 @@ struct LiveRecordView: View {
     }
 
     private func startRecording() {
+        #if canImport(ActivityKit)
+        if #available(iOS 16.2, *) {
+            LiveActivityManager.shared.startActivity(mountainName: targetMountain?.name ?? "Mission")
+        }
+        #endif
         HapticManager.shared.medium()
         isRunning = true
         
@@ -1332,6 +1353,11 @@ struct LiveRecordView: View {
     }
 
     func endMission() {
+        #if canImport(ActivityKit)
+        if #available(iOS 16.2, *) {
+            LiveActivityManager.shared.endActivity()
+        }
+        #endif
         isRunning = false
         gpsManager.stopTracking()
         gpsManager.finalizeSession()
@@ -1796,5 +1822,60 @@ struct ElevationProfileChart: View {
         .chartPlotStyle { plotArea in
             plotArea.background(Color.clear)
         }
+    }
+}
+
+// MARK: - Live Activity Manager
+
+@available(iOS 16.2, *)
+class LiveActivityManager {
+    static let shared = LiveActivityManager()
+    private var activity: Activity<MountaineeringAttributes>?
+
+    func startActivity(mountainName: String) {
+        guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
+
+        let attributes = MountaineeringAttributes(mountainName: mountainName)
+        let state = MountaineeringAttributes.ContentState(
+            duration: 0,
+            distanceKm: 0,
+            remainingDistanceKm: 0,
+            averageSpeedKmh: 0,
+            isPaused: false
+        )
+
+        do {
+            activity = try Activity.request(attributes: attributes, content: .init(state: state, staleDate: nil))
+        } catch {
+            print("Failed to start Live Activity: \(error)")
+        }
+    }
+
+    func updateActivity(duration: TimeInterval, distanceMeter: Double, remainingDistanceMeter: Double, averageSpeedMps: Double, isPaused: Bool) {
+        guard let activity = activity else { return }
+
+        let distanceKm = distanceMeter / 1000.0
+        let remainingKm = remainingDistanceMeter / 1000.0
+        let speedKmh = averageSpeedMps * 3.6
+
+        let newState = MountaineeringAttributes.ContentState(
+            duration: duration,
+            distanceKm: distanceKm,
+            remainingDistanceKm: remainingKm,
+            averageSpeedKmh: speedKmh,
+            isPaused: isPaused
+        )
+
+        Task {
+            await activity.update(.init(state: newState, staleDate: nil))
+        }
+    }
+
+    func endActivity() {
+        guard let activity = activity else { return }
+        Task {
+            await activity.end(nil, dismissalPolicy: .immediate)
+        }
+        self.activity = nil
     }
 }
