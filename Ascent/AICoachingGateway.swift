@@ -61,7 +61,7 @@ struct CoachingPlan: Codable {
     var headline: String         // 1-sentence personalized intro
 }
 
-struct OnboardingData {
+struct OnboardingData: Codable {
     var heightCm: Int = 175
     var weightKg: Int = 72
     var age: Int = 28
@@ -69,7 +69,7 @@ struct OnboardingData {
     var endurance: EnduranceLevel = .moderate
     var vo2max: Int = 0
     var weeklyActiveHours: Int = 4
-    var experience: Set<ExperienceLevel> = [.hiker]
+    var experience: [ExperienceLevel] = [.hiker]
     var hasGlacierExperience: Bool = false
     var typicalElevationGain: Int = 500
     var goalName: String = ""
@@ -77,6 +77,11 @@ struct OnboardingData {
     var sessionsPerWeek: Int = 3
     var minutesPerSession: Int = 60
     var acceptedSafetyCommitment: Bool = false
+
+    // Convenience to check experience as before
+    func hasExperience(_ level: ExperienceLevel) -> Bool {
+        experience.contains(level)
+    }
 }
 
 // MARK: - ViewModel
@@ -87,8 +92,77 @@ final class CoachingViewModel: ObservableObject {
     @Published var data = OnboardingData()
     @Published var plan: CoachingPlan? = nil
     @Published var isPrefilling = false
+    @Published var selectedTrainingTab: TrainingTab = .hikes
+    @Published var workoutPlan: [WorkoutDay] = []
+    @Published var chatMessages: [ChatMessage] = []
+    @Published var chatInput: String = ""
+
+    enum TrainingTab: String, CaseIterable {
+        case hikes = "Hikes"
+        case gym = "Gym"
+        case chat = "AI Coach"
+
+        var icon: String {
+            switch self {
+            case .hikes: return "figure.hiking"
+            case .gym: return "dumbbell.fill"
+            case .chat: return "sparkles"
+            }
+        }
+    }
 
     let totalSteps = 6
+    private static let workoutKey = "coaching_workout_plan"
+
+    private static let onboardingDataKey = "coaching_onboarding_data"
+    private static let planKey = "coaching_plan_data"
+    static let onboardingCompleteKey = "coachingOnboardingComplete"
+
+    // MARK: Persistence
+
+    func saveToDefaults() {
+        if let encoded = try? JSONEncoder().encode(data) {
+            UserDefaults.standard.set(encoded, forKey: Self.onboardingDataKey)
+        }
+        if let plan, let encoded = try? JSONEncoder().encode(plan) {
+            UserDefaults.standard.set(encoded, forKey: Self.planKey)
+        }
+        UserDefaults.standard.set(true, forKey: Self.onboardingCompleteKey)
+    }
+
+    func loadFromDefaults() -> Bool {
+        guard UserDefaults.standard.bool(forKey: Self.onboardingCompleteKey),
+              let planData = UserDefaults.standard.data(forKey: Self.planKey),
+              let savedPlan = try? JSONDecoder().decode(CoachingPlan.self, from: planData)
+        else { return false }
+
+        if let onbData = UserDefaults.standard.data(forKey: Self.onboardingDataKey),
+           let savedOnb = try? JSONDecoder().decode(OnboardingData.self, from: onbData) {
+            self.data = savedOnb
+        }
+        self.plan = savedPlan
+        self.step = totalSteps // skip to map
+        return true
+    }
+
+    static func clearSavedData() {
+        UserDefaults.standard.removeObject(forKey: onboardingDataKey)
+        UserDefaults.standard.removeObject(forKey: planKey)
+        UserDefaults.standard.set(false, forKey: onboardingCompleteKey)
+    }
+
+    static func loadOnboardingData() -> OnboardingData? {
+        guard let data = UserDefaults.standard.data(forKey: onboardingDataKey),
+              let decoded = try? JSONDecoder().decode(OnboardingData.self, from: data)
+        else { return nil }
+        return decoded
+    }
+
+    static func saveOnboardingData(_ data: OnboardingData) {
+        if let encoded = try? JSONEncoder().encode(data) {
+            UserDefaults.standard.set(encoded, forKey: onboardingDataKey)
+        }
+    }
 
     // MARK: HealthKit prefill
     func prefillFromHealthKit() async {
@@ -134,6 +208,7 @@ final class CoachingViewModel: ObservableObject {
                 step += 1
             } else {
                 generatePlan()
+                saveToDefaults()
                 step = totalSteps
             }
         }
@@ -156,8 +231,8 @@ final class CoachingViewModel: ObservableObject {
         // Experience adjustment
         var expBonus = 0
         if data.hasGlacierExperience { expBonus -= 3 }
-        if data.experience.contains(.alpineCourse) { expBonus -= 1 }
-        if data.experience.contains(.none) { expBonus += 3 }
+        if data.hasExperience(.alpineCourse) { expBonus -= 1 }
+        if data.hasExperience(.none) { expBonus += 3 }
 
         // Fitness adjustment
         var fitBonus = 0
@@ -228,26 +303,104 @@ final class CoachingViewModel: ObservableObject {
         return "\(months)-month path · \(base)"
     }
 
+    // MARK: - Mountain-adaptive hike progression
+
+    struct HikePeak {
+        let name: String
+        let elevation: Int
+        let subtitle: String
+    }
+
+    static func hikeProgression(for goal: String) -> [HikePeak] {
+        let g = goal.lowercased()
+        if g.contains("mont blanc") {
+            return [
+                HikePeak(name: "Pointe de la Réunion", elevation: 2800, subtitle: "2,800 m · Easy alpine intro"),
+                HikePeak(name: "Aiguille du Tour", elevation: 3542, subtitle: "3,542 m · First glacier contact"),
+                HikePeak(name: "Gran Paradiso", elevation: 4061, subtitle: "4,061 m · Full 4,000er dress rehearsal"),
+            ]
+        }
+        if g.contains("matterhorn") {
+            return [
+                HikePeak(name: "Breithorn", elevation: 4164, subtitle: "4,164 m · Easiest 4,000er"),
+                HikePeak(name: "Allalinhorn", elevation: 4027, subtitle: "4,027 m · Glacier & ridge practice"),
+                HikePeak(name: "Dufourspitze", elevation: 4634, subtitle: "4,634 m · Technical altitude test"),
+            ]
+        }
+        if g.contains("kilimanj") {
+            return [
+                HikePeak(name: "Mt. Longonot", elevation: 2776, subtitle: "2,776 m · Easy volcano hike"),
+                HikePeak(name: "Mt. Kenya (Point Lenana)", elevation: 4985, subtitle: "4,985 m · Altitude acclimatization"),
+                HikePeak(name: "Mt. Meru", elevation: 4566, subtitle: "4,566 m · Full dress rehearsal"),
+            ]
+        }
+        if g.contains("denali") {
+            return [
+                HikePeak(name: "Mt. Baker", elevation: 3286, subtitle: "3,286 m · Glacier skills"),
+                HikePeak(name: "Mt. Rainier", elevation: 4392, subtitle: "4,392 m · Multi-day alpine push"),
+                HikePeak(name: "Aconcagua", elevation: 6961, subtitle: "6,961 m · Extreme altitude prep"),
+            ]
+        }
+        if g.contains("everest") {
+            return [
+                HikePeak(name: "Island Peak", elevation: 6189, subtitle: "6,189 m · Technical intro"),
+                HikePeak(name: "Ama Dablam", elevation: 6812, subtitle: "6,812 m · Technical high-altitude"),
+                HikePeak(name: "Cho Oyu", elevation: 8188, subtitle: "8,188 m · 8,000er experience"),
+            ]
+        }
+        if g.contains("gran paradiso") {
+            return [
+                HikePeak(name: "Punta Gnifetti", elevation: 4554, subtitle: "4,554 m · Margherita Hut approach"),
+                HikePeak(name: "Aiguille du Tour", elevation: 3542, subtitle: "3,542 m · Glacier practice"),
+            ]
+        }
+        // Generic fallback by elevation
+        let elev = goalElevation(for: goal)
+        if elev > 5500 {
+            return [
+                HikePeak(name: "Regional Peak (easy)", elevation: Int(Double(elev) * 0.35), subtitle: "\(Int(Double(elev) * 0.35)) m · Foundation hike"),
+                HikePeak(name: "Regional Peak (moderate)", elevation: Int(Double(elev) * 0.55), subtitle: "\(Int(Double(elev) * 0.55)) m · Build endurance"),
+                HikePeak(name: "Regional Peak (hard)", elevation: Int(Double(elev) * 0.8), subtitle: "\(Int(Double(elev) * 0.8)) m · Dress rehearsal"),
+            ]
+        }
+        return [
+            HikePeak(name: "Local Trail", elevation: max(400, elev / 4), subtitle: "\(max(400, elev / 4)) m · Foundation hike"),
+            HikePeak(name: "Regional Peak", elevation: max(800, elev / 2), subtitle: "\(max(800, elev / 2)) m · Endurance builder"),
+        ]
+    }
+
     static func buildStations(for goal: String, region: MountainRegion, months: Int, data: OnboardingData) -> [CoachStation] {
         var result: [CoachStation] = []
         let needsGlacier = goalElevation(for: goal) > 4000
         let highAltitude = goalElevation(for: goal) > 5500
+        let progression = hikeProgression(for: goal)
 
         func reason(_ tmpl: String) -> String { tmpl }
 
-        // Foundation phase ----------------------------------------------------
+        // Foundation phase — GYM + first prep hike ----------------------------
+        if let firstHike = progression.first {
+            result.append(CoachStation(
+                id: UUID(),
+                title: firstHike.name,
+                subtitle: firstHike.subtitle,
+                reasoning: reason("Your first benchmark peak. Sets your movement baseline and natural pace before loading volume."),
+                kind: .hike, phase: .foundation, elevationGain: firstHike.elevation,
+                isCompleted: false, isUnlocked: true, isRealTour: false
+            ))
+        } else {
+            result.append(CoachStation(
+                id: UUID(),
+                title: "Foundation Hike",
+                subtitle: "400 m gain · easy terrain",
+                reasoning: reason("Sets your movement baseline."),
+                kind: .hike, phase: .foundation, elevationGain: 400,
+                isCompleted: false, isUnlocked: true, isRealTour: false
+            ))
+        }
         result.append(CoachStation(
             id: UUID(),
-            title: "Foundation Hike",
-            subtitle: "400 m gain · easy terrain",
-            reasoning: reason("Sets your movement baseline. We'll measure your natural pace before loading volume."),
-            kind: .hike, phase: .foundation, elevationGain: 400,
-            isCompleted: false, isUnlocked: true, isRealTour: false
-        ))
-        result.append(CoachStation(
-            id: UUID(),
-            title: "Strength: Legs & Core",
-            subtitle: "Quads · glutes · trunk",
+            title: "Legs & Core Strength",
+            subtitle: "Squats · lunges · planks",
             reasoning: reason(data.age > 45
                 ? "At your age, joint stability matters more than PRs. Focus on control."
                 : "Bulletproofs knees for long descents — downhill is where alpinists get injured."),
@@ -256,44 +409,39 @@ final class CoachingViewModel: ObservableObject {
         ))
         result.append(CoachStation(
             id: UUID(),
-            title: "Endurance Base",
-            subtitle: "Zone 2 · 60 min",
+            title: "Zone 2 Endurance",
+            subtitle: "60 min sustained cardio",
             reasoning: reason(data.vo2max > 0 && data.vo2max < 40
                 ? "Your VO₂max of \(data.vo2max) tells us Zone 2 is exactly where to spend time first."
                 : "Zone 2 builds the mitochondrial base every multi-hour mountain day depends on."),
             kind: .endurance, phase: .foundation, elevationGain: 0,
             isCompleted: false, isUnlocked: false, isRealTour: false
         ))
-        result.append(CoachStation(
-            id: UUID(),
-            title: "Progress Hike",
-            subtitle: "800 m gain · mixed terrain",
-            reasoning: reason("Doubles your vertical load — tests how your legs handle repeated elevation."),
-            kind: .hike, phase: .foundation, elevationGain: 800,
-            isCompleted: false, isUnlocked: false, isRealTour: false
-        ))
 
-        // Build phase ---------------------------------------------------------
+        // Build phase — technique + progression hike --------------------------
         result.append(CoachStation(
             id: UUID(),
-            title: "Technique: Footwork",
+            title: "Footwork Technique",
             subtitle: "Edging · descent control",
             reasoning: reason("Clean footwork saves enormous energy on long approaches."),
             kind: .technique, phase: .build, elevationGain: 0,
             isCompleted: false, isUnlocked: false, isRealTour: false
         ))
-        result.append(CoachStation(
-            id: UUID(),
-            title: "Long Hike",
-            subtitle: "1,200 m gain · endurance",
-            reasoning: reason("First taste of summit-day duration. Pace discipline is the lesson here."),
-            kind: .hike, phase: .build, elevationGain: 1200,
-            isCompleted: false, isUnlocked: false, isRealTour: false
-        ))
-        if !data.experience.contains(.alpineCourse) {
+        if progression.count > 1 {
+            let midHike = progression[1]
             result.append(CoachStation(
                 id: UUID(),
-                title: "Technique: Rope Basics",
+                title: midHike.name,
+                subtitle: midHike.subtitle,
+                reasoning: reason("A harder objective that tests your developing fitness. Pace discipline is the lesson here."),
+                kind: .hike, phase: .build, elevationGain: midHike.elevation,
+                isCompleted: false, isUnlocked: false, isRealTour: false
+            ))
+        }
+        if !data.hasExperience(.alpineCourse) {
+            result.append(CoachStation(
+                id: UUID(),
+                title: "Rope Basics",
                 subtitle: "Knots · belaying",
                 reasoning: reason("You haven't done an alpine course — this is the minimum rope literacy you need."),
                 kind: .technique, phase: .build, elevationGain: 0,
@@ -302,26 +450,18 @@ final class CoachingViewModel: ObservableObject {
         }
         result.append(CoachStation(
             id: UUID(),
-            title: "Strength: Upper Body",
-            subtitle: "Pulling · scapular control",
+            title: "Upper Body Strength",
+            subtitle: "Pull-ups · rows · carries",
             reasoning: reason("Pack carries and ice-axe work demand more pull strength than people expect."),
             kind: .strength, phase: .build, elevationGain: 0,
             isCompleted: false, isUnlocked: false, isRealTour: false
         ))
 
-        // Peak prep phase -----------------------------------------------------
-        result.append(CoachStation(
-            id: UUID(),
-            title: "Altitude Hike",
-            subtitle: "2,000 m · above 2,500 m elevation",
-            reasoning: reason("First exposure to thinner air — watch how you feel and recover."),
-            kind: .acclimatization, phase: .prep, elevationGain: 2000,
-            isCompleted: false, isUnlocked: false, isRealTour: false
-        ))
+        // Peak prep phase — acclimatization + dress rehearsal -----------------
         if needsGlacier && !data.hasGlacierExperience {
             result.append(CoachStation(
                 id: UUID(),
-                title: "Technique: Crampons",
+                title: "Crampon Technique",
                 subtitle: "Flat-foot · front-point",
                 reasoning: reason("Crampon technique is non-negotiable for \(goal). Drill it on safe terrain first."),
                 kind: .technique, phase: .prep, elevationGain: 0,
@@ -329,31 +469,42 @@ final class CoachingViewModel: ObservableObject {
             ))
             result.append(CoachStation(
                 id: UUID(),
-                title: "Mini-Glacier Training",
+                title: "Glacier Training",
                 subtitle: "Crevasse rescue · ice axe",
                 reasoning: reason("Roped glacier travel protects you where the mountain hides the biggest danger."),
                 kind: .glacier, phase: .prep, elevationGain: 0,
                 isCompleted: false, isUnlocked: false, isRealTour: false
             ))
         }
-
-        // Region-specific prep peak
-        let prepPeakName: String
-        switch region {
-        case .andes:     prepPeakName = "Pisco (5,752 m)"
-        case .rockies:   prepPeakName = "Mt. Baker (3,286 m)"
-        case .himalaya:  prepPeakName = "Island Peak (6,189 m)"
-        case .eastAfrica: prepPeakName = "Mt. Meru (4,566 m)"
-        case .alps:      prepPeakName = "Gran Paradiso (4,061 m)"
+        // Prep summit hike (last before goal)
+        if progression.count > 2 {
+            let prepHike = progression[2]
+            result.append(CoachStation(
+                id: UUID(),
+                title: prepHike.name,
+                subtitle: prepHike.subtitle,
+                reasoning: reason("Your dress-rehearsal summit — same gear, same pace, lower stakes than \(goal)."),
+                kind: .summit, phase: .prep, elevationGain: prepHike.elevation,
+                isCompleted: false, isUnlocked: false, isRealTour: false
+            ))
+        } else {
+            let prepPeakName: String
+            switch region {
+            case .andes:      prepPeakName = "Pisco (5,752 m)"
+            case .rockies:    prepPeakName = "Mt. Baker (3,286 m)"
+            case .himalaya:   prepPeakName = "Island Peak (6,189 m)"
+            case .eastAfrica:  prepPeakName = "Mt. Meru (4,566 m)"
+            case .alps:       prepPeakName = "Gran Paradiso (4,061 m)"
+            }
+            result.append(CoachStation(
+                id: UUID(),
+                title: "Prep: \(prepPeakName)",
+                subtitle: "Full gear rehearsal",
+                reasoning: reason("A dress-rehearsal summit in \(region.displayName)."),
+                kind: .summit, phase: .prep, elevationGain: 1800,
+                isCompleted: false, isUnlocked: false, isRealTour: false
+            ))
         }
-        result.append(CoachStation(
-            id: UUID(),
-            title: "Prep Summit: \(prepPeakName)",
-            subtitle: "Full gear rehearsal",
-            reasoning: reason("A dress-rehearsal summit in \(region.displayName) — same gear, same pace, lower stakes."),
-            kind: .summit, phase: .prep, elevationGain: 1800,
-            isCompleted: false, isUnlocked: false, isRealTour: false
-        ))
 
         // Summit phase --------------------------------------------------------
         if highAltitude {
@@ -414,6 +565,7 @@ final class CoachingViewModel: ObservableObject {
             p.stations[idx + 1].isUnlocked = true
         }
         withAnimation(CT.Springs.bouncy) { plan = p }
+        saveToDefaults()
         HapticManager.shared.heavy()
     }
 }
@@ -451,7 +603,7 @@ struct AICoachingGatewayView: View {
                     case 5: OnboardingSafety(data: $vm.data).transition(stepTransition)
                     default:
                         if let plan = vm.plan {
-                            CoachingMapView(plan: plan) { vm.completeStation($0) }
+                            CoachingMapView(plan: plan, onComplete: { vm.completeStation($0) }, selectedTab: $vm.selectedTrainingTab)
                                 .transition(.opacity.combined(with: .scale(scale: 0.98)))
                         }
                     }
@@ -467,7 +619,9 @@ struct AICoachingGatewayView: View {
         }
         .preferredColorScheme(.light)
         .task {
-            await vm.prefillFromHealthKit()
+            if !vm.loadFromDefaults() {
+                await vm.prefillFromHealthKit()
+            }
         }
         .onChange(of: vm.plan?.stations.count ?? 0) { _, newValue in
             if newValue > 0 {
@@ -732,8 +886,8 @@ private struct OnboardingExperience: View {
                             Button(action: {
                                 HapticManager.shared.light()
                                 withAnimation(CT.Springs.snappy) {
-                                    if data.experience.contains(lvl) { data.experience.remove(lvl) }
-                                    else { data.experience.insert(lvl) }
+                                    if data.experience.contains(lvl) { data.experience.removeAll { $0 == lvl } }
+                                    else { data.experience.append(lvl) }
                                 }
                             }) {
                                 HStack(spacing: 10) {
@@ -896,9 +1050,18 @@ private struct OnboardingSafety: View {
 struct CoachingMapView: View {
     let plan: CoachingPlan
     let onComplete: (UUID) -> Void
+    @Binding var selectedTab: CoachingViewModel.TrainingTab
 
     @State private var breathe = false
     @State private var selectedStation: CoachStation? = nil
+
+    private let hikeKinds: Set<StationKind> = [.hike, .acclimatization, .glacier, .summit]
+    private let gymKinds: Set<StationKind> = [.strength, .endurance, .technique]
+
+    private var filteredStations: [CoachStation] {
+        let kinds = selectedTab == .hikes ? hikeKinds : gymKinds
+        return plan.stations.filter { kinds.contains($0.kind) }
+    }
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -908,8 +1071,19 @@ struct CoachingMapView: View {
                         .padding(.horizontal, 16)
                         .padding(.top, 12)
 
-                    ForEach(PlanPhase.allCases, id: \.self) { phase in
-                        let phaseStations = plan.stations.filter { $0.phase == phase }
+                    // Tab selector
+                    tabPicker
+                        .padding(.horizontal, 20)
+                        .padding(.top, 16)
+                        .padding(.bottom, 4)
+
+                    let stationsToShow = filteredStations
+                    let phases = PlanPhase.allCases.filter { phase in
+                        stationsToShow.contains { $0.phase == phase }
+                    }
+
+                    ForEach(phases, id: \.self) { phase in
+                        let phaseStations = stationsToShow.filter { $0.phase == phase }
                         if !phaseStations.isEmpty {
                             phaseHeader(phase)
                                 .padding(.horizontal, 20)
@@ -917,7 +1091,7 @@ struct CoachingMapView: View {
                                 .padding(.bottom, 6)
 
                             ForEach(Array(phaseStations.enumerated()), id: \.element.id) { idx, station in
-                                let globalIdx = plan.stations.firstIndex(where: { $0.id == station.id }) ?? idx
+                                let globalIdx = stationsToShow.firstIndex(where: { $0.id == station.id }) ?? idx
                                 StationRow(
                                     station: station,
                                     globalIndex: globalIdx,
@@ -928,7 +1102,7 @@ struct CoachingMapView: View {
                                 )
                                 .id(station.id)
 
-                                if station.id != phaseStations.last?.id || phase != .summit {
+                                if station.id != phaseStations.last?.id || phase != phases.last {
                                     PathConnector(leftToRight: globalIdx % 2 == 0, completed: station.isCompleted)
                                         .frame(height: 40)
                                 }
@@ -946,8 +1120,7 @@ struct CoachingMapView: View {
                 withAnimation(.easeInOut(duration: 2.8).repeatForever(autoreverses: true)) {
                     breathe.toggle()
                 }
-                // Scroll to first unlocked & not-completed station
-                if let target = plan.stations.first(where: { $0.isUnlocked && !$0.isCompleted }) {
+                if let target = filteredStations.first(where: { $0.isUnlocked && !$0.isCompleted }) {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                         withAnimation(CT.Springs.soft) {
                             proxy.scrollTo(target.id, anchor: .center)
@@ -964,6 +1137,40 @@ struct CoachingMapView: View {
             .presentationDetents([.fraction(0.55), .large])
             .preferredColorScheme(.light)
         }
+    }
+
+    // MARK: - Tab Picker
+
+    private var tabPicker: some View {
+        HStack(spacing: 0) {
+            ForEach(CoachingViewModel.TrainingTab.allCases, id: \.self) { tab in
+                Button(action: {
+                    HapticManager.shared.light()
+                    withAnimation(CT.Springs.snappy) { selectedTab = tab }
+                }) {
+                    HStack(spacing: 6) {
+                        Image(systemName: tab == .hikes ? "figure.hiking" : "dumbbell.fill")
+                            .font(.system(size: 13, weight: .bold))
+                        Text(tab.rawValue)
+                            .font(.system(size: 14, weight: .bold, design: .rounded))
+                    }
+                    .foregroundColor(selectedTab == tab ? .white : .primary.opacity(0.6))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(selectedTab == tab ? CT.Colors.accent : Color.clear)
+                    )
+                }
+                .buttonStyle(PressableButtonStyle())
+            }
+        }
+        .padding(3)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(CT.Colors.surface)
+        )
+        .ctShadow(CT.Shadows.card)
     }
 
     private var headerCard: some View {

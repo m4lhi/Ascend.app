@@ -15,7 +15,6 @@ struct SettingsView: View {
 
     @AppStorage("notificationsEnabled") private var notificationsEnabled = true
     @AppStorage("isLoggedIn") private var isLoggedIn = true
-    @AppStorage("animationProfile") private var animationProfileRaw: String = AnimationProfile.alpine.rawValue
 
     @ObservedObject private var emergencyManager = EmergencyManager.shared
     @ObservedObject private var offlineManager = OfflineManager.shared
@@ -26,6 +25,8 @@ struct SettingsView: View {
     @State private var notificationDenied = false
     @State private var showExportAllTours = false
     @State private var showShareLocation = false
+    @State private var showResetCoachConfirm = false
+    @State private var healthData: OnboardingData? = nil
 
     private let accentBlue = Color(red: 0.1, green: 0.5, blue: 0.95)
     var body: some View {
@@ -71,34 +72,23 @@ struct SettingsView: View {
                             OfflineDownloadsView(offlineManager: offlineManager)
                         }
 
-                        SettingsSection(title: "APPEARANCE") {
-                            ForEach(AnimationProfile.allCases) { profile in
-                                Button(action: { animationProfileRaw = profile.rawValue }) {
-                                    HStack(spacing: 12) {
-                                        Image(systemName: profile.icon)
-                                            .font(.system(size: 16, weight: .semibold))
-                                            .foregroundColor(accentBlue)
-                                            .frame(width: 28)
-                                        VStack(alignment: .leading, spacing: 2) {
-                                            Text(profile.displayName)
-                                                .font(.system(size: 15, weight: .semibold, design: .rounded))
-                                                .foregroundColor(.primary)
-                                            Text(profile.subtitle)
-                                                .font(.system(size: 11, design: .rounded))
-                                                .foregroundColor(.secondary)
-                                        }
-                                        Spacer()
-                                        if animationProfileRaw == profile.rawValue {
-                                            Image(systemName: "checkmark.circle.fill")
-                                                .foregroundColor(accentBlue)
-                                        }
-                                    }
-                                    .padding(.vertical, 8)
-                                    .padding(.horizontal, 4)
-                                    .contentShape(Rectangle())
-                                }
-                                if profile != AnimationProfile.allCases.last {
-                                    Divider().background(Color.black.opacity(0.1))
+                        // Health & Body section (loaded from AI Coach onboarding data)
+                        if let hd = healthData {
+                            SettingsSection(title: "HEALTH & BODY") {
+                                healthRow(icon: "ruler", label: "Height", value: "\(hd.heightCm) cm")
+                                Divider().background(Color.black.opacity(0.1))
+                                healthRow(icon: "scalemass", label: "Weight", value: "\(hd.weightKg) kg")
+                                Divider().background(Color.black.opacity(0.1))
+                                healthRow(icon: "calendar", label: "Age", value: "\(hd.age) yrs")
+                                Divider().background(Color.black.opacity(0.1))
+                                healthRow(icon: "lungs", label: "VO₂max", value: hd.vo2max > 0 ? "\(hd.vo2max) ml/kg/min" : "Not set")
+                                Divider().background(Color.black.opacity(0.1))
+                                healthRow(icon: "flame", label: "Active hours/week", value: "\(hd.weeklyActiveHours) h")
+                                Divider().background(Color.black.opacity(0.1))
+                                healthRow(icon: "figure.run", label: "Endurance", value: hd.endurance.rawValue)
+                                Divider().background(Color.black.opacity(0.1))
+                                Button(action: { showResetCoachConfirm = true }) {
+                                    SettingsRowLabel(icon: "arrow.counterclockwise", iconColor: .orange, text: "Reset AI Coach")
                                 }
                             }
                         }
@@ -177,6 +167,18 @@ struct SettingsView: View {
         } message: {
             Text("This will permanently delete your account and all associated data. This action cannot be undone.")
         }
+        .confirmationDialog("Reset AI Coach", isPresented: $showResetCoachConfirm, titleVisibility: .visible) {
+            Button("Reset", role: .destructive) {
+                CoachingViewModel.clearSavedData()
+                healthData = nil
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This will clear your AI coaching plan and body data. You'll need to redo the onboarding next time you open the AI Coach.")
+        }
+        .onAppear {
+            healthData = CoachingViewModel.loadOnboardingData()
+        }
     }
 
     // MARK: - Version Info
@@ -194,6 +196,27 @@ struct SettingsView: View {
     }
 
     // MARK: - Helpers
+
+    private func healthRow(icon: String, label: String, value: String) -> some View {
+        HStack(spacing: 15) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(accentBlue.opacity(0.2))
+                    .frame(width: 32, height: 32)
+                Image(systemName: icon)
+                    .foregroundColor(accentBlue)
+                    .font(.system(size: 14, weight: .bold, design: .rounded))
+            }
+            Text(label)
+                .font(.system(.subheadline, design: .rounded))
+                .fontWeight(.semibold)
+                .foregroundColor(.primary)
+            Spacer()
+            Text(value)
+                .font(.system(.subheadline, design: .rounded))
+                .foregroundColor(.secondary)
+        }
+    }
 
     private func requestNotificationPermission() {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, _ in
