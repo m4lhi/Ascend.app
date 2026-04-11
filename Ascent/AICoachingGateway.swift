@@ -93,9 +93,6 @@ final class CoachingViewModel: ObservableObject {
     @Published var plan: CoachingPlan? = nil
     @Published var isPrefilling = false
     @Published var selectedTrainingTab: TrainingTab = .hikes
-    @Published var workoutPlan: [WorkoutDay] = []
-    @Published var chatMessages: [ChatMessage] = []
-    @Published var chatInput: String = ""
 
     enum TrainingTab: String, CaseIterable {
         case hikes = "Hikes"

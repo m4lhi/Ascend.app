@@ -21,7 +21,13 @@ struct ContentView: View {
     var body: some View {
         ZStack(alignment: .bottom) {
             
-            Color(red: 0.95, green: 0.95, blue: 0.97).ignoresSafeArea()
+            LinearGradient(
+                colors: [
+                    Color(red: 0.96, green: 0.98, blue: 1.00),
+                    Color(red: 0.90, green: 0.94, blue: 1.00)
+                ],
+                startPoint: .top, endPoint: .bottom
+            ).ignoresSafeArea()
             
             Group {
                 switch selectedTab {
@@ -53,9 +59,10 @@ struct ContentView: View {
                                     width: appState.isFABVisible ? 56 : 36,
                                     height: appState.isFABVisible ? 56 : 36
                                 )
-                                .background(Color(red: 0.15, green: 0.5, blue: 0.35))
-                                .clipShape(Circle())
-                                .shadow(color: Color(red: 0.15, green: 0.5, blue: 0.35).opacity(appState.isFABVisible ? 0.4 : 0.15), radius: appState.isFABVisible ? 10 : 4, y: 4)
+                                .background(
+                                    Circle().fill(DesignSystem.Colors.logoGradient)
+                                )
+                                .shadow(color: DesignSystem.Colors.accent.opacity(appState.isFABVisible ? 0.45 : 0.15), radius: appState.isFABVisible ? 14 : 4, y: 6)
                                 .opacity(appState.isFABVisible ? 1 : 0.45)
                         }
                         .padding(.trailing, 20)
@@ -128,11 +135,11 @@ struct CustomTabBar: View {
                 .shadow(color: .black.opacity(0.1), radius: 25, y: 15)
             
             HStack(spacing: 0) {
-                TabBarIcon(icon: "house.fill", isSelected: selectedTab == 0) { selectedTab = 0 }
-                TabBarIcon(icon: "map.fill", isSelected: selectedTab == 1) { selectedTab = 1 }
+                TabBarIcon(icon: "house.fill", isSelected: selectedTab == 0) { withAnimation(.spring(response: 0.4, dampingFraction: 0.78)) { selectedTab = 0 } }
+                TabBarIcon(icon: "map.fill", isSelected: selectedTab == 1) { withAnimation(.spring(response: 0.4, dampingFraction: 0.78)) { selectedTab = 1 } }
                 Spacer().frame(width: 80)
-                TabBarIcon(icon: "chart.bar.fill", isSelected: selectedTab == 2) { selectedTab = 2 }
-                TabBarIcon(icon: "person.fill", isSelected: selectedTab == 3) { selectedTab = 3 }
+                TabBarIcon(icon: "chart.bar.fill", isSelected: selectedTab == 2) { withAnimation(.spring(response: 0.4, dampingFraction: 0.78)) { selectedTab = 2 } }
+                TabBarIcon(icon: "person.fill", isSelected: selectedTab == 3) { withAnimation(.spring(response: 0.4, dampingFraction: 0.78)) { selectedTab = 3 } }
             }
             .padding(.horizontal, 20)
             .padding(.top, 25)
@@ -143,10 +150,10 @@ struct CustomTabBar: View {
             }) {
                 ZStack {
                     Circle()
-                        .fill(Color(red: 0.1, green: 0.5, blue: 0.95))
+                        .fill(DesignSystem.Colors.accent)
                         .clipShape(Circle())
                         .frame(width: 70, height: 70)
-                        .shadow(color: Color(red: 0.1, green: 0.5, blue: 0.95).opacity(0.4), radius: 15, y: 4)
+                        .shadow(color: DesignSystem.Colors.accent.opacity(0.4), radius: 15, y: 4)
                     
                     Image(systemName: "figure.walk")
                         .font(.system(size: 28, weight: .black, design: .rounded))
@@ -165,14 +172,29 @@ struct TabBarIcon: View {
     let icon: String
     let isSelected: Bool
     let action: () -> Void
-    
+
     var body: some View {
-        Button(action: action) {
-            Image(systemName: icon)
-                .font(.system(size: 26, weight: isSelected ? .bold : .regular, design: .rounded))
-                .foregroundColor(isSelected ? Color(red: 0.1, green: 0.5, blue: 0.95) : .gray.opacity(0.6))
-                .frame(maxWidth: .infinity)
+        Button(action: {
+            HapticManager.shared.light()
+            action()
+        }) {
+            ZStack {
+                if isSelected {
+                    Circle()
+                        .fill(DesignSystem.Colors.accent.opacity(0.14))
+                        .frame(width: 44, height: 44)
+                        .transition(.scale.combined(with: .opacity))
+                }
+                Image(systemName: icon)
+                    .font(.system(size: 24, weight: isSelected ? .bold : .regular, design: .rounded))
+                    .foregroundColor(isSelected ? DesignSystem.Colors.accent : .gray.opacity(0.55))
+                    .scaleEffect(isSelected ? 1.08 : 1.0)
+                    .symbolEffect(.bounce, value: isSelected)
+            }
+            .frame(maxWidth: .infinity)
+            .animation(.spring(response: 0.38, dampingFraction: 0.7), value: isSelected)
         }
+        .buttonStyle(PressableButtonStyle())
     }
 }
 

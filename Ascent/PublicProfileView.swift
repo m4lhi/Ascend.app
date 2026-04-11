@@ -35,7 +35,7 @@ struct PublicProfileView: View {
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var appState: AppState
     
-    private let accent = Color(red: 0.1, green: 0.5, blue: 0.95)
+    private let accent = DesignSystem.Colors.accent
     private let gold = Color(red: 0.85, green: 0.65, blue: 0.13)
     
     var level: Int {

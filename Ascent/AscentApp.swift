@@ -16,20 +16,19 @@ struct AscentApp: App {
 
     var body: some Scene {
         WindowGroup {
-            // Prüft, ob der User angemeldet ist
-            if isLoggedIn {
-                // JA: Zeige die normale App mit der Tab-Leiste
-                ContentView()
-                    .environmentObject(appState)
-                    .roundedFontDesign()
-                    .onAppear {
-                        appState.fetchProfileFromCloud()
-                    }
-                    } else {
-                // NEIN: Zeige den neuen Login-Bildschirm
-                LoginView()
-                    .environmentObject(appState)
-                    .roundedFontDesign()
+            RootShell {
+                if isLoggedIn {
+                    ContentView()
+                        .environmentObject(appState)
+                        .roundedFontDesign()
+                        .onAppear {
+                            appState.fetchProfileFromCloud()
+                        }
+                } else {
+                    LoginView()
+                        .environmentObject(appState)
+                        .roundedFontDesign()
+                }
             }
         }
     }

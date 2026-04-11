@@ -23,7 +23,7 @@ struct MiniTrackerPlayer: View {
             HStack(spacing: 10) {
                 // Status Indicator
                 Circle()
-                    .fill(appState.isTrackerPaused ? Color.orange : Color(red: 0.1, green: 0.5, blue: 0.95))
+                    .fill(appState.isTrackerPaused ? Color.orange : DesignSystem.Colors.accent)
                     .frame(width: 8, height: 8)
                     .opacity(appState.isTrackerPaused ? 1 : (blinkToggle ? 1 : 0.4))
                     .animation(appState.isTrackerPaused ? .default : .easeInOut(duration: 0.8).repeatForever(autoreverses: true), value: blinkToggle)
@@ -38,7 +38,7 @@ struct MiniTrackerPlayer: View {
                     HStack(spacing: 6) {
                         Text(timeString)
                             .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                            .foregroundColor(appState.isTrackerPaused ? .orange : Color(red: 0.1, green: 0.5, blue: 0.95))
+                            .foregroundColor(appState.isTrackerPaused ? .orange : DesignSystem.Colors.accent)
                         
                         Text("•")
                             .font(.system(size: 10))

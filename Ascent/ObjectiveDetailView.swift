@@ -16,7 +16,7 @@ struct ObjectiveDetailView: View {
     let target: Int
     let unit: String
 
-    private let gold = Color(red: 0.1, green: 0.5, blue: 0.95)
+    private let gold = DesignSystem.Colors.accent
 
     private var progress: Double {
         guard target > 0 else { return 0 }

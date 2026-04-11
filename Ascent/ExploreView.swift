@@ -111,7 +111,7 @@ struct ExploreView: View {
 
     @State private var hasCenteredOnUser = false
 
-    private let gold = Color(red: 0.1, green: 0.5, blue: 0.95)
+    private let gold = DesignSystem.Colors.accent
 
     var mapMountains: [Mountain] {
         var source = showNearby ? mountainManager.nearbyMountains : mountainManager.mountains
@@ -134,10 +134,14 @@ struct ExploreView: View {
             mapLayer
 
             LinearGradient(
-                colors: [.white.opacity(0.95), .white.opacity(0.6), .clear],
+                colors: [
+                    Color(red: 0.90, green: 0.94, blue: 1.00).opacity(0.98),
+                    Color(red: 0.94, green: 0.97, blue: 1.00).opacity(0.75),
+                    .clear
+                ],
                 startPoint: .top, endPoint: .bottom
             )
-            .frame(height: 180)
+            .frame(height: 200)
             .ignoresSafeArea()
             .allowsHitTesting(false)
 
@@ -933,7 +937,7 @@ struct FloatingMapButton: View {
                 .font(.system(size: 20, weight: .semibold, design: .rounded))
                 .foregroundColor(active ? .white : .black)
                 .frame(width: 44, height: 44)
-                .background(active ? AnyShapeStyle(Color(red: 0.1, green: 0.5, blue: 0.95)) : AnyShapeStyle(.ultraThinMaterial))
+                .background(active ? AnyShapeStyle(DesignSystem.Colors.accent) : AnyShapeStyle(.ultraThinMaterial))
                 .clipShape(Circle())
                 .shadow(color: .black.opacity(0.15), radius: 8, y: 4)
         }
@@ -956,7 +960,7 @@ struct ToolbarButton: View {
             .foregroundColor(isActive ? .white : .primary)
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
-            .background(isActive ? Color(red: 0.1, green: 0.5, blue: 0.95) : Color(.systemGray6))
+            .background(isActive ? DesignSystem.Colors.accent : Color(.systemGray6))
             .clipShape(Capsule())
         }
     }
@@ -1071,7 +1075,7 @@ struct ExploreMountainDetailSheet: View {
     @State private var showCollectionSheet = false
     
     private let gold = Color(red: 0.85, green: 0.65, blue: 0.13)
-    private let accent = Color(red: 0.1, green: 0.5, blue: 0.95)
+    private let accent = DesignSystem.Colors.accent
 
     var body: some View {
         ZStack {

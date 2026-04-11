@@ -49,7 +49,7 @@ struct ActivityCardView: View {
         Self.dateFormatter.string(from: tour.date)
     }
 
-    private let accent = Color(red: 0.1, green: 0.5, blue: 0.95)
+    private let accent = DesignSystem.Colors.accent
 
     // Does this card have any visual media?
     private var validPhotoURL: URL? {
@@ -476,7 +476,7 @@ struct RouteMapPreview: View {
         case "red":    return .red
         case "green":  return .green
         case "orange": return .orange
-        default:       return Color(red: 0.1, green: 0.5, blue: 0.95)
+        default:       return DesignSystem.Colors.accent
         }
     }
 
@@ -531,7 +531,7 @@ struct CommentSheetView: View {
     @State private var newCommentText = ""
     @State private var isLoading = true
 
-    private let accent = Color(red: 0.1, green: 0.5, blue: 0.95)
+    private let accent = DesignSystem.Colors.accent
 
     var body: some View {
         NavigationView {
@@ -681,7 +681,7 @@ struct StatBlock: View {
     var body: some View {
         HStack(spacing: 6) {
             if !icon.isEmpty { Image(systemName: icon).font(.system(size: 10)).foregroundColor(isXP ? .blue : .gray) }
-            Text(value).font(.system(size: 12, weight: .bold, design: .rounded)).foregroundColor(isXP ? Color(red: 0.1, green: 0.5, blue: 0.95) : .primary)
+            Text(value).font(.system(size: 12, weight: .bold, design: .rounded)).foregroundColor(isXP ? DesignSystem.Colors.accent : .primary)
         }
         .padding(.horizontal, 10).padding(.vertical, 8)
         .background(isXP ? Color.blue.opacity(0.15) : Color(white: 0.95))

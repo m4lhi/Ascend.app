@@ -18,8 +18,10 @@ enum DesignSystem {
     // =========================================
     enum Colors {
 
-        // Hauptakzentfarbe — Alpine Blau (Bergwelt, Klarheit)
-        static let accent = Color(red: 0.20, green: 0.42, blue: 0.85)
+        // Hauptakzentfarbe — Ascent Logo Blue
+        static let accent = Color(red: 0.15, green: 0.50, blue: 1.00)       // #2680FF
+        static let accentLight = Color(red: 0.37, green: 0.72, blue: 1.00)  // #5FB8FF
+        static let accentDeep  = Color(red: 0.06, green: 0.33, blue: 0.80)  // #0F54CC
 
         // Prestige-Gold — für hohe Ränge und besondere Achievements
         static let prestige = Color(red: 0.95, green: 0.74, blue: 0.22)
@@ -43,11 +45,23 @@ enum DesignSystem {
         // Geht von dunklem Bergblau zu hellerem Akzentblau
         static let mountainGradient = LinearGradient(
             colors: [
-                Color(red: 0.10, green: 0.22, blue: 0.52),
-                Color(red: 0.20, green: 0.42, blue: 0.85)
+                Color(red: 0.06, green: 0.33, blue: 0.80),
+                Color(red: 0.15, green: 0.50, blue: 1.00),
+                Color(red: 0.37, green: 0.72, blue: 1.00)
             ],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
+        )
+
+        // Brand gradient matching the Ascent logo exactly
+        static let logoGradient = LinearGradient(
+            colors: [
+                Color(red: 0.40, green: 0.75, blue: 1.00),
+                Color(red: 0.15, green: 0.50, blue: 1.00),
+                Color(red: 0.06, green: 0.33, blue: 0.80)
+            ],
+            startPoint: .top,
+            endPoint: .bottom
         )
 
         // Schwierigkeitsgrad-Farben

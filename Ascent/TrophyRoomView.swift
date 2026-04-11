@@ -329,9 +329,15 @@ struct TrophyRoomView: View {
         widgetOrderRaw = order.map { $0.rawValue }.joined(separator: ",")
     }
     
-    private let gold = Color(red: 0.1, green: 0.5, blue: 0.95)
+    private let gold = DesignSystem.Colors.accent
     private let cardBg = Color.white
-    private let bg = Color(red: 0.95, green: 0.95, blue: 0.97)
+    private let bg = LinearGradient(
+        colors: [
+            Color(red: 0.96, green: 0.98, blue: 1.00),
+            Color(red: 0.90, green: 0.94, blue: 1.00)
+        ],
+        startPoint: .top, endPoint: .bottom
+    )
     
     private var requiredXP: Int { appState.xpNeededForNextLevel }
     private var xpProgress: Double {
@@ -551,10 +557,10 @@ struct TrophyRoomView: View {
                                                 Text(specialty)
                                             }
                                             .font(.system(size: 11, weight: .bold, design: .rounded))
-                                            .foregroundColor(Color(red: 0.1, green: 0.5, blue: 0.95))
+                                            .foregroundColor(DesignSystem.Colors.accent)
                                             .padding(.horizontal, 10)
                                             .padding(.vertical, 5)
-                                            .background(Color(red: 0.1, green: 0.5, blue: 0.95).opacity(0.1))
+                                            .background(DesignSystem.Colors.accent.opacity(0.1))
                                             .clipShape(Capsule())
                                         }
                                     }
@@ -1170,7 +1176,7 @@ struct EditAccountView: View {
     @State private var hobbyInputError: String? = nil
     @State private var hobbySearchTask: Task<Void, Never>? = nil
     
-    private let gold = Color(red: 0.1, green: 0.5, blue: 0.95)
+    private let gold = DesignSystem.Colors.accent
     private let cardBg = Color.white
     
     let availableSports = [
@@ -1396,7 +1402,7 @@ struct EditAccountView: View {
                             
                             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
                                 ForEach(availableSpecialties, id: \.self) { specialty in
-                                    SportButton(title: specialty, isSelected: draftSpecialties.contains(specialty), maxLimit: 10, list: $draftSpecialties, color: Color(red: 0.1, green: 0.5, blue: 0.95))
+                                    SportButton(title: specialty, isSelected: draftSpecialties.contains(specialty), maxLimit: 10, list: $draftSpecialties, color: DesignSystem.Colors.accent)
                                 }
                             }
                         }
@@ -1893,7 +1899,10 @@ struct AllAchievementsSheet: View {
     var body: some View {
         NavigationView {
             ZStack {
-                Color(red: 0.95, green: 0.95, blue: 0.97).ignoresSafeArea()
+                LinearGradient(
+                    colors: [Color(red: 0.96, green: 0.98, blue: 1.00), Color(red: 0.90, green: 0.94, blue: 1.00)],
+                    startPoint: .top, endPoint: .bottom
+                ).ignoresSafeArea()
                 
                 ScrollView {
                     VStack(spacing: 20) {
@@ -1906,7 +1915,7 @@ struct AllAchievementsSheet: View {
                                 Text("\(unlockedCount) of \(achievements.count)")
                                     .font(.system(.title, design: .rounded))
                                     .fontWeight(.black)
-                                    .foregroundColor(Color(red: 0.1, green: 0.5, blue: 0.95))
+                                    .foregroundColor(DesignSystem.Colors.accent)
                             }
                             Spacer()
                         }
@@ -1962,7 +1971,7 @@ struct ProfileCollectionsList: View {
                 Button(action: { showCreateSheet = true }) {
                     Image(systemName: "plus.circle.fill")
                         .font(.system(size: 22))
-                        .foregroundColor(Color(red: 0.1, green: 0.5, blue: 0.95))
+                        .foregroundColor(DesignSystem.Colors.accent)
                 }
             }
             .padding(.horizontal, 20)

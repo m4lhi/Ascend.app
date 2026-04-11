@@ -12,9 +12,9 @@ import SwiftUI
 enum CT {
     // MARK: Colors
     enum Colors {
-        static let accent       = Color(red: 0.10, green: 0.50, blue: 1.00) // #1A7FFF
-        static let accentDeep   = Color(red: 0.04, green: 0.24, blue: 0.54) // #0B3E8A night summit
-        static let accentSoft   = Color(red: 0.84, green: 0.91, blue: 1.00) // #D6E8FF cloud
+        static let accent       = Color(red: 0.15, green: 0.50, blue: 1.00) // #2680FF logo mid
+        static let accentDeep   = Color(red: 0.06, green: 0.33, blue: 0.80) // #0F54CC logo deep
+        static let accentSoft   = Color(red: 0.87, green: 0.94, blue: 1.00) // cloud blue
         static let summit       = Color(red: 0.98, green: 0.99, blue: 1.00)
         static let surface      = Color(red: 0.96, green: 0.97, blue: 0.99)
         static let surfaceRaised = Color.white

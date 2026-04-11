@@ -309,7 +309,7 @@ struct LiveRecordView: View {
     @State private var isTooFarForRoute = false
     @State private var isMapCenteredOnUser = true
 
-    private let gold = Color(red: 0.1, green: 0.5, blue: 0.95)
+    private let gold = DesignSystem.Colors.accent
     @AppStorage("routeColor") private var routeColorName: String = "blue"
     @AppStorage("turnByTurnEnabled") private var turnByTurnEnabled = false
 
@@ -318,7 +318,7 @@ struct LiveRecordView: View {
         case "red":    return .red
         case "green":  return .green
         case "orange": return .orange
-        default:       return Color(red: 0.1, green: 0.5, blue: 0.95)
+        default:       return DesignSystem.Colors.accent
         }
     }
 
@@ -1390,7 +1390,7 @@ struct TrackerSettingsSheet: View {
     @AppStorage("voiceGuidanceEnabled") private var voiceGuidanceEnabled = true
     @AppStorage("routeColor") private var routeColorName: String = "blue"
 
-    private let accentBlue = Color(red: 0.1, green: 0.5, blue: 0.95)
+    private let accentBlue = DesignSystem.Colors.accent
 
     var body: some View {
         NavigationView {
@@ -1495,7 +1495,7 @@ struct SlideToFinishControl: View {
 
     private let thumbSize: CGFloat = 48
     private let trackHeight: CGFloat = 56
-    private let gold = Color(red: 0.1, green: 0.5, blue: 0.95)
+    private let gold = DesignSystem.Colors.accent
 
     var body: some View {
         GeometryReader { geo in
@@ -1692,7 +1692,7 @@ struct MissionSaveView: View {
                         Button(action: { showExportSheet = true }) {
                             HStack {
                                 Image(systemName: "square.and.arrow.up")
-                                    .foregroundColor(Color(red: 0.1, green: 0.5, blue: 0.95))
+                                    .foregroundColor(DesignSystem.Colors.accent)
                                 Text("Export as GPX / KML")
                                 Spacer()
                                 Image(systemName: "chevron.right")
@@ -1795,7 +1795,7 @@ struct ElevationProfileChart: View {
         return result
     }
 
-    private let gold = Color(red: 0.1, green: 0.5, blue: 0.95)
+    private let gold = DesignSystem.Colors.accent
 
     var body: some View {
         Chart {

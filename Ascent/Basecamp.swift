@@ -25,7 +25,7 @@ struct BasecampView: View {
     @State private var showAllActivities = false
 
     private let bannerTimer = Timer.publish(every: 5, on: .main, in: .common).autoconnect()
-    private let accent = Color(red: 0.1, green: 0.5, blue: 0.95)
+    private let accent = DesignSystem.Colors.accent
     private let bg = Color(red: 0.945, green: 0.945, blue: 0.96)
     private let gold = Color(red: 0.85, green: 0.65, blue: 0.13)
 
@@ -176,58 +176,95 @@ struct BasecampView: View {
     // MARK: - Top Bar
     // =========================================
     private var topBar: some View {
-        HStack(alignment: .center, spacing: 8) {
-            // Compact avatar with thin level ring
-            Button(action: { showXPDetails = true }) {
-                ZStack {
-                    Circle()
-                        .stroke(tierColor.opacity(0.18), lineWidth: 1.5)
-                        .frame(width: 32, height: 32)
-                    Circle()
-                        .trim(from: 0, to: Double(appState.currentLevelProgressXP) / Double(max(appState.xpNeededForNextLevel, 1)))
-                        .stroke(tierColor, style: StrokeStyle(lineWidth: 1.5, lineCap: .round))
-                        .frame(width: 32, height: 32)
-                        .rotationEffect(.degrees(-90))
+        ZStack(alignment: .topLeading) {
+            // Hero gradient background – logo palette
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .fill(DesignSystem.Colors.logoGradient)
+                .overlay(
+                    // Soft bloom
+                    RadialGradient(
+                        colors: [Color.white.opacity(0.22), .clear],
+                        center: .topTrailing,
+                        startRadius: 10, endRadius: 260
+                    )
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 28, style: .continuous)
+                        .stroke(Color.white.opacity(0.18), lineWidth: 1)
+                )
+                .shadow(color: DesignSystem.Colors.accent.opacity(0.28), radius: 18, y: 10)
 
-                    if let urlString = appState.avatarURL, let url = URL(string: urlString) {
-                        CachedAsyncImage(url: url) { image in
-                            image.resizable().scaledToFill()
-                        } placeholder: {
-                            Circle().fill(Color.gray.opacity(0.2))
-                        }
-                        .frame(width: 26, height: 26).clipShape(Circle())
-                    } else {
-                        Circle().fill(Color.white).frame(width: 26, height: 26)
-                            .overlay(Image(systemName: "person.fill").font(.system(size: 11)).foregroundColor(.gray))
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(alignment: .center, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Welcome back")
+                            .font(.system(size: 12, weight: .semibold, design: .rounded))
+                            .foregroundColor(.white.opacity(0.75))
+                            .tracking(1.2)
+                        Text(appState.userName)
+                            .font(.system(size: 22, weight: .bold, design: .rounded))
+                            .foregroundColor(.white)
+                            .lineLimit(1)
                     }
+                    Spacer()
+                    Button(action: { showXPDetails = true }) {
+                        ZStack {
+                            Circle()
+                                .stroke(Color.white.opacity(0.25), lineWidth: 2)
+                                .frame(width: 46, height: 46)
+                            Circle()
+                                .trim(from: 0, to: Double(appState.currentLevelProgressXP) / Double(max(appState.xpNeededForNextLevel, 1)))
+                                .stroke(Color.white, style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                                .frame(width: 46, height: 46)
+                                .rotationEffect(.degrees(-90))
+                            if let urlString = appState.avatarURL, let url = URL(string: urlString) {
+                                CachedAsyncImage(url: url) { image in
+                                    image.resizable().scaledToFill()
+                                } placeholder: {
+                                    Circle().fill(Color.white.opacity(0.25))
+                                }
+                                .frame(width: 38, height: 38).clipShape(Circle())
+                            } else {
+                                Circle().fill(Color.white).frame(width: 38, height: 38)
+                                    .overlay(Image(systemName: "person.fill").font(.system(size: 16)).foregroundColor(DesignSystem.Colors.accent))
+                            }
+                        }
+                    }
+                    .buttonStyle(PressableButtonStyle())
+                }
+
+                HStack(spacing: 10) {
+                    heroStatChip(icon: "bolt.fill", value: "\(appState.currentXP)", label: "XP")
+                    heroStatChip(icon: "arrow.up.right", value: "\(appState.weeklyElevation)m", label: "This week")
+                    heroStatChip(icon: "flame.fill", value: "\(appState.ascendProfile?.streak_days ?? 0)", label: "Streak")
                 }
             }
-            .buttonStyle(PressableButtonStyle())
-
-            Text(appState.userName)
-                .font(.system(size: 14, weight: .semibold, design: .rounded))
-                .foregroundColor(.primary)
-                .lineLimit(1)
-
-            Spacer(minLength: 8)
-
-            // Tiny XP badge in the corner
-            Button(action: { showXPDetails = true }) {
-                HStack(spacing: 3) {
-                    Image(systemName: "bolt.fill")
-                        .font(.system(size: 9, weight: .bold))
-                    Text("\(appState.currentXP)")
-                        .font(.system(size: 11, weight: .bold, design: .rounded))
-                }
-                .foregroundColor(accent)
-                .padding(.horizontal, 9).padding(.vertical, 4)
-                .background(accent.opacity(0.1))
-                .clipShape(Capsule())
-            }
-            .buttonStyle(PressableButtonStyle())
+            .padding(18)
         }
         .padding(.horizontal, 16)
-        .padding(.top, 6)
+        .padding(.top, 4)
+    }
+
+    private func heroStatChip(icon: String, value: String, label: String) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.system(size: 11, weight: .bold))
+            VStack(alignment: .leading, spacing: 0) {
+                Text(value)
+                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                Text(label)
+                    .font(.system(size: 9, weight: .medium, design: .rounded))
+                    .opacity(0.75)
+            }
+        }
+        .foregroundColor(.white)
+        .padding(.horizontal, 11).padding(.vertical, 7)
+        .background(
+            Capsule().fill(Color.white.opacity(0.18))
+        )
+        .overlay(
+            Capsule().stroke(Color.white.opacity(0.22), lineWidth: 0.8)
+        )
     }
 
     // =========================================
@@ -754,7 +791,7 @@ struct BasecampMountainDetailSheet: View {
     let onStartTracking: () -> Void
     @Environment(\.dismiss) var dismiss
     private let gold = Color(red: 0.85, green: 0.65, blue: 0.13)
-    private let accent = Color(red: 0.1, green: 0.5, blue: 0.95)
+    private let accent = DesignSystem.Colors.accent
 
     var body: some View {
         ZStack {

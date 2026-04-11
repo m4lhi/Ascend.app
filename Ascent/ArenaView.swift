@@ -28,8 +28,14 @@ struct ArenaView: View {
     @State private var rowsRevealed = false
     @State private var headerGlow = false
 
-    private let gold = Color(red: 0.1, green: 0.5, blue: 0.95) // Light Blue Accent
-    private let bg = Color(red: 0.95, green: 0.95, blue: 0.97)
+    private let gold = DesignSystem.Colors.accent // Light Blue Accent
+    private let bg = LinearGradient(
+        colors: [
+            Color(red: 0.96, green: 0.98, blue: 1.00),
+            Color(red: 0.90, green: 0.94, blue: 1.00)
+        ],
+        startPoint: .top, endPoint: .bottom
+    )
     private let cardBg = Color.white
 
     var leaderboard: [Player] {
@@ -75,6 +81,13 @@ struct ArenaView: View {
     var body: some View {
         ZStack {
             bg.ignoresSafeArea()
+            // Logo glow
+            Circle()
+                .fill(DesignSystem.Colors.accent.opacity(0.12))
+                .frame(width: 360, height: 360)
+                .blur(radius: 80)
+                .offset(x: -120, y: -260)
+                .allowsHitTesting(false)
 
             // Ambient color blobs (GPU-optimized)
             Circle()
@@ -381,7 +394,7 @@ struct PremiumPodiumView: View {
     
     @EnvironmentObject var appState: AppState
 
-    private let gold = Color(red: 0.1, green: 0.5, blue: 0.95)
+    private let gold = DesignSystem.Colors.accent
     private let silver = Color(red: 0.6, green: 0.65, blue: 0.75)
     private let bronze = Color(red: 0.82, green: 0.52, blue: 0.22)
 

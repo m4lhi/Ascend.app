@@ -28,7 +28,7 @@ struct SettingsView: View {
     @State private var showResetCoachConfirm = false
     @State private var healthData: OnboardingData? = nil
 
-    private let accentBlue = Color(red: 0.1, green: 0.5, blue: 0.95)
+    private let accentBlue = DesignSystem.Colors.accent
     var body: some View {
         NavigationView {
             ZStack {
@@ -299,7 +299,7 @@ enum RouteColorOption: String, CaseIterable {
 
     var color: Color {
         switch self {
-        case .blue:   return Color(red: 0.1, green: 0.5, blue: 0.95)
+        case .blue:   return DesignSystem.Colors.accent
         case .red:    return .red
         case .green:  return .green
         case .orange: return .orange
@@ -320,7 +320,7 @@ struct ExportAllToursSheet: View {
             VStack(spacing: 24) {
                 Image(systemName: "square.and.arrow.up.on.square")
                     .font(.system(size: 48))
-                    .foregroundColor(Color(red: 0.1, green: 0.5, blue: 0.95))
+                    .foregroundColor(DesignSystem.Colors.accent)
                     .padding(.top, 30)
 
                 Text("Export All Tours")
@@ -348,7 +348,7 @@ struct ExportAllToursSheet: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 14)
-                .background(Color(red: 0.1, green: 0.5, blue: 0.95))
+                .background(DesignSystem.Colors.accent)
                 .foregroundColor(.white)
                 .font(.system(.headline, design: .rounded))
                 .clipShape(RoundedRectangle(cornerRadius: 14))

@@ -21,31 +21,36 @@ struct LoginView: View {
 
     var body: some View {
         ZStack {
-            Color(red: 0.95, green: 0.95, blue: 0.97).ignoresSafeArea()
-            
-            Circle()
-                .fill(RadialGradient(colors: [Color(red: 0.1, green: 0.5, blue: 0.95).opacity(0.12), Color.clear], center: .center, startRadius: 0, endRadius: 150))
-                .frame(width: 300, height: 300)
-                .offset(y: -200)
+            DesignSystem.Colors.logoGradient.ignoresSafeArea()
+
+            // Soft radial bloom
+            RadialGradient(
+                colors: [Color.white.opacity(0.35), .clear],
+                center: .top, startRadius: 20, endRadius: 500
+            )
+            .ignoresSafeArea()
+            .allowsHitTesting(false)
             
             VStack(spacing: 25) {
                 Spacer().frame(height: 30)
                 
                 // === LOGO & TITEL ===
-                VStack(spacing: 10) {
-                    Image(systemName: "mountain.2.fill")
-                        .font(.system(size: 60, design: .rounded))
-                        .foregroundColor(Color(red: 0.1, green: 0.5, blue: 0.95))
-                        .shadow(color: Color(red: 0.1, green: 0.5, blue: 0.95).opacity(0.3), radius: 10, y: 5)
-                    
+                VStack(spacing: 12) {
+                    Image("AscentLogo")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 110, height: 110)
+                        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+                        .shadow(color: .black.opacity(0.25), radius: 22, y: 12)
+
                     Text("ASCENT")
-                        .font(.system(size: 42, weight: .black, design: .rounded))
-                        .foregroundColor(.primary)
-                        .tracking(4)
-                    
+                        .font(.system(size: 40, weight: .black, design: .rounded))
+                        .foregroundColor(.white)
+                        .tracking(6)
+
                     Text(isRegistering ? "Join the Elite" : "Welcome back, Alpinist")
                         .font(.system(.subheadline, design: .rounded))
-                        .foregroundColor(.gray)
+                        .foregroundColor(.white.opacity(0.82))
                 }
                 
                 Spacer().frame(height: 20)
@@ -105,9 +110,9 @@ struct LoginView: View {
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
-                    .background(Color(red: 0.1, green: 0.5, blue: 0.95))
+                    .background(DesignSystem.Colors.accent)
                     .cornerRadius(12)
-                    .shadow(color: Color(red: 0.1, green: 0.5, blue: 0.95).opacity(0.3), radius: 10, y: 5)
+                    .shadow(color: DesignSystem.Colors.accent.opacity(0.3), radius: 10, y: 5)
                 }
                 .padding(.horizontal, 30)
                 .disabled(isLoading || email.isEmpty || password.isEmpty) // Button sperren, wenn Felder leer sind
@@ -147,7 +152,7 @@ struct LoginView: View {
                             .foregroundColor(.gray)
                         Text(isRegistering ? "Sign In" : "Register")
                             .fontWeight(.bold)
-                            .foregroundColor(Color(red: 0.1, green: 0.5, blue: 0.95))
+                            .foregroundColor(DesignSystem.Colors.accent)
                     }
                     .font(.system(.subheadline, design: .rounded))
                 }

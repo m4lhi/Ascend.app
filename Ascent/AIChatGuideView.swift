@@ -61,7 +61,7 @@ struct AIChatGuideView: View {
     @Environment(\.dismiss) var dismiss
     
     // Theming Colors
-    private let accentColor = Color(red: 0.1, green: 0.5, blue: 0.95) // Ascent Blue
+    private let accentColor = DesignSystem.Colors.accent // Ascent Blue
     private let botBgColor = Color(red: 0.92, green: 0.93, blue: 0.95) // Slate Grey
     
     var body: some View {

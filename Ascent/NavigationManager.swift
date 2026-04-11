@@ -286,7 +286,7 @@ struct NavigationHUDView: View {
     @ObservedObject var navManager: NavigationManager
     @Binding var isCollapsed: Bool
 
-    private let accentBlue = Color(red: 0.1, green: 0.5, blue: 0.95)
+    private let accentBlue = DesignSystem.Colors.accent
 
     var body: some View {
         if navManager.isNavigating, let instruction = navManager.currentInstruction {
