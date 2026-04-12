@@ -186,21 +186,30 @@ struct ElevationProfileView: View {
 
             // Chart
             if !profile.elevationData.isEmpty {
-                GeometryReader { geom in
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        chartView
-                            .frame(width: max(geom.size.width, geom.size.width * zoomScale))
-                            .frame(height: compact ? 120 : 200)
-                            .padding(.trailing, 14)
+                if compact {
+                    chartView
+                        .frame(height: 120)
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 8)
+                } else {
+                    GeometryReader { geom in
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            chartView
+                                .frame(width: max(geom.size.width, geom.size.width * zoomScale))
+                                .frame(height: 200)
+                                .padding(.trailing, 24)
+                                .padding(.leading, 12)
+                                .padding(.vertical, 12)
+                        }
+                        .gesture(
+                            MagnificationGesture()
+                                .onChanged { val in
+                                    zoomScale = max(1.0, min(5.0, val))
+                                }
+                        )
                     }
-                    .gesture(
-                        MagnificationGesture()
-                            .onChanged { val in
-                                zoomScale = max(1.0, min(5.0, val))
-                            }
-                    )
+                    .frame(height: 200)
                 }
-                .frame(height: compact ? 120 : 200)
             }
 
             // Segment legend
@@ -249,8 +258,10 @@ struct ElevationProfileView: View {
     }
 
     private var chartView: some View {
-        let baseAlt: Double = profile.minAltitude - 50
-        let topAlt: Double = profile.maxAltitude + 50
+        let altRange = profile.maxAltitude - profile.minAltitude
+        let pad = max(30, altRange * 0.15)
+        let baseAlt: Double = profile.minAltitude - pad
+        let topAlt: Double = profile.maxAltitude + pad
 
         return Chart {
             ForEach(profile.elevationData) { point in
@@ -313,21 +324,25 @@ struct ElevationProfileView: View {
         .chartXScale(domain: 0...(profile.totalDistance > 0 ? profile.totalDistance : 1))
         .chartYScale(domain: baseAlt...topAlt)
         .chartXAxis {
-            AxisMarks(position: .bottom) { value in
+            AxisMarks(position: .bottom, values: .automatic(desiredCount: compact ? 3 : 5)) { value in
                 AxisGridLine().foregroundStyle(.gray.opacity(0.1))
                 AxisValueLabel {
                     if let ds = value.as(Double.self) {
-                        Text(String(format: "%.0f km", ds)).font(.system(size: 10, design: .rounded))
+                        Text(String(format: "%.0f km", ds))
+                            .font(.system(size: 10, design: .rounded))
+                            .foregroundColor(.secondary)
                     }
                 }
             }
         }
         .chartYAxis {
-            AxisMarks(position: .leading) { value in
+            AxisMarks(position: .leading, values: .automatic(desiredCount: compact ? 3 : 4)) { value in
                 AxisGridLine().foregroundStyle(.gray.opacity(0.1))
                 AxisValueLabel {
                     if let alt = value.as(Double.self) {
-                        Text("\(Int(alt)) m").font(.system(size: 10, design: .rounded))
+                        Text("\(Int(alt)) m")
+                            .font(.system(size: 10, design: .rounded))
+                            .foregroundColor(.secondary)
                     }
                 }
             }

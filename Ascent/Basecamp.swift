@@ -177,9 +177,9 @@ struct BasecampView: View {
     // =========================================
     private var topBar: some View {
         ZStack(alignment: .topLeading) {
-            // Hero gradient background – logo palette
+            // Hero gradient background – logo palette but tinted with tier color for a customized feel
             RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .fill(DesignSystem.Colors.logoGradient)
+                .fill(LinearGradient(colors: [tierColor.opacity(0.8), Color(red: 0.06, green: 0.33, blue: 0.80)], startPoint: .topLeading, endPoint: .bottomTrailing))
                 .overlay(
                     // Soft bloom
                     RadialGradient(
@@ -192,14 +192,16 @@ struct BasecampView: View {
                     RoundedRectangle(cornerRadius: 28, style: .continuous)
                         .stroke(Color.white.opacity(0.18), lineWidth: 1)
                 )
-                .shadow(color: DesignSystem.Colors.accent.opacity(0.28), radius: 18, y: 10)
+                .shadow(color: tierColor.opacity(0.3), radius: 18, y: 10)
 
             VStack(alignment: .leading, spacing: 14) {
                 HStack(alignment: .center, spacing: 12) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Welcome back")
-                            .font(.system(size: 12, weight: .semibold, design: .rounded))
-                            .foregroundColor(.white.opacity(0.75))
+                        Text("Lvl \(appState.currentLevel) · \(appState.ascendProfile?.ascend_tier.uppercased() ?? "BRONZE")")
+                            .font(.system(size: 12, weight: .black, design: .rounded))
+                            .foregroundColor(tierColor.opacity(0.4))
+                            .blendMode(.screen)
+                            .colorMultiply(.white)
                             .tracking(1.2)
                         Text(appState.userName)
                             .font(.system(size: 22, weight: .bold, design: .rounded))
@@ -214,7 +216,9 @@ struct BasecampView: View {
                                 .frame(width: 46, height: 46)
                             Circle()
                                 .trim(from: 0, to: Double(appState.currentLevelProgressXP) / Double(max(appState.xpNeededForNextLevel, 1)))
-                                .stroke(Color.white, style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                                .stroke(tierColor.opacity(0.8), style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                                .blendMode(.screen)
+                                .colorMultiply(.white)
                                 .frame(width: 46, height: 46)
                                 .rotationEffect(.degrees(-90))
                             if let urlString = appState.avatarURL, let url = URL(string: urlString) {
@@ -226,7 +230,7 @@ struct BasecampView: View {
                                 .frame(width: 38, height: 38).clipShape(Circle())
                             } else {
                                 Circle().fill(Color.white).frame(width: 38, height: 38)
-                                    .overlay(Image(systemName: "person.fill").font(.system(size: 16)).foregroundColor(DesignSystem.Colors.accent))
+                                    .overlay(Image(systemName: "person.fill").font(.system(size: 16)).foregroundColor(tierColor))
                             }
                         }
                     }
@@ -234,9 +238,9 @@ struct BasecampView: View {
                 }
 
                 HStack(spacing: 10) {
-                    heroStatChip(icon: "bolt.fill", value: "\(appState.currentXP)", label: "XP")
-                    heroStatChip(icon: "arrow.up.right", value: "\(appState.weeklyElevation)m", label: "This week")
-                    heroStatChip(icon: "flame.fill", value: "\(appState.ascendProfile?.streak_days ?? 0)", label: "Streak")
+                    heroStatChip(icon: "bolt.fill", value: "\(appState.currentXP)", label: "XP", color: tierColor)
+                    heroStatChip(icon: "arrow.up.right", value: "\(appState.weeklyElevation)m", label: "This week", color: tierColor)
+                    heroStatChip(icon: "flame.fill", value: "\(appState.ascendProfile?.streak_days ?? 0)", label: "Streak", color: tierColor)
                 }
             }
             .padding(18)
@@ -245,7 +249,7 @@ struct BasecampView: View {
         .padding(.top, 4)
     }
 
-    private func heroStatChip(icon: String, value: String, label: String) -> some View {
+    private func heroStatChip(icon: String, value: String, label: String, color: Color) -> some View {
         HStack(spacing: 6) {
             Image(systemName: icon)
                 .font(.system(size: 11, weight: .bold))

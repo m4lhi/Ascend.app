@@ -309,6 +309,8 @@ struct TrophyRoomView: View {
     @State private var selectedAchievement: Achievement? = nil
     @State private var showAllAchievements = false
     @State private var selectedProfileTab: ProfileTab = .missions
+    @State private var showAllActivities = false
+    @State private var showAllSavedTours = false
 
     // Persisted widget order
     @AppStorage("profileWidgetOrder") private var widgetOrderRaw: String = "rank,equipment,logbook,achievements"
@@ -811,9 +813,21 @@ struct TrophyRoomView: View {
                         .padding(.vertical, 10)
                 } else {
                     VStack(spacing: 16) {
-                        ForEach(myTours) { tour in
+                        ForEach(myTours.prefix(3)) { tour in
                             ActivityCardView(tour: tour)
                                 .padding(.horizontal, 16)
+                        }
+                        if myTours.count > 3 {
+                            Button(action: { showAllActivities = true }) {
+                                Text("See All (\(myTours.count))")
+                                    .font(.system(.headline, design: .rounded))
+                                    .foregroundColor(gold)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 12)
+                                    .background(gold.opacity(0.1))
+                                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                                    .padding(.horizontal, 16)
+                            }
                         }
                     }
                 }
@@ -826,9 +840,21 @@ struct TrophyRoomView: View {
                         .padding(.vertical, 10)
                 } else {
                     VStack(spacing: 16) {
-                        ForEach(appState.bookmarkedTours) { tour in
+                        ForEach(appState.bookmarkedTours.prefix(3)) { tour in
                             ActivityCardView(tour: tour)
                                 .padding(.horizontal, 16)
+                        }
+                        if appState.bookmarkedTours.count > 3 {
+                            Button(action: { showAllSavedTours = true }) {
+                                Text("See All (\(appState.bookmarkedTours.count))")
+                                    .font(.system(.headline, design: .rounded))
+                                    .foregroundColor(.cyan)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 12)
+                                    .background(Color.cyan.opacity(0.1))
+                                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                                    .padding(.horizontal, 16)
+                            }
                         }
                     }
                 }
@@ -1960,6 +1986,7 @@ struct ProfileCollectionsList: View {
     @EnvironmentObject var appState: AppState
     @State private var showCreateSheet = false
     @StateObject private var tempManager = CollectionsManager()
+    @State private var selectedCollection: TourCollection?
 
     var body: some View {
         VStack(spacing: 24) {
@@ -1997,7 +2024,9 @@ struct ProfileCollectionsList: View {
             } else {
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
                     ForEach(appState.myCollections) { collection in
-                        CollectionCardView(collection: collection)
+                        CollectionCardView(collection: collection) {
+                            selectedCollection = collection
+                        }
                     }
                 }
                 .padding(.horizontal, 20)
@@ -2005,6 +2034,9 @@ struct ProfileCollectionsList: View {
         }
         .sheet(isPresented: $showCreateSheet) {
             CreateCollectionSheet(manager: tempManager)
+        }
+        .sheet(item: $selectedCollection) { collection in
+            CollectionDetailSheet(collection: collection, manager: tempManager)
         }
         .onChange(of: showCreateSheet) { _, isPresented in
             if !isPresented {
@@ -2084,3 +2116,35 @@ struct ProfileLayoutEditor: View {
         }
     }
 }
+
+struct FilteredActivitiesView: View {
+    @Environment(\.dismiss) var dismiss
+    let title: String
+    let tours: [Tour]
+    var body: some View {
+        NavigationView {
+            ZStack {
+                Color(red: 0.945, green: 0.945, blue: 0.96).ignoresSafeArea()
+                ScrollView {
+                    LazyVStack(spacing: 12) {
+                        ForEach(tours) { tour in
+                            ActivityCardView(tour: tour)
+                                .padding(.horizontal, 16)
+                        }
+                    }
+                    .padding(.vertical, 20)
+                }
+            }
+            .navigationTitle(title)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(action: { dismiss() }) {
+                        Image(systemName: "xmark.circle.fill").font(.system(size: 24)).foregroundColor(.gray)
+                    }
+                }
+            }
+        }
+    }
+}
+
