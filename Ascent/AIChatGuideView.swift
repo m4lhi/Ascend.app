@@ -8,8 +8,8 @@ import Supabase
 // =========================================
 
 // MARK: - Models
-struct AIChatMessage: Identifiable {
-    let id = UUID()
+struct AIChatMessage: Identifiable, Codable, Equatable {
+    var id = UUID()
     let text: String
     let isUser: Bool
     let timestamp: Date
@@ -18,16 +18,18 @@ struct AIChatMessage: Identifiable {
 // MARK: - ViewModel (API Readiness)
 @MainActor
 class AIChatViewModel: ObservableObject {
-    @Published var messages: [AIChatMessage] = [
-        AIChatMessage(text: "Hello! I'm your Ascent Guide. Ask me about gear, your training plan, or specific mountains!", isUser: false, timestamp: Date())
-    ]
+    static let shared = AIChatViewModel()
+    
+    @Published var messages: [AIChatMessage] = []
+    
     @Published var inputText: String = ""
     @Published var isTyping: Bool = false
     @Published var messagesLeftToday: Int = 30
     
-    private let maxMessagesPerDay = 30
+    private let maxMessagesPerDay = 50
     private let lastMessageDateKey = "AIChatLastMessageDate"
     private let messageCountKey = "AIChatMessageCount"
+    private let messagesStorageKey = "AIChatMessagesV2"
     
     // !!! WICHTIG: Hier deinen echten API Key eintragen !!!
     // (Oder lass ihn von Supabase / einem sicheren Backend laden)
@@ -35,6 +37,31 @@ class AIChatViewModel: ObservableObject {
 
     init() {
         loadUsageLimit()
+        loadMessages()
+    }
+    
+    func clearHistory() {
+        messages = [AIChatMessage(text: "Hello! I'm your Ascent Guide. What's your next mission?", isUser: false, timestamp: Date())]
+        saveMessages()
+    }
+    
+    private func loadMessages() {
+        if let data = UserDefaults.standard.data(forKey: messagesStorageKey),
+           let saved = try? JSONDecoder().decode([AIChatMessage].self, from: data) {
+            self.messages = saved
+        }
+        if self.messages.isEmpty {
+            self.messages = [
+                AIChatMessage(text: "Hello! I'm your Ascent Guide. What's your next mission?", isUser: false, timestamp: Date())
+            ]
+            saveMessages()
+        }
+    }
+    
+    private func saveMessages() {
+        if let data = try? JSONEncoder().encode(messages) {
+            UserDefaults.standard.set(data, forKey: messagesStorageKey)
+        }
     }
     
     func loadUsageLimit() {
@@ -78,6 +105,7 @@ class AIChatViewModel: ObservableObject {
         
         let userMessage = AIChatMessage(text: trimmed, isUser: true, timestamp: Date())
         messages.append(userMessage)
+        saveMessages()
         inputText = ""
         isTyping = true
         incrementUsage()
@@ -149,6 +177,7 @@ class AIChatViewModel: ObservableObject {
             withAnimation {
                 self.isTyping = false
                 self.messages.append(botMessage)
+                self.saveMessages()
             }
             return
         }
@@ -223,6 +252,7 @@ class AIChatViewModel: ObservableObject {
         withAnimation {
             self.isTyping = false
             self.messages.append(errorMessage)
+            self.saveMessages()
         }
     }
 }
@@ -230,7 +260,7 @@ class AIChatViewModel: ObservableObject {
 // MARK: - Main Presentational View
 struct AIChatGuideView: View {
     @EnvironmentObject var appState: AppState
-    @StateObject private var viewModel = AIChatViewModel()
+    @StateObject private var viewModel = AIChatViewModel.shared
     @Environment(\.dismiss) var dismiss
     
     var isEmbedded: Bool = false

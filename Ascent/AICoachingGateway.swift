@@ -668,6 +668,14 @@ struct AICoachingGatewayView: View {
                 }
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ResetAICoach"))) { _ in
+            withAnimation(CT.Springs.soft) {
+                vm.data = OnboardingData()
+                vm.plan = nil
+                vm.step = 0
+                AIChatViewModel.shared.clearHistory()
+            }
+        }
     }
 
     private var stepTransition: AnyTransition {
@@ -1160,7 +1168,39 @@ struct CoachingMapView: View {
                         gearCard
                             .padding(.horizontal, 16)
                             .padding(.top, 24)
+                            .padding(.bottom, 20)
+                            
+                        if plan.stations.allSatisfy({ $0.isCompleted }) {
+                            Button(action: {
+                                CoachingViewModel.clearSavedData()
+                                NotificationCenter.default.post(name: NSNotification.Name("ResetAICoach"), object: nil)
+                            }) {
+                                HStack {
+                                    Image(systemName: "flag.checkered")
+                                    Text("Start New Objective")
+                                }
+                                .font(.system(size: 16, weight: .bold, design: .rounded))
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 16)
+                                .background(CT.Gradients.cta)
+                                .clipShape(RoundedRectangle(cornerRadius: CT.Radius.card, style: .continuous))
+                                .ctShadow(CT.Shadows.glow)
+                            }
+                            .buttonStyle(PressableButtonStyle())
+                            .padding(.horizontal, 16)
                             .padding(.bottom, 40)
+                        } else {
+                            Button(action: {
+                                CoachingViewModel.clearSavedData()
+                                NotificationCenter.default.post(name: NSNotification.Name("ResetAICoach"), object: nil)
+                            }) {
+                                Text("Abandon & start new plan")
+                                    .font(CT.Typo.label(13))
+                                    .foregroundColor(.secondary)
+                            }
+                            .padding(.bottom, 40)
+                        }
                     }
                 }
             }
