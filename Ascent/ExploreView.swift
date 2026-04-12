@@ -281,6 +281,20 @@ struct ExploreView: View {
             Text("Please enable location services for Ascend in your iPhone Settings to use this feature.")
         }
         .preferredColorScheme(.light)
+        .onChange(of: appState.exploreSelectedMountain) { _, mt in
+            if let target = mt {
+                selectedMountain = target
+                selectedMarkerTag = target.id
+                appState.exploreSelectedMountain = nil // Reset state after consumption
+            }
+        }
+        .onChange(of: appState.exploreSearchQuery) { _, query in
+            if let q = query {
+                searchText = q
+                isSearchFocused = true
+                appState.exploreSearchQuery = nil
+            }
+        }
     }
 
     @ViewBuilder

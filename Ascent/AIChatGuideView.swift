@@ -1,5 +1,6 @@
 import SwiftUI
 import Combine
+import Supabase
 
 // =========================================
 // === DATEI: AIChatGuideView.swift ===
@@ -7,8 +8,8 @@ import Combine
 // =========================================
 
 // MARK: - Models
-struct AIChatMessage: Identifiable {
-    let id = UUID()
+struct AIChatMessage: Identifiable, Codable, Equatable {
+    var id = UUID()
     let text: String
     let isUser: Bool
     let timestamp: Date
@@ -17,16 +18,18 @@ struct AIChatMessage: Identifiable {
 // MARK: - ViewModel (API Readiness)
 @MainActor
 class AIChatViewModel: ObservableObject {
-    @Published var messages: [AIChatMessage] = [
-        AIChatMessage(text: "Hello! I'm your Ascent Guide. Ask me about gear, your training plan, or specific mountains!", isUser: false, timestamp: Date())
-    ]
+    static let shared = AIChatViewModel()
+    
+    @Published var messages: [AIChatMessage] = []
+    
     @Published var inputText: String = ""
     @Published var isTyping: Bool = false
     @Published var messagesLeftToday: Int = 30
     
-    private let maxMessagesPerDay = 30
+    private let maxMessagesPerDay = 50
     private let lastMessageDateKey = "AIChatLastMessageDate"
     private let messageCountKey = "AIChatMessageCount"
+    private let messagesStorageKey = "AIChatMessagesV2"
     
     // !!! WICHTIG: Hier deinen echten API Key eintragen !!!
     // (Oder lass ihn von Supabase / einem sicheren Backend laden)
@@ -34,6 +37,31 @@ class AIChatViewModel: ObservableObject {
 
     init() {
         loadUsageLimit()
+        loadMessages()
+    }
+    
+    func clearHistory() {
+        messages = [AIChatMessage(text: "Hello! I'm your Ascent Guide. What's your next mission?", isUser: false, timestamp: Date())]
+        saveMessages()
+    }
+    
+    private func loadMessages() {
+        if let data = UserDefaults.standard.data(forKey: messagesStorageKey),
+           let saved = try? JSONDecoder().decode([AIChatMessage].self, from: data) {
+            self.messages = saved
+        }
+        if self.messages.isEmpty {
+            self.messages = [
+                AIChatMessage(text: "Hello! I'm your Ascent Guide. What's your next mission?", isUser: false, timestamp: Date())
+            ]
+            saveMessages()
+        }
+    }
+    
+    private func saveMessages() {
+        if let data = try? JSONEncoder().encode(messages) {
+            UserDefaults.standard.set(data, forKey: messagesStorageKey)
+        }
     }
     
     func loadUsageLimit() {
@@ -77,6 +105,7 @@ class AIChatViewModel: ObservableObject {
         
         let userMessage = AIChatMessage(text: trimmed, isUser: true, timestamp: Date())
         messages.append(userMessage)
+        saveMessages()
         inputText = ""
         isTyping = true
         incrementUsage()
@@ -90,8 +119,9 @@ class AIChatViewModel: ObservableObject {
             - Age: \(savedOnb.age), Height: \(savedOnb.heightCm)cm, Weight: \(savedOnb.weightKg)kg
             - Endurance: \(savedOnb.endurance.rawValue), VO2Max: \(savedOnb.vo2max > 0 ? String(savedOnb.vo2max) : "Unknown")
             - Training Volume: \(savedOnb.sessionsPerWeek) sessions/week (\(savedOnb.minutesPerSession) min/session)
-            - Base Goal: \(savedOnb.goalName.isEmpty ? "Not set" : savedOnb.goalName) in \(savedOnb.desiredMonths) months
+            - Present Goal: \(savedOnb.goalName.isEmpty ? "Not set" : savedOnb.goalName) (Timeline: \(savedOnb.desiredMonths) months)
             - Experience: \(savedOnb.experience.map { $0.rawValue }.joined(separator: ", ")), Glacier Exp: \(savedOnb.hasGlacierExperience)
+            - Previously Completed Roadmaps (Past Goals): \(savedOnb.pastCompletedGoals.isEmpty ? "None" : savedOnb.pastCompletedGoals.joined(separator: " -> "))
             
             """
         }
@@ -127,6 +157,9 @@ class AIChatViewModel: ObservableObject {
         2. FOCUS: Only answer questions related to alpinism, hiking, fitness, mountains, and gear. If the user asks about programming, politics, cooking, or other unrelated topics, politely decline and steer the conversation back to the mountains.
         3. STYLE: Keep answers concise, highly specific, and actionable. Reference their fitness, roadmap, and gear if relevant. Keep markdown formatting clean and minimal.
         4. COACHING AWARENESS: You are fully aware of their generated roadmap above. If they ask "what should I do next?" or "what gear do I need?", look at their [TODO] stations, their overall objective, and their gear list.
+        5. MOUNTAIN DEEP LINKING: Whenever you recommend or mention a specific real-world mountain to climb or explore (e.g. Zugspitze, Matterhorn, Mont Blanc), format it exactly as a Markdown link using the custom scheme 'ascent://mountain/NAME'. CRITICAL: You MUST replace any spaces in the URL part with '%20'.
+        Good Example: You should explore the [Mont Blanc](ascent://mountain/Mont%20Blanc) to prepare.
+        Make it very naturally woven into the sentence.
         """
         
         let history = messages // Capture the chat history
@@ -145,6 +178,7 @@ class AIChatViewModel: ObservableObject {
             withAnimation {
                 self.isTyping = false
                 self.messages.append(botMessage)
+                self.saveMessages()
             }
             return
         }
@@ -219,6 +253,7 @@ class AIChatViewModel: ObservableObject {
         withAnimation {
             self.isTyping = false
             self.messages.append(errorMessage)
+            self.saveMessages()
         }
     }
 }
@@ -226,7 +261,7 @@ class AIChatViewModel: ObservableObject {
 // MARK: - Main Presentational View
 struct AIChatGuideView: View {
     @EnvironmentObject var appState: AppState
-    @StateObject private var viewModel = AIChatViewModel()
+    @StateObject private var viewModel = AIChatViewModel.shared
     @Environment(\.dismiss) var dismiss
     
     var isEmbedded: Bool = false
@@ -256,6 +291,25 @@ struct AIChatGuideView: View {
                 }
             }
         }
+        .environment(\.openURL, OpenURLAction { url in
+            if url.scheme == "ascent", url.host == "mountain", let name = url.pathComponents.last?.removingPercentEncoding { // e.g. ascent://mountain/Zugspitze
+                Task {
+                    if let mt: Mountain = try? await supabase.from("mountains")
+                        .select("*, routes:mountain_routes(*)")
+                        .eq("name", value: name)
+                        .limit(1)
+                        .single()
+                        .execute().value {
+                        DispatchQueue.main.async {
+                            dismiss()
+                            appState.exploreSelectedMountain = mt
+                        }
+                    }
+                }
+                return .handled
+            }
+            return .systemAction
+        })
     }
     
     private var chatContent: some View {

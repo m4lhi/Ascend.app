@@ -39,38 +39,41 @@ struct ContentView: View {
                 }
             }
             .transition(.opacity)
-
-            CustomTabBar(selectedTab: $selectedTab, showTracker: $appState.isTrackerActive)
             
-            // Smart Floating Action Button (AI Guide) – nur auf Basecamp
-            if selectedTab == 0 {
-                VStack {
-                    Spacer()
-                    HStack {
+            // Custom Tab Bar overlay
+            if !appState.isTrackerActive {
+                CustomTabBar(selectedTab: $selectedTab, showTracker: $appState.isTrackerActive)
+                
+                // Smart Floating Action Button (AI Guide) – nur auf Basecamp
+                if selectedTab == 0 {
+                    VStack {
                         Spacer()
-                        Button(action: {
-                            HapticManager.shared.light()
-                            showCoachingGateway = true
-                        }) {
-                            Image(systemName: "sparkles")
-                                .font(.system(size: appState.isFABVisible ? 24 : 16, weight: .bold))
-                                .foregroundColor(.white)
-                                .frame(
-                                    width: appState.isFABVisible ? 56 : 36,
-                                    height: appState.isFABVisible ? 56 : 36
-                                )
-                                .background(
-                                    Circle().fill(DesignSystem.Colors.logoGradient)
-                                )
-                                .shadow(color: DesignSystem.Colors.accent.opacity(appState.isFABVisible ? 0.45 : 0.15), radius: appState.isFABVisible ? 14 : 4, y: 6)
-                                .opacity(appState.isFABVisible ? 1 : 0.45)
+                        HStack {
+                            Spacer()
+                            Button(action: {
+                                HapticManager.shared.light()
+                                showCoachingGateway = true
+                            }) {
+                                Image(systemName: "sparkles")
+                                    .font(.system(size: appState.isFABVisible ? 24 : 16, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .frame(
+                                        width: appState.isFABVisible ? 56 : 36,
+                                        height: appState.isFABVisible ? 56 : 36
+                                    )
+                                    .background(
+                                        Circle().fill(DesignSystem.Colors.logoGradient)
+                                    )
+                                    .shadow(color: DesignSystem.Colors.accent.opacity(appState.isFABVisible ? 0.45 : 0.15), radius: appState.isFABVisible ? 14 : 4, y: 6)
+                                    .opacity(appState.isFABVisible ? 1 : 0.45)
+                            }
+                            .padding(.trailing, 20)
+                            .padding(.bottom, 120)
+                            .animation(.spring(response: 0.35, dampingFraction: 0.75), value: appState.isFABVisible)
                         }
-                        .padding(.trailing, 20)
-                        .padding(.bottom, 120)
-                        .animation(.spring(response: 0.35, dampingFraction: 0.75), value: appState.isFABVisible)
                     }
+                    .transition(.opacity)
                 }
-                .transition(.opacity)
             }
 
             // --- Live Tracker Overlay (Full Screen & Mini Player) ---
@@ -116,6 +119,16 @@ struct ContentView: View {
             withAnimation(.easeOut(duration: 0.2)) {
                 appState.isFABVisible = true
             }
+        }
+        .onChange(of: appState.exploreSelectedMountain) { _, newMountain in
+            if newMountain != nil {
+                showAIChat = false
+                showCoachingGateway = false
+                selectedTab = 1
+            }
+        }
+        .sheet(isPresented: $showAIChat) {
+            AIChatGuideView()
         }
     }
 }
@@ -197,4 +210,3 @@ struct TabBarIcon: View {
         .buttonStyle(PressableButtonStyle())
     }
 }
-

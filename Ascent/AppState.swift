@@ -391,6 +391,10 @@ class AppState: ObservableObject {
 
     // FAB Visibility (driven by scroll direction in child views)
     @Published var isFABVisible: Bool = true
+    
+    // Explicit navigation triggers
+    @Published var exploreSelectedMountain: Mountain? = nil
+    @Published var exploreSearchQuery: String? = nil
 
     // Pagination
     @Published var isLoadingMoreFeed: Bool = false
