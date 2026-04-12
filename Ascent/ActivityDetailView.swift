@@ -111,18 +111,23 @@ struct ActivityDetailView: View {
             
             // Bottom Stats Overlay
             VStack(spacing: 12) {
-                // Simulated Elevation Profile (Fake data since we don't have full 3D points here atm)
-                HStack(alignment: .bottom, spacing: 2) {
-                    ForEach(0..<40, id: \.self) { i in
-                        let height = abs(sin(Double(i) * 0.2)) * 40 + Double.random(in: 10...20)
-                        Rectangle()
-                            .fill(accent.opacity(0.8))
-                            .frame(width: 6, height: CGFloat(height))
-                            .cornerRadius(3)
+                if !tour.routeLocations.isEmpty {
+                    ElevationProfileView(routePoints: tour.routeLocations, compact: true)
+                        .padding(.top, 10)
+                } else {
+                    // Simulated Elevation Profile Fallback
+                    HStack(alignment: .bottom, spacing: 2) {
+                        ForEach(0..<40, id: \.self) { i in
+                            let height = abs(sin(Double(i) * 0.2)) * 40 + Double.random(in: 10...20)
+                            Rectangle()
+                                .fill(accent.opacity(0.8))
+                                .frame(width: 6, height: CGFloat(height))
+                                .cornerRadius(3)
+                        }
                     }
+                    .frame(height: 60)
+                    .padding(.top, 10)
                 }
-                .frame(height: 60)
-                .padding(.top, 10)
                 
                 HStack {
                     Spacer()
