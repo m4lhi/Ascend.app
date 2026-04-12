@@ -394,6 +394,7 @@ class AppState: ObservableObject {
     
     // Explicit navigation triggers
     @Published var exploreSelectedMountain: Mountain? = nil
+    @Published var exploreSearchQuery: String? = nil
 
     // Pagination
     @Published var isLoadingMoreFeed: Bool = false

@@ -121,6 +121,7 @@ class AIChatViewModel: ObservableObject {
             - Training Volume: \(savedOnb.sessionsPerWeek) sessions/week (\(savedOnb.minutesPerSession) min/session)
             - Base Goal: \(savedOnb.goalName.isEmpty ? "Not set" : savedOnb.goalName) in \(savedOnb.desiredMonths) months
             - Experience: \(savedOnb.experience.map { $0.rawValue }.joined(separator: ", ")), Glacier Exp: \(savedOnb.hasGlacierExperience)
+            - Past AI Conquests: \(savedOnb.pastCompletedGoals.isEmpty ? "None yet" : savedOnb.pastCompletedGoals.joined(separator: ", "))
             
             """
         }

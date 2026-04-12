@@ -79,6 +79,7 @@ struct OnboardingData: Codable {
     var sessionsPerWeek: Int = 3
     var minutesPerSession: Int = 60
     var acceptedSafetyCommitment: Bool = false
+    var pastCompletedGoals: [String] = []
 
     // Convenience to check experience as before
     func hasExperience(_ level: ExperienceLevel) -> Bool {
@@ -399,7 +400,7 @@ final class CoachingViewModel: ObservableObject {
         var result: [CoachStation] = []
         let needsGlacier = goalElevation(for: goal) > 4000
         let highAltitude = goalElevation(for: goal) > 5500
-        let progression = hikeProgression(for: goal, localMts: localMts)
+        let progression = hikeProgression(for: goal, localMts: availableMts)
 
         func reason(_ tmpl: String) -> String { tmpl }
 
@@ -668,12 +669,40 @@ struct AICoachingGatewayView: View {
                 }
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ResetAICoach"))) { _ in
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("SearchMountainInExplore"))) { notif in
+            if let query = notif.object as? String {
+                dismiss()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    appState.exploreSearchQuery = query
+                }
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ResetAICoach"))) { notif in
+            let isCompleted = notif.object as? Bool ?? false
             withAnimation(CT.Springs.soft) {
-                vm.data = OnboardingData()
+                var newData = vm.data
+                if isCompleted, let goal = vm.plan?.goalName {
+                    newData.pastCompletedGoals.append(goal)
+                    let elev = CoachingViewModel.goalElevation(for: goal)
+                    if elev >= 4000 { newData.hasGlacierExperience = true }
+                    if !newData.experience.contains(.alpineCourse) { newData.experience.append(.alpineCourse) }
+                }
+                
+                // Clear state, but keep user metrics for convenience
+                newData.goalName = ""
+                newData.acceptedSafetyCommitment = false
+                
+                vm.data = newData
                 vm.plan = nil
-                vm.step = 0
+                // Jump straight to goal selection if we have basic data already!
+                vm.step = 3 
+                vm.saveToDefaults()
+                
                 AIChatViewModel.shared.clearHistory()
+                if isCompleted {
+                    let congrats = AIChatMessage(text: "Congratulations on conquering \(newData.pastCompletedGoals.last ?? "your objective")! Your base skills have leveled up. What massive peak shall we tackle next?", isUser: false, timestamp: Date())
+                    AIChatViewModel.shared.messages = [congrats]
+                }
             }
         }
     }
@@ -1172,8 +1201,7 @@ struct CoachingMapView: View {
                             
                         if plan.stations.allSatisfy({ $0.isCompleted }) {
                             Button(action: {
-                                CoachingViewModel.clearSavedData()
-                                NotificationCenter.default.post(name: NSNotification.Name("ResetAICoach"), object: nil)
+                                NotificationCenter.default.post(name: NSNotification.Name("ResetAICoach"), object: true)
                             }) {
                                 HStack {
                                     Image(systemName: "flag.checkered")
@@ -1192,8 +1220,7 @@ struct CoachingMapView: View {
                             .padding(.bottom, 40)
                         } else {
                             Button(action: {
-                                CoachingViewModel.clearSavedData()
-                                NotificationCenter.default.post(name: NSNotification.Name("ResetAICoach"), object: nil)
+                                NotificationCenter.default.post(name: NSNotification.Name("ResetAICoach"), object: false)
                             }) {
                                 Text("Abandon & start new plan")
                                     .font(CT.Typo.label(13))
@@ -1601,6 +1628,24 @@ private struct StationDetailSheet: View {
                     .padding(.vertical, 14)
                     .frame(maxWidth: .infinity)
                     .background(Color.blue)
+                    .cornerRadius(CT.Radius.card)
+                    .padding(.bottom, 6)
+                }
+            } else if [.hike, .summit].contains(station.kind) {
+                let cleanName = station.title.replacingOccurrences(of: "Prep: ", with: "").replacingOccurrences(of: "Summit: ", with: "")
+                Button(action: {
+                    dismiss()
+                    NotificationCenter.default.post(name: NSNotification.Name("SearchMountainInExplore"), object: cleanName)
+                }) {
+                    HStack {
+                        Image(systemName: "magnifyingglass")
+                        Text("Search Peak in Map")
+                    }
+                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .foregroundColor(CT.Colors.accent)
+                    .padding(.vertical, 14)
+                    .frame(maxWidth: .infinity)
+                    .background(CT.Colors.accent.opacity(0.12))
                     .cornerRadius(CT.Radius.card)
                     .padding(.bottom, 6)
                 }

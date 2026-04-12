@@ -288,6 +288,13 @@ struct ExploreView: View {
                 appState.exploreSelectedMountain = nil // Reset state after consumption
             }
         }
+        .onChange(of: appState.exploreSearchQuery) { _, query in
+            if let q = query {
+                searchText = q
+                isSearchFocused = true
+                appState.exploreSearchQuery = nil
+            }
+        }
     }
 
     @ViewBuilder
