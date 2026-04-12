@@ -1,5 +1,6 @@
 import SwiftUI
 import Combine
+import Supabase
 
 // =========================================
 // === DATEI: AIChatGuideView.swift ===
@@ -127,6 +128,7 @@ class AIChatViewModel: ObservableObject {
         2. FOCUS: Only answer questions related to alpinism, hiking, fitness, mountains, and gear. If the user asks about programming, politics, cooking, or other unrelated topics, politely decline and steer the conversation back to the mountains.
         3. STYLE: Keep answers concise, highly specific, and actionable. Reference their fitness, roadmap, and gear if relevant. Keep markdown formatting clean and minimal.
         4. COACHING AWARENESS: You are fully aware of their generated roadmap above. If they ask "what should I do next?" or "what gear do I need?", look at their [TODO] stations, their overall objective, and their gear list.
+        5. MOUNTAIN DEEP LINKING: Whenever you recommend or mention a specific real-world mountain to climb or explore (e.g. Zugspitze, Matterhorn, Mont Blanc), format it exactly as a Markdown link using the custom scheme 'ascent://mountain/NAME' where NAME is the exact peak name. Example: You should explore the [Zugspitze](ascent://mountain/Zugspitze) to prepare. Make it very naturally woven into the sentence.
         """
         
         let history = messages // Capture the chat history
@@ -256,6 +258,25 @@ struct AIChatGuideView: View {
                 }
             }
         }
+        .environment(\.openURL, OpenURLAction { url in
+            if url.scheme == "ascent", url.host == "mountain", let name = url.pathComponents.last?.removingPercentEncoding { // e.g. ascent://mountain/Zugspitze
+                Task {
+                    if let mt: Mountain = try? await supabase.from("mountains")
+                        .select("*, routes:mountain_routes(*)")
+                        .eq("name", value: name)
+                        .limit(1)
+                        .single()
+                        .execute().value {
+                        DispatchQueue.main.async {
+                            dismiss()
+                            NotificationCenter.default.post(name: NSNotification.Name("OpenMountainInTracker"), object: mt)
+                        }
+                    }
+                }
+                return .handled
+            }
+            return .systemAction
+        })
     }
     
     private var chatContent: some View {

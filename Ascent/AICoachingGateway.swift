@@ -1,5 +1,6 @@
 import SwiftUI
 import Combine
+import Supabase
 
 // =========================================
 // === DATEI: AICoachingGateway.swift ===
@@ -44,6 +45,7 @@ struct CoachStation: Identifiable, Codable {
     let kind: StationKind
     let phase: PlanPhase
     let elevationGain: Int
+    var mountainId: UUID? = nil
     var isCompleted: Bool
     var isUnlocked: Bool
     var isRealTour: Bool         // tour tracked in Health/feed (gold marker)
@@ -207,13 +209,13 @@ final class CoachingViewModel: ObservableObject {
 
     func next() {
         HapticManager.shared.light()
-        withAnimation(CT.Springs.soft) {
-            if step < totalSteps - 1 {
-                step += 1
-            } else {
-                generatePlan()
+        if step < totalSteps - 1 {
+            withAnimation(CT.Springs.soft) { step += 1 }
+        } else {
+            Task {
+                await generatePlan()
                 saveToDefaults()
-                step = totalSteps
+                withAnimation(CT.Springs.soft) { step = totalSteps }
             }
         }
     }
@@ -227,7 +229,7 @@ final class CoachingViewModel: ObservableObject {
 
     // MARK: Plan generation (personalized)
 
-    func generatePlan() {
+    func generatePlan() async {
         let goal = data.goalName.isEmpty ? "Mont Blanc" : data.goalName
         let requested = max(1, data.desiredMonths)
         let baseMonths = Self.baseMonths(for: goal)
@@ -257,7 +259,16 @@ final class CoachingViewModel: ObservableObject {
         let adjusted = safeMonths > requested
 
         let region = MountainRegion.infer(from: data.location)
-        let stations = Self.buildStations(for: goal, region: region, months: safeMonths, data: data)
+        
+        var availableMts: [Mountain] = []
+        if let mts = try? await supabase.from("mountains")
+            .select("*, routes:mountain_routes(*)")
+            .limit(200) // basic sampling to map fallbacks
+            .execute().value as? [Mountain] {
+            availableMts = mts
+        }
+
+        let stations = Self.buildStations(for: goal, region: region, months: safeMonths, data: data, localMts: availableMts)
         let gear = Self.buildGear(goal: goal, region: region)
         let headline = Self.headline(goal: goal, months: safeMonths, data: data)
 
@@ -313,9 +324,10 @@ final class CoachingViewModel: ObservableObject {
         let name: String
         let elevation: Int
         let subtitle: String
+        var mountainId: UUID? = nil
     }
 
-    static func hikeProgression(for goal: String) -> [HikePeak] {
+    static func hikeProgression(for goal: String, localMts: [Mountain]) -> [HikePeak] {
         let g = goal.lowercased()
         if g.contains("mont blanc") {
             return [
@@ -360,24 +372,34 @@ final class CoachingViewModel: ObservableObject {
         }
         // Generic fallback by elevation
         let elev = goalElevation(for: goal)
+        let sortedLocal = localMts.sorted { $0.elevation < $1.elevation }
+        
+        func matchPeak(_ targetElev: Int, fallbackName: String) -> HikePeak {
+            if let best = sortedLocal.min(by: { abs($0.elevation - targetElev) < abs($1.elevation - targetElev) }),
+               abs(best.elevation - targetElev) < 1500 {
+                return HikePeak(name: best.name, elevation: best.elevation, subtitle: "\(best.elevation) m · Found in \(best.region)", mountainId: best.id)
+            }
+            return HikePeak(name: fallbackName, elevation: targetElev, subtitle: "\(targetElev) m · Foundation hike", mountainId: nil)
+        }
+
         if elev > 5500 {
             return [
-                HikePeak(name: "Regional Peak (easy)", elevation: Int(Double(elev) * 0.35), subtitle: "\(Int(Double(elev) * 0.35)) m · Foundation hike"),
-                HikePeak(name: "Regional Peak (moderate)", elevation: Int(Double(elev) * 0.55), subtitle: "\(Int(Double(elev) * 0.55)) m · Build endurance"),
-                HikePeak(name: "Regional Peak (hard)", elevation: Int(Double(elev) * 0.8), subtitle: "\(Int(Double(elev) * 0.8)) m · Dress rehearsal"),
+                matchPeak(Int(Double(elev) * 0.35), fallbackName: "Regional Peak (easy)"),
+                matchPeak(Int(Double(elev) * 0.55), fallbackName: "Regional Peak (moderate)"),
+                matchPeak(Int(Double(elev) * 0.8), fallbackName: "Regional Peak (hard)")
             ]
         }
         return [
-            HikePeak(name: "Local Trail", elevation: max(400, elev / 4), subtitle: "\(max(400, elev / 4)) m · Foundation hike"),
-            HikePeak(name: "Regional Peak", elevation: max(800, elev / 2), subtitle: "\(max(800, elev / 2)) m · Endurance builder"),
+            matchPeak(max(400, elev / 4), fallbackName: "Local Trail"),
+            matchPeak(max(800, elev / 2), fallbackName: "Regional Peak")
         ]
     }
 
-    static func buildStations(for goal: String, region: MountainRegion, months: Int, data: OnboardingData) -> [CoachStation] {
+    static func buildStations(for goal: String, region: MountainRegion, months: Int, data: OnboardingData, localMts: [Mountain]) -> [CoachStation] {
         var result: [CoachStation] = []
         let needsGlacier = goalElevation(for: goal) > 4000
         let highAltitude = goalElevation(for: goal) > 5500
-        let progression = hikeProgression(for: goal)
+        let progression = hikeProgression(for: goal, localMts: localMts)
 
         func reason(_ tmpl: String) -> String { tmpl }
 
@@ -636,6 +658,17 @@ struct AICoachingGatewayView: View {
         .onChange(of: vm.plan?.stations.count ?? 0) { _, newValue in
             if newValue > 0 {
                 vm.applyRealTourMatching(appState.recentTours)
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("OpenMountainInTracker"))) { notif in
+            if let mountain = notif.object as? Mountain {
+                dismiss() // Close entirely
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    appState.activeMountain = mountain
+                    withAnimation {
+                        appState.isTrackerActive = true
+                    }
+                }
             }
         }
     }
@@ -1505,6 +1538,37 @@ private struct StationDetailSheet: View {
 
             Spacer()
             
+            if let targetId = station.mountainId {
+                Button(action: {
+                    Task {
+                        // Fetch mountain directly from DB to open in map
+                        if let mountain: Mountain = try? await supabase.from("mountains")
+                            .select("*, routes:mountain_routes(*)")
+                            .eq("id", value: targetId)
+                            .single()
+                            .execute().value {
+                            
+                            DispatchQueue.main.async {
+                                dismiss()
+                                NotificationCenter.default.post(name: NSNotification.Name("OpenMountainInTracker"), object: mountain)
+                            }
+                        }
+                    }
+                }) {
+                    HStack {
+                        Image(systemName: "map.fill")
+                        Text("Open Peak in Explorer Map")
+                    }
+                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .foregroundColor(.white)
+                    .padding(.vertical, 14)
+                    .frame(maxWidth: .infinity)
+                    .background(Color.blue)
+                    .cornerRadius(CT.Radius.card)
+                    .padding(.bottom, 6)
+                }
+            }
+            
             if [.strength, .endurance, .technique, .glacier].contains(station.kind) {
                 Button(action: {
                     dismiss()
@@ -1531,7 +1595,7 @@ private struct StationDetailSheet: View {
                 onComplete()
                 dismiss()
             }) {
-                Text(station.isCompleted ? "Completed" : "Mark as done manually")
+                Text(station.isCompleted ? "Completed" : (station.mountainId != nil ? "Mark done (Unverified)" : "Mark as done manually"))
                     .font(.system(size: 16, weight: .bold, design: .rounded))
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
