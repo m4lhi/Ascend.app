@@ -138,6 +138,23 @@ struct RouteEncoder {
             return CLLocationCoordinate2D(latitude: point[0], longitude: point[1])
         }
     }
+
+    /// Decode a JSON polyline string back into CLLocation including altitude
+    static func decodeWithAltitude(_ polyline: String) -> [CLLocation] {
+        guard let data = polyline.data(using: .utf8),
+              let arr = try? JSONSerialization.jsonObject(with: data) as? [[Double]] else { return [] }
+        return arr.compactMap { point in
+            guard point.count >= 2 else { return nil }
+            let lat = point[0]
+            let lon = point[1]
+            let alt = point.count >= 3 ? point[2] : 0
+            return CLLocation(coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon),
+                              altitude: alt,
+                              horizontalAccuracy: 0,
+                              verticalAccuracy: 0,
+                              timestamp: Date())
+        }
+    }
 }
 
 struct PauseEntry: Codable, Identifiable {
@@ -180,6 +197,7 @@ struct Tour: Identifiable {
     var commentCount: Int = 0
     var isBookmarked: Bool = false
     var routeCoordinates: [CLLocationCoordinate2D] = []  // Decoded route for map display
+    var routeLocations: [CLLocation] = [] // Decoded route with altitude for elevation profile
 }
 
 // --- SOCIAL MODELS ---
@@ -373,6 +391,10 @@ class AppState: ObservableObject {
 
     // FAB Visibility (driven by scroll direction in child views)
     @Published var isFABVisible: Bool = true
+    
+    // Explicit navigation triggers
+    @Published var exploreSelectedMountain: Mountain? = nil
+    @Published var exploreSearchQuery: String? = nil
 
     // Pagination
     @Published var isLoadingMoreFeed: Bool = false
@@ -516,7 +538,7 @@ class AppState: ObservableObject {
             self.userName = newName; self.userHandle = newHandle; self.userRegion = newRegion; self.selectedSports = newSports
             self.instaHandle = newInsta; self.otherHobbies = newHobbies; self.mountaineeringSpecialties = newSpecialties
             
-            // Reactively update Feed 
+            // Reactively update Feed
             for i in self.recentTours.indices where self.recentTours[i].userId == session.user.id {
                 self.recentTours[i].playerName = newName
                 self.recentTours[i].playerHandle = newHandle
@@ -646,6 +668,7 @@ class AppState: ObservableObject {
 
                         // Decode route polyline if available
                         let routeCoords = tour.route_polyline.flatMap { RouteEncoder.decode($0) } ?? []
+                        let routeLocs = tour.route_polyline.flatMap { RouteEncoder.decodeWithAltitude($0) } ?? []
 
                         let feedTour = Tour(
                             cloudId: tour.id,
@@ -668,7 +691,8 @@ class AppState: ObservableObject {
                             isFistBumped: tourBumps.contains { $0.user_id == myId },
                             commentCount: tour.id != nil ? allCommentCounts[tour.id!] ?? 0 : 0,
                             isBookmarked: tour.id != nil ? myBookmarks.contains(tour.id!) : false,
-                            routeCoordinates: routeCoords
+                            routeCoordinates: routeCoords,
+                            routeLocations: routeLocs
                         )
                         pageTours.append(feedTour)
                     }
@@ -757,6 +781,7 @@ class AppState: ObservableObject {
 
                         let tourBumps = tour.id.flatMap { bumpsByTour[$0] } ?? []
                         let routeCoords = tour.route_polyline.flatMap { RouteEncoder.decode($0) } ?? []
+                        let routeLocs = tour.route_polyline.flatMap { RouteEncoder.decodeWithAltitude($0) } ?? []
 
                         builtTours.append(Tour(
                             cloudId: tour.id,
@@ -779,7 +804,8 @@ class AppState: ObservableObject {
                             isFistBumped: tourBumps.contains { $0.user_id == myId },
                             commentCount: tour.id != nil ? allCommentCounts[tour.id!] ?? 0 : 0,
                             isBookmarked: true, // It is explicitly bookmarked since we fetched it from bookmarked_routes
-                            routeCoordinates: routeCoords
+                            routeCoordinates: routeCoords,
+                            routeLocations: routeLocs
                         ))
                     }
                 }
@@ -1120,16 +1146,17 @@ class AppState: ObservableObject {
 
         Task {
             do {
-                // 1. Lade alle Berge von Supabase.
-                // HINWEIS: Wir lassen die datenbankseitige Sortierung (.order) weg,
-                // da Postgres bei CamelCase-Namen (isPrestigePeak) oft abstürzt, wenn man sie nicht in Quotes setzt.
-                // Das Limit sichert uns gegen zu große Datenmengen ab.
-                let allPeaks: [Mountain] = try await supabase
+                // 1. Lade Berge mit Bildern. Da url oft image_url heißt, laden wir etwas mehr und filtern lokal.
+                let rawPeaks: [Mountain] = try await supabase
                     .from("mountains")
                     .select("*, routes:mountain_routes(*)")
-                    .limit(50)
+                    .not("image_url", operator: .is, value: "null")
+                    .neq("image_url", value: "")
+                    .limit(200)
                     .execute()
                     .value
+                    
+                let allPeaks = rawPeaks.filter { ($0.effectiveImageUrl ?? "").count > 5 }
 
                 // 2. Sortiere und wähle zufällige Berge für die Anzeige LOKAL aus
                 let displayPeaks = Array(allPeaks.shuffled().prefix(10))

@@ -12,6 +12,7 @@ struct ActivityCardView: View {
 
     @State private var showComments = false
     @State private var showFullImage = false
+    @State private var showActivityDetail = false
 
     // Micro-animation state
     @State private var fistBumpScale: CGFloat = 1.0
@@ -77,6 +78,13 @@ struct ActivityCardView: View {
             mediaBlock
                 .frame(height: 240)
                 .clipped()
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    showActivityDetail = true
+                }
+                .fullScreenCover(isPresented: $showActivityDetail) {
+                    ActivityDetailView(tour: tour)
+                }
 
             // ========== 4. STORY / DESCRIPTION ==========
             if !tour.storyComment.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {

@@ -1,5 +1,6 @@
 import SwiftUI
 import Combine
+import Supabase
 
 // =========================================
 // === DATEI: AICoachingGateway.swift ===
@@ -44,6 +45,7 @@ struct CoachStation: Identifiable, Codable {
     let kind: StationKind
     let phase: PlanPhase
     let elevationGain: Int
+    var mountainId: UUID? = nil
     var isCompleted: Bool
     var isUnlocked: Bool
     var isRealTour: Bool         // tour tracked in Health/feed (gold marker)
@@ -77,6 +79,7 @@ struct OnboardingData: Codable {
     var sessionsPerWeek: Int = 3
     var minutesPerSession: Int = 60
     var acceptedSafetyCommitment: Bool = false
+    var pastCompletedGoals: [String] = []
 
     // Convenience to check experience as before
     func hasExperience(_ level: ExperienceLevel) -> Bool {
@@ -93,6 +96,10 @@ final class CoachingViewModel: ObservableObject {
     @Published var plan: CoachingPlan? = nil
     @Published var isPrefilling = false
     @Published var selectedTrainingTab: TrainingTab = .hikes
+
+    init() {
+        _ = loadFromDefaults()
+    }
 
     enum TrainingTab: String, CaseIterable {
         case hikes = "Hikes"
@@ -179,6 +186,8 @@ final class CoachingViewModel: ObservableObject {
         guard var p = plan else { return }
         let myTours = tours.filter { $0.isCurrentUser }
         var usedTourIds = Set<UUID>()
+        var changesMade = false
+        
         for i in p.stations.indices {
             guard !p.stations[i].isCompleted else { continue }
             let threshold = p.stations[i].elevationGain
@@ -193,20 +202,25 @@ final class CoachingViewModel: ObservableObject {
                     p.stations[i + 1].isUnlocked = true
                 }
                 usedTourIds.insert(match.id)
+                changesMade = true
             }
         }
-        withAnimation(CT.Springs.soft) { plan = p }
+        
+        if changesMade {
+            withAnimation(CT.Springs.soft) { plan = p }
+            saveToDefaults()
+        }
     }
 
     func next() {
         HapticManager.shared.light()
-        withAnimation(CT.Springs.soft) {
-            if step < totalSteps - 1 {
-                step += 1
-            } else {
-                generatePlan()
+        if step < totalSteps - 1 {
+            withAnimation(CT.Springs.soft) { step += 1 }
+        } else {
+            Task {
+                await generatePlan()
                 saveToDefaults()
-                step = totalSteps
+                withAnimation(CT.Springs.soft) { step = totalSteps }
             }
         }
     }
@@ -220,7 +234,7 @@ final class CoachingViewModel: ObservableObject {
 
     // MARK: Plan generation (personalized)
 
-    func generatePlan() {
+    func generatePlan() async {
         let goal = data.goalName.isEmpty ? "Mont Blanc" : data.goalName
         let requested = max(1, data.desiredMonths)
         let baseMonths = Self.baseMonths(for: goal)
@@ -250,7 +264,16 @@ final class CoachingViewModel: ObservableObject {
         let adjusted = safeMonths > requested
 
         let region = MountainRegion.infer(from: data.location)
-        let stations = Self.buildStations(for: goal, region: region, months: safeMonths, data: data)
+        
+        var availableMts: [Mountain] = []
+        if let mts = try? await supabase.from("mountains")
+            .select("*, routes:mountain_routes(*)")
+            .limit(200) // basic sampling to map fallbacks
+            .execute().value as? [Mountain] {
+            availableMts = mts
+        }
+
+        let stations = Self.buildStations(for: goal, region: region, months: safeMonths, data: data, localMts: availableMts)
         let gear = Self.buildGear(goal: goal, region: region)
         let headline = Self.headline(goal: goal, months: safeMonths, data: data)
 
@@ -306,9 +329,10 @@ final class CoachingViewModel: ObservableObject {
         let name: String
         let elevation: Int
         let subtitle: String
+        var mountainId: UUID? = nil
     }
 
-    static func hikeProgression(for goal: String) -> [HikePeak] {
+    static func hikeProgression(for goal: String, localMts: [Mountain]) -> [HikePeak] {
         let g = goal.lowercased()
         if g.contains("mont blanc") {
             return [
@@ -353,24 +377,35 @@ final class CoachingViewModel: ObservableObject {
         }
         // Generic fallback by elevation
         let elev = goalElevation(for: goal)
+        let sortedLocal = localMts.sorted { $0.elevation < $1.elevation }
+        
+        func matchPeak(_ targetElev: Int, fallbackName: String) -> HikePeak {
+            if let best = sortedLocal.min(by: { abs($0.elevation - targetElev) < abs($1.elevation - targetElev) }),
+               abs(best.elevation - targetElev) < 1500 {
+                return HikePeak(name: best.name, elevation: best.elevation, subtitle: "\(best.elevation) m · Found in \(best.region)", mountainId: best.id)
+            }
+            return HikePeak(name: fallbackName, elevation: targetElev, subtitle: "\(targetElev) m · Foundation hike", mountainId: nil)
+        }
+
         if elev > 5500 {
             return [
-                HikePeak(name: "Regional Peak (easy)", elevation: Int(Double(elev) * 0.35), subtitle: "\(Int(Double(elev) * 0.35)) m · Foundation hike"),
-                HikePeak(name: "Regional Peak (moderate)", elevation: Int(Double(elev) * 0.55), subtitle: "\(Int(Double(elev) * 0.55)) m · Build endurance"),
-                HikePeak(name: "Regional Peak (hard)", elevation: Int(Double(elev) * 0.8), subtitle: "\(Int(Double(elev) * 0.8)) m · Dress rehearsal"),
+                matchPeak(Int(Double(elev) * 0.35), fallbackName: "Regional Peak (easy)"),
+                matchPeak(Int(Double(elev) * 0.55), fallbackName: "Regional Peak (moderate)"),
+                matchPeak(Int(Double(elev) * 0.8), fallbackName: "Regional Peak (hard)")
             ]
         }
         return [
-            HikePeak(name: "Local Trail", elevation: max(400, elev / 4), subtitle: "\(max(400, elev / 4)) m · Foundation hike"),
-            HikePeak(name: "Regional Peak", elevation: max(800, elev / 2), subtitle: "\(max(800, elev / 2)) m · Endurance builder"),
+            matchPeak(max(400, elev / 4), fallbackName: "Local Trail"),
+            matchPeak(max(800, elev / 2), fallbackName: "Regional Peak")
         ]
     }
 
-    static func buildStations(for goal: String, region: MountainRegion, months: Int, data: OnboardingData) -> [CoachStation] {
+    static func buildStations(for goal: String, region: MountainRegion, months: Int, data: OnboardingData, localMts: [Mountain]) -> [CoachStation] {
         var result: [CoachStation] = []
         let needsGlacier = goalElevation(for: goal) > 4000
         let highAltitude = goalElevation(for: goal) > 5500
-        let progression = hikeProgression(for: goal)
+        let progression = hikeProgression(for: goal, localMts: localMts)
+        let isVet = !data.pastCompletedGoals.isEmpty
 
         func reason(_ tmpl: String) -> String { tmpl }
 
@@ -380,7 +415,7 @@ final class CoachingViewModel: ObservableObject {
                 id: UUID(),
                 title: firstHike.name,
                 subtitle: firstHike.subtitle,
-                reasoning: reason("Your first benchmark peak. Sets your movement baseline and natural pace before loading volume."),
+                reasoning: reason(isVet ? "Time to rebuild the aerobic base. Use this familiar terrain to find your pacing again." : "Your first benchmark peak. Sets your movement baseline and natural pace before loading volume."),
                 kind: .hike, phase: .foundation, elevationGain: firstHike.elevation,
                 isCompleted: false, isUnlocked: true, isRealTour: false
             ))
@@ -389,28 +424,29 @@ final class CoachingViewModel: ObservableObject {
                 id: UUID(),
                 title: "Foundation Hike",
                 subtitle: "400 m gain · easy terrain",
-                reasoning: reason("Sets your movement baseline."),
+                reasoning: reason(isVet ? "A light re-entry to the mountains after your last objective." : "Sets your movement baseline."),
                 kind: .hike, phase: .foundation, elevationGain: 400,
                 isCompleted: false, isUnlocked: true, isRealTour: false
             ))
         }
         result.append(CoachStation(
             id: UUID(),
-            title: "Legs & Core Strength",
-            subtitle: "Squats · lunges · planks",
+            title: isVet ? "Weighted Load Cycles" : "Legs & Core Strength",
+            subtitle: isVet ? "Heavy pack · unilateral" : "Squats · lunges · planks",
             reasoning: reason(data.age > 45
                 ? "At your age, joint stability matters more than PRs. Focus on control."
-                : "Bulletproofs knees for long descents — downhill is where alpinists get injured."),
+                : (isVet ? "Since you've conquered \(data.pastCompletedGoals.last!), we focus heavily on load-carrying tolerance." : "Bulletproofs knees for long descents — downhill is where alpinists get injured.")),
             kind: .strength, phase: .foundation, elevationGain: 0,
             isCompleted: false, isUnlocked: false, isRealTour: false
         ))
         result.append(CoachStation(
             id: UUID(),
             title: "Zone 2 Endurance",
-            subtitle: "60 min sustained cardio",
-            reasoning: reason(data.vo2max > 0 && data.vo2max < 40
+            subtitle: isVet ? "90 min sustained cardio" : "60 min sustained cardio",
+            reasoning: reason(isVet ? "Your base from \(data.pastCompletedGoals.last!) is still there, but we need to stretch your aerobic ceiling further this time." : 
+                (data.vo2max > 0 && data.vo2max < 40
                 ? "Your VO₂max of \(data.vo2max) tells us Zone 2 is exactly where to spend time first."
-                : "Zone 2 builds the mitochondrial base every multi-hour mountain day depends on."),
+                : "Zone 2 builds the mitochondrial base every multi-hour mountain day depends on.")),
             kind: .endurance, phase: .foundation, elevationGain: 0,
             isCompleted: false, isUnlocked: false, isRealTour: false
         ))
@@ -418,9 +454,9 @@ final class CoachingViewModel: ObservableObject {
         // Build phase — technique + progression hike --------------------------
         result.append(CoachStation(
             id: UUID(),
-            title: "Footwork Technique",
-            subtitle: "Edging · descent control",
-            reasoning: reason("Clean footwork saves enormous energy on long approaches."),
+            title: isVet ? "Advanced Scrambling" : "Footwork Technique",
+            subtitle: isVet ? "Exposure · fast transitions" : "Edging · descent control",
+            reasoning: reason(isVet ? "You know the basics. Now we train speed through exposed, complex terrain." : "Clean footwork saves enormous energy on long approaches."),
             kind: .technique, phase: .build, elevationGain: 0,
             isCompleted: false, isUnlocked: false, isRealTour: false
         ))
@@ -447,9 +483,9 @@ final class CoachingViewModel: ObservableObject {
         }
         result.append(CoachStation(
             id: UUID(),
-            title: "Upper Body Strength",
-            subtitle: "Pull-ups · rows · carries",
-            reasoning: reason("Pack carries and ice-axe work demand more pull strength than people expect."),
+            title: isVet ? "Vertical & Grip Load" : "Upper Body Strength",
+            subtitle: isVet ? "Pull-ups · farmer walks" : "Pull-ups · rows · carries",
+            reasoning: reason(isVet ? "Since you're pushing for \(goal), we're adding intense static holds to mimic alpine terrain." : "Pack carries and ice-axe work demand more pull strength than people expect."),
             kind: .strength, phase: .build, elevationGain: 0,
             isCompleted: false, isUnlocked: false, isRealTour: false
         ))
@@ -558,6 +594,7 @@ final class CoachingViewModel: ObservableObject {
     func completeStation(_ id: UUID) {
         guard var p = plan, let idx = p.stations.firstIndex(where: { $0.id == id }) else { return }
         p.stations[idx].isCompleted = true
+        // Unlock all subsequent stations up to the next one
         if idx + 1 < p.stations.count {
             p.stations[idx + 1].isUnlocked = true
         }
@@ -616,13 +653,67 @@ struct AICoachingGatewayView: View {
         }
         .preferredColorScheme(.light)
         .task {
-            if !vm.loadFromDefaults() {
+            if vm.plan == nil {
                 await vm.prefillFromHealthKit()
+            } else {
+                vm.applyRealTourMatching(appState.recentTours)
             }
+        }
+        .onChange(of: appState.recentTours.count) { _, _ in
+            vm.applyRealTourMatching(appState.recentTours)
         }
         .onChange(of: vm.plan?.stations.count ?? 0) { _, newValue in
             if newValue > 0 {
                 vm.applyRealTourMatching(appState.recentTours)
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("OpenMountainInExplore"))) { notif in
+            if let mountain = notif.object as? Mountain {
+                dismiss() // Close entirely
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    appState.exploreSelectedMountain = mountain
+                }
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("SearchMountainInExplore"))) { notif in
+            if let query = notif.object as? String {
+                dismiss()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    appState.exploreSearchQuery = query
+                }
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ResetAICoach"))) { notif in
+            let isCompleted = notif.object as? Bool ?? false
+            withAnimation(CT.Springs.soft) {
+                var newData = vm.data
+                if isCompleted, let goal = vm.plan?.goalName {
+                    newData.pastCompletedGoals.append(goal)
+                    let elev = CoachingViewModel.goalElevation(for: goal)
+                    if elev >= 4000 { newData.hasGlacierExperience = true }
+                    if !newData.experience.contains(.alpineCourse) { newData.experience.append(.alpineCourse) }
+                    if newData.endurance == .beginner {
+                        newData.endurance = .moderate
+                    } else if newData.endurance == .moderate {
+                        newData.endurance = .strong
+                    }
+                }
+                
+                // Clear state, but keep user metrics for convenience
+                newData.goalName = ""
+                newData.acceptedSafetyCommitment = false
+                
+                vm.data = newData
+                vm.plan = nil
+                // Jump straight to goal selection if we have basic data already!
+                vm.step = 3 
+                vm.saveToDefaults()
+                
+                AIChatViewModel.shared.clearHistory()
+                if isCompleted {
+                    let congrats = AIChatMessage(text: "Congratulations on conquering \(newData.pastCompletedGoals.last ?? "your objective")! Your base skills have leveled up. What massive peak shall we tackle next?", isUser: false, timestamp: Date())
+                    AIChatViewModel.shared.messages = [congrats]
+                }
             }
         }
     }
@@ -1074,43 +1165,81 @@ struct CoachingMapView: View {
                         .padding(.top, 16)
                         .padding(.bottom, 4)
 
-                    let stationsToShow = filteredStations
-                    let phases = PlanPhase.allCases.filter { phase in
-                        stationsToShow.contains { $0.phase == phase }
-                    }
+                    if selectedTab == .chat {
+                        AIChatGuideView(isEmbedded: true)
+                            .frame(height: UIScreen.main.bounds.height * 0.6)
+                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                            .padding(.horizontal, 16)
+                            .padding(.top, 16)
+                    } else {
+                        let stationsToShow = filteredStations
+                        let phases = PlanPhase.allCases.filter { phase in
+                            stationsToShow.contains { $0.phase == phase }
+                        }
 
-                    ForEach(phases, id: \.self) { phase in
-                        let phaseStations = stationsToShow.filter { $0.phase == phase }
-                        if !phaseStations.isEmpty {
-                            phaseHeader(phase)
-                                .padding(.horizontal, 20)
-                                .padding(.top, 22)
-                                .padding(.bottom, 6)
+                        ForEach(phases, id: \.self) { phase in
+                            let phaseStations = stationsToShow.filter { $0.phase == phase }
+                            if !phaseStations.isEmpty {
+                                phaseHeader(phase)
+                                    .padding(.horizontal, 20)
+                                    .padding(.top, 22)
+                                    .padding(.bottom, 6)
 
-                            ForEach(Array(phaseStations.enumerated()), id: \.element.id) { idx, station in
-                                let globalIdx = stationsToShow.firstIndex(where: { $0.id == station.id }) ?? idx
-                                StationRow(
-                                    station: station,
-                                    globalIndex: globalIdx,
-                                    region: plan.region,
-                                    breathe: breathe,
-                                    isLeft: globalIdx % 2 == 0,
-                                    onTap: { selectedStation = station }
-                                )
-                                .id(station.id)
+                                ForEach(Array(phaseStations.enumerated()), id: \.element.id) { idx, station in
+                                    let globalIdx = stationsToShow.firstIndex(where: { $0.id == station.id }) ?? idx
+                                    StationRow(
+                                        station: station,
+                                        globalIndex: globalIdx,
+                                        region: plan.region,
+                                        breathe: breathe,
+                                        isLeft: globalIdx % 2 == 0,
+                                        onTap: { selectedStation = station }
+                                    )
+                                    .id(station.id)
 
-                                if station.id != phaseStations.last?.id || phase != phases.last {
-                                    PathConnector(leftToRight: globalIdx % 2 == 0, completed: station.isCompleted)
-                                        .frame(height: 40)
+                                    if station.id != phaseStations.last?.id || phase != phases.last {
+                                        PathConnector(leftToRight: globalIdx % 2 == 0, completed: station.isCompleted)
+                                            .frame(height: 40)
+                                    }
                                 }
                             }
                         }
-                    }
 
-                    gearCard
-                        .padding(.horizontal, 16)
-                        .padding(.top, 24)
-                        .padding(.bottom, 40)
+                        gearCard
+                            .padding(.horizontal, 16)
+                            .padding(.top, 24)
+                            .padding(.bottom, 20)
+                            
+                        if plan.stations.allSatisfy({ $0.isCompleted }) {
+                            Button(action: {
+                                NotificationCenter.default.post(name: NSNotification.Name("ResetAICoach"), object: true)
+                            }) {
+                                HStack {
+                                    Image(systemName: "flag.checkered")
+                                    Text("Start New Objective")
+                                }
+                                .font(.system(size: 16, weight: .bold, design: .rounded))
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 16)
+                                .background(CT.Gradients.cta)
+                                .clipShape(RoundedRectangle(cornerRadius: CT.Radius.card, style: .continuous))
+                                .ctShadow(CT.Shadows.glow)
+                            }
+                            .buttonStyle(PressableButtonStyle())
+                            .padding(.horizontal, 16)
+                            .padding(.bottom, 40)
+                        } else {
+                            Button(action: {
+                                NotificationCenter.default.post(name: NSNotification.Name("ResetAICoach"), object: false)
+                            }) {
+                                Text("Abandon & start new plan")
+                                    .font(CT.Typo.label(13))
+                                    .foregroundColor(.secondary)
+                            }
+                            .padding(.bottom, 40)
+                        }
+                    }
                 }
             }
             .onAppear {
@@ -1127,7 +1256,7 @@ struct CoachingMapView: View {
             }
         }
         .sheet(item: $selectedStation) { station in
-            StationDetailSheet(station: station) {
+            StationDetailSheet(station: station, selectedTab: $selectedTab) {
                 onComplete(station.id)
                 selectedStation = nil
             }
@@ -1339,8 +1468,8 @@ private struct StationRow: View {
             }
         }
         .buttonStyle(PressableButtonStyle(scale: 0.94))
-        .disabled(!station.isUnlocked)
-        .opacity(station.isUnlocked ? 1.0 : 0.5)
+        // Removed `.disabled(!station.isUnlocked)` so user can view/click locked stations
+        .opacity(station.isUnlocked ? 1.0 : 0.6)
     }
 }
 
@@ -1432,7 +1561,9 @@ private struct PathConnector: View {
 
 private struct StationDetailSheet: View {
     let station: CoachStation
+    @Binding var selectedTab: CoachingViewModel.TrainingTab
     let onComplete: () -> Void
+    @Environment(\.dismiss) var dismiss
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -1480,10 +1611,103 @@ private struct StationDetailSheet: View {
             .background(CT.Colors.accent.opacity(0.08))
             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
 
-            Spacer()
+            Spacer(minLength: 0)
+            
+            if let targetId = station.mountainId {
+                Button(action: {
+                    Task {
+                        // Fetch mountain directly from DB to open in map
+                        if let mountain: Mountain = try? await supabase.from("mountains")
+                            .select("*, routes:mountain_routes(*)")
+                            .eq("id", value: targetId)
+                            .single()
+                            .execute().value {
+                            
+                            DispatchQueue.main.async {
+                                dismiss()
+                                NotificationCenter.default.post(name: NSNotification.Name("OpenMountainInExplore"), object: mountain)
+                            }
+                        }
+                    }
+                }) {
+                    HStack {
+                        Image(systemName: "map.fill")
+                        Text("Open Peak in Explorer Map")
+                    }
+                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .foregroundColor(.white)
+                    .padding(.vertical, 14)
+                    .frame(maxWidth: .infinity)
+                    .background(Color.blue)
+                    .cornerRadius(CT.Radius.card)
+                    .padding(.bottom, 6)
+                }
+            } else if [.hike, .summit].contains(station.kind) {
+                let cleanName = station.title.replacingOccurrences(of: "Prep: ", with: "").replacingOccurrences(of: "Summit: ", with: "")
+                Button(action: {
+                    Task {
+                        // Attempt to find by exact or fuzzy name
+                        if let mountain: Mountain = try? await supabase.from("mountains")
+                            .select("*, routes:mountain_routes(*)")
+                            .ilike("name", pattern: "%\(cleanName.components(separatedBy: " (")[0])%")
+                            .limit(1)
+                            .single()
+                            .execute().value {
+                            
+                            DispatchQueue.main.async {
+                                dismiss()
+                                NotificationCenter.default.post(name: NSNotification.Name("OpenMountainInExplore"), object: mountain)
+                            }
+                        } else {
+                            // Fallback if not physically in database
+                            DispatchQueue.main.async {
+                                dismiss()
+                                NotificationCenter.default.post(name: NSNotification.Name("SearchMountainInExplore"), object: cleanName)
+                            }
+                        }
+                    }
+                }) {
+                    HStack {
+                        Image(systemName: "map.fill")
+                        Text("View Peak Details")
+                    }
+                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .foregroundColor(CT.Colors.accent)
+                    .padding(.vertical, 14)
+                    .frame(maxWidth: .infinity)
+                    .background(CT.Colors.accent.opacity(0.12))
+                    .cornerRadius(CT.Radius.card)
+                    .padding(.bottom, 6)
+                }
+            }
+            
+            if [.strength, .endurance, .technique, .glacier].contains(station.kind) {
+                Button(action: {
+                    dismiss()
+                    selectedTab = .chat
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        NotificationCenter.default.post(name: NSNotification.Name("AskAIAbooutStation"), object: station.title)
+                    }
+                }) {
+                    HStack {
+                        Image(systemName: "sparkles")
+                        Text("Ask AI for detailed exercises")
+                    }
+                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .foregroundColor(.white)
+                    .padding(.vertical, 14)
+                    .frame(maxWidth: .infinity)
+                    .background(Color.indigo)
+                    .cornerRadius(CT.Radius.card)
+                    .padding(.bottom, 6)
+                }
+            }
 
-            Button(action: onComplete) {
-                Text(station.isCompleted ? "Completed" : "Mark as done")
+            Button(action: {
+                onComplete()
+                dismiss()
+            }) {
+                Text(station.isCompleted ? "Completed" : (station.mountainId != nil ? "Mark done (Unverified)" : "Mark as done manually"))
                     .font(.system(size: 16, weight: .bold, design: .rounded))
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
