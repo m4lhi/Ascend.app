@@ -119,9 +119,9 @@ class AIChatViewModel: ObservableObject {
             - Age: \(savedOnb.age), Height: \(savedOnb.heightCm)cm, Weight: \(savedOnb.weightKg)kg
             - Endurance: \(savedOnb.endurance.rawValue), VO2Max: \(savedOnb.vo2max > 0 ? String(savedOnb.vo2max) : "Unknown")
             - Training Volume: \(savedOnb.sessionsPerWeek) sessions/week (\(savedOnb.minutesPerSession) min/session)
-            - Base Goal: \(savedOnb.goalName.isEmpty ? "Not set" : savedOnb.goalName) in \(savedOnb.desiredMonths) months
+            - Present Goal: \(savedOnb.goalName.isEmpty ? "Not set" : savedOnb.goalName) (Timeline: \(savedOnb.desiredMonths) months)
             - Experience: \(savedOnb.experience.map { $0.rawValue }.joined(separator: ", ")), Glacier Exp: \(savedOnb.hasGlacierExperience)
-            - Past AI Conquests: \(savedOnb.pastCompletedGoals.isEmpty ? "None yet" : savedOnb.pastCompletedGoals.joined(separator: ", "))
+            - Previously Completed Roadmaps (Past Goals): \(savedOnb.pastCompletedGoals.isEmpty ? "None" : savedOnb.pastCompletedGoals.joined(separator: " -> "))
             
             """
         }

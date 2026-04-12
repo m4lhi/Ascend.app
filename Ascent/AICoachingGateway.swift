@@ -400,7 +400,8 @@ final class CoachingViewModel: ObservableObject {
         var result: [CoachStation] = []
         let needsGlacier = goalElevation(for: goal) > 4000
         let highAltitude = goalElevation(for: goal) > 5500
-        let progression = hikeProgression(for: goal, localMts: availableMts)
+        let progression = hikeProgression(for: goal, localMts: localMts)
+        let isVet = !data.pastCompletedGoals.isEmpty
 
         func reason(_ tmpl: String) -> String { tmpl }
 
@@ -410,7 +411,7 @@ final class CoachingViewModel: ObservableObject {
                 id: UUID(),
                 title: firstHike.name,
                 subtitle: firstHike.subtitle,
-                reasoning: reason("Your first benchmark peak. Sets your movement baseline and natural pace before loading volume."),
+                reasoning: reason(isVet ? "Time to rebuild the aerobic base. Use this familiar terrain to find your pacing again." : "Your first benchmark peak. Sets your movement baseline and natural pace before loading volume."),
                 kind: .hike, phase: .foundation, elevationGain: firstHike.elevation,
                 isCompleted: false, isUnlocked: true, isRealTour: false
             ))
@@ -419,28 +420,29 @@ final class CoachingViewModel: ObservableObject {
                 id: UUID(),
                 title: "Foundation Hike",
                 subtitle: "400 m gain · easy terrain",
-                reasoning: reason("Sets your movement baseline."),
+                reasoning: reason(isVet ? "A light re-entry to the mountains after your last objective." : "Sets your movement baseline."),
                 kind: .hike, phase: .foundation, elevationGain: 400,
                 isCompleted: false, isUnlocked: true, isRealTour: false
             ))
         }
         result.append(CoachStation(
             id: UUID(),
-            title: "Legs & Core Strength",
-            subtitle: "Squats · lunges · planks",
+            title: isVet ? "Weighted Load Cycles" : "Legs & Core Strength",
+            subtitle: isVet ? "Heavy pack · unilateral" : "Squats · lunges · planks",
             reasoning: reason(data.age > 45
                 ? "At your age, joint stability matters more than PRs. Focus on control."
-                : "Bulletproofs knees for long descents — downhill is where alpinists get injured."),
+                : (isVet ? "Since you've conquered \(data.pastCompletedGoals.last!), we focus heavily on load-carrying tolerance." : "Bulletproofs knees for long descents — downhill is where alpinists get injured.")),
             kind: .strength, phase: .foundation, elevationGain: 0,
             isCompleted: false, isUnlocked: false, isRealTour: false
         ))
         result.append(CoachStation(
             id: UUID(),
             title: "Zone 2 Endurance",
-            subtitle: "60 min sustained cardio",
-            reasoning: reason(data.vo2max > 0 && data.vo2max < 40
+            subtitle: isVet ? "90 min sustained cardio" : "60 min sustained cardio",
+            reasoning: reason(isVet ? "Your base from \(data.pastCompletedGoals.last!) is still there, but we need to stretch your aerobic ceiling further this time." : 
+                (data.vo2max > 0 && data.vo2max < 40
                 ? "Your VO₂max of \(data.vo2max) tells us Zone 2 is exactly where to spend time first."
-                : "Zone 2 builds the mitochondrial base every multi-hour mountain day depends on."),
+                : "Zone 2 builds the mitochondrial base every multi-hour mountain day depends on.")),
             kind: .endurance, phase: .foundation, elevationGain: 0,
             isCompleted: false, isUnlocked: false, isRealTour: false
         ))
@@ -448,9 +450,9 @@ final class CoachingViewModel: ObservableObject {
         // Build phase — technique + progression hike --------------------------
         result.append(CoachStation(
             id: UUID(),
-            title: "Footwork Technique",
-            subtitle: "Edging · descent control",
-            reasoning: reason("Clean footwork saves enormous energy on long approaches."),
+            title: isVet ? "Advanced Scrambling" : "Footwork Technique",
+            subtitle: isVet ? "Exposure · fast transitions" : "Edging · descent control",
+            reasoning: reason(isVet ? "You know the basics. Now we train speed through exposed, complex terrain." : "Clean footwork saves enormous energy on long approaches."),
             kind: .technique, phase: .build, elevationGain: 0,
             isCompleted: false, isUnlocked: false, isRealTour: false
         ))
@@ -477,9 +479,9 @@ final class CoachingViewModel: ObservableObject {
         }
         result.append(CoachStation(
             id: UUID(),
-            title: "Upper Body Strength",
-            subtitle: "Pull-ups · rows · carries",
-            reasoning: reason("Pack carries and ice-axe work demand more pull strength than people expect."),
+            title: isVet ? "Vertical & Grip Load" : "Upper Body Strength",
+            subtitle: isVet ? "Pull-ups · farmer walks" : "Pull-ups · rows · carries",
+            reasoning: reason(isVet ? "Since you're pushing for \(goal), we're adding intense static holds to mimic alpine terrain." : "Pack carries and ice-axe work demand more pull strength than people expect."),
             kind: .strength, phase: .build, elevationGain: 0,
             isCompleted: false, isUnlocked: false, isRealTour: false
         ))
@@ -686,6 +688,11 @@ struct AICoachingGatewayView: View {
                     let elev = CoachingViewModel.goalElevation(for: goal)
                     if elev >= 4000 { newData.hasGlacierExperience = true }
                     if !newData.experience.contains(.alpineCourse) { newData.experience.append(.alpineCourse) }
+                    if newData.endurance == .beginner {
+                        newData.endurance = .moderate
+                    } else if newData.endurance == .moderate {
+                        newData.endurance = .strong
+                    }
                 }
                 
                 // Clear state, but keep user metrics for convenience
@@ -1634,12 +1641,31 @@ private struct StationDetailSheet: View {
             } else if [.hike, .summit].contains(station.kind) {
                 let cleanName = station.title.replacingOccurrences(of: "Prep: ", with: "").replacingOccurrences(of: "Summit: ", with: "")
                 Button(action: {
-                    dismiss()
-                    NotificationCenter.default.post(name: NSNotification.Name("SearchMountainInExplore"), object: cleanName)
+                    Task {
+                        // Attempt to find by exact or fuzzy name
+                        if let mountain: Mountain = try? await supabase.from("mountains")
+                            .select("*, routes:mountain_routes(*)")
+                            .ilike("name", pattern: "%\(cleanName.components(separatedBy: " (")[0])%")
+                            .limit(1)
+                            .single()
+                            .execute().value {
+                            
+                            DispatchQueue.main.async {
+                                dismiss()
+                                NotificationCenter.default.post(name: NSNotification.Name("OpenMountainInExplore"), object: mountain)
+                            }
+                        } else {
+                            // Fallback if not physically in database
+                            DispatchQueue.main.async {
+                                dismiss()
+                                NotificationCenter.default.post(name: NSNotification.Name("SearchMountainInExplore"), object: cleanName)
+                            }
+                        }
+                    }
                 }) {
                     HStack {
-                        Image(systemName: "magnifyingglass")
-                        Text("Search Peak in Map")
+                        Image(systemName: "map.fill")
+                        Text("View Peak Details")
                     }
                     .font(.system(size: 15, weight: .bold, design: .rounded))
                     .foregroundColor(CT.Colors.accent)
