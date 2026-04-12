@@ -97,6 +97,10 @@ final class CoachingViewModel: ObservableObject {
     @Published var isPrefilling = false
     @Published var selectedTrainingTab: TrainingTab = .hikes
 
+    init() {
+        _ = loadFromDefaults()
+    }
+
     enum TrainingTab: String, CaseIterable {
         case hikes = "Hikes"
         case gym = "Gym"
@@ -649,7 +653,7 @@ struct AICoachingGatewayView: View {
         }
         .preferredColorScheme(.light)
         .task {
-            if !vm.loadFromDefaults() {
+            if vm.plan == nil {
                 await vm.prefillFromHealthKit()
             } else {
                 vm.applyRealTourMatching(appState.recentTours)
@@ -1607,7 +1611,7 @@ private struct StationDetailSheet: View {
             .background(CT.Colors.accent.opacity(0.08))
             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
 
-            Spacer()
+            Spacer(minLength: 0)
             
             if let targetId = station.mountainId {
                 Button(action: {
