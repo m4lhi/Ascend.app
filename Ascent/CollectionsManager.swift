@@ -252,6 +252,9 @@ struct CollectionsView: View {
         .sheet(isPresented: $showCreateSheet) {
             CreateCollectionSheet(manager: collectionsManager)
         }
+        .sheet(item: $selectedCollection) { collection in
+            CollectionDetailSheet(collection: collection, manager: collectionsManager)
+        }
     }
 
     private var emptyState: some View {
@@ -437,5 +440,132 @@ struct SaveToCollectionSheet: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - Collection Detail Sheet
+struct CollectionDetailSheet: View {
+    let collection: TourCollection
+    @ObservedObject var manager: CollectionsManager
+    @Environment(\.dismiss) var dismiss
+    @EnvironmentObject var appState: AppState
+    
+    @State private var mountains: [Mountain] = []
+    @State private var isLoading = false
+    @State private var selectedMountain: Mountain?
+
+    var body: some View {
+        NavigationView {
+            ZStack {
+                Color(red: 0.945, green: 0.945, blue: 0.96).ignoresSafeArea()
+                
+                ScrollView {
+                    VStack(spacing: 20) {
+                        // Header
+                        ZStack(alignment: .bottomLeading) {
+                            if let url = collection.cover_image_url, let img = URL(string: url) {
+                                CachedAsyncImage(url: img) { image in
+                                    image.resizable().scaledToFill()
+                                } placeholder: {
+                                    Color.gray.opacity(0.3)
+                                }
+                                .frame(height: 220)
+                                .clipped()
+                            } else {
+                                Color.gray.opacity(0.3).frame(height: 220)
+                            }
+                            
+                            LinearGradient(colors: [.clear, .black.opacity(0.8)], startPoint: .center, endPoint: .bottom)
+                            
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text(collection.name)
+                                    .font(.system(.title, design: .rounded)).fontWeight(.heavy)
+                                    .foregroundColor(.white)
+                                Text(collection.description)
+                                    .font(.system(.subheadline, design: .rounded))
+                                    .foregroundColor(.white.opacity(0.8))
+                                    .lineLimit(2)
+                            }
+                            .padding(20)
+                        }
+                        .frame(height: 220)
+                        
+                        // Mountains List
+                        LazyVStack(spacing: 12) {
+                            if collection.mountain_ids.isEmpty {
+                                Text("This collection is empty.")
+                                    .foregroundColor(.gray)
+                                    .padding(.top, 40)
+                            } else if isLoading {
+                                ProgressView()
+                                    .padding(.top, 40)
+                            } else {
+                                Text("\(mountains.count) peaks in this collection.")
+                                    .font(.system(.subheadline, design: .rounded))
+                                    .foregroundColor(.gray)
+                                    .padding(.vertical, 8)
+                                    
+                                ForEach(mountains) { mountain in
+                                    DiscoverCard(mountain: mountain) {
+                                        selectedMountain = mountain
+                                    }
+                                }
+                            }
+                        }
+                        .padding(.bottom, 40)
+                    }
+                }
+                .ignoresSafeArea(edges: .top)
+            }
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Close") { dismiss() }
+                        .font(.system(.body, design: .rounded).weight(.bold))
+                }
+            }
+            .task {
+                await fetchMountains()
+            }
+            .sheet(item: $selectedMountain) { mountain in
+                BasecampMountainDetailSheet(mountain: mountain) {
+                    selectedMountain = nil
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        dismiss()
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            appState.activeMountain = mountain
+                            withAnimation {
+                                appState.isTrackerActive = true
+                            }
+                        }
+                    }
+                }
+                .presentationDetents([.fraction(0.85), .large])
+                .preferredColorScheme(.light)
+            }
+        }
+    }
+    
+    private func fetchMountains() async {
+        guard !collection.mountain_ids.isEmpty else { return }
+        isLoading = true
+        do {
+            let idStrings = collection.mountain_ids.map { $0.uuidString }
+            let results: [Mountain] = try await supabase
+                .from("mountains")
+                .select("*, routes:mountain_routes(*)")
+                .in("id", values: idStrings)
+                .execute()
+                .value
+            
+            // Retain original order from collection.mountain_ids if possible
+            let ordered = collection.mountain_ids.compactMap { id in
+                results.first(where: { $0.id == id })
+            }
+            self.mountains = ordered.isEmpty ? results : ordered
+        } catch {
+            print("❌ Failed to fetch mountains for collection: \(error)")
+        }
+        isLoading = false
     }
 }

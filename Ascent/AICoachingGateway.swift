@@ -179,6 +179,8 @@ final class CoachingViewModel: ObservableObject {
         guard var p = plan else { return }
         let myTours = tours.filter { $0.isCurrentUser }
         var usedTourIds = Set<UUID>()
+        var changesMade = false
+        
         for i in p.stations.indices {
             guard !p.stations[i].isCompleted else { continue }
             let threshold = p.stations[i].elevationGain
@@ -193,9 +195,14 @@ final class CoachingViewModel: ObservableObject {
                     p.stations[i + 1].isUnlocked = true
                 }
                 usedTourIds.insert(match.id)
+                changesMade = true
             }
         }
-        withAnimation(CT.Springs.soft) { plan = p }
+        
+        if changesMade {
+            withAnimation(CT.Springs.soft) { plan = p }
+            saveToDefaults()
+        }
     }
 
     func next() {
@@ -558,6 +565,7 @@ final class CoachingViewModel: ObservableObject {
     func completeStation(_ id: UUID) {
         guard var p = plan, let idx = p.stations.firstIndex(where: { $0.id == id }) else { return }
         p.stations[idx].isCompleted = true
+        // Unlock all subsequent stations up to the next one
         if idx + 1 < p.stations.count {
             p.stations[idx + 1].isUnlocked = true
         }
@@ -618,7 +626,12 @@ struct AICoachingGatewayView: View {
         .task {
             if !vm.loadFromDefaults() {
                 await vm.prefillFromHealthKit()
+            } else {
+                vm.applyRealTourMatching(appState.recentTours)
             }
+        }
+        .onChange(of: appState.recentTours.count) { _, _ in
+            vm.applyRealTourMatching(appState.recentTours)
         }
         .onChange(of: vm.plan?.stations.count ?? 0) { _, newValue in
             if newValue > 0 {
@@ -1074,43 +1087,51 @@ struct CoachingMapView: View {
                         .padding(.top, 16)
                         .padding(.bottom, 4)
 
-                    let stationsToShow = filteredStations
-                    let phases = PlanPhase.allCases.filter { phase in
-                        stationsToShow.contains { $0.phase == phase }
-                    }
+                    if selectedTab == .chat {
+                        AIChatGuideView(isEmbedded: true)
+                            .frame(height: UIScreen.main.bounds.height * 0.6)
+                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                            .padding(.horizontal, 16)
+                            .padding(.top, 16)
+                    } else {
+                        let stationsToShow = filteredStations
+                        let phases = PlanPhase.allCases.filter { phase in
+                            stationsToShow.contains { $0.phase == phase }
+                        }
 
-                    ForEach(phases, id: \.self) { phase in
-                        let phaseStations = stationsToShow.filter { $0.phase == phase }
-                        if !phaseStations.isEmpty {
-                            phaseHeader(phase)
-                                .padding(.horizontal, 20)
-                                .padding(.top, 22)
-                                .padding(.bottom, 6)
+                        ForEach(phases, id: \.self) { phase in
+                            let phaseStations = stationsToShow.filter { $0.phase == phase }
+                            if !phaseStations.isEmpty {
+                                phaseHeader(phase)
+                                    .padding(.horizontal, 20)
+                                    .padding(.top, 22)
+                                    .padding(.bottom, 6)
 
-                            ForEach(Array(phaseStations.enumerated()), id: \.element.id) { idx, station in
-                                let globalIdx = stationsToShow.firstIndex(where: { $0.id == station.id }) ?? idx
-                                StationRow(
-                                    station: station,
-                                    globalIndex: globalIdx,
-                                    region: plan.region,
-                                    breathe: breathe,
-                                    isLeft: globalIdx % 2 == 0,
-                                    onTap: { selectedStation = station }
-                                )
-                                .id(station.id)
+                                ForEach(Array(phaseStations.enumerated()), id: \.element.id) { idx, station in
+                                    let globalIdx = stationsToShow.firstIndex(where: { $0.id == station.id }) ?? idx
+                                    StationRow(
+                                        station: station,
+                                        globalIndex: globalIdx,
+                                        region: plan.region,
+                                        breathe: breathe,
+                                        isLeft: globalIdx % 2 == 0,
+                                        onTap: { selectedStation = station }
+                                    )
+                                    .id(station.id)
 
-                                if station.id != phaseStations.last?.id || phase != phases.last {
-                                    PathConnector(leftToRight: globalIdx % 2 == 0, completed: station.isCompleted)
-                                        .frame(height: 40)
+                                    if station.id != phaseStations.last?.id || phase != phases.last {
+                                        PathConnector(leftToRight: globalIdx % 2 == 0, completed: station.isCompleted)
+                                            .frame(height: 40)
+                                    }
                                 }
                             }
                         }
-                    }
 
-                    gearCard
-                        .padding(.horizontal, 16)
-                        .padding(.top, 24)
-                        .padding(.bottom, 40)
+                        gearCard
+                            .padding(.horizontal, 16)
+                            .padding(.top, 24)
+                            .padding(.bottom, 40)
+                    }
                 }
             }
             .onAppear {
@@ -1127,7 +1148,7 @@ struct CoachingMapView: View {
             }
         }
         .sheet(item: $selectedStation) { station in
-            StationDetailSheet(station: station) {
+            StationDetailSheet(station: station, selectedTab: $selectedTab) {
                 onComplete(station.id)
                 selectedStation = nil
             }
@@ -1339,8 +1360,8 @@ private struct StationRow: View {
             }
         }
         .buttonStyle(PressableButtonStyle(scale: 0.94))
-        .disabled(!station.isUnlocked)
-        .opacity(station.isUnlocked ? 1.0 : 0.5)
+        // Removed `.disabled(!station.isUnlocked)` so user can view/click locked stations
+        .opacity(station.isUnlocked ? 1.0 : 0.6)
     }
 }
 
@@ -1432,7 +1453,9 @@ private struct PathConnector: View {
 
 private struct StationDetailSheet: View {
     let station: CoachStation
+    @Binding var selectedTab: CoachingViewModel.TrainingTab
     let onComplete: () -> Void
+    @Environment(\.dismiss) var dismiss
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -1481,9 +1504,34 @@ private struct StationDetailSheet: View {
             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
 
             Spacer()
+            
+            if [.strength, .endurance, .technique, .glacier].contains(station.kind) {
+                Button(action: {
+                    dismiss()
+                    selectedTab = .chat
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        NotificationCenter.default.post(name: NSNotification.Name("AskAIAbooutStation"), object: station.title)
+                    }
+                }) {
+                    HStack {
+                        Image(systemName: "sparkles")
+                        Text("Ask AI for detailed exercises")
+                    }
+                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .foregroundColor(.white)
+                    .padding(.vertical, 14)
+                    .frame(maxWidth: .infinity)
+                    .background(Color.indigo)
+                    .cornerRadius(CT.Radius.card)
+                    .padding(.bottom, 6)
+                }
+            }
 
-            Button(action: onComplete) {
-                Text(station.isCompleted ? "Completed" : "Mark as done")
+            Button(action: {
+                onComplete()
+                dismiss()
+            }) {
+                Text(station.isCompleted ? "Completed" : "Mark as done manually")
                     .font(.system(size: 16, weight: .bold, design: .rounded))
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)

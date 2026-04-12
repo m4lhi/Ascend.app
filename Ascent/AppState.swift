@@ -534,7 +534,7 @@ class AppState: ObservableObject {
             self.userName = newName; self.userHandle = newHandle; self.userRegion = newRegion; self.selectedSports = newSports
             self.instaHandle = newInsta; self.otherHobbies = newHobbies; self.mountaineeringSpecialties = newSpecialties
             
-            // Reactively update Feed 
+            // Reactively update Feed
             for i in self.recentTours.indices where self.recentTours[i].userId == session.user.id {
                 self.recentTours[i].playerName = newName
                 self.recentTours[i].playerHandle = newHandle
@@ -1142,16 +1142,17 @@ class AppState: ObservableObject {
 
         Task {
             do {
-                // 1. Lade alle Berge von Supabase.
-                // HINWEIS: Wir lassen die datenbankseitige Sortierung (.order) weg,
-                // da Postgres bei CamelCase-Namen (isPrestigePeak) oft abstürzt, wenn man sie nicht in Quotes setzt.
-                // Das Limit sichert uns gegen zu große Datenmengen ab.
-                let allPeaks: [Mountain] = try await supabase
+                // 1. Lade Berge mit Bildern. Da url oft image_url heißt, laden wir etwas mehr und filtern lokal.
+                let rawPeaks: [Mountain] = try await supabase
                     .from("mountains")
                     .select("*, routes:mountain_routes(*)")
-                    .limit(50)
+                    .not("image_url", operator: .is, value: "null")
+                    .neq("image_url", value: "")
+                    .limit(200)
                     .execute()
                     .value
+                    
+                let allPeaks = rawPeaks.filter { ($0.effectiveImageUrl ?? "").count > 5 }
 
                 // 2. Sortiere und wähle zufällige Berge für die Anzeige LOKAL aus
                 let displayPeaks = Array(allPeaks.shuffled().prefix(10))
