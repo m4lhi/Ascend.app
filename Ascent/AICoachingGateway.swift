@@ -660,14 +660,11 @@ struct AICoachingGatewayView: View {
                 vm.applyRealTourMatching(appState.recentTours)
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("OpenMountainInTracker"))) { notif in
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("OpenMountainInExplore"))) { notif in
             if let mountain = notif.object as? Mountain {
                 dismiss() // Close entirely
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    appState.activeMountain = mountain
-                    withAnimation {
-                        appState.isTrackerActive = true
-                    }
+                    appState.exploreSelectedMountain = mountain
                 }
             }
         }
@@ -1550,7 +1547,7 @@ private struct StationDetailSheet: View {
                             
                             DispatchQueue.main.async {
                                 dismiss()
-                                NotificationCenter.default.post(name: NSNotification.Name("OpenMountainInTracker"), object: mountain)
+                                NotificationCenter.default.post(name: NSNotification.Name("OpenMountainInExplore"), object: mountain)
                             }
                         }
                     }
