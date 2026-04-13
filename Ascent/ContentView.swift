@@ -41,7 +41,7 @@ struct ContentView: View {
             .transition(.opacity)
             
             // Custom Tab Bar overlay
-            if !appState.isTrackerActive {
+            if !appState.isTrackerActive || appState.isTrackerMinimized {
                 CustomTabBar(selectedTab: $selectedTab, showTracker: $appState.isTrackerActive)
                 
                 // Smart Floating Action Button (AI Guide) – nur auf Basecamp

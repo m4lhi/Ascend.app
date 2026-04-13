@@ -1987,6 +1987,7 @@ struct ProfileCollectionsList: View {
     @State private var showCreateSheet = false
     @StateObject private var tempManager = CollectionsManager()
     @State private var selectedCollection: TourCollection?
+    @State private var previewCache: [UUID: [Mountain]] = [:]
 
     var body: some View {
         VStack(spacing: 24) {
@@ -2024,12 +2025,22 @@ struct ProfileCollectionsList: View {
             } else {
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
                     ForEach(appState.myCollections) { collection in
-                        CollectionCardView(collection: collection) {
+                        CollectionCardView(
+                            collection: collection,
+                            previewMountains: previewCache[collection.id] ?? []
+                        ) {
                             selectedCollection = collection
                         }
                     }
                 }
                 .padding(.horizontal, 20)
+                .task(id: appState.myCollections) {
+                    for collection in appState.myCollections {
+                        if previewCache[collection.id] == nil {
+                            previewCache[collection.id] = await tempManager.fetchPreviewMountains(for: collection, limit: 4)
+                        }
+                    }
+                }
             }
         }
         .sheet(isPresented: $showCreateSheet) {
