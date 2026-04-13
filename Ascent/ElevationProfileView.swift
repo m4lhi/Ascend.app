@@ -57,6 +57,7 @@ struct ElevationProfileView: View {
     let routePoints: [CLLocation]
     var currentPosition: Double? = nil // distance km from start for live tracker
     var compact: Bool = false
+    var onCoordinateSelected: ((CLLocationCoordinate2D?) -> Void)? = nil
     
     @State private var selectedDistance: Double?
     @State private var zoomScale: Double = 1.0
@@ -129,7 +130,7 @@ struct ElevationProfileView: View {
                         MapPolyline(coordinates: profile.mapCoords)
                             .stroke(DesignSystem.Colors.accent.opacity(0.8), lineWidth: 4)
 
-                        if let sel = selectedDistance, 
+                        if let sel = selectedDistance,
                            let point = profile.elevationData.min(by: { abs($0.distance - sel) < abs($1.distance - sel) }) {
                             Annotation("", coordinate: point.coordinate) {
                                 Circle()
@@ -246,6 +247,13 @@ struct ElevationProfileView: View {
                 processRouteData()
             }
         }
+        .onChange(of: selectedDistance) { _, newDist in
+            if let sel = newDist, let point = profile.elevationData.min(by: { abs($0.distance - sel) < abs($1.distance - sel) }) {
+                onCoordinateSelected?(point.coordinate)
+            } else {
+                onCoordinateSelected?(nil)
+            }
+        }
     }
 
     // MARK: - Chart View (extracted to help Swift type-checker)
@@ -309,13 +317,11 @@ struct ElevationProfileView: View {
                             .onChanged { value in
                                 let x = value.location.x - geometry[proxy.plotFrame!].origin.x
                                 if let distance: Double = proxy.value(atX: x) {
-                                    withAnimation(.interactiveSpring(response: 0.2, dampingFraction: 0.8)) {
-                                        selectedDistance = distance
-                                    }
+                                    selectedDistance = distance
                                 }
                             }
                             .onEnded { _ in
-                                withAnimation(.spring()) { selectedDistance = nil }
+                                selectedDistance = nil
                             }
                     )
             }

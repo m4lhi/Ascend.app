@@ -7,6 +7,7 @@ struct ActivityDetailView: View {
     
     @State private var selectedTab = 0
     @State private var showPhotoPopover = false
+    @State private var selectedCoordinate: CLLocationCoordinate2D?
     
     private let accent = DesignSystem.Colors.accent
     
@@ -105,6 +106,26 @@ struct ActivityDetailView: View {
                         }
                     }
                 }
+
+                if let selected = selectedCoordinate {
+                    Annotation("", coordinate: selected) {
+                        Circle()
+                            .fill(accent)
+                            .frame(width: 16, height: 16)
+                            .overlay(Circle().stroke(Color.white, lineWidth: 3))
+                            .shadow(radius: 4)
+                    }
+                }
+
+                if let selected = selectedCoordinate {
+                    Annotation("", coordinate: selected) {
+                        Circle()
+                            .fill(accent)
+                            .frame(width: 16, height: 16)
+                            .overlay(Circle().stroke(Color.white, lineWidth: 3))
+                            .shadow(radius: 4)
+                    }
+                }
             }
             .mapStyle(.standard(elevation: .realistic))
             .ignoresSafeArea()
@@ -112,8 +133,10 @@ struct ActivityDetailView: View {
             // Bottom Stats Overlay
             VStack(spacing: 12) {
                 if !tour.routeLocations.isEmpty {
-                    ElevationProfileView(routePoints: tour.routeLocations, compact: true)
-                        .padding(.top, 10)
+                    ElevationProfileView(routePoints: tour.routeLocations, compact: true) { coord in
+                        selectedCoordinate = coord
+                    }
+                    .padding(.top, 10)
                 } else {
                     // Simulated Elevation Profile Fallback
                     HStack(alignment: .bottom, spacing: 2) {

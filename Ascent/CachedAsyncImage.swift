@@ -11,21 +11,57 @@ import SwiftUI
 final class ImageCache: @unchecked Sendable {
     static let shared = ImageCache()
 
-    private let cache = NSCache<NSURL, UIImage>()
+    private let memoryCache = NSCache<NSURL, UIImage>()
+    private let fileManager = FileManager.default
+    private let diskCacheURL: URL
 
     private init() {
-        cache.countLimit = 200
-        cache.totalCostLimit = 50 * 1024 * 1024 // 50 MB
+        memoryCache.countLimit = 200
+        memoryCache.totalCostLimit = 50 * 1024 * 1024 // 50 MB
+        
+        // Setup disk cache
+        let paths = fileManager.urls(for: .cachesDirectory, in: .userDomainMask)
+        diskCacheURL = paths[0].appendingPathComponent("AscentImageCache")
+        if !fileManager.fileExists(atPath: diskCacheURL.path) {
+            try? fileManager.createDirectory(at: diskCacheURL, withIntermediateDirectories: true)
+        }
+    }
+
+    private func diskURL(for url: URL) -> URL {
+        let filename = String(url.absoluteString.hashValue)
+        return diskCacheURL.appendingPathComponent(filename)
     }
 
     func image(for url: URL) -> UIImage? {
-        cache.object(forKey: url as NSURL)
+        if let cached = memoryCache.object(forKey: url as NSURL) {
+            return cached
+        }
+        
+        // Check disk cache
+        let fileURL = diskURL(for: url)
+        if let data = try? Data(contentsOf: fileURL), let image = UIImage(data: data) {
+            storeInMemory(image, for: url)
+            return image
+        }
+        
+        return nil
     }
 
-    func store(_ image: UIImage, for url: URL) {
-        // Estimate cost from pixel dimensions instead of expensive JPEG re-encoding
+    func store(_ image: UIImage, data: Data?, for url: URL) {
+        storeInMemory(image, for: url)
+        
+        // Store to disk asynchronously
+        if let dataToSave = data {
+            let fileURL = diskURL(for: url)
+            Task.detached(priority: .background) {
+                try? dataToSave.write(to: fileURL)
+            }
+        }
+    }
+    
+    private func storeInMemory(_ image: UIImage, for url: URL) {
         let cost = Int(image.size.width * image.scale * image.size.height * image.scale * 4)
-        cache.setObject(image, forKey: url as NSURL, cost: cost)
+        memoryCache.setObject(image, forKey: url as NSURL, cost: cost)
     }
 }
 
@@ -81,7 +117,7 @@ struct CachedAsyncImage<Content: View, Placeholder: View>: View {
                 let (data, _) = try await URLSession.shared.data(from: url)
                 await MainActor.run {
                     if let image = UIImage(data: data) {
-                        ImageCache.shared.store(image, for: url)
+                        ImageCache.shared.store(image, data: data, for: url)
                         self.uiImage = image
                     }
                     self.isLoading = false
