@@ -270,28 +270,41 @@ struct BasecampView: View {
     private func heroGauge(icon: String, value: String, label: String, progress: Double, color: Color) -> some View {
         VStack(spacing: 8) {
             ZStack {
+                // Background Track (Thicker, darker for contrast)
                 Circle()
                     .trim(from: 0, to: 0.75)
-                    .stroke(Color.white.opacity(0.15), style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                    .stroke(Color.black.opacity(0.25), style: StrokeStyle(lineWidth: 7, lineCap: .round))
                     .rotationEffect(.degrees(135))
                 
+                // Progress Bar (Thick with vivid gradient ending in a bright spot)
                 Circle()
-                    .trim(from: 0, to: CGFloat(progress) * 0.75)
-                    .stroke(color, style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                    .trim(from: 0, to: CGFloat(max(progress, 0.001)) * 0.75)
+                    .stroke(
+                        AngularGradient(
+                            colors: [color.opacity(0.3), color, color, Color.white],
+                            center: .center,
+                            startAngle: .degrees(0),
+                            endAngle: .degrees(270)
+                        ),
+                        style: StrokeStyle(lineWidth: 7, lineCap: .round)
+                    )
                     .rotationEffect(.degrees(135))
+                    // Subtle glow typical of watchOS gauges
+                    .shadow(color: color.opacity(0.4), radius: 3, x: 0, y: 0)
                 
                 Image(systemName: icon)
                     .font(.app(size: 16, weight: .bold))
                     .foregroundColor(color)
+                    .shadow(color: .black.opacity(0.4), radius: 1, x: 0, y: 1)
             }
-            .frame(width: 50, height: 50)
+            .frame(width: 54, height: 54) // Slightly larger to accommodate thicker rings
             
             VStack(spacing: 2) {
                 Text(value)
                     .font(.app(size: 13, weight: .bold))
                     .foregroundColor(.white)
                 Text(label)
-                    .font(.app(size: 10, weight: .semibold))
+                    .font(.app(size: 10, weight: .bold))
                     .foregroundColor(.white.opacity(0.7))
             }
         }
