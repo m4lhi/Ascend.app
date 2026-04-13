@@ -777,7 +777,7 @@ struct FolderDetailSheet: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Close") { dismiss() }
-                        .font(.system(.body, design: .rounded).weight(.bold))
+                        .font(.app(.body).weight(.bold))
                 }
             }
             .task {
@@ -1109,7 +1109,7 @@ struct ShareFolderSheet: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Done") { dismiss() }
-                        .font(.system(.body, design: .rounded).weight(.bold))
+                        .font(.app(.body).weight(.bold))
                 }
             }
             .task {

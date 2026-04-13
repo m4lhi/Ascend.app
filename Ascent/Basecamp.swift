@@ -30,14 +30,14 @@ struct BasecampView: View {
     private let gold = Color(red: 0.85, green: 0.65, blue: 0.13)
 
     private var tierColor: Color {
-        guard let profile = appState.ascendProfile else { return Color(red: 0.8, green: 0.45, blue: 0.15) }
+        guard let profile = appState.ascendProfile else { return Color(red: 0.72, green: 0.48, blue: 0.28) }
         switch profile.ascend_tier.lowercased() {
-        case "bronze": return Color(red: 0.8, green: 0.45, blue: 0.15)
+        case "bronze": return Color(red: 0.72, green: 0.48, blue: 0.28) // Dezentere Bronze
         case "silver": return Color(red: 0.7, green: 0.75, blue: 0.8)
         case "gold": return Color(red: 0.95, green: 0.8, blue: 0.2)
         case "platinum": return Color(red: 0.7, green: 0.5, blue: 0.95)
         case "obsidian": return Color(red: 0.2, green: 0.1, blue: 0.3)
-        default: return Color(red: 0.8, green: 0.45, blue: 0.15)
+        default: return Color(red: 0.72, green: 0.48, blue: 0.28)
         }
     }
 
@@ -241,7 +241,7 @@ struct BasecampView: View {
                         value: "\(appState.currentXP)",
                         label: "XP",
                         progress: Double(appState.currentLevelProgressXP) / Double(max(appState.xpNeededForNextLevel, 1)),
-                        color: .yellow
+                        color: Color(red: 0.98, green: 0.82, blue: 0.25)
                     )
                     
                     heroGauge(
@@ -249,7 +249,7 @@ struct BasecampView: View {
                         value: "\(appState.weeklyElevation)m",
                         label: "Week",
                         progress: min(Double(appState.weeklyElevation) / 5000.0, 1.0),
-                        color: .cyan
+                        color: Color(red: 0.35, green: 0.85, blue: 0.75)
                     )
                     
                     heroGauge(
@@ -257,7 +257,7 @@ struct BasecampView: View {
                         value: "\(appState.ascendProfile?.streak_days ?? 0)",
                         label: "Streak",
                         progress: min(Double(appState.ascendProfile?.streak_days ?? 0) / 7.0, 1.0),
-                        color: .orange
+                        color: Color(red: 0.95, green: 0.5, blue: 0.3)
                     )
                 }
             }

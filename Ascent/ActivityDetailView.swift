@@ -204,7 +204,7 @@ struct ActivityDetailView: View {
                     
                     VStack(alignment: .leading) {
                         Text(tour.playerName)
-                            .font(.system(.subheadline, design: .rounded).bold())
+                            .font(.app(.subheadline).bold())
                             .foregroundColor(.white)
                         Text("Captured along the route")
                             .font(.app(.caption))

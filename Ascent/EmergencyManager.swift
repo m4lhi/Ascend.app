@@ -212,7 +212,7 @@ struct SOSButtonView: View {
                 .rotationEffect(.degrees(-90))
 
             Image(systemName: emergencyManager.sosTriggered ? "sos.circle.fill" : "sos")
-                .font(.system(size: emergencyManager.sosTriggered ? 18 : 13, weight: .black))
+                .font(.app(size: emergencyManager.sosTriggered ? 18 : 13, weight: .black))
                 .foregroundColor(emergencyManager.sosTriggered ? .white : .red)
         }
         .contentShape(Circle())

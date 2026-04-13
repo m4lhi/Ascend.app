@@ -106,12 +106,12 @@ struct RouteDetailSheet: View {
                         }
                     } label: {
                         Image(systemName: "ellipsis.circle")
-                            .font(.system(.body, design: .rounded).weight(.bold))
+                            .font(.app(.body).weight(.bold))
                     }
                 }
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Close") { dismiss() }
-                        .font(.system(.body, design: .rounded).weight(.bold))
+                        .font(.app(.body).weight(.bold))
                 }
             }
             .task { await fetchMountains() }

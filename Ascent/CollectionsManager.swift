@@ -1658,7 +1658,7 @@ struct AddPeaksToCollectionSheet: View {
                             dismiss()
                         }
                     }
-                    .font(.system(.body, design: .rounded).weight(.bold))
+                    .font(.app(.body).weight(.bold))
                     .disabled(addedIds.isEmpty || isSaving)
                     .foregroundColor(addedIds.isEmpty ? .gray : accent)
                 }
@@ -1842,7 +1842,7 @@ struct ShareCollectionSheet: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Done") { dismiss() }
-                        .font(.system(.body, design: .rounded).weight(.bold))
+                        .font(.app(.body).weight(.bold))
                 }
             }
             .task {

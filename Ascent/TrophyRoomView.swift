@@ -1744,7 +1744,7 @@ struct SportButton: View {
                     .font(.app(size: 14))
                     .foregroundColor(isSelected ? color : .gray.opacity(0.4))
                 Text(title)
-                    .font(.system(size: 12, weight: isSelected ? .bold : .medium, design: .rounded))
+                    .font(.app(size: 12, weight: isSelected ? .bold : .medium))
                     .foregroundColor(isSelected ? .white : .gray)
                 Spacer()
             }

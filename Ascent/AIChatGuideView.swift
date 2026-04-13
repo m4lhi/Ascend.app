@@ -284,7 +284,7 @@ struct AIChatGuideView: View {
                                 Button("Close") {
                                     dismiss()
                                 }
-                                .font(.system(.body, design: .rounded).bold())
+                                .font(.app(.body).bold())
                                 .foregroundColor(accentColor)
                             }
                         }

@@ -298,7 +298,7 @@ struct ExploreView: View {
                     .toolbar {
                         ToolbarItem(placement: .navigationBarTrailing) {
                             Button("Close") { showMyRoutesLibrary = false }
-                                .font(.system(.body, design: .rounded).weight(.bold))
+                                .font(.app(.body).weight(.bold))
                         }
                     }
             }

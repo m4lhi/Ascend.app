@@ -219,12 +219,12 @@ struct WeatherCardView: View {
             // Current conditions
             HStack(spacing: 12) {
                 Image(systemName: weather.conditionSymbol)
-                    .font(.system(size: compact ? 28 : 36))
+                    .font(.app(size: compact ? 28 : 36))
                     .symbolRenderingMode(.multicolor)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(weather.temperatureFormatted)
-                        .font(.system(size: compact ? 22 : 28, weight: .bold, design: .rounded))
+                        .font(.app(size: compact ? 22 : 28, weight: .bold))
                     Text("Feels like \(weather.feelsLikeFormatted)")
                         .font(.app(.caption))
                         .foregroundColor(.secondary)

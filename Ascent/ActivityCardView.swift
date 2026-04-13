@@ -659,7 +659,7 @@ struct CommentRow: View {
                     }
                 } else {
                     Circle().fill(Color.gray.opacity(0.15))
-                        .overlay(Text(String(comment.userName.prefix(1))).font(.system(.caption2, weight: .bold)).foregroundColor(.gray))
+                        .overlay(Text(String(comment.userName.prefix(1))).font(.app(.caption2).weight(.bold)).foregroundColor(.gray))
                 }
             }
             .frame(width: 32, height: 32)

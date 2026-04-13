@@ -523,7 +523,7 @@ struct PremiumPodiumView: View {
                         .frame(width: avatarSize, height: avatarSize)
                         .overlay(
                             Text(String(player.name.prefix(1)).uppercased())
-                                .font(.system(size: avatarSize * 0.35, weight: .bold, design: .rounded))
+                                .font(.app(size: avatarSize * 0.35, weight: .bold))
                                 .foregroundColor(color)
                         )
                 }
@@ -552,7 +552,7 @@ struct PremiumPodiumView: View {
                     .modifier(ShimmerModifier(color: gold))
             } else {
                 Text(player.name)
-                    .font(.system(size: rank == 2 ? 14 : 13, weight: .bold, design: .rounded))
+                    .font(.app(size: rank == 2 ? 14 : 13, weight: .bold))
                     .foregroundColor(.black)
                     .lineLimit(1)
             }
@@ -565,7 +565,7 @@ struct PremiumPodiumView: View {
 
             // XP with animated feel
             Text(formatXP(player.xp))
-                .font(.system(size: rank == 1 ? 24 : 18, weight: .black, design: .rounded))
+                .font(.app(size: rank == 1 ? 24 : 18, weight: .black))
                 .foregroundColor(color)
             Text("XP")
                 .font(.app(size: 9, weight: .bold))
@@ -703,7 +703,7 @@ struct PremiumLeaderboardRow: View {
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 6) {
                     Text(player.name)
-                        .font(.system(size: 15, weight: player.isCurrentUser ? .bold : .semibold, design: .rounded))
+                        .font(.app(size: 15, weight: player.isCurrentUser ? .bold : .semibold))
                         .foregroundColor(.primary)
                         .lineLimit(1)
 
