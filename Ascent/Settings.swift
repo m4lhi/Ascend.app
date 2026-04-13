@@ -136,7 +136,7 @@ struct SettingsView: View {
                     Button(action: { dismiss() }) {
                         Image(systemName: "xmark.circle.fill")
                             .foregroundColor(.gray)
-                            .font(.system(.title3, design: .rounded))
+                            .font(DesignSystem.Typography.appFont(style: .title3))
                     }
                 }
             }
@@ -192,10 +192,10 @@ struct SettingsView: View {
     private var versionInfo: some View {
         VStack(spacing: 4) {
             Text("Ascent")
-                .font(.system(size: 14, weight: .bold, design: .rounded))
+                .font(DesignSystem.Typography.appFont(size: 14, weight: .bold))
                 .foregroundColor(.gray.opacity(0.5))
             Text("Version 1.1.0")
-                .font(.system(size: 11, design: .rounded))
+                .font(DesignSystem.Typography.appFont(size: 11))
                 .foregroundColor(.gray.opacity(0.3))
         }
         .padding(.top, 16)
@@ -211,15 +211,15 @@ struct SettingsView: View {
                     .frame(width: 32, height: 32)
                 Image(systemName: icon)
                     .foregroundColor(accentBlue)
-                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .font(DesignSystem.Typography.appFont(size: 14, weight: .bold))
             }
             Text(label)
-                .font(.system(.subheadline, design: .rounded))
+                .font(DesignSystem.Typography.appFont(style: .subheadline))
                 .fontWeight(.semibold)
                 .foregroundColor(.primary)
             Spacer()
             Text(value)
-                .font(.system(.subheadline, design: .rounded))
+                .font(DesignSystem.Typography.appFont(style: .subheadline))
                 .foregroundColor(.secondary)
         }
     }
@@ -281,7 +281,7 @@ struct SettingsSection<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(title)
-                .font(.system(size: 11, weight: .black, design: .rounded))
+                .font(DesignSystem.Typography.appFont(size: 11, weight: .black))
                 .foregroundColor(.gray)
                 .tracking(2)
                 .padding(.leading, 10)
@@ -325,22 +325,22 @@ struct ExportAllToursSheet: View {
         NavigationView {
             VStack(spacing: 24) {
                 Image(systemName: "square.and.arrow.up.on.square")
-                    .font(.system(size: 48))
+                    .font(DesignSystem.Typography.appFont(size: 48))
                     .foregroundColor(DesignSystem.Colors.accent)
                     .padding(.top, 30)
 
                 Text("Export All Tours")
-                    .font(.system(.title2, design: .rounded))
+                    .font(DesignSystem.Typography.appFont(style: .title2))
                     .fontWeight(.bold)
 
                 Text("Export all your recorded tours as individual GPX files bundled in a single archive.")
-                    .font(.system(.subheadline, design: .rounded))
+                    .font(DesignSystem.Typography.appFont(style: .subheadline))
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 30)
 
                 Text("\(appState.recentTours.filter { $0.isCurrentUser }.count) tours available")
-                    .font(.system(.caption, design: .rounded))
+                    .font(DesignSystem.Typography.appFont(style: .caption))
                     .foregroundColor(.gray)
 
                 Spacer()
@@ -356,7 +356,7 @@ struct ExportAllToursSheet: View {
                 .padding(.vertical, 14)
                 .background(DesignSystem.Colors.accent)
                 .foregroundColor(.white)
-                .font(.system(.headline, design: .rounded))
+                .font(DesignSystem.Typography.appFont(style: .headline))
                 .clipShape(RoundedRectangle(cornerRadius: 14))
                 .disabled(isExporting)
                 .padding(.horizontal, 20)
@@ -427,16 +427,16 @@ struct ShareLocationSheet: View {
         NavigationView {
             VStack(spacing: 20) {
                 Image(systemName: "location.fill")
-                    .font(.system(size: 48))
+                    .font(DesignSystem.Typography.appFont(size: 48))
                     .foregroundColor(.blue)
                     .padding(.top, 30)
 
                 Text("Share Location")
-                    .font(.system(.title2, design: .rounded))
+                    .font(DesignSystem.Typography.appFont(style: .title2))
                     .fontWeight(.bold)
 
                 Text(locationText)
-                    .font(.system(.subheadline, design: .rounded))
+                    .font(DesignSystem.Typography.appFont(style: .subheadline))
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 30)
@@ -453,7 +453,7 @@ struct ShareLocationSheet: View {
                 .padding(.vertical, 14)
                 .background(hasLocation ? Color.blue : Color.gray)
                 .foregroundColor(.white)
-                .font(.system(.headline, design: .rounded))
+                .font(DesignSystem.Typography.appFont(style: .headline))
                 .clipShape(RoundedRectangle(cornerRadius: 14))
                 .disabled(!hasLocation)
                 .padding(.horizontal, 20)
@@ -505,16 +505,16 @@ struct SettingsRowLabel: View {
                     .frame(width: 32, height: 32)
                 Image(systemName: icon)
                     .foregroundColor(iconColor)
-                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .font(DesignSystem.Typography.appFont(size: 14, weight: .bold))
             }
             Text(text)
-                .font(.system(.subheadline, design: .rounded))
+                .font(DesignSystem.Typography.appFont(style: .subheadline))
                 .fontWeight(.semibold)
                 .foregroundColor(textColor)
             Spacer()
             if showArrow {
                 Image(systemName: "chevron.right")
-                    .font(.system(.caption, design: .rounded))
+                    .font(DesignSystem.Typography.appFont(style: .caption))
                     .foregroundColor(.gray)
             }
         }

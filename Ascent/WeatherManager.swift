@@ -206,7 +206,7 @@ struct WeatherCardView: View {
                     Image(systemName: weather.safetyLevel.icon)
                         .foregroundColor(weather.safetyLevel.color)
                     Text(weather.safetyLevel.label)
-                        .font(.system(.caption, design: .rounded))
+                        .font(DesignSystem.Typography.appFont(style: .caption))
                         .fontWeight(.bold)
                         .foregroundColor(weather.safetyLevel.color)
                     Spacer()
@@ -226,7 +226,7 @@ struct WeatherCardView: View {
                     Text(weather.temperatureFormatted)
                         .font(.system(size: compact ? 22 : 28, weight: .bold, design: .rounded))
                     Text("Feels like \(weather.feelsLikeFormatted)")
-                        .font(.system(.caption, design: .rounded))
+                        .font(DesignSystem.Typography.appFont(style: .caption))
                         .foregroundColor(.secondary)
                 }
 
@@ -238,7 +238,7 @@ struct WeatherCardView: View {
                         Label("\(Int(weather.humidity))%", systemImage: "humidity.fill")
                         Label("UV \(weather.uvIndex)", systemImage: "sun.max.fill")
                     }
-                    .font(.system(.caption, design: .rounded))
+                    .font(DesignSystem.Typography.appFont(style: .caption))
                     .foregroundColor(.secondary)
                 }
             }
@@ -251,17 +251,17 @@ struct WeatherCardView: View {
                         ForEach(weather.hourlyForecast) { hour in
                             VStack(spacing: 4) {
                                 Text(hourLabel(hour.hour))
-                                    .font(.system(.caption2, design: .rounded))
+                                    .font(DesignSystem.Typography.appFont(style: .caption2))
                                     .foregroundColor(.secondary)
                                 Image(systemName: hour.conditionSymbol)
                                     .symbolRenderingMode(.multicolor)
-                                    .font(.system(size: 18))
+                                    .font(DesignSystem.Typography.appFont(size: 18))
                                 Text("\(Int(round(hour.temperature)))°")
-                                    .font(.system(.caption, design: .rounded))
+                                    .font(DesignSystem.Typography.appFont(style: .caption))
                                     .fontWeight(.semibold)
                                 if hour.precipitationChance > 0.1 {
                                     Text("\(Int(hour.precipitationChance * 100))%")
-                                        .font(.system(size: 9, design: .rounded))
+                                        .font(DesignSystem.Typography.appFont(size: 9))
                                         .foregroundColor(.blue)
                                 }
                             }
@@ -276,7 +276,7 @@ struct WeatherCardView: View {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .foregroundColor(alert.severity.color)
                     Text(alert.title)
-                        .font(.system(.caption, design: .rounded))
+                        .font(DesignSystem.Typography.appFont(style: .caption))
                         .fontWeight(.medium)
                 }
                 .padding(8)

@@ -729,7 +729,7 @@ struct AICoachingGatewayView: View {
         HStack {
             Button(action: { dismiss() }) {
                 Image(systemName: "xmark")
-                    .font(.system(size: 14, weight: .bold))
+                    .font(DesignSystem.Typography.appFont(size: 14, weight: .bold))
                     .foregroundColor(.secondary)
                     .frame(width: 34, height: 34)
                     .background(CT.Colors.surfaceRaised)
@@ -761,7 +761,7 @@ struct AICoachingGatewayView: View {
             if vm.step > 0 && vm.step < vm.totalSteps {
                 Button(action: { vm.back() }) {
                     Image(systemName: "chevron.left")
-                        .font(.system(size: 14, weight: .bold))
+                        .font(DesignSystem.Typography.appFont(size: 14, weight: .bold))
                         .foregroundColor(.secondary)
                         .frame(width: 34, height: 34)
                         .background(CT.Colors.surfaceRaised)
@@ -779,9 +779,9 @@ struct AICoachingGatewayView: View {
         Button(action: { vm.next() }) {
             HStack(spacing: 8) {
                 Text(vm.step == vm.totalSteps - 1 ? "Generate my path" : "Continue")
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .font(DesignSystem.Typography.appFont(size: 16, weight: .bold))
                 Image(systemName: vm.step == vm.totalSteps - 1 ? "sparkles" : "arrow.right")
-                    .font(.system(size: 14, weight: .bold))
+                    .font(DesignSystem.Typography.appFont(size: 14, weight: .bold))
             }
             .foregroundColor(.white)
             .frame(maxWidth: .infinity)
@@ -816,7 +816,7 @@ struct WheelPicker: View {
         Picker("", selection: $value) {
             ForEach(Array(range), id: \.self) { v in
                 Text("\(v) \(unit)")
-                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                    .font(DesignSystem.Typography.appFont(size: 22, weight: .bold))
                     .tag(v)
             }
         }
@@ -842,7 +842,7 @@ private struct ScreenScaffold<Content: View>: View {
                         .fill(CT.Colors.accent.opacity(0.12))
                         .frame(width: 56, height: 56)
                     Image(systemName: icon)
-                        .font(.system(size: 24, weight: .bold))
+                        .font(DesignSystem.Typography.appFont(size: 24, weight: .bold))
                         .foregroundColor(CT.Colors.accent)
                 }
                 .padding(.top, 16)
@@ -932,7 +932,7 @@ private struct OnboardingFitness: View {
                             }) {
                                 HStack {
                                     Text(lvl.rawValue)
-                                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                                        .font(DesignSystem.Typography.appFont(size: 15, weight: .semibold))
                                     Spacer()
                                     if data.endurance == lvl {
                                         Image(systemName: "checkmark.circle.fill")
@@ -982,7 +982,7 @@ private struct OnboardingExperience: View {
                                     Image(systemName: data.experience.contains(lvl) ? "checkmark.square.fill" : "square")
                                         .foregroundColor(data.experience.contains(lvl) ? CT.Colors.accent : .gray)
                                     Text(lvl.rawValue)
-                                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                                        .font(DesignSystem.Typography.appFont(size: 15, weight: .semibold))
                                         .foregroundColor(.primary)
                                     Spacer()
                                 }
@@ -1019,7 +1019,7 @@ private struct OnboardingGoal: View {
             VStack(spacing: 12) {
                 FieldCard(label: "Dream summit") {
                     TextField("e.g. Mont Blanc", text: $data.goalName)
-                        .font(.system(size: 18, weight: .semibold, design: .rounded))
+                        .font(DesignSystem.Typography.appFont(size: 18, weight: .semibold))
                         .autocorrectionDisabled()
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 6) {
@@ -1028,7 +1028,7 @@ private struct OnboardingGoal: View {
                                     HapticManager.shared.light()
                                     withAnimation(CT.Springs.snappy) { data.goalName = s }
                                 }
-                                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                .font(DesignSystem.Typography.appFont(size: 11, weight: .semibold))
                                 .padding(.horizontal, 12).padding(.vertical, 7)
                                 .background(CT.Colors.accent.opacity(data.goalName == s ? 0.22 : 0.08))
                                 .foregroundColor(CT.Colors.accent)
@@ -1115,10 +1115,10 @@ private struct OnboardingSafety: View {
                 }) {
                     HStack(spacing: 10) {
                         Image(systemName: data.acceptedSafetyCommitment ? "checkmark.square.fill" : "square")
-                            .font(.system(size: 20))
+                            .font(DesignSystem.Typography.appFont(size: 20))
                             .foregroundColor(data.acceptedSafetyCommitment ? CT.Colors.accent : .gray)
                         Text("I commit to following a safe training path.")
-                            .font(.system(size: 14, weight: .semibold, design: .rounded))
+                            .font(DesignSystem.Typography.appFont(size: 14, weight: .semibold))
                             .foregroundColor(.primary)
                             .multilineTextAlignment(.leading)
                         Spacer()
@@ -1218,7 +1218,7 @@ struct CoachingMapView: View {
                                     Image(systemName: "flag.checkered")
                                     Text("Start New Objective")
                                 }
-                                .font(.system(size: 16, weight: .bold, design: .rounded))
+                                .font(DesignSystem.Typography.appFont(size: 16, weight: .bold))
                                 .foregroundColor(.white)
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 16)
@@ -1276,9 +1276,9 @@ struct CoachingMapView: View {
                 }) {
                     HStack(spacing: 6) {
                         Image(systemName: tab == .hikes ? "figure.hiking" : "dumbbell.fill")
-                            .font(.system(size: 13, weight: .bold))
+                            .font(DesignSystem.Typography.appFont(size: 13, weight: .bold))
                         Text(tab.rawValue)
-                            .font(.system(size: 14, weight: .bold, design: .rounded))
+                            .font(DesignSystem.Typography.appFont(size: 14, weight: .bold))
                     }
                     .foregroundColor(selectedTab == tab ? .white : .primary.opacity(0.6))
                     .frame(maxWidth: .infinity)
@@ -1371,7 +1371,7 @@ struct CoachingMapView: View {
             FlowLayout(spacing: 6) {
                 ForEach(plan.gearRecommendations, id: \.self) { g in
                     Text(g)
-                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                        .font(DesignSystem.Typography.appFont(size: 11, weight: .semibold))
                         .padding(.horizontal, 10).padding(.vertical, 6)
                         .background(CT.Colors.accent.opacity(0.1))
                         .foregroundColor(CT.Colors.accent)
@@ -1447,7 +1447,7 @@ private struct StationRow: View {
                         .frame(width: 30, height: 30)
                         .overlay(
                             Image(systemName: station.isCompleted ? "checkmark" : icon)
-                                .font(.system(size: 13, weight: .bold))
+                                .font(DesignSystem.Typography.appFont(size: 13, weight: .bold))
                                 .foregroundColor(color)
                         )
                         .offset(y: 22)
@@ -1456,7 +1456,7 @@ private struct StationRow: View {
                     if station.isRealTour {
                         Image(systemName: "sparkle")
                             .foregroundColor(CT.Colors.gold)
-                            .font(.system(size: 14))
+                            .font(DesignSystem.Typography.appFont(size: 14))
                             .offset(x: 28, y: -22)
                     }
                 }
@@ -1593,7 +1593,7 @@ private struct StationDetailSheet: View {
                     Image(systemName: "arrow.up.right")
                     Text("+\(station.elevationGain) m")
                 }
-                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .font(DesignSystem.Typography.appFont(size: 13, weight: .semibold))
                 .foregroundColor(CT.Colors.accent)
             }
 
@@ -1634,7 +1634,7 @@ private struct StationDetailSheet: View {
                         Image(systemName: "map.fill")
                         Text("Open Peak in Explorer Map")
                     }
-                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .font(DesignSystem.Typography.appFont(size: 15, weight: .bold))
                     .foregroundColor(.white)
                     .padding(.vertical, 14)
                     .frame(maxWidth: .infinity)
@@ -1671,7 +1671,7 @@ private struct StationDetailSheet: View {
                         Image(systemName: "map.fill")
                         Text("View Peak Details")
                     }
-                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .font(DesignSystem.Typography.appFont(size: 15, weight: .bold))
                     .foregroundColor(CT.Colors.accent)
                     .padding(.vertical, 14)
                     .frame(maxWidth: .infinity)
@@ -1693,7 +1693,7 @@ private struct StationDetailSheet: View {
                         Image(systemName: "sparkles")
                         Text("Ask AI for detailed exercises")
                     }
-                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .font(DesignSystem.Typography.appFont(size: 15, weight: .bold))
                     .foregroundColor(.white)
                     .padding(.vertical, 14)
                     .frame(maxWidth: .infinity)
@@ -1708,7 +1708,7 @@ private struct StationDetailSheet: View {
                 dismiss()
             }) {
                 Text(station.isCompleted ? "Completed" : (station.mountainId != nil ? "Mark done (Unverified)" : "Mark as done manually"))
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .font(DesignSystem.Typography.appFont(size: 16, weight: .bold))
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 15)

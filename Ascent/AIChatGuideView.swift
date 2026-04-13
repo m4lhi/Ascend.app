@@ -358,7 +358,7 @@ struct AIChatGuideView: View {
             // Input Area
             VStack(spacing: 8) {
                 Text("\(viewModel.messagesLeftToday) daily messages remaining")
-                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .font(DesignSystem.Typography.appFont(size: 11, weight: .bold))
                     .foregroundColor(viewModel.messagesLeftToday > 0 ? .gray : .red)
                 
                 HStack(spacing: 12) {
@@ -367,7 +367,7 @@ struct AIChatGuideView: View {
                         .padding(.vertical, 12)
                         .background(Color(red: 0.95, green: 0.95, blue: 0.97))
                         .clipShape(Capsule())
-                        .font(.system(size: 16, design: .rounded))
+                        .font(DesignSystem.Typography.appFont(size: 16))
                         .submitLabel(.send)
                         .onSubmit {
                             viewModel.sendMessage(appState: appState)
@@ -378,7 +378,7 @@ struct AIChatGuideView: View {
                         viewModel.sendMessage(appState: appState)
                     }) {
                         Image(systemName: "paperplane.fill")
-                            .font(.system(size: 20))
+                            .font(DesignSystem.Typography.appFont(size: 20))
                             .foregroundColor(.white)
                             .frame(width: 44, height: 44)
                             .background(
@@ -419,7 +419,7 @@ struct ChatMessageCell: View {
             if message.isUser {
                 Spacer(minLength: 40)
                 Text(.init(message.text))
-                    .font(.system(size: 16, design: .rounded))
+                    .font(DesignSystem.Typography.appFont(size: 16))
                     .foregroundColor(.white)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
@@ -428,7 +428,7 @@ struct ChatMessageCell: View {
             } else {
                 BotAvatar()
                 Text(.init(message.text))
-                    .font(.system(size: 16, design: .rounded))
+                    .font(DesignSystem.Typography.appFont(size: 16))
                     .foregroundColor(.primary)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
@@ -448,7 +448,7 @@ struct BotAvatar: View {
                 .fill(Color.black.opacity(0.8))
                 .frame(width: 32, height: 32)
             Image(systemName: "leaf.fill") // Nature/Outdoor theme icon
-                .font(.system(size: 14))
+                .font(DesignSystem.Typography.appFont(size: 14))
                 .foregroundColor(.white)
         }
     }

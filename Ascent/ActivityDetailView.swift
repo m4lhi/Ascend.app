@@ -39,7 +39,7 @@ struct ActivityDetailView: View {
                 dismiss()
             }) {
                 Image(systemName: "xmark.circle.fill")
-                    .font(.system(size: 30))
+                    .font(DesignSystem.Typography.appFont(size: 30))
                     .foregroundColor(.white.opacity(0.8))
                     .padding(.trailing, 20)
                     .padding(.top, 50)
@@ -67,7 +67,7 @@ struct ActivityDetailView: View {
                 if let last = tour.routeCoordinates.last, tour.routeCoordinates.count > 1 {
                     Annotation("Summit", coordinate: last) {
                         Image(systemName: "flag.fill")
-                            .font(.system(size: 16))
+                            .font(DesignSystem.Typography.appFont(size: 16))
                             .foregroundColor(.red)
                     }
                 }
@@ -92,13 +92,13 @@ struct ActivityDetailView: View {
                         .popover(isPresented: $showPhotoPopover) {
                             VStack(spacing: 8) {
                                 Text("\(tour.playerName) took a photo here.")
-                                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                                    .font(DesignSystem.Typography.appFont(size: 14, weight: .semibold))
                                     .padding()
                                 Button("View Full Photo") {
                                     showPhotoPopover = false
                                     selectedTab = 1
                                 }
-                                .font(.system(size: 14, weight: .bold, design: .rounded))
+                                .font(DesignSystem.Typography.appFont(size: 14, weight: .bold))
                                 .foregroundColor(accent)
                                 .padding(.bottom, 10)
                             }
@@ -212,7 +212,7 @@ struct ActivityDetailView: View {
                             .font(.system(.subheadline, design: .rounded).bold())
                             .foregroundColor(.white)
                         Text("Captured along the route")
-                            .font(.system(.caption, design: .rounded))
+                            .font(DesignSystem.Typography.appFont(style: .caption))
                             .foregroundColor(.white.opacity(0.7))
                     }
                     Spacer()
@@ -229,13 +229,13 @@ struct ActivityDetailView: View {
     private func statItem(icon: String, label: String, value: String) -> some View {
         VStack(spacing: 4) {
             Image(systemName: icon)
-                .font(.system(size: 16))
+                .font(DesignSystem.Typography.appFont(size: 16))
                 .foregroundColor(.white.opacity(0.7))
             Text(value)
-                .font(.system(size: 18, weight: .bold, design: .rounded))
+                .font(DesignSystem.Typography.appFont(size: 18, weight: .bold))
                 .foregroundColor(.white)
             Text(label)
-                .font(.system(size: 12, weight: .medium, design: .rounded))
+                .font(DesignSystem.Typography.appFont(size: 12, weight: .medium))
                 .foregroundColor(.white.opacity(0.6))
         }
     }

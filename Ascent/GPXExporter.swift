@@ -172,7 +172,7 @@ struct ExportSheetView: View {
                 // Format selection
                 VStack(alignment: .leading, spacing: 12) {
                     Text("EXPORT FORMAT")
-                        .font(.system(size: 11, weight: .black, design: .rounded))
+                        .font(DesignSystem.Typography.appFont(size: 11, weight: .black))
                         .foregroundColor(.gray)
                         .tracking(2)
 
@@ -189,11 +189,11 @@ struct ExportSheetView: View {
 
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(format.rawValue)
-                                        .font(.system(.subheadline, design: .rounded))
+                                        .font(DesignSystem.Typography.appFont(style: .subheadline))
                                         .fontWeight(.semibold)
                                         .foregroundColor(.primary)
                                     Text(format.description)
-                                        .font(.system(.caption, design: .rounded))
+                                        .font(DesignSystem.Typography.appFont(style: .caption))
                                         .foregroundColor(.secondary)
                                 }
 
@@ -214,7 +214,7 @@ struct ExportSheetView: View {
                 // Tour info
                 VStack(alignment: .leading, spacing: 8) {
                     Text("TOUR DETAILS")
-                        .font(.system(size: 11, weight: .black, design: .rounded))
+                        .font(DesignSystem.Typography.appFont(size: 11, weight: .black))
                         .foregroundColor(.gray)
                         .tracking(2)
 
@@ -224,7 +224,7 @@ struct ExportSheetView: View {
                         Text("\(routePoints.count) points")
                             .foregroundColor(.secondary)
                     }
-                    .font(.system(.subheadline, design: .rounded))
+                    .font(DesignSystem.Typography.appFont(style: .subheadline))
                     .padding(14)
                     .background(.ultraThinMaterial)
                     .clipShape(RoundedRectangle(cornerRadius: 14))

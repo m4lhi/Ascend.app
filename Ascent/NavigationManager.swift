@@ -303,17 +303,17 @@ struct NavigationHUDView: View {
                                 .fill(accentBlue.opacity(0.15))
                                 .frame(width: 38, height: 38)
                             Image(systemName: instruction.type.icon)
-                                .font(.system(size: 18, weight: .bold))
+                                .font(DesignSystem.Typography.appFont(size: 18, weight: .bold))
                                 .foregroundColor(instruction.type.color)
                         }
 
                         VStack(alignment: .leading, spacing: 1) {
                             Text(formatDistance(navManager.distanceToNext))
-                                .font(.system(size: 16, weight: .black, design: .rounded))
+                                .font(DesignSystem.Typography.appFont(size: 16, weight: .black))
                                 .foregroundColor(.primary)
                             if navManager.isOffRoute {
                                 Text("OFF ROUTE")
-                                    .font(.system(size: 8, weight: .black, design: .rounded))
+                                    .font(DesignSystem.Typography.appFont(size: 8, weight: .black))
                                     .foregroundColor(.red)
                                     .tracking(1)
                             }
@@ -324,7 +324,7 @@ struct NavigationHUDView: View {
                         // Stop navigation button
                         Button(action: { navManager.stopNavigation() }) {
                             Image(systemName: "xmark")
-                                .font(.system(size: 11, weight: .bold))
+                                .font(DesignSystem.Typography.appFont(size: 11, weight: .bold))
                                 .foregroundColor(.gray)
                                 .frame(width: 28, height: 28)
                                 .background(Color.gray.opacity(0.15), in: Circle())
@@ -352,7 +352,7 @@ struct NavigationHUDView: View {
                             Image(systemName: "exclamationmark.triangle.fill")
                                 .foregroundColor(.red)
                             Text("Off Route - Return to trail")
-                                .font(.system(.caption, design: .rounded))
+                                .font(DesignSystem.Typography.appFont(style: .caption))
                                 .fontWeight(.bold)
                                 .foregroundColor(.red)
                         }
@@ -368,13 +368,13 @@ struct NavigationHUDView: View {
                                 .fill(accentBlue.opacity(0.15))
                                 .frame(width: 52, height: 52)
                             Image(systemName: instruction.type.icon)
-                                .font(.system(size: 24, weight: .bold))
+                                .font(DesignSystem.Typography.appFont(size: 24, weight: .bold))
                                 .foregroundColor(instruction.type.color)
                         }
 
                         VStack(alignment: .leading, spacing: 4) {
                             Text(instruction.text)
-                                .font(.system(.subheadline, design: .rounded))
+                                .font(DesignSystem.Typography.appFont(style: .subheadline))
                                 .fontWeight(.semibold)
                                 .lineLimit(2)
 
@@ -382,7 +382,7 @@ struct NavigationHUDView: View {
                                 Label(formatDistance(navManager.distanceToNext), systemImage: "location.fill")
                                 Label(formatTime(navManager.estimatedTimeRemaining), systemImage: "clock.fill")
                             }
-                            .font(.system(.caption, design: .rounded))
+                            .font(DesignSystem.Typography.appFont(style: .caption))
                             .foregroundColor(.secondary)
                         }
 
@@ -395,7 +395,7 @@ struct NavigationHUDView: View {
                             }
                         }) {
                             Image(systemName: "chevron.up.circle.fill")
-                                .font(.system(size: 28))
+                                .font(DesignSystem.Typography.appFont(size: 28))
                                 .foregroundColor(.gray)
                         }
                     }

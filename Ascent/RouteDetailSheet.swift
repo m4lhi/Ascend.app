@@ -145,7 +145,7 @@ struct RouteDetailSheet: View {
                             ZStack {
                                 Circle().fill(accent).frame(width: 28, height: 28)
                                 Text("\(index + 1)")
-                                    .font(.system(size: 12, weight: .black, design: .rounded))
+                                    .font(DesignSystem.Typography.appFont(size: 12, weight: .black))
                                     .foregroundColor(.white)
                             }
                             .shadow(color: .black.opacity(0.3), radius: 4, y: 2)
@@ -161,9 +161,9 @@ struct RouteDetailSheet: View {
             // Sport type badge
             HStack(spacing: 8) {
                 Image(systemName: route.sportIcon)
-                    .font(.system(size: 14, weight: .bold))
+                    .font(DesignSystem.Typography.appFont(size: 14, weight: .bold))
                 Text(route.sportType.label.uppercased())
-                    .font(.system(size: 11, weight: .black, design: .rounded))
+                    .font(DesignSystem.Typography.appFont(size: 11, weight: .black))
                     .tracking(1.5)
             }
             .foregroundColor(.white)
@@ -181,7 +181,7 @@ struct RouteDetailSheet: View {
                         HStack(spacing: 4) {
                             Image(systemName: "checkmark.seal.fill")
                             Text("COMPLETED")
-                                .font(.system(size: 10, weight: .black, design: .rounded))
+                                .font(DesignSystem.Typography.appFont(size: 10, weight: .black))
                                 .tracking(1)
                         }
                         .foregroundColor(.white)
@@ -203,19 +203,19 @@ struct RouteDetailSheet: View {
     var routeTitleSection: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(route.name)
-                .font(.system(size: 28, weight: .bold, design: .rounded))
+                .font(DesignSystem.Typography.appFont(size: 28, weight: .bold))
 
             HStack(spacing: 12) {
                 HStack(spacing: 4) {
                     Image(systemName: route.visibility.icon)
-                        .font(.system(size: 11))
+                        .font(DesignSystem.Typography.appFont(size: 11))
                     Text(route.visibility.label)
-                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                        .font(DesignSystem.Typography.appFont(size: 12, weight: .semibold))
                 }
                 .foregroundColor(.secondary)
 
                 Text(route.difficulty.uppercased())
-                    .font(.system(size: 10, weight: .black, design: .rounded))
+                    .font(DesignSystem.Typography.appFont(size: 10, weight: .black))
                     .foregroundColor(.white)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 4)
@@ -223,7 +223,7 @@ struct RouteDetailSheet: View {
                     .clipShape(Capsule())
 
                 Text(route.createdAt, style: .date)
-                    .font(.system(size: 12, design: .rounded))
+                    .font(DesignSystem.Typography.appFont(size: 12))
                     .foregroundColor(.secondary)
             }
         }
@@ -252,12 +252,12 @@ struct RouteDetailSheet: View {
     func routeStat(icon: String, value: String, label: String) -> some View {
         VStack(spacing: 6) {
             Image(systemName: icon)
-                .font(.system(size: 18))
+                .font(DesignSystem.Typography.appFont(size: 18))
                 .foregroundColor(accent)
             Text(value)
-                .font(.system(size: 16, weight: .bold, design: .rounded))
+                .font(DesignSystem.Typography.appFont(size: 16, weight: .bold))
             Text(label)
-                .font(.system(size: 11, design: .rounded))
+                .font(DesignSystem.Typography.appFont(size: 11))
                 .foregroundColor(.secondary)
         }
         .frame(maxWidth: .infinity)
@@ -286,10 +286,10 @@ struct RouteDetailSheet: View {
         Button(action: action) {
             VStack(spacing: 6) {
                 Image(systemName: icon)
-                    .font(.system(size: 20, weight: .medium))
+                    .font(DesignSystem.Typography.appFont(size: 20, weight: .medium))
                     .foregroundColor(active ? .green : accent)
                 Text(label)
-                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .font(DesignSystem.Typography.appFont(size: 11, weight: .semibold))
                     .foregroundColor(.primary)
             }
             .frame(maxWidth: .infinity)
@@ -307,7 +307,7 @@ struct RouteDetailSheet: View {
     var elevationSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Elevation Profile")
-                .font(.system(size: 16, weight: .bold, design: .rounded))
+                .font(DesignSystem.Typography.appFont(size: 16, weight: .bold))
 
             RouteElevationProfile(mountains: mountains, accentColor: accent)
                 .frame(height: 70)
@@ -324,7 +324,7 @@ struct RouteDetailSheet: View {
     var ratingSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Your Rating")
-                .font(.system(size: 16, weight: .bold, design: .rounded))
+                .font(DesignSystem.Typography.appFont(size: 16, weight: .bold))
 
             HStack(spacing: 8) {
                 ForEach(1...5, id: \.self) { star in
@@ -334,7 +334,7 @@ struct RouteDetailSheet: View {
                         HapticManager.shared.light()
                     } label: {
                         Image(systemName: star <= userRating ? "star.fill" : "star")
-                            .font(.system(size: 24))
+                            .font(DesignSystem.Typography.appFont(size: 24))
                             .foregroundColor(star <= userRating ? .yellow : .gray.opacity(0.3))
                     }
                 }
@@ -353,12 +353,12 @@ struct RouteDetailSheet: View {
     var tagsSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Tags")
-                .font(.system(size: 16, weight: .bold, design: .rounded))
+                .font(DesignSystem.Typography.appFont(size: 16, weight: .bold))
 
             FlowLayout(spacing: 8) {
                 ForEach(route.tags, id: \.self) { tag in
                     Text(tag)
-                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                        .font(DesignSystem.Typography.appFont(size: 12, weight: .semibold))
                         .foregroundColor(accent)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
@@ -375,7 +375,7 @@ struct RouteDetailSheet: View {
     var mountainsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Peaks on this Route")
-                .font(.system(size: 16, weight: .bold, design: .rounded))
+                .font(DesignSystem.Typography.appFont(size: 16, weight: .bold))
 
             ForEach(Array(mountains.enumerated()), id: \.element.id) { index, mountain in
                 Button { selectedMountain = mountain } label: {
@@ -383,23 +383,23 @@ struct RouteDetailSheet: View {
                         ZStack {
                             Circle().fill(accent).frame(width: 32, height: 32)
                             Text("\(index + 1)")
-                                .font(.system(size: 14, weight: .black, design: .rounded))
+                                .font(DesignSystem.Typography.appFont(size: 14, weight: .black))
                                 .foregroundColor(.white)
                         }
 
                         VStack(alignment: .leading, spacing: 2) {
                             Text(mountain.name)
-                                .font(.system(size: 15, weight: .bold, design: .rounded))
+                                .font(DesignSystem.Typography.appFont(size: 15, weight: .bold))
                                 .foregroundColor(.primary)
                             Text("\(mountain.elevation)m \u{00B7} \(mountain.region)")
-                                .font(.system(size: 12, design: .rounded))
+                                .font(DesignSystem.Typography.appFont(size: 12))
                                 .foregroundColor(.secondary)
                         }
 
                         Spacer()
 
                         Text(mountain.difficulty.rawValue)
-                            .font(.system(size: 10, weight: .bold, design: .rounded))
+                            .font(DesignSystem.Typography.appFont(size: 10, weight: .bold))
                             .foregroundColor(.white)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
@@ -407,7 +407,7 @@ struct RouteDetailSheet: View {
                             .clipShape(Capsule())
 
                         Image(systemName: "chevron.right")
-                            .font(.system(size: 12, weight: .semibold))
+                            .font(DesignSystem.Typography.appFont(size: 12, weight: .semibold))
                             .foregroundColor(.gray)
                     }
                     .padding(14)
@@ -426,10 +426,10 @@ struct RouteDetailSheet: View {
     var descriptionSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Description")
-                .font(.system(size: 16, weight: .bold, design: .rounded))
+                .font(DesignSystem.Typography.appFont(size: 16, weight: .bold))
 
             Text(route.description)
-                .font(.system(size: 14, design: .rounded))
+                .font(DesignSystem.Typography.appFont(size: 14))
                 .foregroundColor(.secondary)
                 .lineSpacing(4)
                 .padding(14)
@@ -454,7 +454,7 @@ struct RouteDetailSheet: View {
                 Image(systemName: "trash")
                 Text("Delete Route")
             }
-            .font(.system(size: 14, weight: .semibold, design: .rounded))
+            .font(DesignSystem.Typography.appFont(size: 14, weight: .semibold))
             .foregroundColor(.red)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 14)
@@ -552,7 +552,7 @@ struct EditRouteSheet: View {
                                             Image(systemName: sport.icon)
                                             Text(sport.label)
                                         }
-                                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                                        .font(DesignSystem.Typography.appFont(size: 13, weight: .semibold))
                                         .foregroundColor(sportType == sport ? .white : .primary)
                                         .padding(.horizontal, 14)
                                         .padding(.vertical, 10)
@@ -575,7 +575,7 @@ struct EditRouteSheet: View {
                                         Image(systemName: vis.icon)
                                         Text(vis.label)
                                     }
-                                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                                    .font(DesignSystem.Typography.appFont(size: 13, weight: .semibold))
                                     .foregroundColor(visibility == vis ? .white : .primary)
                                     .padding(.horizontal, 14)
                                     .padding(.vertical, 10)
@@ -595,10 +595,10 @@ struct EditRouteSheet: View {
                                         Text(tag)
                                         Button { tags.removeAll { $0 == tag } } label: {
                                             Image(systemName: "xmark.circle.fill")
-                                                .font(.system(size: 12))
+                                                .font(DesignSystem.Typography.appFont(size: 12))
                                         }
                                     }
-                                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                                    .font(DesignSystem.Typography.appFont(size: 12, weight: .semibold))
                                     .foregroundColor(DesignSystem.Colors.accent)
                                     .padding(.horizontal, 10)
                                     .padding(.vertical, 6)
@@ -618,7 +618,7 @@ struct EditRouteSheet: View {
                                     }
                                 } label: {
                                     Image(systemName: "plus.circle.fill")
-                                        .font(.system(size: 24))
+                                        .font(DesignSystem.Typography.appFont(size: 24))
                                         .foregroundColor(DesignSystem.Colors.accent)
                                 }
                             }
@@ -633,7 +633,7 @@ struct EditRouteSheet: View {
                             Text("Save Changes")
                         }
                     }
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .font(DesignSystem.Typography.appFont(size: 16, weight: .bold))
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
@@ -658,7 +658,7 @@ struct EditRouteSheet: View {
     private func fieldSection<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
-                .font(.system(size: 11, weight: .black, design: .rounded))
+                .font(DesignSystem.Typography.appFont(size: 11, weight: .black))
                 .foregroundColor(.gray)
                 .tracking(2)
             content()
@@ -696,17 +696,17 @@ struct SaveRouteToFolderSheet: View {
                 if routeManager.myFolders.isEmpty {
                     VStack(spacing: 16) {
                         Image(systemName: "folder.badge.plus")
-                            .font(.system(size: 44))
+                            .font(DesignSystem.Typography.appFont(size: 44))
                             .foregroundColor(.gray.opacity(0.3))
                         Text("No Folders yet")
-                            .font(.system(.headline, design: .rounded))
+                            .font(DesignSystem.Typography.appFont(style: .headline))
                         Text("Create your first folder to organize routes.")
-                            .font(.system(.subheadline, design: .rounded))
+                            .font(DesignSystem.Typography.appFont(style: .subheadline))
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
                         Button { showCreateFolder = true } label: {
                             Text("Create Folder")
-                                .font(.system(.body, design: .rounded)).fontWeight(.bold)
+                                .font(DesignSystem.Typography.appFont(style: .body)).fontWeight(.bold)
                                 .foregroundColor(.white)
                                 .padding(.horizontal, 32).padding(.vertical, 14)
                                 .background(DesignSystem.Colors.accent)
@@ -728,7 +728,7 @@ struct SaveRouteToFolderSheet: View {
                             } label: {
                                 HStack(spacing: 12) {
                                     Image(systemName: folder.icon)
-                                        .font(.system(size: 20))
+                                        .font(DesignSystem.Typography.appFont(size: 20))
                                         .foregroundColor(folder.accentColor)
                                         .frame(width: 36, height: 36)
                                         .background(folder.accentColor.opacity(0.1))
@@ -736,16 +736,16 @@ struct SaveRouteToFolderSheet: View {
 
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(folder.name)
-                                            .font(.system(.headline, design: .rounded))
+                                            .font(DesignSystem.Typography.appFont(style: .headline))
                                             .foregroundColor(.primary)
                                         HStack(spacing: 8) {
                                             if folder.isShared {
                                                 Image(systemName: "person.2.fill")
-                                                    .font(.system(size: 10))
+                                                    .font(DesignSystem.Typography.appFont(size: 10))
                                                     .foregroundColor(.blue)
                                             }
                                             Text(folder.description)
-                                                .font(.system(.caption, design: .rounded))
+                                                .font(DesignSystem.Typography.appFont(style: .caption))
                                                 .foregroundColor(.secondary)
                                                 .lineLimit(1)
                                         }

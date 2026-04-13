@@ -169,7 +169,7 @@ struct CustomTabBar: View {
                         .shadow(color: DesignSystem.Colors.accent.opacity(0.4), radius: 15, y: 4)
                     
                     Image(systemName: "figure.walk")
-                        .font(.system(size: 28, weight: .black, design: .rounded))
+                        .font(DesignSystem.Typography.appFont(size: 28, weight: .black))
                         .foregroundColor(.white)
                         .offset(x: 2)
                 }

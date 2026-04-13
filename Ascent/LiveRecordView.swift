@@ -419,7 +419,7 @@ struct LiveRecordView: View {
                         let tLon = first.start_lon
                         Annotation("Trailhead", coordinate: CLLocationCoordinate2D(latitude: tLat, longitude: tLon)) {
                             Image(systemName: "figure.walk.arrival")
-                                .font(.system(size: 14, weight: .bold))
+                                .font(DesignSystem.Typography.appFont(size: 14, weight: .bold))
                                 .foregroundColor(.white)
                                 .padding(6)
                                 .background(gold)
@@ -503,7 +503,7 @@ struct LiveRecordView: View {
                 if targetMountain != nil {
                     Button(action: viewFullRoute) {
                         Image(systemName: "map")
-                            .font(.system(size: 16, design: .rounded))
+                            .font(DesignSystem.Typography.appFont(size: 16))
                             .foregroundColor(.primary)
                             .frame(width: 40, height: 40)
                             .background(.ultraThinMaterial, in: Circle())
@@ -515,7 +515,7 @@ struct LiveRecordView: View {
                 if !isMapCenteredOnUser {
                     Button(action: centerOnUser) {
                         Image(systemName: "location.fill")
-                            .font(.system(size: 16, design: .rounded))
+                            .font(DesignSystem.Typography.appFont(size: 16))
                             .foregroundColor(gold)
                             .frame(width: 40, height: 40)
                             .background(.ultraThinMaterial, in: Circle())
@@ -531,9 +531,9 @@ struct LiveRecordView: View {
                         VStack(spacing: 2) {
                             Image(systemName: weatherManager.currentWeather?.conditionSymbol ?? "cloud")
                                 .symbolRenderingMode(.multicolor)
-                                .font(.system(size: 15))
+                                .font(DesignSystem.Typography.appFont(size: 15))
                             Text(weatherManager.currentWeather?.temperatureFormatted ?? "")
-                                .font(.system(size: 8, weight: .bold, design: .rounded))
+                                .font(DesignSystem.Typography.appFont(size: 8, weight: .bold))
                         }
                         .frame(width: 40, height: 40)
                         .background(.ultraThinMaterial, in: Circle())
@@ -566,7 +566,7 @@ struct LiveRecordView: View {
                         startNavigationIfReady()
                     }) {
                         Image(systemName: "arrow.triangle.turn.up.right.diamond.fill")
-                            .font(.system(size: 16, design: .rounded))
+                            .font(DesignSystem.Typography.appFont(size: 16))
                             .foregroundColor(.cyan)
                             .frame(width: 40, height: 40)
                             .background(.ultraThinMaterial, in: Circle())
@@ -605,7 +605,7 @@ struct LiveRecordView: View {
                     HStack {
                         Image(systemName: "exclamationmark.triangle.fill").foregroundColor(.orange)
                         Text("You are too far away for route guidance.")
-                            .font(.system(size: 13, weight: .bold, design: .rounded))
+                            .font(DesignSystem.Typography.appFont(size: 13, weight: .bold))
                             .foregroundColor(.white)
                     }
                     .padding()
@@ -969,7 +969,7 @@ struct LiveRecordView: View {
                     }
                 }) {
                     Image(systemName: "xmark")
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .font(DesignSystem.Typography.appFont(size: 14, weight: .bold))
                         .foregroundColor(.primary)
                         .frame(width: 40, height: 40)
                         .background(.ultraThinMaterial, in: Circle())
@@ -986,7 +986,7 @@ struct LiveRecordView: View {
                             .animation(.easeInOut(duration: 0.6), value: blinkToggle)
                     }
                     Text(statusLabel)
-                        .font(.system(size: 10, weight: .black, design: .rounded))
+                        .font(DesignSystem.Typography.appFont(size: 10, weight: .black))
                         .foregroundColor(.primary).tracking(2)
                 }
                 .padding(.horizontal, 14).padding(.vertical, 8)
@@ -997,15 +997,15 @@ struct LiveRecordView: View {
 
                 VStack(spacing: 0) {
                     Text("+\(liveXP)")
-                        .font(.system(size: 11, weight: .black, design: .rounded))
+                        .font(DesignSystem.Typography.appFont(size: 11, weight: .black))
                         .foregroundColor(gold)
                     if mountainXPPotential > 0 {
                         Text("/\(mountainXPPotential)")
-                            .font(.system(size: 7, weight: .bold, design: .rounded))
+                            .font(DesignSystem.Typography.appFont(size: 7, weight: .bold))
                             .foregroundColor(gold.opacity(0.4))
                     } else {
                         Text("XP")
-                            .font(.system(size: 7, weight: .black, design: .rounded))
+                            .font(DesignSystem.Typography.appFont(size: 7, weight: .black))
                             .foregroundColor(gold.opacity(0.6))
                     }
                 }
@@ -1030,21 +1030,21 @@ struct LiveRecordView: View {
                 HStack {
                     if let mt = targetMountain {
                         Text(mt.name.uppercased())
-                            .font(.system(size: 8, weight: .black, design: .rounded))
+                            .font(DesignSystem.Typography.appFont(size: 8, weight: .black))
                             .foregroundColor(.primary.opacity(0.4)).tracking(1.5)
                     } else {
                         Text("ELEVATION XP")
-                            .font(.system(size: 8, weight: .black, design: .rounded))
+                            .font(DesignSystem.Typography.appFont(size: 8, weight: .black))
                             .foregroundColor(.primary.opacity(0.4)).tracking(1.5)
                     }
                     Spacer()
                     if let mt = targetMountain {
                         Text("\(Int(gpsManager.elevationGain))m / \(mt.elevation)m")
-                            .font(.system(size: 9, weight: .bold, design: .rounded))
+                            .font(DesignSystem.Typography.appFont(size: 9, weight: .bold))
                             .foregroundColor(gold.opacity(0.9))
                     } else {
                         Text("\(Int(gpsManager.elevationGain))m")
-                            .font(.system(size: 9, weight: .bold, design: .rounded))
+                            .font(DesignSystem.Typography.appFont(size: 9, weight: .bold))
                             .foregroundColor(gold.opacity(0.9))
                     }
                 }
@@ -1071,7 +1071,7 @@ struct LiveRecordView: View {
                             Image(systemName: "gearshape.fill")
                             Text("Settings")
                         }
-                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                        .font(DesignSystem.Typography.appFont(size: 12, weight: .semibold))
                         .foregroundColor(.primary.opacity(0.88))
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
@@ -1085,27 +1085,27 @@ struct LiveRecordView: View {
                     HStack(spacing: 16) {
                         HStack(alignment: .lastTextBaseline, spacing: 3) {
                             Text("\(Int(gpsManager.elevationGain))")
-                                .font(.system(size: 34, weight: .black, design: .rounded))
+                                .font(DesignSystem.Typography.appFont(size: 34, weight: .black))
                                 .foregroundColor(gold)
                                 .contentTransition(.numericText())
                                 .animation(.spring(response: 0.4, dampingFraction: 0.85), value: Int(gpsManager.elevationGain))
                             Text("Hm")
-                                .font(.system(size: 14, weight: .bold, design: .rounded))
+                                .font(DesignSystem.Typography.appFont(size: 14, weight: .bold))
                                 .foregroundColor(gold.opacity(0.6))
                         }
 
                         Spacer()
 
                         Text(timeString(from: timeElapsed))
-                            .font(.system(size: 20, weight: .bold, design: .monospaced))
+                            .font(DesignSystem.Typography.appFont(size: 20, weight: .bold))
                             .foregroundColor(.primary)
 
                         HStack(alignment: .lastTextBaseline, spacing: 2) {
                             Text(String(format: "%.1f", gpsManager.distance / 1000))
-                                .font(.system(size: 20, weight: .bold, design: .rounded))
+                                .font(DesignSystem.Typography.appFont(size: 20, weight: .bold))
                                 .foregroundColor(.primary)
                             Text("km")
-                                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                .font(DesignSystem.Typography.appFont(size: 11, weight: .semibold))
                                 .foregroundColor(.primary.opacity(0.5))
                         }
                     }
@@ -1114,9 +1114,9 @@ struct LiveRecordView: View {
                         Button(action: startRecording) {
                             HStack(spacing: 12) {
                                 Image(systemName: "play.fill")
-                                    .font(.system(size: 18, weight: .black, design: .rounded))
+                                    .font(DesignSystem.Typography.appFont(size: 18, weight: .black))
                                 Text("START MISSION")
-                                    .font(.system(size: 14, weight: .black, design: .rounded)).tracking(2)
+                                    .font(DesignSystem.Typography.appFont(size: 14, weight: .black)).tracking(2)
                             }
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity).frame(height: 56)
@@ -1128,7 +1128,7 @@ struct LiveRecordView: View {
                         HStack(spacing: 12) {
                             Button(action: togglePause) {
                                 Image(systemName: isRunning ? "pause.fill" : "play.fill")
-                                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                                    .font(DesignSystem.Typography.appFont(size: 20, weight: .bold))
                                     .foregroundColor(.white)
                                     .frame(width: 56, height: 56)
                                     .background(.ultraThinMaterial, in: Circle())
@@ -1141,7 +1141,7 @@ struct LiveRecordView: View {
                                     withAnimation { appState.isTrackerActive = false }
                                 }) {
                                     Image(systemName: "xmark")
-                                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                                        .font(DesignSystem.Typography.appFont(size: 20, weight: .bold))
                                         .foregroundColor(.red)
                                         .frame(width: 56, height: 56)
                                         .background(.ultraThinMaterial, in: Circle())
@@ -1157,17 +1157,17 @@ struct LiveRecordView: View {
                     VStack(spacing: 2) {
                         HStack(alignment: .lastTextBaseline, spacing: 4) {
                             Text("\(Int(gpsManager.elevationGain))")
-                                .font(.system(size: 86, weight: .black, design: .rounded))
+                                .font(DesignSystem.Typography.appFont(size: 86, weight: .black))
                                 .foregroundColor(gold)
                                 .contentTransition(.numericText())
                                 .animation(.spring(response: 0.4, dampingFraction: 0.85), value: Int(gpsManager.elevationGain))
                             Text("Hm")
-                                .font(.system(size: 24, weight: .bold, design: .rounded))
+                                .font(DesignSystem.Typography.appFont(size: 24, weight: .bold))
                                 .foregroundColor(gold.opacity(0.6))
                                 .padding(.bottom, 10)
                         }
                         Text("ELEVATION GAIN")
-                            .font(.system(size: 9, weight: .black, design: .rounded))
+                            .font(DesignSystem.Typography.appFont(size: 9, weight: .black))
                             .foregroundColor(.primary.opacity(0.35)).tracking(3)
                     }
 
@@ -1176,10 +1176,10 @@ struct LiveRecordView: View {
                     HStack(spacing: 0) {
                         VStack(spacing: 5) {
                             Text(timeString(from: timeElapsed))
-                                .font(.system(size: 32, weight: .bold, design: .monospaced))
+                                .font(DesignSystem.Typography.appFont(size: 32, weight: .bold))
                                 .foregroundColor(.primary)
                             Text("DURATION")
-                                .font(.system(size: 8, weight: .black, design: .rounded))
+                                .font(DesignSystem.Typography.appFont(size: 8, weight: .black))
                                 .foregroundColor(.primary.opacity(0.35)).tracking(2)
                         }
                         .frame(maxWidth: .infinity)
@@ -1189,14 +1189,14 @@ struct LiveRecordView: View {
                         VStack(spacing: 5) {
                             HStack(alignment: .lastTextBaseline, spacing: 3) {
                                 Text(String(format: "%.2f", gpsManager.distance / 1000))
-                                    .font(.system(size: 32, weight: .bold, design: .rounded))
+                                    .font(DesignSystem.Typography.appFont(size: 32, weight: .bold))
                                     .foregroundColor(.primary)
                                 Text("km")
-                                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                                    .font(DesignSystem.Typography.appFont(size: 13, weight: .semibold))
                                     .foregroundColor(.primary.opacity(0.5))
                             }
                             Text("DISTANCE")
-                                .font(.system(size: 8, weight: .black, design: .rounded))
+                                .font(DesignSystem.Typography.appFont(size: 8, weight: .black))
                                 .foregroundColor(.primary.opacity(0.35)).tracking(2)
                         }
                         .frame(maxWidth: .infinity)
@@ -1212,9 +1212,9 @@ struct LiveRecordView: View {
                         Button(action: startRecording) {
                             HStack(spacing: 12) {
                                 Image(systemName: "play.fill")
-                                    .font(.system(size: 18, weight: .black, design: .rounded))
+                                    .font(DesignSystem.Typography.appFont(size: 18, weight: .black))
                                 Text("START MISSION")
-                                    .font(.system(size: 14, weight: .black, design: .rounded)).tracking(2)
+                                    .font(DesignSystem.Typography.appFont(size: 14, weight: .black)).tracking(2)
                             }
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity).frame(height: 56)
@@ -1226,7 +1226,7 @@ struct LiveRecordView: View {
                         HStack(spacing: 12) {
                             Button(action: togglePause) {
                                 Image(systemName: isRunning ? "pause.fill" : "play.fill")
-                                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                                    .font(DesignSystem.Typography.appFont(size: 20, weight: .bold))
                                     .foregroundColor(.primary)
                                     .frame(width: 56, height: 56)
                                     .background(.ultraThinMaterial, in: Circle())
@@ -1239,7 +1239,7 @@ struct LiveRecordView: View {
                                     withAnimation { appState.isTrackerActive = false }
                                 }) {
                                     Image(systemName: "xmark")
-                                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                                        .font(DesignSystem.Typography.appFont(size: 20, weight: .bold))
                                         .foregroundColor(.white)
                                         .frame(width: 56, height: 56)
                                         .background(.red.opacity(0.85), in: Circle())
@@ -1254,7 +1254,7 @@ struct LiveRecordView: View {
                                     }
                                 }) {
                                     Image(systemName: "chart.line.uptrend.xyaxis")
-                                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                                        .font(DesignSystem.Typography.appFont(size: 16, weight: .bold))
                                         .foregroundColor(showElevationProfile ? gold : .primary)
                                         .frame(width: 56, height: 56)
                                         .background(.ultraThinMaterial, in: Circle())
@@ -1467,7 +1467,7 @@ struct TrackerSettingsSheet: View {
                                                         .stroke(Color.white, lineWidth: 3)
                                                         .frame(width: 36, height: 36)
                                                     Image(systemName: "checkmark")
-                                                        .font(.system(size: 12, weight: .black))
+                                                        .font(DesignSystem.Typography.appFont(size: 12, weight: .black))
                                                         .foregroundColor(.white)
                                                 }
                                             }
@@ -1482,7 +1482,7 @@ struct TrackerSettingsSheet: View {
                         // MARK: - Info
                         VStack(spacing: 4) {
                             Text("Navigation settings apply to the current and future sessions.")
-                                .font(.system(size: 11, design: .rounded))
+                                .font(DesignSystem.Typography.appFont(size: 11))
                                 .foregroundColor(.gray.opacity(0.6))
                                 .multilineTextAlignment(.center)
                         }
@@ -1503,7 +1503,7 @@ struct TrackerSettingsSheet: View {
                     Button(action: { dismiss() }) {
                         Image(systemName: "xmark.circle.fill")
                             .foregroundColor(.gray)
-                            .font(.system(.title3, design: .rounded))
+                            .font(DesignSystem.Typography.appFont(style: .title3))
                     }
                 }
             }
@@ -1539,7 +1539,7 @@ struct SlideToFinishControl: View {
                     )
                     .overlay(
                         Text("SLIDE TO FINISH")
-                            .font(.system(size: 9, weight: .black, design: .rounded))
+                            .font(DesignSystem.Typography.appFont(size: 9, weight: .black))
                             .foregroundColor(.primary.opacity(max(0.35 - (dragOffset / maxDrag) * 0.35, 0)))
                             .tracking(2)
                     )
@@ -1556,7 +1556,7 @@ struct SlideToFinishControl: View {
                         .stroke(Color.red.opacity(0.5), lineWidth: 1.5)
                         .frame(width: thumbSize, height: thumbSize)
                     Image(systemName: "flag.checkered")
-                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .font(DesignSystem.Typography.appFont(size: 16, weight: .bold))
                         .foregroundColor(.red)
                 }
                 .offset(x: 4 + dragOffset)
@@ -1642,16 +1642,16 @@ struct MissionSaveView: View {
                     Section {
                         HStack {
                             if isVerifiedSummit {
-                                Image(systemName: "checkmark.seal.fill").foregroundColor(.green).font(.system(.title, design: .rounded))
+                                Image(systemName: "checkmark.seal.fill").foregroundColor(.green).font(DesignSystem.Typography.appFont(style: .title))
                                 VStack(alignment: .leading) {
-                                    Text("Verified Summit").font(.system(.headline, design: .rounded)).foregroundColor(.green)
-                                    Text("You conquered \(mountain.name)! (+500 Bonus XP)").font(.system(.caption, design: .rounded)).foregroundColor(.gray)
+                                    Text("Verified Summit").font(DesignSystem.Typography.appFont(style: .headline)).foregroundColor(.green)
+                                    Text("You conquered \(mountain.name)! (+500 Bonus XP)").font(DesignSystem.Typography.appFont(style: .caption)).foregroundColor(.gray)
                                 }
                             } else {
-                                Image(systemName: "exclamationmark.triangle.fill").foregroundColor(.orange).font(.system(.title, design: .rounded))
+                                Image(systemName: "exclamationmark.triangle.fill").foregroundColor(.orange).font(DesignSystem.Typography.appFont(style: .title))
                                 VStack(alignment: .leading) {
-                                    Text("Mission Attempt").font(.system(.headline, design: .rounded)).foregroundColor(.orange)
-                                    Text("Elevation too low to verify summit.").font(.system(.caption, design: .rounded)).foregroundColor(.gray)
+                                    Text("Mission Attempt").font(DesignSystem.Typography.appFont(style: .headline)).foregroundColor(.orange)
+                                    Text("Elevation too low to verify summit.").font(DesignSystem.Typography.appFont(style: .caption)).foregroundColor(.gray)
                                 }
                             }
                         }
@@ -1736,12 +1736,12 @@ struct MissionSaveView: View {
                         ForEach(pauseLog) { pause in
                             HStack {
                                 Image(systemName: pause.isAutomatic ? "pause.circle" : "hand.raised")
-                                    .font(.system(.caption, design: .rounded)).foregroundColor(.orange)
+                                    .font(DesignSystem.Typography.appFont(style: .caption)).foregroundColor(.orange)
                                 Text(pause.isAutomatic ? "Auto" : "Manual")
-                                    .font(.system(.subheadline, design: .rounded))
+                                    .font(DesignSystem.Typography.appFont(style: .subheadline))
                                 Spacer()
                                 Text(formatPauseDuration(pause.duration))
-                                    .font(.system(.subheadline, design: .rounded)).foregroundColor(.gray)
+                                    .font(DesignSystem.Typography.appFont(style: .subheadline)).foregroundColor(.gray)
                             }
                         }
                         HStack {
@@ -1852,13 +1852,13 @@ struct ElevationProfileChart: View {
         .chartXAxis {
             AxisMarks(values: .automatic(desiredCount: 3)) {
                 AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5)).foregroundStyle(Color.gray.opacity(0.3))
-                AxisValueLabel().foregroundStyle(.gray).font(.system(size: 9, design: .rounded))
+                AxisValueLabel().foregroundStyle(.gray).font(DesignSystem.Typography.appFont(size: 9))
             }
         }
         .chartYAxis {
             AxisMarks(values: .automatic(desiredCount: 3)) {
                 AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5)).foregroundStyle(Color.gray.opacity(0.3))
-                AxisValueLabel().foregroundStyle(.gray).font(.system(size: 9, design: .rounded))
+                AxisValueLabel().foregroundStyle(.gray).font(DesignSystem.Typography.appFont(size: 9))
             }
         }
         .chartPlotStyle { plotArea in

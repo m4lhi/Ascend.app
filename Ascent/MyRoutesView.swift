@@ -108,9 +108,9 @@ struct MyRoutesView: View {
     var routeLibraryHeader: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text("My Routes")
-                .font(.system(size: 32, weight: .bold, design: .rounded))
+                .font(DesignSystem.Typography.appFont(size: 32, weight: .bold))
             Text("Your personal route library")
-                .font(.system(size: 15, design: .rounded))
+                .font(DesignSystem.Typography.appFont(size: 15))
                 .foregroundColor(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -138,12 +138,12 @@ struct MyRoutesView: View {
     func miniStat(value: String, label: String, icon: String) -> some View {
         VStack(spacing: 4) {
             Image(systemName: icon)
-                .font(.system(size: 14))
+                .font(DesignSystem.Typography.appFont(size: 14))
                 .foregroundColor(accent)
             Text(value)
-                .font(.system(size: 16, weight: .bold, design: .rounded))
+                .font(DesignSystem.Typography.appFont(size: 16, weight: .bold))
             Text(label)
-                .font(.system(size: 10, design: .rounded))
+                .font(DesignSystem.Typography.appFont(size: 10))
                 .foregroundColor(.secondary)
         }
         .frame(maxWidth: .infinity)
@@ -159,7 +159,7 @@ struct MyRoutesView: View {
                     withAnimation(.spring(response: 0.3)) { selectedTab = tab }
                 } label: {
                     Text(tab.rawValue)
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .font(DesignSystem.Typography.appFont(size: 14, weight: .bold))
                         .foregroundColor(selectedTab == tab ? .white : .primary)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 10)
@@ -183,10 +183,10 @@ struct MyRoutesView: View {
             HStack(spacing: 10) {
                 HStack(spacing: 8) {
                     Image(systemName: "magnifyingglass")
-                        .font(.system(size: 14))
+                        .font(DesignSystem.Typography.appFont(size: 14))
                         .foregroundColor(.gray)
                     TextField("Search routes...", text: $searchText)
-                        .font(.system(size: 14, design: .rounded))
+                        .font(DesignSystem.Typography.appFont(size: 14))
                 }
                 .padding(10)
                 .background(Color.white)
@@ -206,7 +206,7 @@ struct MyRoutesView: View {
                     }
                 } label: {
                     Image(systemName: "arrow.up.arrow.down")
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(DesignSystem.Typography.appFont(size: 14, weight: .semibold))
                         .foregroundColor(.primary)
                         .frame(width: 40, height: 40)
                         .background(Color.white)
@@ -250,9 +250,9 @@ struct MyRoutesView: View {
         } label: {
             HStack(spacing: 5) {
                 Image(systemName: icon)
-                    .font(.system(size: 12))
+                    .font(DesignSystem.Typography.appFont(size: 12))
                 Text(label)
-                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .font(DesignSystem.Typography.appFont(size: 12, weight: .semibold))
             }
             .foregroundColor(selectedSportFilter == sport ? .white : .primary)
             .padding(.horizontal, 14)
@@ -266,12 +266,12 @@ struct MyRoutesView: View {
     var emptyRoutesState: some View {
         VStack(spacing: 16) {
             Image(systemName: "map")
-                .font(.system(size: 48))
+                .font(DesignSystem.Typography.appFont(size: 48))
                 .foregroundColor(.gray.opacity(0.25))
             Text("No routes yet")
-                .font(.system(.headline, design: .rounded))
+                .font(DesignSystem.Typography.appFont(style: .headline))
             Text("Create a route in the Explore tab to get started.")
-                .font(.system(.subheadline, design: .rounded))
+                .font(DesignSystem.Typography.appFont(style: .subheadline))
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
         }
@@ -285,7 +285,7 @@ struct MyRoutesView: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
                 Text("\(routeManager.myFolders.count) Folders")
-                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .font(DesignSystem.Typography.appFont(size: 14, weight: .semibold))
                     .foregroundColor(.secondary)
                 Spacer()
                 Button { showCreateFolder = true } label: {
@@ -293,7 +293,7 @@ struct MyRoutesView: View {
                         Image(systemName: "plus")
                         Text("New Folder")
                     }
-                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .font(DesignSystem.Typography.appFont(size: 13, weight: .bold))
                     .foregroundColor(accent)
                 }
             }
@@ -318,17 +318,17 @@ struct MyRoutesView: View {
     var emptyFoldersState: some View {
         VStack(spacing: 16) {
             Image(systemName: "folder.badge.plus")
-                .font(.system(size: 48))
+                .font(DesignSystem.Typography.appFont(size: 48))
                 .foregroundColor(.gray.opacity(0.25))
             Text("No folders yet")
-                .font(.system(.headline, design: .rounded))
+                .font(DesignSystem.Typography.appFont(style: .headline))
             Text("Create folders to organize and share your routes.")
-                .font(.system(.subheadline, design: .rounded))
+                .font(DesignSystem.Typography.appFont(style: .subheadline))
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
             Button { showCreateFolder = true } label: {
                 Text("Create Folder")
-                    .font(.system(.body, design: .rounded)).fontWeight(.bold)
+                    .font(DesignSystem.Typography.appFont(style: .body)).fontWeight(.bold)
                     .foregroundColor(.white)
                     .padding(.horizontal, 32).padding(.vertical, 14)
                     .background(accent)
@@ -346,12 +346,12 @@ struct MyRoutesView: View {
             if routeManager.sharedFolders.isEmpty {
                 VStack(spacing: 16) {
                     Image(systemName: "person.2.circle")
-                        .font(.system(size: 48))
+                        .font(DesignSystem.Typography.appFont(size: 48))
                         .foregroundColor(.gray.opacity(0.25))
                     Text("No shared folders")
-                        .font(.system(.headline, design: .rounded))
+                        .font(DesignSystem.Typography.appFont(style: .headline))
                     Text("When someone shares a route folder with you, it will appear here.")
-                        .font(.system(.subheadline, design: .rounded))
+                        .font(DesignSystem.Typography.appFont(style: .subheadline))
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
                 }
@@ -391,13 +391,13 @@ struct EnhancedRouteCard: View {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
                         Text(route.name)
-                            .font(.system(size: 16, weight: .bold, design: .rounded))
+                            .font(DesignSystem.Typography.appFont(size: 16, weight: .bold))
                             .foregroundColor(.primary)
                             .lineLimit(1)
                         Spacer()
                         if route.isCompleted {
                             Image(systemName: "checkmark.seal.fill")
-                                .font(.system(size: 14))
+                                .font(DesignSystem.Typography.appFont(size: 14))
                                 .foregroundColor(.green)
                         }
                     }
@@ -405,14 +405,14 @@ struct EnhancedRouteCard: View {
                     HStack(spacing: 12) {
                         HStack(spacing: 3) {
                             Image(systemName: route.sportIcon)
-                                .font(.system(size: 10))
+                                .font(DesignSystem.Typography.appFont(size: 10))
                             Text(route.sportType.label)
-                                .font(.system(size: 11, weight: .medium, design: .rounded))
+                                .font(DesignSystem.Typography.appFont(size: 11, weight: .medium))
                         }
                         .foregroundColor(.secondary)
 
                         Text(route.difficulty.capitalized)
-                            .font(.system(size: 10, weight: .bold, design: .rounded))
+                            .font(DesignSystem.Typography.appFont(size: 10, weight: .bold))
                             .foregroundColor(.white)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 3)
@@ -431,7 +431,7 @@ struct EnhancedRouteCard: View {
                         HStack(spacing: 2) {
                             ForEach(1...5, id: \.self) { star in
                                 Image(systemName: star <= (route.rating ?? 0) ? "star.fill" : "star")
-                                    .font(.system(size: 10))
+                                    .font(DesignSystem.Typography.appFont(size: 10))
                                     .foregroundColor(star <= (route.rating ?? 0) ? .yellow : .gray.opacity(0.3))
                             }
                         }
@@ -479,9 +479,9 @@ struct EnhancedRouteCard: View {
                     Spacer()
                     HStack(spacing: 3) {
                         Image(systemName: route.visibility.icon)
-                            .font(.system(size: 9))
+                            .font(DesignSystem.Typography.appFont(size: 9))
                         Text(route.visibility.label)
-                            .font(.system(size: 9, weight: .semibold, design: .rounded))
+                            .font(DesignSystem.Typography.appFont(size: 9, weight: .semibold))
                     }
                     .foregroundColor(.white)
                     .padding(.horizontal, 8)
@@ -498,10 +498,10 @@ struct EnhancedRouteCard: View {
     func statLabel(icon: String, value: String) -> some View {
         HStack(spacing: 3) {
             Image(systemName: icon)
-                .font(.system(size: 10))
+                .font(DesignSystem.Typography.appFont(size: 10))
                 .foregroundColor(.gray)
             Text(value)
-                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .font(DesignSystem.Typography.appFont(size: 11, weight: .semibold))
                 .foregroundColor(.secondary)
         }
     }
@@ -540,7 +540,7 @@ struct FolderCard: View {
                         .frame(height: 100)
 
                     Image(systemName: folder.icon)
-                        .font(.system(size: 36))
+                        .font(DesignSystem.Typography.appFont(size: 36))
                         .foregroundColor(.white.opacity(0.7))
 
                     if isShared || folder.isShared {
@@ -548,7 +548,7 @@ struct FolderCard: View {
                             HStack {
                                 Spacer()
                                 Image(systemName: "person.2.fill")
-                                    .font(.system(size: 11))
+                                    .font(DesignSystem.Typography.appFont(size: 11))
                                     .foregroundColor(.white)
                                     .padding(6)
                                     .background(.ultraThinMaterial.opacity(0.6))
@@ -562,13 +562,13 @@ struct FolderCard: View {
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text(folder.name)
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .font(DesignSystem.Typography.appFont(size: 14, weight: .bold))
                         .foregroundColor(.primary)
                         .lineLimit(1)
 
                     if !folder.description.isEmpty {
                         Text(folder.description)
-                            .font(.system(size: 11, design: .rounded))
+                            .font(DesignSystem.Typography.appFont(size: 11))
                             .foregroundColor(.secondary)
                             .lineLimit(1)
                     }
@@ -613,7 +613,7 @@ struct FolderDetailSheet: View {
                             .frame(height: 200)
 
                             Image(systemName: folder.icon)
-                                .font(.system(size: 60))
+                                .font(DesignSystem.Typography.appFont(size: 60))
                                 .foregroundColor(.white.opacity(0.2))
                                 .frame(maxWidth: .infinity)
                                 .padding(.bottom, 60)
@@ -622,31 +622,31 @@ struct FolderDetailSheet: View {
                                 if folder.isShared {
                                     HStack(spacing: 4) {
                                         Image(systemName: "person.2.fill")
-                                            .font(.system(size: 11))
+                                            .font(DesignSystem.Typography.appFont(size: 11))
                                         Text("SHARED FOLDER")
-                                            .font(.system(size: 10, weight: .black, design: .rounded))
+                                            .font(DesignSystem.Typography.appFont(size: 10, weight: .black))
                                             .tracking(1)
                                     }
                                     .foregroundColor(.white.opacity(0.8))
                                 }
 
                                 Text(folder.name)
-                                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                                    .font(DesignSystem.Typography.appFont(size: 28, weight: .bold))
                                     .foregroundColor(.white)
 
                                 if !folder.description.isEmpty {
                                     Text(folder.description)
-                                        .font(.system(size: 14, design: .rounded))
+                                        .font(DesignSystem.Typography.appFont(size: 14))
                                         .foregroundColor(.white.opacity(0.8))
                                         .lineLimit(2)
                                 }
 
                                 HStack(spacing: 16) {
                                     Text("\(routes.count) routes")
-                                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                                        .font(DesignSystem.Typography.appFont(size: 12, weight: .semibold))
                                     if !members.isEmpty {
                                         Text("\(members.count + 1) members")
-                                            .font(.system(size: 12, weight: .semibold, design: .rounded))
+                                            .font(DesignSystem.Typography.appFont(size: 12, weight: .semibold))
                                     }
                                 }
                                 .foregroundColor(.white.opacity(0.7))
@@ -662,7 +662,7 @@ struct FolderDetailSheet: View {
                                         Image(systemName: "person.badge.plus")
                                         Text("Invite")
                                     }
-                                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                                    .font(DesignSystem.Typography.appFont(size: 14, weight: .bold))
                                     .foregroundColor(.white)
                                     .frame(maxWidth: .infinity)
                                     .padding(.vertical, 12)
@@ -675,7 +675,7 @@ struct FolderDetailSheet: View {
                                         Image(systemName: "pencil")
                                         Text("Edit")
                                     }
-                                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                                    .font(DesignSystem.Typography.appFont(size: 14, weight: .bold))
                                     .foregroundColor(.primary)
                                     .frame(maxWidth: .infinity)
                                     .padding(.vertical, 12)
@@ -688,7 +688,7 @@ struct FolderDetailSheet: View {
                             if !members.isEmpty {
                                 VStack(alignment: .leading, spacing: 8) {
                                     Text("Members")
-                                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                                        .font(DesignSystem.Typography.appFont(size: 16, weight: .bold))
 
                                     ScrollView(.horizontal, showsIndicators: false) {
                                         HStack(spacing: -8) {
@@ -698,7 +698,7 @@ struct FolderDetailSheet: View {
                                                     .frame(width: 36, height: 36)
                                                     .overlay(
                                                         Text(member.role.prefix(1).uppercased())
-                                                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                                                            .font(DesignSystem.Typography.appFont(size: 12, weight: .bold))
                                                             .foregroundColor(accent)
                                                     )
                                                     .overlay(Circle().stroke(Color.white, lineWidth: 2))
@@ -709,7 +709,7 @@ struct FolderDetailSheet: View {
                                                     .frame(width: 36, height: 36)
                                                     .overlay(
                                                         Text("+\(members.count - 8)")
-                                                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                                                            .font(DesignSystem.Typography.appFont(size: 11, weight: .bold))
                                                             .foregroundColor(.secondary)
                                                     )
                                                     .overlay(Circle().stroke(Color.white, lineWidth: 2))
@@ -722,17 +722,17 @@ struct FolderDetailSheet: View {
                             // Routes
                             VStack(alignment: .leading, spacing: 12) {
                                 Text("Routes")
-                                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                                    .font(DesignSystem.Typography.appFont(size: 16, weight: .bold))
 
                                 if isLoading {
                                     ProgressView().frame(maxWidth: .infinity).padding(40)
                                 } else if routes.isEmpty {
                                     VStack(spacing: 10) {
                                         Image(systemName: "map")
-                                            .font(.system(size: 36))
+                                            .font(DesignSystem.Typography.appFont(size: 36))
                                             .foregroundColor(.gray.opacity(0.3))
                                         Text("No routes in this folder yet")
-                                            .font(.system(.subheadline, design: .rounded))
+                                            .font(DesignSystem.Typography.appFont(style: .subheadline))
                                             .foregroundColor(.secondary)
                                     }
                                     .frame(maxWidth: .infinity)
@@ -757,7 +757,7 @@ struct FolderDetailSheet: View {
                                     Image(systemName: "trash")
                                     Text("Delete Folder")
                                 }
-                                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                                .font(DesignSystem.Typography.appFont(size: 14, weight: .semibold))
                                 .foregroundColor(.red)
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 14)
@@ -832,10 +832,10 @@ struct CreateFolderSheet: View {
 
                         VStack(spacing: 8) {
                             Image(systemName: selectedIcon)
-                                .font(.system(size: 36))
+                                .font(DesignSystem.Typography.appFont(size: 36))
                                 .foregroundColor(.white)
                             Text(name.isEmpty ? "Folder Name" : name)
-                                .font(.system(size: 18, weight: .bold, design: .rounded))
+                                .font(DesignSystem.Typography.appFont(size: 18, weight: .bold))
                                 .foregroundColor(.white)
                         }
                     }
@@ -843,7 +843,7 @@ struct CreateFolderSheet: View {
                     // Name
                     VStack(alignment: .leading, spacing: 8) {
                         Text("NAME")
-                            .font(.system(size: 11, weight: .black, design: .rounded))
+                            .font(DesignSystem.Typography.appFont(size: 11, weight: .black))
                             .foregroundColor(.gray)
                             .tracking(2)
                         TextField("e.g. Summer Alpine Routes", text: $name)
@@ -853,7 +853,7 @@ struct CreateFolderSheet: View {
                     // Description
                     VStack(alignment: .leading, spacing: 8) {
                         Text("DESCRIPTION")
-                            .font(.system(size: 11, weight: .black, design: .rounded))
+                            .font(DesignSystem.Typography.appFont(size: 11, weight: .black))
                             .foregroundColor(.gray)
                             .tracking(2)
                         TextField("Optional description...", text: $description, axis: .vertical)
@@ -864,7 +864,7 @@ struct CreateFolderSheet: View {
                     // Color Picker
                     VStack(alignment: .leading, spacing: 8) {
                         Text("COLOR")
-                            .font(.system(size: 11, weight: .black, design: .rounded))
+                            .font(DesignSystem.Typography.appFont(size: 11, weight: .black))
                             .foregroundColor(.gray)
                             .tracking(2)
                         HStack(spacing: 12) {
@@ -888,7 +888,7 @@ struct CreateFolderSheet: View {
                     // Icon Picker
                     VStack(alignment: .leading, spacing: 8) {
                         Text("ICON")
-                            .font(.system(size: 11, weight: .black, design: .rounded))
+                            .font(DesignSystem.Typography.appFont(size: 11, weight: .black))
                             .foregroundColor(.gray)
                             .tracking(2)
                         HStack(spacing: 12) {
@@ -897,7 +897,7 @@ struct CreateFolderSheet: View {
                                     selectedIcon = icon
                                 } label: {
                                     Image(systemName: icon)
-                                        .font(.system(size: 18))
+                                        .font(DesignSystem.Typography.appFont(size: 18))
                                         .foregroundColor(selectedIcon == icon ? .white : .primary)
                                         .frame(width: 40, height: 40)
                                         .background(selectedIcon == icon ? (Color(hex: selectedColor) ?? .blue) : Color(.systemGray6))
@@ -913,7 +913,7 @@ struct CreateFolderSheet: View {
                         if isSaving { ProgressView().tint(.white) }
                         else { Text("Create Folder") }
                     }
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .font(DesignSystem.Typography.appFont(size: 16, weight: .bold))
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
@@ -990,7 +990,7 @@ struct ShareFolderSheet: View {
                             selectedRole = role
                         } label: {
                             Text(role.capitalized)
-                                .font(.system(size: 12, weight: .bold, design: .rounded))
+                                .font(DesignSystem.Typography.appFont(size: 12, weight: .bold))
                                 .foregroundColor(selectedRole == role ? .white : .primary)
                                 .padding(.horizontal, 14)
                                 .padding(.vertical, 8)
@@ -1009,7 +1009,7 @@ struct ShareFolderSheet: View {
                         ProgressView().padding(20)
                     } else if searchResults.isEmpty {
                         Text("No users found")
-                            .font(.system(.subheadline, design: .rounded))
+                            .font(DesignSystem.Typography.appFont(style: .subheadline))
                             .foregroundColor(.secondary)
                             .padding(20)
                     } else {
@@ -1036,15 +1036,15 @@ struct ShareFolderSheet: View {
                                             .frame(width: 40, height: 40)
                                             .overlay(
                                                 Text(String(user.username.prefix(1)).uppercased())
-                                                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                                                    .font(DesignSystem.Typography.appFont(size: 16, weight: .bold))
                                                     .foregroundColor(accent)
                                             )
                                         VStack(alignment: .leading, spacing: 2) {
                                             Text(user.username)
-                                                .font(.system(.headline, design: .rounded))
+                                                .font(DesignSystem.Typography.appFont(style: .headline))
                                                 .foregroundColor(.primary)
                                             Text("@\(user.handle)")
-                                                .font(.system(.caption, design: .rounded))
+                                                .font(DesignSystem.Typography.appFont(style: .caption))
                                                 .foregroundColor(.secondary)
                                         }
                                         Spacer()
@@ -1062,7 +1062,7 @@ struct ShareFolderSheet: View {
                 if !currentMembers.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Current Members (\(currentMembers.count))")
-                            .font(.system(size: 14, weight: .bold, design: .rounded))
+                            .font(DesignSystem.Typography.appFont(size: 14, weight: .bold))
                             .foregroundColor(.secondary)
                             .padding(.horizontal, 20)
 
@@ -1074,14 +1074,14 @@ struct ShareFolderSheet: View {
                                         .frame(width: 36, height: 36)
                                         .overlay(
                                             Image(systemName: "person.fill")
-                                                .font(.system(size: 14))
+                                                .font(DesignSystem.Typography.appFont(size: 14))
                                                 .foregroundColor(.gray)
                                         )
                                     VStack(alignment: .leading) {
                                         Text(member.user_id.uuidString.prefix(8) + "...")
-                                            .font(.system(.subheadline, design: .rounded))
+                                            .font(DesignSystem.Typography.appFont(style: .subheadline))
                                         Text(member.role.capitalized)
-                                            .font(.system(.caption, design: .rounded))
+                                            .font(DesignSystem.Typography.appFont(style: .caption))
                                             .foregroundColor(.secondary)
                                     }
                                     Spacer()

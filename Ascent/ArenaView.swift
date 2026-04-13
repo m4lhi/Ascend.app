@@ -123,16 +123,16 @@ struct ArenaView: View {
                         VStack(alignment: .leading, spacing: 6) {
                             // Motivational greeting
                             Text(motivationalMessage.0.uppercased())
-                                .font(.system(size: 11, weight: .black, design: .rounded))
+                                .font(DesignSystem.Typography.appFont(size: 11, weight: .black))
                                 .foregroundColor(gold.opacity(0.7))
                                 .tracking(2.5)
 
                             Text("The Arena")
-                                .font(.system(size: 32, weight: .black, design: .rounded))
+                                .font(DesignSystem.Typography.appFont(size: 32, weight: .black))
                                 .foregroundStyle(.black)
 
                             Text(motivationalMessage.1)
-                                .font(.system(size: 13, weight: .medium, design: .rounded))
+                                .font(DesignSystem.Typography.appFont(size: 13, weight: .medium))
                                 .foregroundColor(.gray)
                                 .lineLimit(2)
                                 .fixedSize(horizontal: false, vertical: true)
@@ -153,7 +153,7 @@ struct ArenaView: View {
                                     )
 
                                 Image(systemName: "person.badge.plus")
-                                    .font(.system(size: 17, weight: .semibold, design: .rounded))
+                                    .font(DesignSystem.Typography.appFont(size: 17, weight: .semibold))
                                     .foregroundColor(gold)
                             }
                         }
@@ -343,9 +343,9 @@ struct AnimatedScopeSelector: View {
                     } label: {
                         HStack(spacing: 5) {
                             Image(systemName: scopes[index].1)
-                                .font(.system(size: 10, weight: .bold, design: .rounded))
+                                .font(DesignSystem.Typography.appFont(size: 10, weight: .bold))
                             Text(scopes[index].0)
-                                .font(.system(size: 13, weight: .bold, design: .rounded))
+                                .font(DesignSystem.Typography.appFont(size: 13, weight: .bold))
                         }
                         .foregroundColor(selectedScope == index ? .black : .gray)
                         .frame(maxWidth: .infinity)
@@ -377,7 +377,7 @@ struct AnimatedScopeSelector: View {
 
             // Contextual subtitle
             Text(subtitle)
-                .font(.system(size: 11, weight: .medium, design: .rounded))
+                .font(DesignSystem.Typography.appFont(size: 11, weight: .medium))
                 .foregroundColor(.gray.opacity(0.6))
                 .animation(.easeInOut(duration: 0.3), value: selectedScope)
         }
@@ -468,12 +468,12 @@ struct PremiumPodiumView: View {
             if rank == 1 {
                 ZStack {
                     Image(systemName: "crown.fill")
-                        .font(.system(size: 24, design: .rounded))
+                        .font(DesignSystem.Typography.appFont(size: 24))
                         .foregroundColor(gold.opacity(0.3))
                         .blur(radius: 8)
 
                     Image(systemName: "crown.fill")
-                        .font(.system(size: 22, design: .rounded))
+                        .font(DesignSystem.Typography.appFont(size: 22))
                         .foregroundColor(gold)
                 }
                 .padding(.bottom, 6)
@@ -536,7 +536,7 @@ struct PremiumPodiumView: View {
                         .shadow(color: color.opacity(0.5), radius: 6)
 
                     Text("\(rank)")
-                        .font(.system(size: 12, weight: .black, design: .rounded))
+                        .font(DesignSystem.Typography.appFont(size: 12, weight: .black))
                         .foregroundColor(.white)
                 }
                 .offset(y: (avatarSize / 2) + 2) // Badge exakt an den unteren Rand setzen
@@ -546,7 +546,7 @@ struct PremiumPodiumView: View {
             // Name with shimmer for #1
             if rank == 1 {
                 Text(player.name)
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .font(DesignSystem.Typography.appFont(size: 16, weight: .bold))
                     .foregroundColor(.black)
                     .lineLimit(1)
                     .modifier(ShimmerModifier(color: gold))
@@ -558,7 +558,7 @@ struct PremiumPodiumView: View {
             }
 
             Text("@\(player.handle)")
-                .font(.system(size: 10, design: .rounded))
+                .font(DesignSystem.Typography.appFont(size: 10))
                 .foregroundColor(.gray)
                 .lineLimit(1)
                 .padding(.bottom, 8)
@@ -568,7 +568,7 @@ struct PremiumPodiumView: View {
                 .font(.system(size: rank == 1 ? 24 : 18, weight: .black, design: .rounded))
                 .foregroundColor(color)
             Text("XP")
-                .font(.system(size: 9, weight: .bold, design: .rounded))
+                .font(DesignSystem.Typography.appFont(size: 9, weight: .bold))
                 .foregroundColor(color.opacity(0.5))
                 .tracking(1)
                 .padding(.bottom, 10)
@@ -663,7 +663,7 @@ struct PremiumLeaderboardRow: View {
             HStack(spacing: 14) {
                 // Rank number
                 Text("\(rank)")
-                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .font(DesignSystem.Typography.appFont(size: 15, weight: .bold))
                     .foregroundColor(player.isCurrentUser ? gold : .black.opacity(0.4))
                     .frame(width: 30, alignment: .center)
 
@@ -683,7 +683,7 @@ struct PremiumLeaderboardRow: View {
                         .frame(width: 42, height: 42)
                         .overlay(
                             Text(String(player.name.prefix(1)).uppercased())
-                                .font(.system(size: 16, weight: .bold, design: .rounded))
+                                .font(DesignSystem.Typography.appFont(size: 16, weight: .bold))
                                 .foregroundColor(player.isCurrentUser ? gold : .gray)
                         )
                 }
@@ -709,7 +709,7 @@ struct PremiumLeaderboardRow: View {
 
                     if player.isCurrentUser {
                         Text("YOU")
-                            .font(.system(size: 8, weight: .black, design: .rounded))
+                            .font(DesignSystem.Typography.appFont(size: 8, weight: .black))
                             .foregroundColor(.black)
                             .padding(.horizontal, 5)
                             .padding(.vertical, 2)
@@ -720,14 +720,14 @@ struct PremiumLeaderboardRow: View {
 
                 HStack(spacing: 4) {
                     Text("@\(player.handle)")
-                        .font(.system(size: 11, design: .rounded))
+                        .font(DesignSystem.Typography.appFont(size: 11))
                         .foregroundColor(.gray)
                         .lineLimit(1)
 
                     // Level indicator
                     let level = max(1, (player.xp / 1000) + 1)
                     Text("Lv.\(level)")
-                        .font(.system(size: 9, weight: .bold, design: .rounded))
+                        .font(DesignSystem.Typography.appFont(size: 9, weight: .bold))
                         .foregroundColor(RankTitle.forLevel(level).color.opacity(0.7))
                 }
             }
@@ -737,10 +737,10 @@ struct PremiumLeaderboardRow: View {
             // XP
             VStack(alignment: .trailing, spacing: 2) {
                 Text("\(player.xp)")
-                    .font(.system(size: 17, weight: .bold, design: .rounded))
+                    .font(DesignSystem.Typography.appFont(size: 17, weight: .bold))
                     .foregroundColor(player.isCurrentUser ? gold : .black)
                 Text("XP")
-                    .font(.system(size: 9, weight: .semibold, design: .rounded))
+                    .font(DesignSystem.Typography.appFont(size: 9, weight: .semibold))
                     .foregroundColor(.gray.opacity(0.5))
                     .tracking(0.5)
             }
@@ -819,18 +819,18 @@ struct MotivationalBanner: View {
                         .frame(width: 36, height: 36)
 
                     Image(systemName: "flame.fill")
-                        .font(.system(size: 15, weight: .bold, design: .rounded))
+                        .font(DesignSystem.Typography.appFont(size: 15, weight: .bold))
                         .foregroundColor(gold)
                 }
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("You're ranked #\(rank)")
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .font(DesignSystem.Typography.appFont(size: 14, weight: .bold))
                         .foregroundColor(.black)
 
                     if let next = nextPlayer, xpGap > 0 {
                         Text("\(xpGap) XP to overtake @\(next.handle)")
-                            .font(.system(size: 12, weight: .medium, design: .rounded))
+                            .font(DesignSystem.Typography.appFont(size: 12, weight: .medium))
                             .foregroundColor(gold.opacity(0.8))
                     }
                 }
@@ -838,7 +838,7 @@ struct MotivationalBanner: View {
                 Spacer()
 
                 Text("\(xp) XP")
-                    .font(.system(size: 15, weight: .black, design: .rounded))
+                    .font(DesignSystem.Typography.appFont(size: 15, weight: .black))
                     .foregroundColor(gold)
             }
 
@@ -905,12 +905,12 @@ struct EmptyFriendsView: View {
                 // Mountain icon
                 ZStack {
                     Image(systemName: "mountain.2.fill")
-                        .font(.system(size: 44, design: .rounded))
+                        .font(DesignSystem.Typography.appFont(size: 44))
                         .foregroundColor(gold.opacity(0.12))
                         .offset(y: 8)
 
                     Image(systemName: "person.3.fill")
-                        .font(.system(size: 32, design: .rounded))
+                        .font(DesignSystem.Typography.appFont(size: 32))
                         .foregroundColor(gold.opacity(0.45))
                         .offset(y: floatOffset)
                 }
@@ -918,11 +918,11 @@ struct EmptyFriendsView: View {
 
             VStack(spacing: 10) {
                 Text("The summit is better shared")
-                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                    .font(DesignSystem.Typography.appFont(size: 20, weight: .bold))
                     .foregroundColor(.white)
 
                 Text("Invite fellow alpinists to compete,\ncheer each other on, and climb together.")
-                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                    .font(DesignSystem.Typography.appFont(size: 14, weight: .medium))
                     .foregroundColor(.gray)
                     .multilineTextAlignment(.center)
                     .lineSpacing(3)
@@ -931,9 +931,9 @@ struct EmptyFriendsView: View {
             Button(action: onAdd) {
                 HStack(spacing: 8) {
                     Image(systemName: "plus")
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .font(DesignSystem.Typography.appFont(size: 14, weight: .bold))
                     Text("Add Friend")
-                        .font(.system(size: 15, weight: .bold, design: .rounded))
+                        .font(DesignSystem.Typography.appFont(size: 15, weight: .bold))
                 }
                 .foregroundColor(.black)
                 .padding(.horizontal, 28)

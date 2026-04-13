@@ -170,11 +170,11 @@ struct OfflineDownloadsView: View {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Text("Storage Used")
-                        .font(.system(.subheadline, design: .rounded))
+                        .font(DesignSystem.Typography.appFont(style: .subheadline))
                         .fontWeight(.semibold)
                     Spacer()
                     Text(offlineManager.storageUsedFormatted)
-                        .font(.system(.caption, design: .rounded))
+                        .font(DesignSystem.Typography.appFont(style: .caption))
                         .foregroundColor(.secondary)
                 }
 
@@ -193,7 +193,7 @@ struct OfflineDownloadsView: View {
             // Downloaded regions
             if !offlineManager.downloadedRegions.isEmpty {
                 Text("OFFLINE MAPS")
-                    .font(.system(size: 11, weight: .black, design: .rounded))
+                    .font(DesignSystem.Typography.appFont(size: 11, weight: .black))
                     .foregroundColor(.gray)
                     .tracking(2)
 
@@ -204,10 +204,10 @@ struct OfflineDownloadsView: View {
 
                         VStack(alignment: .leading, spacing: 2) {
                             Text(region.name)
-                                .font(.system(.subheadline, design: .rounded))
+                                .font(DesignSystem.Typography.appFont(style: .subheadline))
                                 .fontWeight(.semibold)
                             Text("\(region.sizeFormatted) · Downloaded \(region.downloadDate.formatted(.relative(presentation: .named)))")
-                                .font(.system(.caption, design: .rounded))
+                                .font(DesignSystem.Typography.appFont(style: .caption))
                                 .foregroundColor(.secondary)
                         }
 
@@ -215,7 +215,7 @@ struct OfflineDownloadsView: View {
 
                         Button(action: { offlineManager.deleteRegion(id: region.id) }) {
                             Image(systemName: "trash")
-                                .font(.system(size: 14))
+                                .font(DesignSystem.Typography.appFont(size: 14))
                                 .foregroundColor(.red)
                         }
                     }
@@ -225,7 +225,7 @@ struct OfflineDownloadsView: View {
             // Downloaded routes
             if !offlineManager.downloadedRoutes.isEmpty {
                 Text("OFFLINE ROUTES")
-                    .font(.system(size: 11, weight: .black, design: .rounded))
+                    .font(DesignSystem.Typography.appFont(size: 11, weight: .black))
                     .foregroundColor(.gray)
                     .tracking(2)
 
@@ -236,10 +236,10 @@ struct OfflineDownloadsView: View {
 
                         VStack(alignment: .leading, spacing: 2) {
                             Text(route.mountainName)
-                                .font(.system(.subheadline, design: .rounded))
+                                .font(DesignSystem.Typography.appFont(style: .subheadline))
                                 .fontWeight(.semibold)
                             Text(route.routeName)
-                                .font(.system(.caption, design: .rounded))
+                                .font(DesignSystem.Typography.appFont(style: .caption))
                                 .foregroundColor(.secondary)
                         }
 
@@ -247,7 +247,7 @@ struct OfflineDownloadsView: View {
 
                         Button(action: { offlineManager.deleteRoute(id: route.id) }) {
                             Image(systemName: "trash")
-                                .font(.system(size: 14))
+                                .font(DesignSystem.Typography.appFont(size: 14))
                                 .foregroundColor(.red)
                         }
                     }
@@ -258,14 +258,14 @@ struct OfflineDownloadsView: View {
             if offlineManager.downloadedRegions.isEmpty && offlineManager.downloadedRoutes.isEmpty {
                 HStack(spacing: 12) {
                     Image(systemName: "icloud.and.arrow.down")
-                        .font(.system(size: 24))
+                        .font(DesignSystem.Typography.appFont(size: 24))
                         .foregroundColor(.gray.opacity(0.4))
                     VStack(alignment: .leading, spacing: 2) {
                         Text("No Offline Content")
-                            .font(.system(.subheadline, design: .rounded))
+                            .font(DesignSystem.Typography.appFont(style: .subheadline))
                             .fontWeight(.semibold)
                         Text("Download maps and routes from the Explore tab to use them without internet.")
-                            .font(.system(.caption, design: .rounded))
+                            .font(DesignSystem.Typography.appFont(style: .caption))
                             .foregroundColor(.secondary)
                     }
                 }
@@ -287,7 +287,7 @@ struct OfflineDownloadButton: View {
             HStack(spacing: 8) {
                 Image(systemName: isDownloaded ? "checkmark.icloud.fill" : "icloud.and.arrow.down")
                 Text(isDownloaded ? "Downloaded" : "Save Offline")
-                    .font(.system(.caption, design: .rounded))
+                    .font(DesignSystem.Typography.appFont(style: .caption))
                     .fontWeight(.semibold)
             }
             .foregroundColor(isDownloaded ? .green : DesignSystem.Colors.accent)

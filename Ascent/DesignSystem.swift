@@ -154,6 +154,41 @@ enum DesignSystem {
             }
         }
 
+        
+        static func appFont(size: CGFloat, weight: Font.Weight = .regular) -> Font {
+            let fontChoice = currentFont
+            if let custom = fontChoice.customName {
+                return Font.custom(custom, size: size).weight(weight)
+            } else {
+                return Font.system(size: size, weight: weight, design: fontChoice.design ?? .default)
+            }
+        }
+
+        static func appFont(style: Font.TextStyle) -> Font {
+            let fontChoice = currentFont
+            if let custom = fontChoice.customName {
+                // Approximate sizes for TextStyles
+                var size: CGFloat = 16
+                switch style {
+                case .largeTitle: size = 34
+                case .title: size = 28
+                case .title2: size = 22
+                case .title3: size = 20
+                case .headline: size = 17
+                case .body: size = 17
+                case .callout: size = 16
+                case .subheadline: size = 15
+                case .footnote: size = 13
+                case .caption: size = 12
+                case .caption2: size = 11
+                @unknown default: size = 17
+                }
+                return Font.custom(custom, size: size)
+            } else {
+                return Font.system(style, design: fontChoice.design ?? .default)
+            }
+        }
+    
         static var heroTitle: Font { font(size: 34, weight: .bold) }
         static var title: Font { font(size: 24, weight: .bold) }
         static var subtitle: Font { font(size: 18, weight: .semibold) }
