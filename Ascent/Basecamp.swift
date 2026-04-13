@@ -198,13 +198,13 @@ struct BasecampView: View {
                 HStack(alignment: .center, spacing: 12) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Lvl \(appState.currentLevel) · \(appState.ascendProfile?.ascend_tier.uppercased() ?? "BRONZE")")
-                            .font(.system(size: 12, weight: .black, design: .rounded))
+                            .font(.app(size: 12, weight: .black))
                             .foregroundColor(tierColor.opacity(0.4))
                             .blendMode(.screen)
                             .colorMultiply(.white)
                             .tracking(1.2)
                         Text(appState.userName)
-                            .font(.system(size: 22, weight: .bold, design: .rounded))
+                            .font(.app(size: 22, weight: .bold))
                             .foregroundColor(.white)
                             .lineLimit(1)
                     }
@@ -230,7 +230,7 @@ struct BasecampView: View {
                                 .frame(width: 38, height: 38).clipShape(Circle())
                             } else {
                                 Circle().fill(Color.white).frame(width: 38, height: 38)
-                                    .overlay(Image(systemName: "person.fill").font(.system(size: 16)).foregroundColor(tierColor))
+                                    .overlay(Image(systemName: "person.fill").font(.app(size: 16)).foregroundColor(tierColor))
                             }
                         }
                     }
@@ -252,12 +252,12 @@ struct BasecampView: View {
     private func heroStatChip(icon: String, value: String, label: String, color: Color) -> some View {
         HStack(spacing: 6) {
             Image(systemName: icon)
-                .font(.system(size: 11, weight: .bold))
+                .font(.app(size: 11, weight: .bold))
             VStack(alignment: .leading, spacing: 0) {
                 Text(value)
-                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .font(.app(size: 13, weight: .bold))
                 Text(label)
-                    .font(.system(size: 9, weight: .medium, design: .rounded))
+                    .font(.app(size: 9, weight: .medium))
                     .opacity(0.75)
             }
         }
@@ -331,19 +331,19 @@ struct BasecampView: View {
                     VStack(alignment: .leading, spacing: 3) {
                         if peak.isPrestigePeak {
                             Text("PRESTIGE PEAK")
-                                .font(.system(size: 9, weight: .black, design: .rounded))
+                                .font(.app(size: 9, weight: .black))
                                 .foregroundColor(accent).tracking(1.5)
                         }
                         Text(peak.name)
-                            .font(.system(size: 18, weight: .bold, design: .rounded))
+                            .font(.app(size: 18, weight: .bold))
                             .foregroundColor(.white)
                         Text("\(peak.elevation)m · \(peak.region)")
-                            .font(.system(size: 12, design: .rounded))
+                            .font(.app(size: 12))
                             .foregroundColor(.white.opacity(0.7))
                     }
                     Spacer()
                     Image(systemName: "chevron.right.circle.fill")
-                        .font(.system(size: 24))
+                        .font(.app(size: 24))
                         .foregroundColor(.white.opacity(0.4))
                 }
                 .padding(14)
@@ -364,12 +364,12 @@ struct BasecampView: View {
     private var feedSectionHeader: some View {
         HStack(alignment: .firstTextBaseline) {
             Text("Recent Activity")
-                .font(.system(size: 22, weight: .bold, design: .rounded))
+                .font(.app(size: 22, weight: .bold))
                 .foregroundColor(.primary)
             Spacer()
             if !appState.recentTours.isEmpty {
                 Text("\(appState.recentTours.count)")
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .font(.app(size: 13, weight: .semibold))
                     .foregroundColor(.secondary)
             }
         }
@@ -415,7 +415,7 @@ struct BasecampView: View {
 
                 if !appState.hasMoreFeed && !appState.recentTours.isEmpty {
                     Text("You're all caught up!")
-                        .font(.system(.caption, design: .rounded))
+                        .font(.app(.caption))
                         .foregroundColor(.secondary)
                         .padding(.vertical, 16)
                 }
@@ -426,15 +426,15 @@ struct BasecampView: View {
     private var emptyFeed: some View {
         VStack(spacing: 16) {
             Image(systemName: "figure.hiking")
-                .font(.system(size: 40))
+                .font(.app(size: 40))
                 .foregroundColor(.secondary.opacity(0.4))
 
             Text("No activity yet")
-                .font(.system(.headline, design: .rounded))
+                .font(.app(.headline))
                 .foregroundColor(.primary)
 
             Text("Start your first mission or follow other alpinists to build your feed.")
-                .font(.system(.subheadline, design: .rounded))
+                .font(.app(.subheadline))
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
         }
@@ -467,8 +467,8 @@ struct BasecampView: View {
 
     private func sectionHeader(_ title: String, icon: String, iconColor: Color) -> some View {
         HStack(spacing: 8) {
-            Image(systemName: icon).font(.system(size: 16, weight: .bold)).foregroundColor(iconColor)
-            Text(title.uppercased()).font(.system(size: 14, weight: .black, design: .rounded)).foregroundColor(.secondary).tracking(1)
+            Image(systemName: icon).font(.app(size: 16, weight: .bold)).foregroundColor(iconColor)
+            Text(title.uppercased()).font(.app(size: 14, weight: .black)).foregroundColor(.secondary).tracking(1)
             Spacer()
         }
         .padding(.horizontal, 16)
@@ -491,7 +491,7 @@ struct BasecampView: View {
                 startPoint: .topLeading, endPoint: .bottomTrailing
             )
             Image(systemName: peak.isPrestigePeak ? "crown.fill" : "mountain.2.fill")
-                .font(.system(size: 50)).foregroundColor(.white.opacity(0.08))
+                .font(.app(size: 50)).foregroundColor(.white.opacity(0.08))
         }
     }
 }
@@ -512,21 +512,21 @@ struct WeekPill: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 4) {
                 Image(systemName: icon)
-                    .font(.system(size: 10, weight: .bold))
+                    .font(.app(size: 10, weight: .bold))
                     .foregroundColor(color)
                 Text(title.uppercased())
-                    .font(.system(size: 9, weight: .black, design: .rounded))
+                    .font(.app(size: 9, weight: .black))
                     .foregroundColor(.secondary)
                     .tracking(0.5)
             }
 
             HStack(alignment: .lastTextBaseline, spacing: 3) {
                 Text(value)
-                    .font(.system(size: 15, weight: .black, design: .rounded))
+                    .font(.app(size: 15, weight: .black))
                     .foregroundColor(.primary)
                 if let target {
                     Text(target)
-                        .font(.system(size: 10, design: .rounded))
+                        .font(.app(size: 10))
                         .foregroundColor(.secondary)
                 }
             }
@@ -586,7 +586,7 @@ struct RouteCard: View {
                             HStack {
                                 Spacer()
                                 Text("Foto: \(credit)")
-                                    .font(.system(size: 6, weight: .medium, design: .rounded))
+                                    .font(.app(size: 6, weight: .medium))
                                     .foregroundColor(.white.opacity(0.4))
                                     .padding(.trailing, 6)
                                     .padding(.bottom, 4)
@@ -595,7 +595,7 @@ struct RouteCard: View {
                     }
 
                     Text(mountain.difficulty.rawValue.uppercased())
-                        .font(.system(size: 8, weight: .black, design: .rounded))
+                        .font(.app(size: 8, weight: .black))
                         .foregroundColor(.black)
                         .padding(.horizontal, 6).padding(.vertical, 3)
                         .background(mountain.difficulty.color)
@@ -605,11 +605,11 @@ struct RouteCard: View {
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text(mountain.name)
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .font(.app(size: 14, weight: .bold))
                         .foregroundColor(.primary)
                         .lineLimit(1)
                     Text("\(mountain.elevation)m · \(mountain.region)")
-                        .font(.system(size: 11, design: .rounded))
+                        .font(.app(size: 11))
                         .foregroundColor(.secondary)
                         .lineLimit(1)
                 }
@@ -626,7 +626,7 @@ struct RouteCard: View {
     private var routePlaceholder: some View {
         ZStack {
             LinearGradient(colors: [Color.blue.opacity(0.12), Color.purple.opacity(0.06)], startPoint: .topLeading, endPoint: .bottomTrailing)
-            Image(systemName: "mountain.2.fill").font(.system(size: 28)).foregroundColor(.white.opacity(0.12))
+            Image(systemName: "mountain.2.fill").font(.app(size: 28)).foregroundColor(.white.opacity(0.12))
         }
     }
 }
@@ -648,15 +648,15 @@ struct DiscoverCard: View {
                         .fill(mountain.isPrestigePeak ? gold.opacity(0.15) : Color.blue.opacity(0.1))
                         .frame(width: 48, height: 48)
                     Image(systemName: mountain.isPrestigePeak ? "crown.fill" : "mountain.2.fill")
-                        .font(.system(size: 18)).foregroundColor(mountain.isPrestigePeak ? gold : .blue)
+                        .font(.app(size: 18)).foregroundColor(mountain.isPrestigePeak ? gold : .blue)
                 }
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(mountain.name).font(.system(size: 14, weight: .bold, design: .rounded)).foregroundColor(.primary).lineLimit(1)
-                    Text("\(mountain.elevation)m · \(mountain.region)").font(.system(size: 11, design: .rounded)).foregroundColor(.gray).lineLimit(1)
+                    Text(mountain.name).font(.app(size: 14, weight: .bold)).foregroundColor(.primary).lineLimit(1)
+                    Text("\(mountain.elevation)m · \(mountain.region)").font(.app(size: 11)).foregroundColor(.gray).lineLimit(1)
                 }
                 Spacer()
                 Text(mountain.difficulty.rawValue.uppercased())
-                    .font(.system(size: 8, weight: .black, design: .rounded))
+                    .font(.app(size: 8, weight: .black))
                     .foregroundColor(.black)
                     .padding(.horizontal, 6).padding(.vertical, 3)
                     .background(mountain.difficulty.color)
@@ -685,15 +685,15 @@ struct XPDetailView: View {
             Color.clear.ignoresSafeArea()
             VStack(spacing: 30) {
                 HStack {
-                    Text("Performance Stats").font(.system(.title2, design: .rounded)).fontWeight(.bold)
+                    Text("Performance Stats").font(.app(.title2)).fontWeight(.bold)
                     Spacer()
-                    Button(action: { dismiss() }) { Image(systemName: "xmark.circle.fill").font(.system(size: 24)).foregroundColor(.gray) }
+                    Button(action: { dismiss() }) { Image(systemName: "xmark.circle.fill").font(.app(size: 24)).foregroundColor(.gray) }
                 }
                 VStack(spacing: 8) {
-                    Text("\(appState.currentXP) XP").font(.system(size: 48, weight: .black, design: .rounded))
+                    Text("\(appState.currentXP) XP").font(.app(size: 48, weight: .black))
                     let region = appState.userRegion
                     Text(region.isEmpty || region == "Unknown" ? "Keep climbing to rank up!" : "Alpinist in \(region)")
-                        .font(.system(.subheadline, design: .rounded)).foregroundColor(.green)
+                        .font(.app(.subheadline)).foregroundColor(.green)
                 }
                 .padding(.vertical, 20)
                 HStack(spacing: 20) {
@@ -716,9 +716,9 @@ struct StatColumn: View {
     let title: String; let value: String; let unit: String
     var body: some View {
         VStack(spacing: 4) {
-            Text(title).font(.system(.caption, design: .rounded)).foregroundColor(.gray).textCase(.uppercase)
-            Text(value).font(.system(.title2, design: .rounded)).fontWeight(.bold)
-            Text(unit).font(.system(.caption2, design: .rounded)).foregroundColor(.gray)
+            Text(title).font(.app(.caption)).foregroundColor(.gray).textCase(.uppercase)
+            Text(value).font(.app(.title2)).fontWeight(.bold)
+            Text(unit).font(.app(.caption2)).foregroundColor(.gray)
         }
         .frame(maxWidth: .infinity)
     }
@@ -764,7 +764,7 @@ struct AllActivitiesView: View {
                         }
                         if !appState.hasMoreFeed && !appState.recentTours.isEmpty {
                             Text("You've seen it all!")
-                                .font(.system(.caption, design: .rounded))
+                                .font(.app(.caption))
                                 .foregroundColor(.gray)
                                 .padding(.top, 10)
                         }
@@ -778,7 +778,7 @@ struct AllActivitiesView: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button(action: { dismiss() }) {
-                        Image(systemName: "xmark.circle.fill").font(.system(size: 24)).foregroundColor(.gray)
+                        Image(systemName: "xmark.circle.fill").font(.app(size: 24)).foregroundColor(.gray)
                     }
                 }
             }
@@ -812,14 +812,14 @@ struct BasecampMountainDetailSheet: View {
                         }.frame(height: 200).clipped()
                     } else {
                         Color(white: 0.9).frame(height: 200)
-                        Image(systemName: "mountain.2.fill").font(.system(size: 40)).foregroundColor(Color.black.opacity(0.1))
+                        Image(systemName: "mountain.2.fill").font(.app(size: 40)).foregroundColor(Color.black.opacity(0.1))
                     }
                     
                     LinearGradient(colors: [.clear, .white], startPoint: .center, endPoint: .bottom)
                         .frame(height: 200)
                         
                     Button { dismiss() } label: {
-                        Image(systemName: "xmark.circle.fill").font(.system(size: 28)).foregroundColor(.primary.opacity(0.6))
+                        Image(systemName: "xmark.circle.fill").font(.app(size: 28)).foregroundColor(.primary.opacity(0.6))
                             .background(Circle().fill(Color.white.opacity(0.8)))
                     }.padding(16)
                 }.frame(height: 200)
@@ -828,12 +828,12 @@ struct BasecampMountainDetailSheet: View {
                 VStack(alignment: .leading, spacing: 16) {
                     HStack(alignment: .top) {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(mountain.name).font(.system(size: 24, weight: .bold, design: .rounded)).foregroundColor(.primary)
-                            Text("\(mountain.region), \(mountain.country)").font(.system(size: 14, design: .rounded)).foregroundColor(.secondary)
+                            Text(mountain.name).font(.app(size: 24, weight: .bold)).foregroundColor(.primary)
+                            Text("\(mountain.region), \(mountain.country)").font(.app(size: 14)).foregroundColor(.secondary)
                         }
                         Spacer()
                         Text(mountain.difficulty.rawValue.uppercased())
-                            .font(.system(size: 10, weight: .black, design: .rounded))
+                            .font(.app(size: 10, weight: .black))
                             .foregroundColor(.white)
                             .padding(.horizontal, 10).padding(.vertical, 5)
                             .background(mountain.difficulty.color)
@@ -851,7 +851,7 @@ struct BasecampMountainDetailSheet: View {
                     
                     if !mountain.description.isEmpty {
                         Text(mountain.description)
-                            .font(.system(size: 13, design: .rounded))
+                            .font(.app(size: 13))
                             .foregroundColor(.secondary)
                             .lineLimit(4)
                     }
@@ -883,7 +883,7 @@ struct BasecampMountainDetailSheet: View {
                             Image(systemName: "play.fill")
                             Text("Commence Mission")
                         }
-                        .font(.system(size: 18, weight: .bold, design: .rounded))
+                        .font(.app(size: 18, weight: .bold))
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 16)
@@ -907,9 +907,9 @@ struct BasecampMountainDetailSheet: View {
     
     private func statItem(icon: String, value: String, label: String) -> some View {
         VStack(spacing: 6) {
-            Image(systemName: icon).font(.system(size: 16)).foregroundColor(.secondary)
-            Text(value).font(.system(size: 16, weight: .bold, design: .rounded)).foregroundColor(.primary)
-            Text(label).font(.system(size: 11, design: .rounded)).foregroundColor(.secondary)
+            Image(systemName: icon).font(.app(size: 16)).foregroundColor(.secondary)
+            Text(value).font(.app(size: 16, weight: .bold)).foregroundColor(.primary)
+            Text(label).font(.app(size: 11)).foregroundColor(.secondary)
         }
         .frame(maxWidth: .infinity)
     }
@@ -923,7 +923,7 @@ struct LevelBadge: View {
         ZStack {
             Circle().stroke(Color.white.opacity(0.1), lineWidth: 3).frame(width: 42, height: 42)
             Circle().trim(from: 0, to: progress).stroke(gold, style: StrokeStyle(lineWidth: 3, lineCap: .round)).frame(width: 42, height: 42).rotationEffect(.degrees(-90))
-            Text("\(level)").font(.system(size: 14, weight: .black, design: .rounded)).foregroundColor(gold)
+            Text("\(level)").font(.app(size: 14, weight: .black)).foregroundColor(gold)
         }
     }
 }
@@ -934,14 +934,14 @@ struct WeeklyObjectiveCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Image(systemName: icon).font(.system(size: 14, weight: .bold)).foregroundColor(color)
+                Image(systemName: icon).font(.app(size: 14, weight: .bold)).foregroundColor(color)
                 Spacer()
-                Text("\(Int(progress * 100))%").font(.system(size: 11, weight: .bold, design: .rounded)).foregroundColor(progress >= 1 ? .green : color)
+                Text("\(Int(progress * 100))%").font(.app(size: 11, weight: .bold)).foregroundColor(progress >= 1 ? .green : color)
             }
-            Text(title.uppercased()).font(.system(size: 10, weight: .black, design: .rounded)).foregroundColor(.gray).tracking(1)
+            Text(title.uppercased()).font(.app(size: 10, weight: .black)).foregroundColor(.gray).tracking(1)
             HStack(alignment: .lastTextBaseline, spacing: 3) {
-                Text("\(current)").font(.system(size: 24, weight: .black, design: .rounded))
-                Text("/ \(target) \(unit)").font(.system(size: 11, weight: .medium, design: .rounded)).foregroundColor(.gray)
+                Text("\(current)").font(.app(size: 24, weight: .black))
+                Text("/ \(target) \(unit)").font(.app(size: 11, weight: .medium)).foregroundColor(.gray)
             }
             GeometryReader { geo in
                 ZStack(alignment: .leading) {

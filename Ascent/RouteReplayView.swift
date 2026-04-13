@@ -91,7 +91,7 @@ struct RouteReplayView: View {
                 .progressViewStyle(CircularProgressViewStyle(tint: neonOrange))
                 .scaleEffect(1.3)
             Text("Preparing 3D Terrain...")
-                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                .font(.app(size: 14, weight: .semibold))
                 .foregroundColor(.white.opacity(0.7))
         }
     }
@@ -103,7 +103,7 @@ struct RouteReplayView: View {
             // Close
             Button(action: onClose) {
                 Image(systemName: "xmark")
-                    .font(.system(size: 15, weight: .bold))
+                    .font(.app(size: 15, weight: .bold))
                     .foregroundColor(.white)
                     .frame(width: 34, height: 34)
                     .background(Color.white.opacity(0.15))
@@ -115,14 +115,14 @@ struct RouteReplayView: View {
             // Title block
             VStack(spacing: 3) {
                 Text(tourName)
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .font(.app(size: 16, weight: .bold))
                     .foregroundColor(.white)
                     .shadow(color: .black.opacity(0.5), radius: 4, y: 2)
                 HStack(spacing: 6) {
                     Image(systemName: "mountain.2.fill")
-                        .font(.system(size: 9))
+                        .font(.app(size: 9))
                     Text("3D FLYOVER")
-                        .font(.system(size: 9, weight: .heavy, design: .rounded))
+                        .font(.app(size: 9, weight: .heavy))
                         .tracking(2)
                 }
                 .foregroundColor(.white.opacity(0.5))
@@ -133,7 +133,7 @@ struct RouteReplayView: View {
             // Speed toggle
             Button(action: cycleSpeed) {
                 Text("\(speedMultiplier)x")
-                    .font(.system(size: 13, weight: .heavy, design: .monospaced))
+                    .font(.app(size: 13, weight: .heavy))
                     .foregroundColor(speedMultiplier > 1 ? neonOrange : .white)
                     .frame(width: 34, height: 34)
                     .background(Color.white.opacity(0.15))
@@ -175,7 +175,7 @@ struct RouteReplayView: View {
             HStack(spacing: 32) {
                 Button(action: restart) {
                     Image(systemName: "backward.end.fill")
-                        .font(.system(size: 16))
+                        .font(.app(size: 16))
                         .foregroundColor(.white.opacity(0.6))
                         .frame(width: 44, height: 44)
                 }
@@ -187,7 +187,7 @@ struct RouteReplayView: View {
                             .frame(width: 60, height: 60)
                             .shadow(color: neonOrange.opacity(0.6), radius: 16, y: 4)
                         Image(systemName: isPlaying ? "pause.fill" : "play.fill")
-                            .font(.system(size: 24, weight: .bold))
+                            .font(.app(size: 24, weight: .bold))
                             .foregroundColor(.white)
                             .offset(x: isPlaying ? 0 : 2)
                     }
@@ -195,7 +195,7 @@ struct RouteReplayView: View {
 
                 Button(action: skipToEnd) {
                     Image(systemName: "forward.end.fill")
-                        .font(.system(size: 16))
+                        .font(.app(size: 16))
                         .foregroundColor(.white.opacity(0.6))
                         .frame(width: 44, height: 44)
                 }
@@ -259,14 +259,14 @@ struct RouteReplayView: View {
         VStack(spacing: 3) {
             HStack(alignment: .lastTextBaseline, spacing: 2) {
                 Text(value)
-                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                    .font(.app(size: 20, weight: .bold))
                     .foregroundColor(.white)
                 Text(unit)
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .font(.app(size: 12, weight: .medium))
                     .foregroundColor(.white.opacity(0.5))
             }
             Text(label.uppercased())
-                .font(.system(size: 9, weight: .bold, design: .rounded))
+                .font(.app(size: 9, weight: .bold))
                 .foregroundColor(.white.opacity(0.35))
                 .tracking(0.5)
         }
@@ -1015,24 +1015,24 @@ struct RouteReplayLauncher: View {
                             )
                             .frame(width: 40, height: 40)
                         Image(systemName: "play.fill")
-                            .font(.system(size: 16, weight: .bold))
+                            .font(.app(size: 16, weight: .bold))
                             .foregroundColor(.white)
                             .offset(x: 1)
                     }
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text("3D Route Replay")
-                            .font(.system(size: 14, weight: .bold, design: .rounded))
+                            .font(.app(size: 14, weight: .bold))
                             .foregroundColor(DesignSystem.Colors.primaryText)
                         Text("Fly through your hike in 3D terrain")
-                            .font(.system(size: 11, weight: .medium, design: .rounded))
+                            .font(.app(size: 11, weight: .medium))
                             .foregroundColor(DesignSystem.Colors.secondaryText)
                     }
 
                     Spacer()
 
                     Image(systemName: "mountain.2.fill")
-                        .font(.system(size: 18))
+                        .font(.app(size: 18))
                         .foregroundColor(Color(red: 1.0, green: 0.4, blue: 0.0).opacity(0.6))
                 }
                 .padding(14)
@@ -1086,24 +1086,24 @@ struct CloudTourReplayLauncher: View {
                             )
                             .frame(width: 40, height: 40)
                         Image(systemName: "play.fill")
-                            .font(.system(size: 16, weight: .bold))
+                            .font(.app(size: 16, weight: .bold))
                             .foregroundColor(.white)
                             .offset(x: 1)
                     }
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text("3D Route Replay")
-                            .font(.system(size: 14, weight: .bold, design: .rounded))
+                            .font(.app(size: 14, weight: .bold))
                             .foregroundColor(DesignSystem.Colors.primaryText)
                         Text("Fly through your hike in 3D terrain")
-                            .font(.system(size: 11, weight: .medium, design: .rounded))
+                            .font(.app(size: 11, weight: .medium))
                             .foregroundColor(DesignSystem.Colors.secondaryText)
                     }
 
                     Spacer()
 
                     Image(systemName: "mountain.2.fill")
-                        .font(.system(size: 18))
+                        .font(.app(size: 18))
                         .foregroundColor(Color(red: 1.0, green: 0.4, blue: 0.0).opacity(0.6))
                 }
                 .padding(14)

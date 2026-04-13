@@ -82,7 +82,7 @@ struct PublicProfileView: View {
                                             .frame(width: 90, height: 90)
                                             .overlay(
                                                 Text(String(userName.prefix(1)).uppercased())
-                                                    .font(.system(size: 36, weight: .bold, design: .rounded))
+                                                    .font(.app(size: 36, weight: .bold))
                                                     .foregroundColor(.white)
                                             )
                                     }
@@ -93,16 +93,16 @@ struct PublicProfileView: View {
                                 if !isLoading {
                                     ZStack {
                                         Image(systemName: "hexagon.fill")
-                                            .font(.system(size: 38))
+                                            .font(.app(size: 38))
                                             .foregroundColor(rank.color)
                                             .shadow(color: rank.color.opacity(0.4), radius: 4, y: 2)
                                         
                                         Image(systemName: "hexagon")
-                                            .font(.system(size: 38))
+                                            .font(.app(size: 38))
                                             .foregroundColor(.white.opacity(0.5))
                                         
                                         Text("\(level)")
-                                            .font(.system(size: 16, weight: .black, design: .rounded))
+                                            .font(.app(size: 16, weight: .black))
                                             .foregroundColor(.white)
                                     }
                                     .offset(x: 10, y: 5)
@@ -111,7 +111,7 @@ struct PublicProfileView: View {
                             
                             VStack(spacing: 4) {
                                 Text(userName)
-                                    .font(.system(size: 24, weight: .bold, design: .rounded))
+                                    .font(.app(size: 24, weight: .bold))
                                     .foregroundColor(.primary)
                                 
                                 HStack(spacing: 6) {
@@ -120,11 +120,11 @@ struct PublicProfileView: View {
                                     Text("•")
                                         .foregroundColor(.secondary.opacity(0.5))
                                     Text(rank.rawValue.uppercased())
-                                        .font(.system(size: 11, weight: .black, design: .rounded))
+                                        .font(.app(size: 11, weight: .black))
                                         .foregroundColor(rank.color)
                                         .tracking(1)
                                 }
-                                .font(.system(size: 15, design: .rounded))
+                                .font(.app(size: 15))
                                 
                                 // Bio / Region
                                 if let r = region, !r.isEmpty {
@@ -133,13 +133,13 @@ struct PublicProfileView: View {
                                             .foregroundColor(accent)
                                         Text(r)
                                     }
-                                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                                    .font(.app(size: 14, weight: .medium))
                                     .foregroundColor(.secondary)
                                     .padding(.top, 4)
                                 } else {
                                     // Default tagline
                                     Text("Exploring the peaks")
-                                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                                        .font(.app(size: 14, weight: .medium))
                                         .foregroundColor(.secondary)
                                         .padding(.top, 4)
                                 }
@@ -178,7 +178,7 @@ struct PublicProfileView: View {
                                         Text("Add Crew")
                                     }
                                 }
-                                .font(.system(size: 15, weight: .bold, design: .rounded))
+                                .font(.app(size: 15, weight: .bold))
                                 .foregroundColor(.white)
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 14)
@@ -193,7 +193,7 @@ struct PublicProfileView: View {
                         VStack(alignment: .leading, spacing: 14) {
                             HStack {
                                 Image(systemName: "trophy.fill").foregroundColor(gold)
-                                Text("Top Achievements").font(.system(size: 14, weight: .bold, design: .rounded)).foregroundColor(.secondary).textCase(.uppercase)
+                                Text("Top Achievements").font(.app(size: 14, weight: .bold)).foregroundColor(.secondary).textCase(.uppercase)
                             }
                             .padding(.horizontal, 24)
                             
@@ -219,7 +219,7 @@ struct PublicProfileView: View {
                         VStack(alignment: .leading, spacing: 14) {
                             HStack {
                                 Image(systemName: "backpack.fill").foregroundColor(.secondary)
-                                Text("Equipment Locker").font(.system(size: 14, weight: .bold, design: .rounded)).foregroundColor(.secondary).textCase(.uppercase)
+                                Text("Equipment Locker").font(.app(size: 14, weight: .bold)).foregroundColor(.secondary).textCase(.uppercase)
                             }
                             .padding(.horizontal, 24)
                             
@@ -238,7 +238,7 @@ struct PublicProfileView: View {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: { dismiss() }) {
                         Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 24))
+                            .font(.app(size: 24))
                             .foregroundColor(.gray.opacity(0.5))
                     }
                 }
@@ -322,10 +322,10 @@ private struct PublicBadgeItem: View {
         VStack(spacing: 8) {
             ZStack {
                 Circle().fill(color.opacity(0.15)).frame(width: 60, height: 60)
-                Image(systemName: icon).font(.system(size: 24)).foregroundColor(color)
+                Image(systemName: icon).font(.app(size: 24)).foregroundColor(color)
             }
             Text(title)
-                .font(.system(size: 11, weight: .bold, design: .rounded))
+                .font(.app(size: 11, weight: .bold))
                 .foregroundColor(.primary)
                 .lineLimit(1)
         }
@@ -346,13 +346,13 @@ private struct StatPill: View {
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: icon)
-                .font(.system(size: 14))
+                .font(.app(size: 14))
                 .foregroundColor(color)
             VStack(alignment: .leading, spacing: 2) {
                 Text(value)
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .font(.app(size: 16, weight: .bold))
                 Text(title)
-                    .font(.system(size: 10, design: .rounded))
+                    .font(.app(size: 10))
                     .foregroundColor(.secondary)
             }
         }

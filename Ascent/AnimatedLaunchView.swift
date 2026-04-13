@@ -127,11 +127,11 @@ struct AnimatedLaunchView: View {
 
                 VStack(spacing: 4) {
                     Text("ASCENT")
-                        .font(.system(size: 26, weight: .black, design: .rounded))
+                        .font(.app(size: 26, weight: .black))
                         .foregroundColor(.white)
                         .tracking(8)
                     Text("Mountaineering, elevated.")
-                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .font(.app(size: 12, weight: .medium))
                         .foregroundColor(.white.opacity(0.82))
                         .tracking(1.5)
                 }

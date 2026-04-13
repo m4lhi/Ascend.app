@@ -18,13 +18,13 @@ struct AscendProgressView: View {
                 HStack {
                     Button(action: { dismiss() }) {
                         Image(systemName: "chevron.down")
-                            .font(.system(.title3, design: .rounded))
+                            .font(.app(.title3))
                             .foregroundColor(.primary)
                             .padding()
                     }
                     Spacer()
                     Text("Ascend Rank")
-                        .font(.system(.headline, design: .rounded))
+                        .font(.app(.headline))
                         .fontWeight(.bold)
                         .foregroundColor(.primary)
                     Spacer()
@@ -44,12 +44,12 @@ struct AscendProgressView: View {
                             
                             VStack(alignment: .leading, spacing: 10) {
                                 Text("Your progress")
-                                    .font(.system(.title2, design: .rounded))
+                                    .font(.app(.title2))
                                     .fontWeight(.bold)
                                     .foregroundColor(.primary)
                                 
                                 Text("Unlock perks, rewards, and recognition as you level up your Ascend Rank.")
-                                    .font(.system(.subheadline, design: .rounded))
+                                    .font(.app(.subheadline))
                                     .foregroundColor(.gray)
                                     .fixedSize(horizontal: false, vertical: true)
                             }
@@ -60,7 +60,7 @@ struct AscendProgressView: View {
                             // RANK ROADMAP
                             VStack(alignment: .leading, spacing: 20) {
                                 Text("Tier Progression")
-                                    .font(.system(.title2, design: .rounded))
+                                    .font(.app(.title2))
                                     .fontWeight(.black)
                                     .foregroundColor(.primary)
                                     .padding(.horizontal, 25)
@@ -152,7 +152,7 @@ struct AscendCard: View {
             VStack(alignment: .leading, spacing: 15) {
                 HStack(alignment: .bottom) {
                     Text("\(profile.ascend_tier) \(String(repeating: "I", count: profile.ascend_subtier))")
-                        .font(.system(.title, design: .rounded))
+                        .font(.app(.title))
                         .fontWeight(.bold)
                         .foregroundColor(textColor)
                     
@@ -160,7 +160,7 @@ struct AscendCard: View {
                     
                     VStack(alignment: .trailing, spacing: 2) {
                         Text("\(Int(profile.ascend_xp)) points")
-                            .font(.system(.headline, design: .rounded))
+                            .font(.app(.headline))
                             .foregroundColor(textColor)
                     }
                 }
@@ -171,15 +171,15 @@ struct AscendCard: View {
                 
                 HStack {
                     Text("\(profile.ascend_tier) I")
-                        .font(.system(.caption2, design: .rounded))
+                        .font(.app(.caption2))
                         .foregroundColor(.gray)
                     Spacer()
                     Text("\(profile.ascend_tier) II")
-                        .font(.system(.caption2, design: .rounded))
+                        .font(.app(.caption2))
                         .foregroundColor(.gray)
                     Spacer()
                     Text("\(profile.ascend_tier) III")
-                        .font(.system(.caption2, design: .rounded))
+                        .font(.app(.caption2))
                         .foregroundColor(.gray)
                 }
                 
@@ -187,7 +187,7 @@ struct AscendCard: View {
                     // Action to show history (future feature)
                 }) {
                     Text("View point history")
-                        .font(.system(.subheadline, design: .rounded))
+                        .font(.app(.subheadline))
                         .fontWeight(.semibold)
                         .foregroundColor(.primary)
                         .frame(maxWidth: .infinity)
@@ -496,13 +496,13 @@ struct RankTierNodeView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     HStack {
                         Text(tier.name)
-                            .font(.system(.headline, design: .rounded))
+                            .font(.app(.headline))
                             .fontWeight(.bold)
                             .foregroundColor(isUnlocked ? .primary : .gray.opacity(0.6))
                         
                         if isCurrentTier {
                             Text("Current")
-                                .font(.system(size: 10, weight: .bold, design: .rounded))
+                                .font(.app(size: 10, weight: .bold))
                                 .foregroundColor(tier.color)
                                 .padding(.horizontal, 6).padding(.vertical, 2)
                                 .background(tier.color.opacity(0.2))
@@ -512,12 +512,12 @@ struct RankTierNodeView: View {
                     
                     HStack(spacing: 6) {
                         Text("\(tier.achievements.count) Requirements")
-                            .font(.system(.caption, design: .rounded))
+                            .font(.app(.caption))
                             .foregroundColor(.gray.opacity(0.5))
                         
                         if !isUnlocked {
                             Image(systemName: "lock.fill")
-                                .font(.system(size: 9, design: .rounded))
+                                .font(.app(size: 9))
                                 .foregroundColor(tier.color.opacity(0.6))
                         }
                     }
@@ -527,7 +527,7 @@ struct RankTierNodeView: View {
                 
                 // Chevron to indicate it's clickable
                 Image(systemName: "chevron.right")
-                    .font(.system(.footnote, design: .rounded))
+                    .font(.app(.footnote))
                     .foregroundColor(isUnlocked ? tier.color : .gray.opacity(0.4))
                     .padding(.trailing, 5)
             }
@@ -579,13 +579,13 @@ struct RankGallerySheet: View {
                 HStack {
                     Button(action: { dismiss() }) {
                         Image(systemName: "xmark.circle.fill")
-                            .font(.system(.title2, design: .rounded))
+                            .font(.app(.title2))
                             .foregroundColor(.primary.opacity(0.5))
                             .padding()
                     }
                     Spacer()
                     Text("\(tier.name) Records")
-                        .font(.system(.headline, design: .rounded))
+                        .font(.app(.headline))
                         .fontWeight(.bold)
                         .foregroundColor(.primary)
                     Spacer()
@@ -599,7 +599,7 @@ struct RankGallerySheet: View {
                 
                 VStack(spacing: 8) {
                     Text("\(completedCount) / \(tier.achievements.count) COMPLETED")
-                        .font(.system(.caption, design: .rounded))
+                        .font(.app(.caption))
                         .fontWeight(.bold)
                         .foregroundColor(tier.color)
                     
@@ -633,7 +633,7 @@ struct RankGallerySheet: View {
                                         )
                                     
                                     Image(systemName: ach.icon)
-                                        .font(.system(size: 28, weight: .light, design: .rounded))
+                                        .font(.app(size: 28, weight: .light))
                                         .foregroundColor(isUnlocked ? tier.color : .gray.opacity(0.3))
                                         .shadow(color: isUnlocked ? tier.color.opacity(0.6) : .clear, radius: 5)
                                 }
@@ -641,7 +641,7 @@ struct RankGallerySheet: View {
                                 // Text
                                 VStack(spacing: 2) {
                                     Text(ach.title)
-                                        .font(.system(.caption, design: .rounded))
+                                        .font(.app(.caption))
                                         .fontWeight(.bold)
                                         .foregroundColor(isUnlocked ? .primary : .gray.opacity(0.6))
                                         .multilineTextAlignment(.center)
@@ -649,7 +649,7 @@ struct RankGallerySheet: View {
                                         .minimumScaleFactor(0.8)
                                         
                                     Text(ach.subtitle)
-                                        .font(.system(size: 9, design: .rounded))
+                                        .font(.app(size: 9))
                                         .foregroundColor(isUnlocked ? tier.color.opacity(0.8) : .gray.opacity(0.4))
                                         .lineLimit(1)
                                 }

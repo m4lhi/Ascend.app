@@ -30,10 +30,10 @@ struct ObjectiveDetailView: View {
             VStack(spacing: 20) {
                 // Header (fix fixiert oben)
                 HStack {
-                    Text(title).font(.system(.title2, design: .rounded)).fontWeight(.bold).foregroundColor(.primary)
+                    Text(title).font(.app(.title2)).fontWeight(.bold).foregroundColor(.primary)
                     Spacer()
                     Button(action: { dismiss() }) {
-                        Image(systemName: "xmark.circle.fill").font(.system(size: 24, design: .rounded)).foregroundColor(.gray)
+                        Image(systemName: "xmark.circle.fill").font(.app(size: 24)).foregroundColor(.gray)
                     }
                 }
                 .padding(.top, 25)
@@ -52,9 +52,9 @@ struct ObjectiveDetailView: View {
                                 .frame(width: 140, height: 140)
                                 .rotationEffect(.degrees(-90))
                             VStack(spacing: 4) {
-                                Image(systemName: icon).font(.system(size: 28, design: .rounded)).foregroundColor(gold)
+                                Image(systemName: icon).font(.app(size: 28)).foregroundColor(gold)
                                 Text("\(Int(progress * 100))%")
-                                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                                    .font(.app(size: 20, weight: .bold))
                                     .foregroundColor(.primary)
                             }
                         }
@@ -62,24 +62,24 @@ struct ObjectiveDetailView: View {
 
                         VStack(spacing: 8) {
                             Text("\(current) / \(target) \(unit)")
-                                .font(.system(.title3, design: .rounded)).fontWeight(.bold).foregroundColor(.primary)
+                                .font(.app(.title3)).fontWeight(.bold).foregroundColor(.primary)
                             Text("Resets every Monday")
-                                .font(.system(.caption, design: .rounded)).foregroundColor(.gray)
+                                .font(.app(.caption)).foregroundColor(.gray)
                         }
 
                         // This week's tours
                         if !appState.weeklyTours.isEmpty {
                             VStack(alignment: .leading, spacing: 12) {
-                                Text("This Week").font(.system(.headline, design: .rounded)).foregroundColor(.primary)
+                                Text("This Week").font(.app(.headline)).foregroundColor(.primary)
                                 ForEach(appState.weeklyTours) { tour in
                                     HStack {
                                         VStack(alignment: .leading, spacing: 2) {
-                                            Text(tour.summitName).font(.system(.subheadline, design: .rounded)).fontWeight(.semibold).foregroundColor(.primary)
-                                            Text(tour.date, style: .date).font(.system(.caption2, design: .rounded)).foregroundColor(.gray)
+                                            Text(tour.summitName).font(.app(.subheadline)).fontWeight(.semibold).foregroundColor(.primary)
+                                            Text(tour.date, style: .date).font(.app(.caption2)).foregroundColor(.gray)
                                         }
                                         Spacer()
                                         Text("+\(tour.elevationGainMeters)m")
-                                            .font(.system(.caption, design: .rounded)).fontWeight(.bold).foregroundColor(gold)
+                                            .font(.app(.caption)).fontWeight(.bold).foregroundColor(gold)
                                     }
                                     .padding(12)
                                     .background(Color.white)

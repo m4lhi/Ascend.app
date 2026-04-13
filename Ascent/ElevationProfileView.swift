@@ -183,11 +183,11 @@ struct ElevationProfileView: View {
                                 Text(String(format: "%.0f%%", point.gradient)).fontWeight(.bold).foregroundColor(point.segment.color)
                             }
                         }
-                        .font(.system(size: 12, design: .rounded))
+                        .font(.app(size: 12))
                         .animation(.none, value: point.id)
                     } else {
                         Text("Touch and drag chart for details")
-                            .font(.system(size: 11, weight: .medium, design: .rounded))
+                            .font(.app(size: 11, weight: .medium))
                             .foregroundColor(.secondary)
                     }
                     Spacer()
@@ -232,10 +232,10 @@ struct ElevationProfileView: View {
                             HStack(spacing: 4) {
                                 Circle().fill(item.segment.color).frame(width: 8, height: 8)
                                 Text("\(item.segment.rawValue)")
-                                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                                    .font(.app(size: 11, weight: .medium))
                                     .fixedSize(horizontal: true, vertical: false)
                                 Text(String(format: "%.0f%%", item.percentage))
-                                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                                    .font(.app(size: 11, weight: .bold))
                                     .foregroundColor(.secondary)
                             }
                         }
@@ -342,7 +342,7 @@ struct ElevationProfileView: View {
                 AxisValueLabel {
                     if let ds = value.as(Double.self) {
                         Text(String(format: "%.0f km", ds))
-                            .font(.system(size: 10, design: .rounded))
+                            .font(.app(size: 10))
                             .foregroundColor(.secondary)
                     }
                 }
@@ -354,7 +354,7 @@ struct ElevationProfileView: View {
                 AxisValueLabel {
                     if let alt = value.as(Double.self) {
                         Text("\(Int(alt)) m")
-                            .font(.system(size: 10, design: .rounded))
+                            .font(.app(size: 10))
                             .foregroundColor(.secondary)
                     }
                 }
@@ -439,12 +439,12 @@ private struct StatPill: View {
     var body: some View {
         VStack(spacing: 4) {
             Image(systemName: icon)
-                .font(.system(size: 14))
+                .font(.app(size: 14))
                 .foregroundColor(color)
             Text(value)
-                .font(.system(size: 13, weight: .bold, design: .rounded))
+                .font(.app(size: 13, weight: .bold))
             Text(label)
-                .font(.system(size: 9, design: .rounded))
+                .font(.app(size: 9))
                 .foregroundColor(.secondary)
         }
         .frame(maxWidth: .infinity)

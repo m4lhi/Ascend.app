@@ -130,12 +130,12 @@ struct PhotoCaptureButton: View {
                 .fill(.ultraThinMaterial)
                 .frame(width: 40, height: 40)
             Image(systemName: "camera.fill")
-                .font(.system(size: 16, weight: .semibold))
+                .font(.app(size: 16, weight: .semibold))
                 .foregroundColor(DesignSystem.Colors.accent)
 
             if !photoManager.highlights.isEmpty {
                 Text("\(photoManager.highlights.count)")
-                    .font(.system(size: 9, weight: .bold, design: .rounded))
+                    .font(.app(size: 9, weight: .bold))
                     .foregroundColor(.white)
                     .padding(3)
                     .background(Circle().fill(Color.orange))
@@ -209,7 +209,7 @@ struct PhotoHighlightMapContent: MapContent {
                             .clipShape(Circle())
                     } else {
                         Image(systemName: "photo.fill")
-                            .font(.system(size: 14))
+                            .font(.app(size: 14))
                             .foregroundColor(DesignSystem.Colors.accent)
                     }
                 }
@@ -231,11 +231,11 @@ struct PhotoHighlightsStrip: View {
                     Image(systemName: "photo.on.rectangle.angled")
                         .foregroundColor(DesignSystem.Colors.accent)
                     Text("Photo Highlights")
-                        .font(.system(.subheadline, design: .rounded))
+                        .font(.app(.subheadline))
                         .fontWeight(.semibold)
                     Spacer()
                     Text("\(highlights.count)")
-                        .font(.system(.caption, design: .rounded))
+                        .font(.app(.caption))
                         .foregroundColor(.secondary)
                 }
 
@@ -278,7 +278,7 @@ struct PhotoHighlightsStrip: View {
                 if onDelete != nil {
                     Button(action: { onDelete?(highlight.id) }) {
                         Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 18))
+                            .font(.app(size: 18))
                             .foregroundColor(.white)
                             .shadow(radius: 2)
                     }

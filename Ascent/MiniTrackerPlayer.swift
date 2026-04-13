@@ -31,21 +31,21 @@ struct MiniTrackerPlayer: View {
                 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(appState.activeMountain?.name ?? "Ascent")
-                        .font(.system(size: 13, weight: .bold, design: .rounded))
+                        .font(.app(size: 13, weight: .bold))
                         .foregroundColor(.primary)
                         .lineLimit(1)
                     
                     HStack(spacing: 6) {
                         Text(timeString)
-                            .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                            .font(.app(size: 12, weight: .semibold))
                             .foregroundColor(appState.isTrackerPaused ? .orange : DesignSystem.Colors.accent)
                         
                         Text("•")
-                            .font(.system(size: 10))
+                            .font(.app(size: 10))
                             .foregroundColor(.gray)
                         
                         Text(String(format: "%.1f km", appState.trackerDistanceKm))
-                            .font(.system(size: 11, weight: .medium, design: .rounded))
+                            .font(.app(size: 11, weight: .medium))
                             .foregroundColor(.gray)
                             .lineLimit(1)
                     }
@@ -53,7 +53,7 @@ struct MiniTrackerPlayer: View {
                 
                 // Expand Icon (sehr dezent jetzt)
                 Image(systemName: "hand.tap.fill")
-                    .font(.system(size: 12, weight: .bold))
+                    .font(.app(size: 12, weight: .bold))
                     .foregroundColor(.gray.opacity(0.6))
                     .padding(.leading, 4)
             }

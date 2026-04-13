@@ -44,12 +44,12 @@ struct LoginView: View {
                         .shadow(color: .black.opacity(0.25), radius: 22, y: 12)
 
                     Text("ASCENT")
-                        .font(.system(size: 40, weight: .black, design: .rounded))
+                        .font(.app(size: 40, weight: .black))
                         .foregroundColor(.white)
                         .tracking(6)
 
                     Text(isRegistering ? "Join the Elite" : "Welcome back, Alpinist")
-                        .font(.system(.subheadline, design: .rounded))
+                        .font(.app(.subheadline))
                         .foregroundColor(.white.opacity(0.82))
                 }
                 
@@ -87,7 +87,7 @@ struct LoginView: View {
                 // === NEU: FEHLERMELDUNG ANZEIGEN ===
                 if let errorMessage = errorMessage {
                     Text(errorMessage)
-                        .font(.system(.caption, design: .rounded))
+                        .font(.app(.caption))
                         .foregroundColor(.red)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 30)
@@ -103,7 +103,7 @@ struct LoginView: View {
                             ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .black))
                         } else {
                             Text(isRegistering ? "CREATE ACCOUNT" : "SIGN IN")
-                                .font(.system(.headline, design: .rounded))
+                                .font(.app(.headline))
                                 .fontWeight(.bold)
                                 .foregroundColor(.black)
                         }
@@ -121,7 +121,7 @@ struct LoginView: View {
                 // === "ODER" TRENNLINIE ===
                 HStack {
                     VStack { Divider().background(Color.gray.opacity(0.5)) }
-                    Text("OR").font(.system(.caption, design: .rounded)).foregroundColor(.gray).padding(.horizontal, 10)
+                    Text("OR").font(.app(.caption)).foregroundColor(.gray).padding(.horizontal, 10)
                     VStack { Divider().background(Color.gray.opacity(0.5)) }
                 }
                 .padding(.horizontal, 40)
@@ -154,7 +154,7 @@ struct LoginView: View {
                             .fontWeight(.bold)
                             .foregroundColor(DesignSystem.Colors.accent)
                     }
-                    .font(.system(.subheadline, design: .rounded))
+                    .font(.app(.subheadline))
                 }
                 .padding(.bottom, 20)
             }

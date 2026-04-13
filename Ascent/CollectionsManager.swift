@@ -404,9 +404,9 @@ struct CollectionCardView: View {
                     // Peak count badge
                     HStack(spacing: 4) {
                         Image(systemName: "mountain.2.fill")
-                            .font(.system(size: 10, weight: .bold))
+                            .font(.app(size: 10, weight: .bold))
                         Text("\(collection.mountain_ids.count)")
-                            .font(.system(size: 11, weight: .black, design: .rounded))
+                            .font(.app(size: 11, weight: .black))
                     }
                     .foregroundColor(.white)
                     .padding(.horizontal, 8)
@@ -422,10 +422,10 @@ struct CollectionCardView: View {
                                 Spacer()
                                 HStack(spacing: 3) {
                                     Image(systemName: "person.2.fill")
-                                        .font(.system(size: 9))
+                                        .font(.app(size: 9))
                                     if memberCount > 0 {
                                         Text("\(memberCount + 1)")
-                                            .font(.system(size: 9, weight: .bold, design: .rounded))
+                                            .font(.app(size: 9, weight: .bold))
                                     }
                                 }
                                 .foregroundColor(.white)
@@ -443,13 +443,13 @@ struct CollectionCardView: View {
                 // Info
                 VStack(alignment: .leading, spacing: 4) {
                     Text(collection.name)
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .font(.app(size: 14, weight: .bold))
                         .foregroundColor(.primary)
                         .lineLimit(1)
 
                     if !collection.description.isEmpty {
                         Text(collection.description)
-                            .font(.system(size: 11, design: .rounded))
+                            .font(.app(size: 11))
                             .foregroundColor(.secondary)
                             .lineLimit(2)
                     }
@@ -459,7 +459,7 @@ struct CollectionCardView: View {
                         HStack(spacing: 4) {
                             ForEach(previewMountains.prefix(2)) { mt in
                                 Text(mt.name)
-                                    .font(.system(size: 9, weight: .semibold, design: .rounded))
+                                    .font(.app(size: 9, weight: .semibold))
                                     .foregroundColor(accent)
                                     .padding(.horizontal, 6)
                                     .padding(.vertical, 2)
@@ -468,7 +468,7 @@ struct CollectionCardView: View {
                             }
                             if collection.mountain_ids.count > 2 {
                                 Text("+\(collection.mountain_ids.count - 2)")
-                                    .font(.system(size: 9, weight: .bold, design: .rounded))
+                                    .font(.app(size: 9, weight: .bold))
                                     .foregroundColor(.secondary)
                             }
                         }
@@ -517,7 +517,7 @@ struct CollectionCardView: View {
             )
             .overlay(
                 Image(systemName: "photo.on.rectangle.angled")
-                    .font(.system(size: 28))
+                    .font(.app(size: 28))
                     .foregroundColor(.white.opacity(0.4))
             )
         }
@@ -563,15 +563,15 @@ struct CollectionsView: View {
                 HStack(alignment: .center) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Collections")
-                            .font(.system(size: 28, weight: .bold, design: .rounded))
+                            .font(.app(size: 28, weight: .bold))
                         Text("\(collectionsManager.myCollections.count) collections \u{00B7} \(totalPeaks) peaks")
-                            .font(.system(size: 13, design: .rounded))
+                            .font(.app(size: 13))
                             .foregroundColor(.secondary)
                     }
                     Spacer()
                     Button(action: { showCreateSheet = true }) {
                         Image(systemName: "plus.circle.fill")
-                            .font(.system(size: 28))
+                            .font(.app(size: 28))
                             .foregroundColor(accent)
                     }
                 }
@@ -583,7 +583,7 @@ struct CollectionsView: View {
                             withAnimation(.spring(response: 0.3)) { selectedTab = tab }
                         } label: {
                             Text(tab.rawValue)
-                                .font(.system(size: 13, weight: .bold, design: .rounded))
+                                .font(.app(size: 13, weight: .bold))
                                 .foregroundColor(selectedTab == tab ? .white : .primary)
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 9)
@@ -703,13 +703,13 @@ struct CollectionsView: View {
     private func emptyState(icon: String, title: String, subtitle: String) -> some View {
         VStack(spacing: 14) {
             Image(systemName: icon)
-                .font(.system(size: 44))
+                .font(.app(size: 44))
                 .foregroundColor(.gray.opacity(0.2))
             Text(title)
-                .font(.system(.subheadline, design: .rounded))
+                .font(.app(.subheadline))
                 .fontWeight(.semibold)
             Text(subtitle)
-                .font(.system(.caption, design: .rounded))
+                .font(.app(.caption))
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
         }
@@ -762,17 +762,17 @@ struct CreateCollectionSheet: View {
 
                     VStack(spacing: 6) {
                         Image(systemName: "rectangle.stack.fill")
-                            .font(.system(size: 30))
+                            .font(.app(size: 30))
                             .foregroundColor(.white)
                         Text(name.isEmpty ? "Collection Name" : name)
-                            .font(.system(size: 16, weight: .bold, design: .rounded))
+                            .font(.app(size: 16, weight: .bold))
                             .foregroundColor(.white)
                     }
                 }
 
                 VStack(alignment: .leading, spacing: 8) {
                     Text("NAME")
-                        .font(.system(size: 11, weight: .black, design: .rounded))
+                        .font(.app(size: 11, weight: .black))
                         .foregroundColor(.gray)
                         .tracking(2)
                     TextField("e.g. Best Peaks in Tirol", text: $name)
@@ -781,7 +781,7 @@ struct CreateCollectionSheet: View {
 
                 VStack(alignment: .leading, spacing: 8) {
                     Text("DESCRIPTION")
-                        .font(.system(size: 11, weight: .black, design: .rounded))
+                        .font(.app(size: 11, weight: .black))
                         .foregroundColor(.gray)
                         .tracking(2)
                     TextField("Optional description...", text: $description, axis: .vertical)
@@ -795,7 +795,7 @@ struct CreateCollectionSheet: View {
                     if isSaving { ProgressView().tint(.white) }
                     else { Text("Create Collection") }
                 }
-                .font(.system(size: 16, weight: .bold, design: .rounded))
+                .font(.app(size: 16, weight: .bold))
                 .foregroundColor(.white)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 16)
@@ -845,12 +845,12 @@ struct SaveToCollectionSheet: View {
                 } else if manager.myCollections.isEmpty {
                     VStack(spacing: 16) {
                         Image(systemName: "rectangle.stack.badge.plus")
-                            .font(.system(size: 40))
+                            .font(.app(size: 40))
                             .foregroundColor(.gray.opacity(0.4))
                         Text("No Collections yet")
-                            .font(.system(.headline, design: .rounded))
+                            .font(.app(.headline))
                         Text("Create your first collection to save this peak.")
-                            .font(.system(.subheadline, design: .rounded))
+                            .font(.app(.subheadline))
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal)
@@ -880,10 +880,10 @@ struct SaveToCollectionSheet: View {
                                 HStack {
                                     VStack(alignment: .leading, spacing: 4) {
                                         Text(collection.name)
-                                            .font(.system(.headline, design: .rounded))
+                                            .font(.app(.headline))
                                             .foregroundColor(.primary)
                                         Text("\(collection.mountain_ids.count) peaks")
-                                            .font(.system(.caption, design: .rounded))
+                                            .font(.app(.caption))
                                             .foregroundColor(.secondary)
                                     }
                                     Spacer()
@@ -986,7 +986,7 @@ struct CollectionDetailSheet: View {
                                     Image(systemName: "trash")
                                     Text("Delete Collection")
                                 }
-                                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                                .font(.app(size: 14, weight: .semibold))
                                 .foregroundColor(.red)
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 14)
@@ -1068,7 +1068,7 @@ struct CollectionDetailSheet: View {
                 )
                 .overlay(
                     Image(systemName: "mountain.2.fill")
-                        .font(.system(size: 50))
+                        .font(.app(size: 50))
                         .foregroundColor(.white.opacity(0.3))
                 )
             }
@@ -1090,7 +1090,7 @@ struct CollectionDetailSheet: View {
                     Spacer()
                     Button { dismiss() } label: {
                         Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 28))
+                            .font(.app(size: 28))
                             .symbolRenderingMode(.palette)
                             .foregroundStyle(.white, .black.opacity(0.3))
                     }
@@ -1104,19 +1104,19 @@ struct CollectionDetailSheet: View {
             VStack(alignment: .leading, spacing: 6) {
                 if collection.isShared {
                     HStack(spacing: 4) {
-                        Image(systemName: "person.2.fill").font(.system(size: 10))
-                        Text("SHARED").font(.system(size: 10, weight: .black, design: .rounded)).tracking(1)
+                        Image(systemName: "person.2.fill").font(.app(size: 10))
+                        Text("SHARED").font(.app(size: 10, weight: .black)).tracking(1)
                     }
                     .foregroundColor(.white.opacity(0.8))
                 }
 
                 Text(collection.name)
-                    .font(.system(size: 26, weight: .bold, design: .rounded))
+                    .font(.app(size: 26, weight: .bold))
                     .foregroundColor(.white)
 
                 if !collection.description.isEmpty {
                     Text(collection.description)
-                        .font(.system(size: 13, design: .rounded))
+                        .font(.app(size: 13))
                         .foregroundColor(.white.opacity(0.8))
                         .lineLimit(2)
                 }
@@ -1161,9 +1161,9 @@ struct CollectionDetailSheet: View {
 
     func collectionStat(icon: String, value: String, label: String) -> some View {
         VStack(spacing: 4) {
-            Image(systemName: icon).font(.system(size: 16)).foregroundColor(accent)
-            Text(value).font(.system(size: 15, weight: .bold, design: .rounded))
-            Text(label).font(.system(size: 10, design: .rounded)).foregroundColor(.secondary)
+            Image(systemName: icon).font(.app(size: 16)).foregroundColor(accent)
+            Text(value).font(.app(size: 15, weight: .bold))
+            Text(label).font(.app(size: 10)).foregroundColor(.secondary)
         }
         .frame(maxWidth: .infinity)
     }
@@ -1179,7 +1179,7 @@ struct CollectionDetailSheet: View {
                     Image(systemName: "plus.magnifyingglass")
                     Text("Add Peaks")
                 }
-                .font(.system(size: 14, weight: .bold, design: .rounded))
+                .font(.app(size: 14, weight: .bold))
                 .foregroundColor(.white)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 13)
@@ -1193,7 +1193,7 @@ struct CollectionDetailSheet: View {
                         Image(systemName: "person.badge.plus")
                         Text("Invite")
                     }
-                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .font(.app(size: 13, weight: .bold))
                     .foregroundColor(accent)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
@@ -1206,7 +1206,7 @@ struct CollectionDetailSheet: View {
                         Image(systemName: "square.and.arrow.up")
                         Text("Share")
                     }
-                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .font(.app(size: 13, weight: .bold))
                     .foregroundColor(.primary)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
@@ -1222,11 +1222,11 @@ struct CollectionDetailSheet: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Text("Members")
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .font(.app(size: 16, weight: .bold))
                 Spacer()
                 Button { showShareSheet = true } label: {
                     Image(systemName: "plus.circle")
-                        .font(.system(size: 18))
+                        .font(.app(size: 18))
                         .foregroundColor(accent)
                 }
             }
@@ -1257,14 +1257,14 @@ struct CollectionDetailSheet: View {
                                 .clipShape(Circle())
                             } else {
                                 Text(String((profile?.username ?? "?").prefix(1)).uppercased())
-                                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                                    .font(.app(size: 16, weight: .bold))
                                     .foregroundColor(roleColor(role))
                             }
                             
                             // Role Badge (Creator/Admin)
                             if isOwner || role == "admin" {
                                 Image(systemName: roleIcon(role))
-                                    .font(.system(size: 10))
+                                    .font(.app(size: 10))
                                     .foregroundColor(.white)
                                     .padding(4)
                                     .background(roleColor(role))
@@ -1276,20 +1276,20 @@ struct CollectionDetailSheet: View {
                         // Name & Level Details
                         VStack(alignment: .leading, spacing: 2) {
                             Text(profile?.username ?? "Unknown")
-                                .font(.system(size: 15, weight: .bold, design: .rounded))
+                                .font(.app(size: 15, weight: .bold))
                                 .foregroundColor(.primary)
                             
                             HStack(spacing: 6) {
                                 Text("Lv. \(level)")
-                                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                                    .font(.app(size: 11, weight: .bold))
                                     .foregroundColor(.yellow)
                                 
                                 Text("·")
-                                    .font(.system(size: 11))
+                                    .font(.app(size: 11))
                                     .foregroundColor(.gray)
                                 
                                 Text(role.capitalized)
-                                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                    .font(.app(size: 11, weight: .semibold))
                                     .foregroundColor(.secondary)
                             }
                         }
@@ -1343,7 +1343,7 @@ struct CollectionDetailSheet: View {
     var mountainsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Peaks (\(mountains.count))")
-                .font(.system(size: 16, weight: .bold, design: .rounded))
+                .font(.app(size: 16, weight: .bold))
                 .padding(.horizontal, 20)
 
             if isLoading {
@@ -1351,10 +1351,10 @@ struct CollectionDetailSheet: View {
             } else if mountains.isEmpty {
                 VStack(spacing: 10) {
                     Image(systemName: "mountain.2")
-                        .font(.system(size: 36))
+                        .font(.app(size: 36))
                         .foregroundColor(.gray.opacity(0.25))
                     Text("No peaks in this collection yet")
-                        .font(.system(.subheadline, design: .rounded))
+                        .font(.app(.subheadline))
                         .foregroundColor(.secondary)
                 }
                 .frame(maxWidth: .infinity)
@@ -1378,7 +1378,7 @@ struct CollectionDetailSheet: View {
                                         ZStack {
                                             Color(accent).opacity(0.1)
                                             Image(systemName: mountain.isPrestigePeak ? "crown.fill" : "mountain.2.fill")
-                                                .font(.system(size: 30))
+                                                .font(.app(size: 30))
                                                 .foregroundColor(accent)
                                         }
                                         .frame(width: 140, height: 160)
@@ -1388,22 +1388,22 @@ struct CollectionDetailSheet: View {
                                     VStack(alignment: .leading, spacing: 4) {
                                         HStack(spacing: 4) {
                                             Text(mountain.name)
-                                                .font(.system(size: 14, weight: .bold, design: .rounded))
+                                                .font(.app(size: 14, weight: .bold))
                                                 .foregroundColor(.primary)
                                                 .lineLimit(1)
                                             if mountain.isPrestigePeak {
                                                 Image(systemName: "crown.fill")
-                                                    .font(.system(size: 10))
+                                                    .font(.app(size: 10))
                                                     .foregroundColor(.yellow)
                                             }
                                         }
                                         Text("\(mountain.elevation)m · \(mountain.region)")
-                                            .font(.system(size: 11, design: .rounded))
+                                            .font(.app(size: 11))
                                             .foregroundColor(.secondary)
                                             .lineLimit(1)
                                             
                                         Text(mountain.difficulty.rawValue)
-                                            .font(.system(size: 9, weight: .bold, design: .rounded))
+                                            .font(.app(size: 9, weight: .bold))
                                             .foregroundColor(.white)
                                             .padding(.horizontal, 8)
                                             .padding(.vertical, 3)
@@ -1531,13 +1531,13 @@ struct AddPeaksToCollectionSheet: View {
                     VStack(spacing: 16) {
                         Spacer()
                         Image(systemName: "mountain.2.fill")
-                            .font(.system(size: 44))
+                            .font(.app(size: 44))
                             .foregroundColor(.gray.opacity(0.2))
                         Text("Search for peaks to add")
-                            .font(.system(.subheadline, design: .rounded))
+                            .font(.app(.subheadline))
                             .foregroundColor(.secondary)
                         Text("Type a mountain name or region")
-                            .font(.system(.caption, design: .rounded))
+                            .font(.app(.caption))
                             .foregroundColor(.gray)
                         Spacer()
                     }
@@ -1548,7 +1548,7 @@ struct AddPeaksToCollectionSheet: View {
                 } else if searchResults.isEmpty {
                     Spacer()
                     Text("No peaks found")
-                        .font(.system(.subheadline, design: .rounded))
+                        .font(.app(.subheadline))
                         .foregroundColor(.secondary)
                         .padding(24)
                     Spacer()
@@ -1584,7 +1584,7 @@ struct AddPeaksToCollectionSheet: View {
                                                 .frame(width: 50, height: 50)
                                                 .overlay(
                                                     Image(systemName: "mountain.2.fill")
-                                                        .font(.system(size: 16))
+                                                        .font(.app(size: 16))
                                                         .foregroundColor(accent)
                                                 )
                                         }
@@ -1592,17 +1592,17 @@ struct AddPeaksToCollectionSheet: View {
                                         VStack(alignment: .leading, spacing: 3) {
                                             HStack(spacing: 5) {
                                                 Text(mountain.name)
-                                                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                                                    .font(.app(size: 15, weight: .bold))
                                                     .foregroundColor(.primary)
                                                     .lineLimit(1)
                                                 if mountain.isPrestigePeak {
                                                     Image(systemName: "crown.fill")
-                                                        .font(.system(size: 9))
+                                                        .font(.app(size: 9))
                                                         .foregroundColor(.yellow)
                                                 }
                                             }
                                             Text("\(mountain.elevation)m · \(mountain.region)")
-                                                .font(.system(size: 12, design: .rounded))
+                                                .font(.app(size: 12))
                                                 .foregroundColor(.secondary)
                                         }
 
@@ -1610,15 +1610,15 @@ struct AddPeaksToCollectionSheet: View {
 
                                         if isAlreadyInCollection {
                                             Image(systemName: "checkmark.circle.fill")
-                                                .font(.system(size: 22))
+                                                .font(.app(size: 22))
                                                 .foregroundColor(.gray.opacity(0.5))
                                         } else if isSelected {
                                             Image(systemName: "checkmark.circle.fill")
-                                                .font(.system(size: 22))
+                                                .font(.app(size: 22))
                                                 .foregroundColor(.green)
                                         } else {
                                             Image(systemName: "plus.circle.fill")
-                                                .font(.system(size: 22))
+                                                .font(.app(size: 22))
                                                 .foregroundColor(accent)
                                         }
                                     }
@@ -1758,10 +1758,10 @@ struct ShareCollectionSheet: View {
                         } label: {
                             HStack(spacing: 4) {
                                 Image(systemName: roleIcon(role))
-                                    .font(.system(size: 11))
+                                    .font(.app(size: 11))
                                 Text(role.capitalized)
                             }
-                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                            .font(.app(size: 12, weight: .bold))
                             .foregroundColor(selectedRole == role ? .white : .primary)
                             .padding(.horizontal, 14)
                             .padding(.vertical, 8)
@@ -1780,7 +1780,7 @@ struct ShareCollectionSheet: View {
                         ProgressView().padding(24)
                     } else if searchResults.isEmpty {
                         Text("No users found")
-                            .font(.system(.subheadline, design: .rounded))
+                            .font(.app(.subheadline))
                             .foregroundColor(.secondary)
                             .padding(24)
                     } else {
@@ -1798,7 +1798,7 @@ struct ShareCollectionSheet: View {
                             if !appState.friendsLeaderboard.isEmpty {
                                 VStack(alignment: .leading, spacing: 10) {
                                     Text("Invite Friends")
-                                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                                        .font(.app(size: 14, weight: .bold))
                                         .foregroundColor(.secondary)
                                         .padding(.horizontal, 20)
                                     
@@ -1817,7 +1817,7 @@ struct ShareCollectionSheet: View {
                             if !currentMembers.isEmpty {
                                 VStack(alignment: .leading, spacing: 10) {
                                     Text("Members (\(currentMembers.count))")
-                                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                                        .font(.app(size: 14, weight: .bold))
                                         .foregroundColor(.secondary)
                                         .padding(.horizontal, 20)
                                     
@@ -1891,15 +1891,15 @@ struct ShareCollectionSheet: View {
                     .frame(width: 42, height: 42)
                     .overlay(
                         Text(String(user.username.prefix(1)).uppercased())
-                            .font(.system(size: 17, weight: .bold, design: .rounded))
+                            .font(.app(size: 17, weight: .bold))
                             .foregroundColor(accent)
                     )
                 VStack(alignment: .leading, spacing: 2) {
                     Text(user.username)
-                        .font(.system(.headline, design: .rounded))
+                        .font(.app(.headline))
                         .foregroundColor(.primary)
                     Text("@\(user.handle)")
-                        .font(.system(.caption, design: .rounded))
+                        .font(.app(.caption))
                         .foregroundColor(.secondary)
                 }
                 Spacer()
@@ -1925,19 +1925,19 @@ struct ShareCollectionSheet: View {
                 .frame(width: 38, height: 38)
                 .overlay(
                     Text(String((profile?.username ?? "?").prefix(1)).uppercased())
-                        .font(.system(size: 15, weight: .bold, design: .rounded))
+                        .font(.app(size: 15, weight: .bold))
                         .foregroundColor(roleColor(member.role))
                 )
             VStack(alignment: .leading, spacing: 1) {
                 Text(profile?.username ?? "Loading...")
-                    .font(.system(.subheadline, design: .rounded))
+                    .font(.app(.subheadline))
                 if let handle = profile?.handle {
                     Text("@\(handle) · \(member.role.capitalized)")
-                        .font(.system(size: 11, design: .rounded))
+                        .font(.app(size: 11))
                         .foregroundColor(.secondary)
                 } else {
                     Text(member.role.capitalized)
-                        .font(.system(size: 11, design: .rounded))
+                        .font(.app(size: 11))
                         .foregroundColor(.secondary)
                 }
             }
