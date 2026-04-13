@@ -1133,10 +1133,10 @@ struct ExploreDiscoveryCard: View {
         Button(action: action) {
             VStack(alignment: .leading, spacing: 8) {
                 Text(mountain.name)
-                    .font(.headline)
+                    .font(.app(.headline))
                     .foregroundColor(.primary)
                 Text("\(mountain.elevation)m • \(mountain.difficulty.rawValue)")
-                    .font(.subheadline)
+                    .font(.app(.subheadline))
                     .foregroundColor(.secondary)
             }
             .padding()
@@ -1359,7 +1359,7 @@ struct ExploreMountainDetailSheet: View {
                         
                         // Detailed Elevation Profile
                         if let route = mountain.routes?.first, !route.locations.isEmpty {
-                            Text("Elevation Profile").font(.headline).padding(.top, 10)
+                            Text("Elevation Profile").font(.app(.headline)).padding(.top, 10)
                             ElevationProfileView(routePoints: route.locations, compact: false)
                         }
                         
