@@ -24,5 +24,11 @@
 	<string>Ascent uses your health data (height, weight, VO₂max and activity) to personalize your mountaineering training plan.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>Ascent may log mountaineering workouts to Apple Health so they appear in your fitness history.</string>
-</dict>
+
+    <key>UIAppFonts</key>
+    <array>
+        <string>CabinetGrotesk-Bold.otf</string>
+        <string>Satoshi-Regular.otf</string>
+    </array>
+    </dict>
 </plist>
