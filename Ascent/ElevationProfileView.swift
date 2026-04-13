@@ -57,8 +57,19 @@ struct ElevationProfileView: View {
     let routePoints: [CLLocation]
     var currentPosition: Double? = nil // distance km from start for live tracker
     var compact: Bool = false
+    var scrubDistanceOut: Binding<Double?>? = nil
     
-    @State private var selectedDistance: Double?
+    @State private var internalSelectedDistance: Double?
+    private var selectedDistance: Double? {
+        get { scrubDistanceOut?.wrappedValue ?? internalSelectedDistance }
+        nonmutating set {
+            if let binding = self.scrubDistanceOut {
+                binding.wrappedValue = newValue
+            } else {
+                self.internalSelectedDistance = newValue
+            }
+        }
+    }
     @State private var zoomScale: Double = 1.0
     @State private var processTask: Task<Void, Never>? = nil
     
@@ -137,6 +148,7 @@ struct ElevationProfileView: View {
                                     .frame(width: 16, height: 16)
                                     .overlay(Circle().stroke(Color.white, lineWidth: 3))
                                     .shadow(radius: 4)
+                                    .animation(.none, value: sel)
                             }
                         }
                     }
@@ -171,11 +183,11 @@ struct ElevationProfileView: View {
                                 Text(String(format: "%.0f%%", point.gradient)).fontWeight(.bold).foregroundColor(point.segment.color)
                             }
                         }
-                        .font(.system(size: 12, design: .rounded))
+                        .font(.app(size: 12))
                         .animation(.none, value: point.id)
                     } else {
                         Text("Touch and drag chart for details")
-                            .font(.system(size: 11, weight: .medium, design: .rounded))
+                            .font(.app(size: 11, weight: .medium))
                             .foregroundColor(.secondary)
                     }
                     Spacer()
@@ -220,10 +232,10 @@ struct ElevationProfileView: View {
                             HStack(spacing: 4) {
                                 Circle().fill(item.segment.color).frame(width: 8, height: 8)
                                 Text("\(item.segment.rawValue)")
-                                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                                    .font(.app(size: 11, weight: .medium))
                                     .fixedSize(horizontal: true, vertical: false)
                                 Text(String(format: "%.0f%%", item.percentage))
-                                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                                    .font(.app(size: 11, weight: .bold))
                                     .foregroundColor(.secondary)
                             }
                         }
@@ -309,18 +321,19 @@ struct ElevationProfileView: View {
                             .onChanged { value in
                                 let x = value.location.x - geometry[proxy.plotFrame!].origin.x
                                 if let distance: Double = proxy.value(atX: x) {
-                                    withAnimation(.interactiveSpring(response: 0.2, dampingFraction: 0.8)) {
-                                        selectedDistance = distance
-                                    }
+                                    selectedDistance = distance
                                 }
                             }
                             .onEnded { _ in
-                                withAnimation(.spring()) { selectedDistance = nil }
+                                selectedDistance = nil
                             }
                     )
             }
         }
-        .chartXSelection(value: $selectedDistance)
+        .chartXSelection(value: Binding(
+            get: { self.selectedDistance },
+            set: { self.selectedDistance = $0 }
+        ))
         .chartXScale(domain: 0...(profile.totalDistance > 0 ? profile.totalDistance : 1))
         .chartYScale(domain: baseAlt...topAlt)
         .chartXAxis {
@@ -329,7 +342,7 @@ struct ElevationProfileView: View {
                 AxisValueLabel {
                     if let ds = value.as(Double.self) {
                         Text(String(format: "%.0f km", ds))
-                            .font(.system(size: 10, design: .rounded))
+                            .font(.app(size: 10))
                             .foregroundColor(.secondary)
                     }
                 }
@@ -341,7 +354,7 @@ struct ElevationProfileView: View {
                 AxisValueLabel {
                     if let alt = value.as(Double.self) {
                         Text("\(Int(alt)) m")
-                            .font(.system(size: 10, design: .rounded))
+                            .font(.app(size: 10))
                             .foregroundColor(.secondary)
                     }
                 }
@@ -426,12 +439,12 @@ private struct StatPill: View {
     var body: some View {
         VStack(spacing: 4) {
             Image(systemName: icon)
-                .font(.system(size: 14))
+                .font(.app(size: 14))
                 .foregroundColor(color)
             Text(value)
-                .font(.system(size: 13, weight: .bold, design: .rounded))
+                .font(.app(size: 13, weight: .bold))
             Text(label)
-                .font(.system(size: 9, design: .rounded))
+                .font(.app(size: 9))
                 .foregroundColor(.secondary)
         }
         .frame(maxWidth: .infinity)

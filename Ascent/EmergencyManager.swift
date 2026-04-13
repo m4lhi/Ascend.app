@@ -212,7 +212,7 @@ struct SOSButtonView: View {
                 .rotationEffect(.degrees(-90))
 
             Image(systemName: emergencyManager.sosTriggered ? "sos.circle.fill" : "sos")
-                .font(.system(size: emergencyManager.sosTriggered ? 18 : 13, weight: .black))
+                .font(.app(size: emergencyManager.sosTriggered ? 18 : 13, weight: .black))
                 .foregroundColor(emergencyManager.sosTriggered ? .white : .red)
         }
         .contentShape(Circle())
@@ -291,14 +291,14 @@ struct EmergencySettingsView: View {
             if emergencyManager.contacts.isEmpty {
                 HStack(spacing: 12) {
                     Image(systemName: "person.crop.circle.badge.exclamationmark")
-                        .font(.system(size: 28))
+                        .font(.app(size: 28))
                         .foregroundColor(.orange)
                     VStack(alignment: .leading, spacing: 2) {
                         Text("No Emergency Contacts")
-                            .font(.system(.subheadline, design: .rounded))
+                            .font(.app(.subheadline))
                             .fontWeight(.semibold)
                         Text("Add a contact to enable SOS features")
-                            .font(.system(.caption, design: .rounded))
+                            .font(.app(.caption))
                             .foregroundColor(.secondary)
                     }
                 }
@@ -311,14 +311,14 @@ struct EmergencySettingsView: View {
                     HStack(spacing: 12) {
                         Image(systemName: contact.isDefault ? "star.circle.fill" : "person.circle")
                             .foregroundColor(contact.isDefault ? .orange : .gray)
-                            .font(.system(size: 22))
+                            .font(.app(size: 22))
 
                         VStack(alignment: .leading, spacing: 2) {
                             Text(contact.name)
-                                .font(.system(.subheadline, design: .rounded))
+                                .font(.app(.subheadline))
                                 .fontWeight(.semibold)
                             Text(contact.phone)
-                                .font(.system(.caption, design: .rounded))
+                                .font(.app(.caption))
                                 .foregroundColor(.secondary)
                         }
 
@@ -327,14 +327,14 @@ struct EmergencySettingsView: View {
                         if !contact.isDefault {
                             Button(action: { emergencyManager.setDefaultContact(id: contact.id) }) {
                                 Text("Set Default")
-                                    .font(.system(.caption2, design: .rounded))
+                                    .font(.app(.caption2))
                                     .foregroundColor(DesignSystem.Colors.accent)
                             }
                         }
 
                         Button(action: { emergencyManager.removeContact(id: contact.id) }) {
                             Image(systemName: "trash")
-                                .font(.system(size: 14))
+                                .font(.app(size: 14))
                                 .foregroundColor(.red)
                         }
                     }
@@ -376,7 +376,7 @@ struct EmergencySettingsView: View {
             } else {
                 Button(action: { showAddContact = true }) {
                     Label("Add Emergency Contact", systemImage: "plus.circle.fill")
-                        .font(.system(.subheadline, design: .rounded))
+                        .font(.app(.subheadline))
                         .fontWeight(.semibold)
                         .foregroundColor(DesignSystem.Colors.accent)
                 }

@@ -55,7 +55,7 @@ struct ContentView: View {
                                 showCoachingGateway = true
                             }) {
                                 Image(systemName: "sparkles")
-                                    .font(.system(size: appState.isFABVisible ? 24 : 16, weight: .bold))
+                                    .font(.app(size: appState.isFABVisible ? 24 : 16, weight: .bold))
                                     .foregroundColor(.white)
                                     .frame(
                                         width: appState.isFABVisible ? 56 : 36,
@@ -169,7 +169,7 @@ struct CustomTabBar: View {
                         .shadow(color: DesignSystem.Colors.accent.opacity(0.4), radius: 15, y: 4)
                     
                     Image(systemName: "figure.walk")
-                        .font(.system(size: 28, weight: .black, design: .rounded))
+                        .font(.app(size: 28, weight: .black))
                         .foregroundColor(.white)
                         .offset(x: 2)
                 }
@@ -199,7 +199,7 @@ struct TabBarIcon: View {
                         .transition(.scale.combined(with: .opacity))
                 }
                 Image(systemName: icon)
-                    .font(.system(size: 24, weight: isSelected ? .bold : .regular, design: .rounded))
+                    .font(.app(size: 24, weight: isSelected ? .bold : .regular))
                     .foregroundColor(isSelected ? DesignSystem.Colors.accent : .gray.opacity(0.55))
                     .scaleEffect(isSelected ? 1.08 : 1.0)
                     .symbolEffect(.bounce, value: isSelected)

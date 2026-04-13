@@ -89,7 +89,7 @@ struct ActivityCardView: View {
             // ========== 4. STORY / DESCRIPTION ==========
             if !tour.storyComment.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 Text(tour.storyComment)
-                    .font(.system(.subheadline, design: .rounded))
+                    .font(.app(.subheadline))
                     .foregroundColor(.primary.opacity(0.85))
                     .lineSpacing(3)
                     .padding(.horizontal, 16)
@@ -137,7 +137,7 @@ struct ActivityCardView: View {
                                 .fill(LinearGradient(colors: [accent.opacity(0.4), Color.purple.opacity(0.3)], startPoint: .topLeading, endPoint: .bottomTrailing))
                                 .overlay(
                                     Text(String(tour.playerName.prefix(1)))
-                                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                                        .font(.app(size: 16, weight: .bold))
                                         .foregroundColor(.white)
                                 )
                         }
@@ -146,7 +146,7 @@ struct ActivityCardView: View {
                     .clipShape(Circle())
 
                     Text(tour.playerName)
-                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                        .font(.app(size: 15, weight: .semibold))
                         .foregroundColor(.primary)
                 }
                 .contentShape(Rectangle())
@@ -164,7 +164,7 @@ struct ActivityCardView: View {
                     }
                 } label: {
                     Image(systemName: "ellipsis")
-                        .font(.system(size: 14))
+                        .font(.app(size: 14))
                         .foregroundColor(.secondary)
                         .padding(8)
                         .contentShape(Rectangle())
@@ -195,25 +195,25 @@ struct ActivityCardView: View {
             // Activity type tag
             HStack(spacing: 6) {
                 Image(systemName: "figure.hiking")
-                    .font(.system(size: 11, weight: .bold))
+                    .font(.app(size: 11, weight: .bold))
                     .foregroundColor(accent)
                 Text("Hiking")
-                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .font(.app(size: 12, weight: .semibold))
                     .foregroundColor(accent)
                 Text("·")
                     .foregroundColor(.secondary)
                 Text(formattedDate)
-                    .font(.system(size: 12, design: .rounded))
+                    .font(.app(size: 12))
                     .foregroundColor(.secondary)
             }
 
             // Summit name as main title
             HStack(spacing: 6) {
                 Image(systemName: "mountain.2.fill")
-                    .font(.system(size: 14))
+                    .font(.app(size: 14))
                     .foregroundColor(.primary.opacity(0.7))
                 Text(tour.summitName)
-                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                    .font(.app(size: 18, weight: .bold))
                     .foregroundColor(.primary)
             }
         }
@@ -263,10 +263,10 @@ struct ActivityCardView: View {
             LinearGradient(colors: [Color(red: 0.15, green: 0.2, blue: 0.25), Color(red: 0.05, green: 0.1, blue: 0.15)], startPoint: .topLeading, endPoint: .bottomTrailing)
             VStack(spacing: 8) {
                 Image(systemName: "mountain.2.fill")
-                    .font(.system(size: 40))
+                    .font(.app(size: 40))
                     .foregroundColor(.white.opacity(0.3))
                 Text("No media captured")
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .font(.app(size: 12, weight: .medium))
                     .foregroundColor(.white.opacity(0.4))
             }
         }
@@ -297,10 +297,10 @@ struct ActivityCardView: View {
             // XP earned
             VStack(spacing: 2) {
                 Text("+\(tour.xpGained)")
-                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .font(.app(size: 15, weight: .bold))
                     .foregroundColor(accent)
                 Text("XP")
-                    .font(.system(size: 10, weight: .medium, design: .rounded))
+                    .font(.app(size: 10, weight: .medium))
                     .foregroundColor(accent.opacity(0.7))
             }
             .frame(maxWidth: .infinity)
@@ -317,16 +317,16 @@ struct ActivityCardView: View {
             if tour.fistBumpCount > 0 {
                 HStack(spacing: 4) {
                     Image(systemName: "hand.thumbsup.fill")
-                        .font(.system(size: 10))
+                        .font(.app(size: 10))
                         .foregroundColor(accent)
                     Text("\(tour.fistBumpCount) fist bump\(tour.fistBumpCount == 1 ? "" : "s")")
-                        .font(.system(size: 12, design: .rounded))
+                        .font(.app(size: 12))
                         .foregroundColor(.secondary)
                     if tour.commentCount > 0 {
                         Text("·")
                             .foregroundColor(.secondary)
                         Text("\(tour.commentCount) comment\(tour.commentCount == 1 ? "" : "s")")
-                            .font(.system(size: 12, design: .rounded))
+                            .font(.app(size: 12))
                             .foregroundColor(.secondary)
                     }
                     Spacer()
@@ -369,7 +369,7 @@ struct ActivityCardView: View {
                             .opacity(fistBumpPulse ? 0 : 0.0)
 
                         Image(systemName: tour.isFistBumped ? "hand.thumbsup.fill" : "hand.thumbsup")
-                            .font(.system(size: 20))
+                            .font(.app(size: 20))
                             .foregroundColor(tour.isFistBumped ? accent : .secondary)
                             .scaleEffect(fistBumpScale)
                             .symbolEffect(.bounce, value: fistBumpTrigger)
@@ -396,7 +396,7 @@ struct ActivityCardView: View {
                     }
                 }) {
                     Image(systemName: "bubble.left")
-                        .font(.system(size: 20))
+                        .font(.app(size: 20))
                         .foregroundColor(.secondary)
                         .scaleEffect(commentScale)
                         .frame(maxWidth: .infinity)
@@ -420,7 +420,7 @@ struct ActivityCardView: View {
                     }
                 }) {
                     Image(systemName: tour.isBookmarked ? "bookmark.fill" : "bookmark")
-                        .font(.system(size: 20))
+                        .font(.app(size: 20))
                         .foregroundColor(tour.isBookmarked ? accent : .secondary)
                         .scaleEffect(bookmarkScale)
                         .symbolEffect(.bounce, value: bookmarkTrigger)
@@ -433,7 +433,7 @@ struct ActivityCardView: View {
                 // Share
                 ShareLink(item: "\(tour.playerName) conquered \(tour.summitName) — +\(tour.elevationGainMeters)m! Tracked with Ascent.") {
                     Image(systemName: "square.and.arrow.up")
-                        .font(.system(size: 20))
+                        .font(.app(size: 20))
                         .foregroundColor(.secondary)
                         .scaleEffect(shareScale)
                         .frame(maxWidth: .infinity)
@@ -463,10 +463,10 @@ private struct StatCell: View {
     var body: some View {
         VStack(spacing: 2) {
             Text(value)
-                .font(.system(size: 15, weight: .bold, design: .rounded))
+                .font(.app(size: 15, weight: .bold))
                 .foregroundColor(.primary)
             Text(label)
-                .font(.system(size: 10, weight: .medium, design: .rounded))
+                .font(.app(size: 10, weight: .medium))
                 .foregroundColor(.secondary)
         }
         .frame(maxWidth: .infinity)
@@ -514,7 +514,7 @@ struct RouteMapPreview: View {
             if let last = coordinates.last, coordinates.count > 1 {
                 Annotation("", coordinate: last) {
                     Image(systemName: "flag.fill")
-                        .font(.system(size: 12))
+                        .font(.app(size: 12))
                         .foregroundColor(.red)
                 }
             }
@@ -550,10 +550,10 @@ struct CommentSheetView: View {
                         .foregroundColor(accent)
                     VStack(alignment: .leading, spacing: 1) {
                         Text(tour.summitName)
-                            .font(.system(.subheadline, design: .rounded))
+                            .font(.app(.subheadline))
                             .fontWeight(.bold)
                         Text("by \(tour.playerName)")
-                            .font(.system(.caption, design: .rounded))
+                            .font(.app(.caption))
                             .foregroundColor(.secondary)
                     }
                     Spacer()
@@ -571,11 +571,11 @@ struct CommentSheetView: View {
                     Spacer()
                     VStack(spacing: 10) {
                         Image(systemName: "bubble.left.and.bubble.right")
-                            .font(.system(size: 36)).foregroundColor(.gray.opacity(0.4))
+                            .font(.app(size: 36)).foregroundColor(.gray.opacity(0.4))
                         Text("No comments yet")
-                            .font(.system(.headline, design: .rounded)).foregroundColor(.gray)
+                            .font(.app(.headline)).foregroundColor(.gray)
                         Text("Be the first to leave a comment!")
-                            .font(.system(.caption, design: .rounded)).foregroundColor(.gray.opacity(0.7))
+                            .font(.app(.caption)).foregroundColor(.gray.opacity(0.7))
                     }
                     Spacer()
                 } else {
@@ -594,7 +594,7 @@ struct CommentSheetView: View {
                 // Input
                 HStack(spacing: 10) {
                     TextField("Write a comment...", text: $newCommentText)
-                        .font(.system(.subheadline, design: .rounded))
+                        .font(.app(.subheadline))
                         .padding(10)
                         .padding(.horizontal, 4)
                         .background(Color(white: 0.94))
@@ -610,7 +610,7 @@ struct CommentSheetView: View {
                         }
                     }) {
                         Image(systemName: "paperplane.fill")
-                            .font(.system(size: 18))
+                            .font(.app(size: 18))
                             .foregroundColor(newCommentText.isEmpty ? .gray : accent)
                     }
                     .disabled(newCommentText.isEmpty)
@@ -659,7 +659,7 @@ struct CommentRow: View {
                     }
                 } else {
                     Circle().fill(Color.gray.opacity(0.15))
-                        .overlay(Text(String(comment.userName.prefix(1))).font(.system(.caption2, weight: .bold)).foregroundColor(.gray))
+                        .overlay(Text(String(comment.userName.prefix(1))).font(.app(.caption2).weight(.bold)).foregroundColor(.gray))
                 }
             }
             .frame(width: 32, height: 32)
@@ -668,14 +668,14 @@ struct CommentRow: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
                     Text(comment.userName)
-                        .font(.system(.subheadline, design: .rounded))
+                        .font(.app(.subheadline))
                         .fontWeight(.semibold)
                     Text(Self.fmt.localizedString(for: comment.date, relativeTo: Date()))
-                        .font(.system(.caption2, design: .rounded))
+                        .font(.app(.caption2))
                         .foregroundColor(.secondary)
                 }
                 Text(comment.body)
-                    .font(.system(.subheadline, design: .rounded))
+                    .font(.app(.subheadline))
                     .foregroundColor(.primary.opacity(0.85))
             }
             Spacer()
@@ -688,8 +688,8 @@ struct StatBlock: View {
     let icon: String; let value: String; let isXP: Bool
     var body: some View {
         HStack(spacing: 6) {
-            if !icon.isEmpty { Image(systemName: icon).font(.system(size: 10)).foregroundColor(isXP ? .blue : .gray) }
-            Text(value).font(.system(size: 12, weight: .bold, design: .rounded)).foregroundColor(isXP ? DesignSystem.Colors.accent : .primary)
+            if !icon.isEmpty { Image(systemName: icon).font(.app(size: 10)).foregroundColor(isXP ? .blue : .gray) }
+            Text(value).font(.app(size: 12, weight: .bold)).foregroundColor(isXP ? DesignSystem.Colors.accent : .primary)
         }
         .padding(.horizontal, 10).padding(.vertical, 8)
         .background(isXP ? Color.blue.opacity(0.15) : Color(white: 0.95))

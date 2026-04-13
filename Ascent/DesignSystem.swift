@@ -226,7 +226,7 @@ struct AscentButtonStyle: ButtonStyle {
 struct PrimaryButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(.headline, design: .rounded))
+            .font(.app(.headline))
             .foregroundColor(.white)
             .frame(maxWidth: .infinity)
             .padding(DesignSystem.Spacing.md)
