@@ -1040,7 +1040,7 @@ class AppState: ObservableObject {
                 } else {
                     try await supabase.from("bookmarked_routes").insert(CloudBookmark(tour_id: tourId, user_id: myId, mountain_name: tour.summitName)).execute()
                 }
-                // fetchFeed() wird hier absichtlich weggelassen
+                fetchBookmarkedTours()
             } catch { print("❌ Fehler beim Bookmark: \(error)") }
         }
     }

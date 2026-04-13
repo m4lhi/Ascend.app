@@ -974,26 +974,6 @@ struct MapLibreWebView: UIViewRepresentable {
     }
 }
 
-// MARK: - RouteEncoder Altitude Extension
-
-extension RouteEncoder {
-    static func decodeWithAltitude(_ polyline: String) -> [CLLocation] {
-        guard let data = polyline.data(using: .utf8),
-              let arr = try? JSONSerialization.jsonObject(with: data) as? [[Double]] else { return [] }
-        return arr.compactMap { point in
-            guard point.count >= 2 else { return nil }
-            let alt = point.count >= 3 ? point[2] : 0
-            return CLLocation(
-                coordinate: CLLocationCoordinate2D(latitude: point[0], longitude: point[1]),
-                altitude: alt,
-                horizontalAccuracy: 10,
-                verticalAccuracy: 10,
-                timestamp: Date()
-            )
-        }
-    }
-}
-
 // MARK: - Route Replay Launcher (for Tour feed cards)
 
 struct RouteReplayLauncher: View {

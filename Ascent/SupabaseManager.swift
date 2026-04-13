@@ -46,6 +46,9 @@ class MountainManager: ObservableObject {
     @Published var nearbyRoutes: [NearbyRoute] = []
     @Published var savedRoutes: [SavedRoute] = []
 
+    // Bridge to RouteSavingManager for enhanced route operations
+    private var routeSavingManager: RouteSavingManager { RouteSavingManager.shared }
+
     func fetchMountainsFromDatabase() async {
         // Wird dynamisch über fetchMountainsInBounds geladen
     }
@@ -194,36 +197,17 @@ class MountainManager: ObservableObject {
     }
 
     func saveRoute(_ route: SavedRoute) async {
-        do {
-            try await supabase.from("saved_routes").insert(route).execute()
-            await fetchSavedRoutes()
-        } catch {
-            print("❌ Save route error: \(error)")
-        }
+        let success = await routeSavingManager.saveRoute(route)
+        if success { await fetchSavedRoutes() }
     }
 
     func fetchSavedRoutes() async {
-        do {
-            let userId = try await supabase.auth.session.user.id
-            let results: [SavedRoute] = try await supabase
-                .from("saved_routes")
-                .select()
-                .eq("user_id", value: userId)
-                .order("created_at", ascending: false)
-                .execute()
-                .value
-            self.savedRoutes = results
-        } catch {
-            print("❌ Fetch saved routes error: \(error)")
-        }
+        await routeSavingManager.fetchMyRoutes()
+        self.savedRoutes = routeSavingManager.myRoutes
     }
 
     func deleteRoute(id: UUID) async {
-        do {
-            try await supabase.from("saved_routes").delete().eq("id", value: id).execute()
-            savedRoutes.removeAll { $0.id == id }
-        } catch {
-            print("❌ Delete route error: \(error)")
-        }
+        await routeSavingManager.deleteRoute(id: id)
+        savedRoutes.removeAll { $0.id == id }
     }
 }

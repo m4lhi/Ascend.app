@@ -837,8 +837,8 @@ struct LiveRecordView: View {
             
             Task {
                 let request = MKDirections.Request()
-                request.source = MKMapItem(placemark: .init(coordinate: userLoc))
-                request.destination = MKMapItem(placemark: .init(coordinate: interceptCoord))
+                request.source = MKMapItem(placemark: MKPlacemark(coordinate: userLoc))
+                request.destination = MKMapItem(placemark: MKPlacemark(coordinate: interceptCoord))
                 
                 // WICHTIG: Zuerst Auto probieren! Apple weigert sich oft, weite Strecken als "Walking" zu berechnen.
                 request.transportType = .automobile
@@ -908,8 +908,8 @@ struct LiveRecordView: View {
 
         Task {
             let request = MKDirections.Request()
-            request.source = MKMapItem(placemark: .init(coordinate: userLoc))
-            request.destination = MKMapItem(placemark: .init(coordinate: dest))
+            request.source = MKMapItem(placemark: MKPlacemark(coordinate: userLoc))
+            request.destination = MKMapItem(placemark: MKPlacemark(coordinate: dest))
             request.transportType = .automobile // Auch hier .automobile als Standard setzen
 
             var calculatedRoute: MKRoute? = nil
@@ -1134,6 +1134,21 @@ struct LiveRecordView: View {
                                     .background(.ultraThinMaterial, in: Circle())
                                     .overlay(Circle().stroke(Color.white.opacity(0.1), lineWidth: 1))
                             }
+                            
+                            if !isRunning {
+                                Button(action: {
+                                    HapticManager.shared.heavy()
+                                    withAnimation { appState.isTrackerActive = false }
+                                }) {
+                                    Image(systemName: "xmark")
+                                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                                        .foregroundColor(.red)
+                                        .frame(width: 56, height: 56)
+                                        .background(.ultraThinMaterial, in: Circle())
+                                        .overlay(Circle().stroke(Color.black.opacity(0.04), lineWidth: 1))
+                                }
+                            }
+
                             SlideToFinishControl(onComplete: endMission)
                                 .id(sliderResetToken)
                         }
@@ -1216,6 +1231,20 @@ struct LiveRecordView: View {
                                     .frame(width: 56, height: 56)
                                     .background(.ultraThinMaterial, in: Circle())
                                     .overlay(Circle().stroke(Color.black.opacity(0.04), lineWidth: 1))
+                            }
+
+                            if !isRunning {
+                                Button(action: {
+                                    HapticManager.shared.heavy()
+                                    withAnimation { appState.isTrackerActive = false }
+                                }) {
+                                    Image(systemName: "xmark")
+                                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                                        .foregroundColor(.white)
+                                        .frame(width: 56, height: 56)
+                                        .background(.red.opacity(0.85), in: Circle())
+                                        .shadow(color: .red.opacity(0.4), radius: 8, y: 4)
+                                }
                             }
 
                             if gpsManager.rawRoute.count >= 2 {

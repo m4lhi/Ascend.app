@@ -98,6 +98,9 @@ struct ExploreView: View {
     @State private var isRouteCreationMode = false
     @State private var routeMountains: [Mountain] = []
     @State private var routeName = ""
+    @State private var routeDescription = ""
+    @State private var routeSportType: SportType = .hiking
+    @State private var routeVisibility: RouteVisibility = .privateRoute
 
     @State private var discoverySheetExpanded = false
 
@@ -108,8 +111,10 @@ struct ExploreView: View {
     @State private var showTracker = false
     @State private var mountainToTrack: Mountain? = nil
     @State private var selectedRouteToShow: SavedRoute? = nil
+    @State private var routeForDetailSheet: SavedRoute? = nil
 
     @State private var hasCenteredOnUser = false
+    @State private var showMyRoutesLibrary = false
 
     private let gold = DesignSystem.Colors.accent
 
@@ -281,6 +286,25 @@ struct ExploreView: View {
             Text("Please enable location services for Ascend in your iPhone Settings to use this feature.")
         }
         .preferredColorScheme(.light)
+        .sheet(item: $routeForDetailSheet) { route in
+            RouteDetailSheet(route: route, routeManager: RouteSavingManager.shared)
+                .presentationDetents([.large])
+                .preferredColorScheme(.light)
+        }
+        .sheet(isPresented: $showMyRoutesLibrary) {
+            NavigationView {
+                MyRoutesView()
+                    .environmentObject(appState)
+                    .toolbar {
+                        ToolbarItem(placement: .navigationBarTrailing) {
+                            Button("Close") { showMyRoutesLibrary = false }
+                                .font(.system(.body, design: .rounded).weight(.bold))
+                        }
+                    }
+            }
+            .presentationDetents([.large])
+            .preferredColorScheme(.light)
+        }
         .onChange(of: appState.exploreSelectedMountain) { _, mt in
             if let target = mt {
                 selectedMountain = target
@@ -476,6 +500,9 @@ struct ExploreView: View {
                             isRouteCreationMode = false
                             routeMountains = []
                             routeName = ""
+                            routeDescription = ""
+                            routeSportType = .hiking
+                            routeVisibility = .privateRoute
                         } else {
                             isRouteCreationMode = true
                             selectedMountain = nil
@@ -601,6 +628,49 @@ struct ExploreView: View {
             TextField("Route name…", text: $routeName).textFieldStyle(.plain).padding(10)
                 .background(Color.gray.opacity(0.1)).cornerRadius(10).foregroundColor(.primary)
 
+            TextField("Description (optional)…", text: $routeDescription).textFieldStyle(.plain).padding(10)
+                .background(Color.gray.opacity(0.1)).cornerRadius(10).foregroundColor(.primary)
+                .font(.system(size: 14, design: .rounded))
+
+            // Sport type + visibility row
+            HStack(spacing: 8) {
+                Menu {
+                    ForEach(SportType.allCases, id: \.self) { sport in
+                        Button { routeSportType = sport } label: {
+                            Label(sport.label, systemImage: sport.icon)
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: routeSportType.icon).font(.system(size: 11))
+                        Text(routeSportType.label).font(.system(size: 11, weight: .semibold, design: .rounded))
+                        Image(systemName: "chevron.down").font(.system(size: 8))
+                    }
+                    .foregroundColor(.primary)
+                    .padding(.horizontal, 10).padding(.vertical, 7)
+                    .background(Color.gray.opacity(0.1)).clipShape(Capsule())
+                }
+
+                Menu {
+                    ForEach(RouteVisibility.allCases, id: \.self) { vis in
+                        Button { routeVisibility = vis } label: {
+                            Label(vis.label, systemImage: vis.icon)
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: routeVisibility.icon).font(.system(size: 11))
+                        Text(routeVisibility.label).font(.system(size: 11, weight: .semibold, design: .rounded))
+                        Image(systemName: "chevron.down").font(.system(size: 8))
+                    }
+                    .foregroundColor(.primary)
+                    .padding(.horizontal, 10).padding(.vertical, 7)
+                    .background(Color.gray.opacity(0.1)).clipShape(Capsule())
+                }
+
+                Spacer()
+            }
+
             if !routeMountains.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
@@ -634,7 +704,7 @@ struct ExploreView: View {
             }
 
             HStack(spacing: 12) {
-                Button { withAnimation(.spring()) { isRouteCreationMode = false; routeMountains = []; routeName = "" } } label: {
+                Button { withAnimation(.spring()) { isRouteCreationMode = false; routeMountains = []; routeName = ""; routeDescription = ""; routeSportType = .hiking; routeVisibility = .privateRoute } } label: {
                     Text("Cancel").font(.system(size: 14, weight: .bold, design: .rounded)).foregroundColor(.primary).frame(maxWidth: .infinity).padding(.vertical, 12).background(Color.gray.opacity(0.1)).cornerRadius(12)
                 }
                 Button { saveCreatedRoute() } label: {
@@ -683,7 +753,18 @@ struct ExploreView: View {
                     }
 
                     if (discoverySheetExpanded || showRoutesFilter || nearbyCards.isEmpty) {
-                        discoverySectionHeader(title: "My Routes", icon: "bookmark.fill")
+                        HStack {
+                            discoverySectionHeader(title: "My Routes", icon: "bookmark.fill")
+                            Button { showMyRoutesLibrary = true } label: {
+                                Text("Library")
+                                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                                    .foregroundColor(gold)
+                                    .padding(.horizontal, 10).padding(.vertical, 5)
+                                    .background(gold.opacity(0.1))
+                                    .clipShape(Capsule())
+                            }
+                            .padding(.trailing, 16)
+                        }
                         if savedRoutes.isEmpty {
                             HStack { Spacer(); VStack(spacing: 6) { Image(systemName: "map").font(.system(.title2, design: .rounded)).foregroundColor(.gray.opacity(0.3)); Text("No saved routes yet.").font(.system(.caption, design: .rounded)).foregroundColor(.gray) }; Spacer() }.padding(.vertical, 16)
                         } else {
@@ -692,6 +773,7 @@ struct ExploreView: View {
                                     Spacer().frame(width: 4)
                                     ForEach(savedRoutes) { route in
                                         SavedRouteCard(route: route, onTap: {
+                                            routeForDetailSheet = route
                                             selectedRouteToShow = route
                                             if let firstId = route.mountainIds.first, let firstM = mountainManager.mountains.first(where: { $0.id == firstId }), let lat = firstM.latitude, let lon = firstM.longitude {
                                                 flyTo(lat: lat, lon: lon, distance: 12000)
@@ -821,15 +903,29 @@ struct ExploreView: View {
 
     func saveCreatedRoute() {
         guard !routeMountains.isEmpty, !routeName.isEmpty else { return }
+
+        // Build route polyline from mountain coordinates
+        let coords = routeMountains.compactMap { m -> CLLocation? in
+            guard let lat = m.latitude, let lon = m.longitude else { return nil }
+            return CLLocation(coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon),
+                              altitude: Double(m.elevation), horizontalAccuracy: 0, verticalAccuracy: 0, timestamp: Date())
+        }
+        let polyline = RouteEncoder.encode(coords)
+
+        // Determine difficulty from hardest peak
+        let maxDiff = routeMountains.map { $0.difficulty.rawValue }.max() ?? "Medium"
+
         let newRoute = SavedRoute(
-            id: UUID(),
             name: routeName,
+            description: routeDescription,
             mountainIds: routeMountains.map { $0.id },
-            createdAt: Date(),
+            routePolyline: polyline,
             totalDistanceKm: routeDistanceKm,
             totalElevationGain: routeElevationGain,
             estimatedDurationMinutes: Int(routeDistanceKm * 15 + Double(routeElevationGain) / 10),
-            difficulty: "Medium"
+            difficulty: maxDiff,
+            visibility: routeVisibility,
+            sportType: routeSportType
         )
         Task {
             await mountainManager.saveRoute(newRoute)
@@ -837,6 +933,9 @@ struct ExploreView: View {
                 isRouteCreationMode = false
                 routeMountains = []
                 routeName = ""
+                routeDescription = ""
+                routeSportType = .hiking
+                routeVisibility = .privateRoute
             }
         }
     }
@@ -1054,17 +1153,67 @@ struct SavedRouteCard: View {
     let route: SavedRoute
     let onTap: () -> Void
     let onDelete: () -> Void
+    private let accent = DesignSystem.Colors.accent
+
     var body: some View {
         Button(action: onTap) {
             VStack(alignment: .leading, spacing: 8) {
-                Text(route.name)
-                    .font(.headline)
-                    .foregroundColor(.primary)
-                Text("\(route.totalDistanceKm, specifier: "%.1f")km • \(route.totalElevationGain)m")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
+                // Sport type icon + name
+                HStack(spacing: 6) {
+                    Image(systemName: route.sportIcon)
+                        .font(.system(size: 10))
+                        .foregroundColor(accent)
+                    Text(route.name)
+                        .font(.system(size: 15, weight: .bold, design: .rounded))
+                        .foregroundColor(.primary)
+                        .lineLimit(1)
+                }
+
+                // Stats row
+                HStack(spacing: 10) {
+                    HStack(spacing: 2) {
+                        Image(systemName: "point.topleft.down.to.point.bottomright.curvepath")
+                            .font(.system(size: 9))
+                        Text(String(format: "%.1fkm", route.totalDistanceKm))
+                    }
+                    HStack(spacing: 2) {
+                        Image(systemName: "arrow.up.right")
+                            .font(.system(size: 9))
+                        Text("+\(route.totalElevationGain)m")
+                    }
+                    HStack(spacing: 2) {
+                        Image(systemName: "mountain.2.fill")
+                            .font(.system(size: 9))
+                        Text("\(route.mountainIds.count)")
+                    }
+                }
+                .font(.system(size: 11, weight: .medium, design: .rounded))
+                .foregroundColor(.secondary)
+
+                // Bottom row: difficulty + completed badge
+                HStack(spacing: 6) {
+                    Text(route.difficulty)
+                        .font(.system(size: 9, weight: .bold, design: .rounded))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(difficultyColor)
+                        .clipShape(Capsule())
+
+                    if route.isCompleted {
+                        Image(systemName: "checkmark.seal.fill")
+                            .font(.system(size: 11))
+                            .foregroundColor(.green)
+                    }
+
+                    Spacer()
+
+                    Image(systemName: route.visibility.icon)
+                        .font(.system(size: 9))
+                        .foregroundColor(.gray)
+                }
             }
-            .padding()
+            .padding(12)
             .frame(width: 200, alignment: .leading)
             .background(.ultraThinMaterial)
             .cornerRadius(16)
@@ -1072,7 +1221,19 @@ struct SavedRouteCard: View {
         }
         .buttonStyle(.plain)
         .contextMenu {
-            Button("Delete", role: .destructive, action: onDelete)
+            Button { onTap() } label: { Label("View Details", systemImage: "eye") }
+            Button(role: .destructive, action: onDelete) { Label("Delete", systemImage: "trash") }
+        }
+    }
+
+    private var difficultyColor: Color {
+        switch route.difficulty.lowercased() {
+        case "easy": return .green
+        case "medium": return .blue
+        case "hard": return .orange
+        case "extreme": return .red
+        case "expert": return .purple
+        default: return .gray
         }
     }
 }
