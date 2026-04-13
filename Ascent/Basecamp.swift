@@ -198,10 +198,8 @@ struct BasecampView: View {
                 HStack(alignment: .center, spacing: 12) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Lvl \(appState.currentLevel) · \(appState.ascendProfile?.ascend_tier.uppercased() ?? "BRONZE")")
-                            .font(.app(size: 12, weight: .black))
-                            .foregroundColor(tierColor.opacity(0.4))
-                            .blendMode(.screen)
-                            .colorMultiply(.white)
+                            .font(.app(size: 13, weight: .black))
+                            .foregroundColor(tierColor)
                             .tracking(1.2)
                         Text(appState.userName)
                             .font(.app(size: 22, weight: .bold))
@@ -237,10 +235,30 @@ struct BasecampView: View {
                     .buttonStyle(PressableButtonStyle())
                 }
 
-                HStack(spacing: 10) {
-                    heroStatChip(icon: "bolt.fill", value: "\(appState.currentXP)", label: "XP", color: tierColor)
-                    heroStatChip(icon: "arrow.up.right", value: "\(appState.weeklyElevation)m", label: "This week", color: tierColor)
-                    heroStatChip(icon: "flame.fill", value: "\(appState.ascendProfile?.streak_days ?? 0)", label: "Streak", color: tierColor)
+                HStack(spacing: 24) {
+                    heroGauge(
+                        icon: "bolt.fill",
+                        value: "\(appState.currentXP)",
+                        label: "XP",
+                        progress: Double(appState.currentLevelProgressXP) / Double(max(appState.xpNeededForNextLevel, 1)),
+                        color: .yellow
+                    )
+                    
+                    heroGauge(
+                        icon: "arrow.up.right",
+                        value: "\(appState.weeklyElevation)m",
+                        label: "Week",
+                        progress: min(Double(appState.weeklyElevation) / 5000.0, 1.0),
+                        color: .cyan
+                    )
+                    
+                    heroGauge(
+                        icon: "flame.fill",
+                        value: "\(appState.ascendProfile?.streak_days ?? 0)",
+                        label: "Streak",
+                        progress: min(Double(appState.ascendProfile?.streak_days ?? 0) / 7.0, 1.0),
+                        color: .orange
+                    )
                 }
             }
             .padding(18)
@@ -249,26 +267,34 @@ struct BasecampView: View {
         .padding(.top, 4)
     }
 
-    private func heroStatChip(icon: String, value: String, label: String, color: Color) -> some View {
-        HStack(spacing: 6) {
-            Image(systemName: icon)
-                .font(.app(size: 11, weight: .bold))
-            VStack(alignment: .leading, spacing: 0) {
+    private func heroGauge(icon: String, value: String, label: String, progress: Double, color: Color) -> some View {
+        VStack(spacing: 8) {
+            ZStack {
+                Circle()
+                    .trim(from: 0, to: 0.75)
+                    .stroke(Color.white.opacity(0.15), style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                    .rotationEffect(.degrees(135))
+                
+                Circle()
+                    .trim(from: 0, to: CGFloat(progress) * 0.75)
+                    .stroke(color, style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                    .rotationEffect(.degrees(135))
+                
+                Image(systemName: icon)
+                    .font(.app(size: 16, weight: .bold))
+                    .foregroundColor(color)
+            }
+            .frame(width: 50, height: 50)
+            
+            VStack(spacing: 2) {
                 Text(value)
                     .font(.app(size: 13, weight: .bold))
+                    .foregroundColor(.white)
                 Text(label)
-                    .font(.app(size: 9, weight: .medium))
-                    .opacity(0.75)
+                    .font(.app(size: 10, weight: .semibold))
+                    .foregroundColor(.white.opacity(0.7))
             }
         }
-        .foregroundColor(.white)
-        .padding(.horizontal, 11).padding(.vertical, 7)
-        .background(
-            Capsule().fill(Color.white.opacity(0.18))
-        )
-        .overlay(
-            Capsule().stroke(Color.white.opacity(0.22), lineWidth: 0.8)
-        )
     }
 
     // =========================================
