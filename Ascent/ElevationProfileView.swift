@@ -57,8 +57,19 @@ struct ElevationProfileView: View {
     let routePoints: [CLLocation]
     var currentPosition: Double? = nil // distance km from start for live tracker
     var compact: Bool = false
+    var scrubDistanceOut: Binding<Double?>? = nil
     
-    @State private var selectedDistance: Double?
+    @State private var internalSelectedDistance: Double?
+    private var selectedDistance: Double? {
+        get { scrubDistanceOut?.wrappedValue ?? internalSelectedDistance }
+        nonmutating set {
+            if let binding = self.scrubDistanceOut {
+                binding.wrappedValue = newValue
+            } else {
+                self.internalSelectedDistance = newValue
+            }
+        }
+    }
     @State private var zoomScale: Double = 1.0
     @State private var processTask: Task<Void, Never>? = nil
     
@@ -137,6 +148,7 @@ struct ElevationProfileView: View {
                                     .frame(width: 16, height: 16)
                                     .overlay(Circle().stroke(Color.white, lineWidth: 3))
                                     .shadow(radius: 4)
+                                    .animation(.none, value: sel)
                             }
                         }
                     }
@@ -309,18 +321,19 @@ struct ElevationProfileView: View {
                             .onChanged { value in
                                 let x = value.location.x - geometry[proxy.plotFrame!].origin.x
                                 if let distance: Double = proxy.value(atX: x) {
-                                    withAnimation(.interactiveSpring(response: 0.2, dampingFraction: 0.8)) {
-                                        selectedDistance = distance
-                                    }
+                                    selectedDistance = distance
                                 }
                             }
                             .onEnded { _ in
-                                withAnimation(.spring()) { selectedDistance = nil }
+                                selectedDistance = nil
                             }
                     )
             }
         }
-        .chartXSelection(value: $selectedDistance)
+        .chartXSelection(value: Binding(
+            get: { self.selectedDistance },
+            set: { self.selectedDistance = $0 }
+        ))
         .chartXScale(domain: 0...(profile.totalDistance > 0 ? profile.totalDistance : 1))
         .chartYScale(domain: baseAlt...topAlt)
         .chartXAxis {

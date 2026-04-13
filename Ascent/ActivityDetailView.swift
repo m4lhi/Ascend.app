@@ -7,6 +7,7 @@ struct ActivityDetailView: View {
     
     @State private var selectedTab = 0
     @State private var showPhotoPopover = false
+    @State private var scrubDistance: Double? = nil
     
     private let accent = DesignSystem.Colors.accent
     
@@ -55,6 +56,23 @@ struct ActivityDetailView: View {
             Map {
                 MapPolyline(coordinates: tour.routeCoordinates)
                     .stroke(accent, lineWidth: 4)
+
+                if let dist = scrubDistance, tour.routeLocations.count > 1 {
+                    let totalDist = tour.distanceKilometers
+                    let fraction = max(0, min(1, dist / totalDist))
+                    let index = Int(fraction * Double(tour.routeLocations.count - 1))
+                    let safeIndex = max(0, min(tour.routeLocations.count - 1, index))
+                    let point = tour.routeLocations[safeIndex]
+                    
+                    Annotation("", coordinate: point.coordinate) {
+                        Circle()
+                            .fill(accent)
+                            .frame(width: 16, height: 16)
+                            .overlay(Circle().stroke(Color.white, lineWidth: 3))
+                            .shadow(radius: 4)
+                            .animation(.none, value: dist)
+                    }
+                }
                 
                 if let first = tour.routeCoordinates.first {
                     Annotation("Start", coordinate: first) {
@@ -112,7 +130,7 @@ struct ActivityDetailView: View {
             // Bottom Stats Overlay
             VStack(spacing: 12) {
                 if !tour.routeLocations.isEmpty {
-                    ElevationProfileView(routePoints: tour.routeLocations, compact: true)
+                    ElevationProfileView(routePoints: tour.routeLocations, compact: true, scrubDistanceOut: $scrubDistance)
                         .padding(.top, 10)
                 } else {
                     // Simulated Elevation Profile Fallback
