@@ -68,6 +68,12 @@ struct SettingsView: View {
                             EmergencySettingsView(emergencyManager: emergencyManager)
                         }
 
+                        SettingsSection(title: "APPEARANCE") {
+                            NavigationLink(destination: FontSettingsView()) {
+                                SettingsRowLabel(icon: "textformat", iconColor: .purple, text: "Typography Settings", showArrow: true)
+                            }
+                        }
+
                         SettingsSection(title: "OFFLINE") {
                             OfflineDownloadsView(offlineManager: offlineManager)
                         }

@@ -140,13 +140,27 @@ enum DesignSystem {
     // Einheitliche, weiche Schrift-Hierarchie
     // =========================================
     enum Typography {
-        static let heroTitle    = Font.system(size: 34, weight: .bold, design: .rounded)
-        static let title        = Font.system(size: 24, weight: .bold, design: .rounded)
-        static let subtitle     = Font.system(size: 18, weight: .semibold, design: .rounded)
-        static let body         = Font.system(size: 16, weight: .medium, design: .rounded)
-        static let bodySecondary = Font.system(size: 15, weight: .regular, design: .rounded)
-        static let caption      = Font.system(size: 13, weight: .medium, design: .rounded)
-        static let micro        = Font.system(size: 11, weight: .semibold, design: .rounded)
+        static var currentFont: AppFont {
+            let saved = UserDefaults.standard.string(forKey: "app_font_selection") ?? AppFont.rounded.rawValue
+            return AppFont(rawValue: saved) ?? .rounded
+        }
+        
+        static func font(size: CGFloat, weight: Font.Weight) -> Font {
+            let fontChoice = currentFont
+            if let custom = fontChoice.customName {
+                return Font.custom(custom, size: size).weight(weight)
+            } else {
+                return Font.system(size: size, weight: weight, design: fontChoice.design ?? .default)
+            }
+        }
+
+        static var heroTitle: Font { font(size: 34, weight: .bold) }
+        static var title: Font { font(size: 24, weight: .bold) }
+        static var subtitle: Font { font(size: 18, weight: .semibold) }
+        static var body: Font { font(size: 16, weight: .medium) }
+        static var bodySecondary: Font { font(size: 15, weight: .regular) }
+        static var caption: Font { font(size: 13, weight: .medium) }
+        static var micro: Font { font(size: 11, weight: .semibold) }
     }
 }
 
@@ -261,14 +275,65 @@ extension Color {
 // Attach once at the app root to affect every screen.
 
 struct RoundedFontDesignModifier: ViewModifier {
+    @AppStorage("app_font_selection") private var selectedFont = AppFont.rounded.rawValue
+    
     func body(content: Content) -> some View {
-        content
-            .environment(\.font, .system(.body, design: .rounded))
+        let fontChoice = AppFont(rawValue: selectedFont) ?? .rounded
+        
+        if let custom = fontChoice.customName {
+            content.environment(\.font, Font.custom(custom, size: 16))
+        } else {
+            content.environment(\.font, .system(.body, design: fontChoice.design ?? .default))
+        }
     }
 }
 
 extension View {
     func roundedFontDesign() -> some View {
         modifier(RoundedFontDesignModifier())
+    }
+}
+
+// =========================================
+// === FONT SELECTION ENUM ===
+// =========================================
+enum AppFont: String, CaseIterable, Identifiable {
+    case rounded = "Rounded"
+    case standard = "Standard"
+    case serif = "Serif"
+    case mono = "Monospaced"
+    case avenir = "Avenir Next"
+    case georgia = "Georgia"
+    case helveticaNeue = "Helvetica Neue"
+    case gillSans = "Gill Sans"
+    case din = "DIN Alternate"
+    case futuru = "Futura"
+    case hoefler = "Hoefler Text"
+    case menlo = "Menlo"
+    
+    var id: String { rawValue }
+    
+    var design: Font.Design? {
+        switch self {
+        case .rounded: return .rounded
+        case .standard: return .default
+        case .serif: return .serif
+        case .mono: return .monospaced
+        default: return nil
+        }
+    }
+    
+    var customName: String? {
+        switch self {
+        case .avenir: return "AvenirNext-Regular"
+        case .georgia: return "Georgia"
+        case .helveticaNeue: return "HelveticaNeue"
+        case .gillSans: return "GillSans"
+        case .din: return "DINAlternate-Bold"
+        case .futuru: return "Futura-Medium"
+        case .hoefler: return "HoeflerText-Regular"
+        case .menlo: return "Menlo-Regular"
+        default: return nil
+        }
     }
 }
