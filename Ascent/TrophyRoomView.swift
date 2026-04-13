@@ -908,474 +908,423 @@ struct TrophyRoomView: View {
         .padding(.horizontal, 20)
     }
 
-    private var rankWidget: some View {
-        Button(action: { showAscendRank = true }) {
-                        HStack(spacing: 15) {
-                            if let profile = appState.ascendProfile {
-                                let tColor = tierColor
-                                let isObsidian = profile.ascend_tier.lowercased() == "obsidian"
-                                
-                                GemView(isActive: true, color: tColor, isObsidian: isObsidian)
-                                    .scaleEffect(0.9)
-                                    .frame(width: 45, height: 45)
-                                
-                                VStack(alignment: .leading, spacing: 6) {
-                                    Text("Alpinist Rank")
-                                        .font(.app(.caption))
-                                        .foregroundColor(.gray)
-                                    
-                                    HStack(alignment: .bottom, spacing: 5) {
-                                        Text("\(profile.ascend_tier) \(String(repeating: "I", count: profile.ascend_subtier))")
-                                            .font(.app(.headline))
-                                            .fontWeight(.bold)
-                                            .foregroundColor(isObsidian ? .black : tColor)
-                                        
-                                        Spacer()
-                                        
-                                        Text("\(Int(profile.ascend_xp)) XP")
-                                            .font(.app(.caption))
-                                            .foregroundColor(.gray)
-                                    }
-                                    
-                                    GeometryReader { geo in
-                                        let progress = max(0, min(Double(appState.currentLevelProgressXP) / Double(max(appState.xpNeededForNextLevel, 1)), 1.0))
-                                        ZStack(alignment: .leading) {
-                                            Capsule().fill(Color.gray.opacity(0.1)).frame(height: 6)
-                                            Capsule().fill(tColor)
-                                                .frame(width: progressAnimated ? geo.size.width * progress : 0, height: 6)
-                                        }
-                                    }.frame(height: 6)
-                                }
-                            } else {
-                                ProgressView().tint(.gray)
-                                Text("Loading Rank...").foregroundColor(.gray).padding(.leading, 10)
-                                Spacer()
-                            }
-                            
-                            Image(systemName: "chevron.right").font(.app(.caption)).foregroundColor(.gray)
-                        }
-                        .padding(20)
-                        .background(.ultraThinMaterial)
-                        .environment(\.colorScheme, .light)
-                        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                                .stroke(Color.white.opacity(0.5), lineWidth: 0.5)
-                        )
-                        .shadow(color: .black.opacity(0.06), radius: 12, y: 6)
-                    }
-                    .buttonStyle(.plain)
-                    .padding(.horizontal, 20)
-    }
-
-    // MARK: - Equipment Locker View
-    struct EquipmentLockerView: View {
-        let equipment: Equipment
-        
-        var body: some View {
-            ZStack {
-                // Background environment using premium gradient and frost
-                RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .fill(.ultraThinMaterial)
-                    .environment(\.colorScheme, .light)
-                    .shadow(color: .black.opacity(0.06), radius: 15, y: 6)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 24, style: .continuous)
-                            .stroke(Color.white.opacity(0.5), lineWidth: 0.5)
-                    )
-                
-                // Subtle contour lines in the background
-                Image(systemName: "map.fill")
-                    .font(.app(size: 150))
-                    .foregroundColor(.black.opacity(0.02))
-                    .rotationEffect(.degrees(-15))
-                    .offset(x: 50, y: -20)
-                
-                // Character Silhouette
-                Image(systemName: "figure.hiking")
-                    .font(.app(size: 180))
-                    .foregroundColor(.black.opacity(0.07))
-                    .offset(x: 0, y: 10)
-                
-                // Equipment Slots layout around the character
-                VStack(spacing: 20) {
-                    // Head
-                    EquipmentSlot(icon: "crown.fill", label: "Head", value: equipment.head, color: .orange)
-                        .offset(y: -30)
-                    
-                    HStack(spacing: 120) {
-                        // Backpack (now back left, to align with hiking figure's back)
-                        EquipmentSlot(icon: "backpack.fill", label: "Pack", value: equipment.backpack, color: .red)
-                        
-                        // Jacket (front right, to align with torso)
-                        EquipmentSlot(icon: "tshirt.fill", label: "Jacket", value: equipment.jacket, color: .blue)
-                    }
-                    .offset(y: -10)
-                    
-                    HStack(spacing: 140) {
-                        // Extras (hands)
-                        EquipmentSlot(icon: "sparkles", label: "Extras", value: equipment.extras, color: .orange)
-                            .offset(y: 10)
-                        
-                        // Pants
-                        EquipmentSlot(icon: "figure.walk", label: "Pants", value: equipment.pants, color: .indigo)
-                            .offset(y: 10)
-                    }
-                    
-                    // Boots
-                    EquipmentSlot(icon: "shoe.fill", label: "Boots", value: equipment.boots, color: .brown)
-                        .offset(y: 20)
-                }
-                .padding(.vertical, 40)
-            }
-            .padding(.horizontal, 20)
+    private func openInstagram(_ handle: String) {
+        let cleaned = handle.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "@", with: "")
+        guard !cleaned.isEmpty else { return }
+        if let appURL = URL(string: "instagram://user?username=\(cleaned)"),
+           UIApplication.shared.canOpenURL(appURL) {
+            UIApplication.shared.open(appURL)
+        } else if let webURL = URL(string: "https://instagram.com/\(cleaned)") {
+            UIApplication.shared.open(webURL)
         }
     }
 
-    // MARK: - Achievement Badge Card
-    // =========================================
+    private func formatElevation(_ m: Int) -> String {
+        if m >= 10000 {
+            return String(format: "%.1fk", Double(m) / 1000.0)
+        }
+        return "\(m)m"
+    }
+}
 
-    struct AchievementBadgeCard: View {
-        let achievement: Achievement
-        let onTap: () -> Void
-        
-        var body: some View {
-            Button(action: onTap) {
-                VStack(spacing: 8) {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(
-                                achievement.isUnlocked
-                                    ? achievement.category.color.opacity(0.12)
-                                    : Color.gray.opacity(0.05)
-                            )
-                            .frame(height: 76)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 16)
-                                    .stroke(
-                                        achievement.isUnlocked
-                                            ? achievement.category.color.opacity(0.25)
-                                            : Color.black.opacity(0.04),
-                                        lineWidth: 1
-                                    )
-                            )
-                        
-                        if achievement.isUnlocked {
+// =========================================
+// MARK: - Profile Stat Item
+// =========================================
+
+struct ProfileStatItem: View {
+    let value: String
+    let label: String
+    let color: Color
+    
+    var body: some View {
+        VStack(spacing: 4) {
+            Text(value)
+                .font(.app(size: 18, weight: .bold))
+                .foregroundColor(.primary)
+            Text(label)
+                .font(.app(size: 10, weight: .semibold))
+                .foregroundColor(color.opacity(0.7))
+                .tracking(0.5)
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
+
+// =========================================
+// MARK: - Category Filter Pill
+// =========================================
+
+struct CategoryFilterPill: View {
+    let title: String
+    let icon: String
+    let isSelected: Bool
+    let color: Color
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 5) {
+                Image(systemName: icon)
+                    .font(.app(size: 10, weight: .bold))
+                Text(title)
+                    .font(.app(size: 12, weight: .bold))
+            }
+            .foregroundColor(isSelected ? .black : .gray)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(
+                isSelected ? color : Color.gray.opacity(0.1)
+            )
+            .clipShape(Capsule())
+        }
+    }
+}
+
+// =========================================
+// MARK: - Achievement Badge Card
+// =========================================
+
+struct AchievementBadgeCard: View {
+    let achievement: Achievement
+    let onTap: () -> Void
+    
+    var body: some View {
+        Button(action: onTap) {
+            VStack(spacing: 8) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(
+                            achievement.isUnlocked
+                                ? achievement.category.color.opacity(0.12)
+                                : Color.gray.opacity(0.05)
+                        )
+                        .frame(height: 76)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16)
+                                .stroke(
+                                    achievement.isUnlocked
+                                        ? achievement.category.color.opacity(0.25)
+                                        : Color.black.opacity(0.04),
+                                    lineWidth: 1
+                                )
+                        )
+                    
+                    if achievement.isUnlocked {
+                        Image(systemName: achievement.icon)
+                            .font(.app(size: 28))
+                            .foregroundColor(achievement.category.color)
+                            .shadow(color: achievement.category.color.opacity(0.4), radius: 8)
+                    } else {
+                        ZStack {
                             Image(systemName: achievement.icon)
                                 .font(.app(size: 28))
-                                .foregroundColor(achievement.category.color)
-                                .shadow(color: achievement.category.color.opacity(0.4), radius: 8)
-                        } else {
-                            ZStack {
-                                Image(systemName: achievement.icon)
-                                    .font(.app(size: 28))
-                                    .foregroundColor(.gray.opacity(0.15))
-                                
-                                Image(systemName: "lock.fill")
-                                    .font(.app(size: 12))
-                                    .foregroundColor(.gray.opacity(0.3))
-                                    .offset(x: 14, y: 14)
-                            }
+                                .foregroundColor(.gray.opacity(0.15))
+                            
+                            Image(systemName: "lock.fill")
+                                .font(.app(size: 12))
+                                .foregroundColor(.gray.opacity(0.3))
+                                .offset(x: 14, y: 14)
                         }
-                    }
-                    
-                    Text(achievement.title)
-                        .font(.app(size: 11, weight: .bold))
-                        .foregroundColor(achievement.isUnlocked ? .primary : .gray.opacity(0.4))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
-                    
-                    // Progress indicator
-                    if !achievement.isUnlocked {
-                        GeometryReader { geo in
-                            ZStack(alignment: .leading) {
-                                Capsule()
-                                    .fill(Color.gray.opacity(0.1))
-                                    .frame(height: 3)
-                                Capsule()
-                                    .fill(achievement.category.color.opacity(0.5))
-                                    .frame(width: max(2, geo.size.width * achievement.progress), height: 3)
-                            }
-                        }
-                        .frame(height: 3)
-                        .padding(.horizontal, 4)
-                    } else {
-                        // Earned indicator
-                        HStack(spacing: 3) {
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.app(size: 8))
-                            Text("Earned")
-                                .font(.app(size: 9, weight: .semibold))
-                        }
-                        .foregroundColor(achievement.category.color.opacity(0.6))
                     }
                 }
+                
+                Text(achievement.title)
+                    .font(.app(size: 11, weight: .bold))
+                    .foregroundColor(achievement.isUnlocked ? .primary : .gray.opacity(0.4))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                
+                // Progress indicator
+                if !achievement.isUnlocked {
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            Capsule()
+                                .fill(Color.gray.opacity(0.1))
+                                .frame(height: 3)
+                            Capsule()
+                                .fill(achievement.category.color.opacity(0.5))
+                                .frame(width: max(2, geo.size.width * achievement.progress), height: 3)
+                        }
+                    }
+                    .frame(height: 3)
+                    .padding(.horizontal, 4)
+                } else {
+                    // Earned indicator
+                    HStack(spacing: 3) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.app(size: 8))
+                        Text("Earned")
+                            .font(.app(size: 9, weight: .semibold))
+                    }
+                    .foregroundColor(achievement.category.color.opacity(0.6))
+                }
             }
-            .buttonStyle(.plain)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// =========================================
+// MARK: - Achievement Detail Sheet
+// =========================================
+
+struct AchievementDetailSheet: View {
+    let achievement: Achievement
+    @Environment(\.dismiss) var dismiss
+    
+    var body: some View {
+        ZStack {
+            Color(white: 0.98).ignoresSafeArea()
+            
+            VStack(spacing: 24) {
+                // Handle
+                Capsule()
+                    .fill(Color.black.opacity(0.2))
+                    .frame(width: 36, height: 4)
+                    .padding(.top, 12)
+                
+                // Badge
+                ZStack {
+                    Circle()
+                        .fill(
+                            achievement.isUnlocked
+                                ? achievement.category.color.opacity(0.12)
+                                : Color.gray.opacity(0.05)
+                        )
+                        .frame(width: 100, height: 100)
+                    
+                    if achievement.isUnlocked {
+                        Circle()
+                            .fill(achievement.category.color.opacity(0.06))
+                            .frame(width: 130, height: 130)
+                        
+                        Image(systemName: achievement.icon)
+                            .font(.app(size: 44))
+                            .foregroundColor(achievement.category.color)
+                            .shadow(color: achievement.category.color.opacity(0.5), radius: 12)
+                    } else {
+                        Image(systemName: achievement.icon)
+                            .font(.app(size: 44))
+                            .foregroundColor(.gray.opacity(0.2))
+                    }
+                }
+                
+                VStack(spacing: 8) {
+                    Text(achievement.title)
+                        .font(.app(size: 22, weight: .bold))
+                        .foregroundColor(.primary)
+                    
+                    Text(achievement.description)
+                        .font(.app(size: 15))
+                        .foregroundColor(.gray)
+                        .multilineTextAlignment(.center)
+                    
+                    // Category pill
+                    HStack(spacing: 5) {
+                        Image(systemName: achievement.category.icon)
+                            .font(.app(size: 10, weight: .bold))
+                        Text(achievement.category.rawValue)
+                            .font(.app(size: 11, weight: .bold))
+                    }
+                    .foregroundColor(achievement.category.color)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(achievement.category.color.opacity(0.12))
+                    .clipShape(Capsule())
+                    .padding(.top, 4)
+                }
+                
+                // Progress
+                VStack(spacing: 10) {
+                    HStack {
+                        Text("Progress")
+                            .font(.app(size: 13, weight: .semibold))
+                            .foregroundColor(.gray)
+                        Spacer()
+                        Text(achievement.progressText)
+                            .font(.app(size: 13, weight: .bold))
+                            .foregroundColor(achievement.isUnlocked ? achievement.category.color : .primary)
+                    }
+                    
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            Capsule()
+                                .fill(Color.gray.opacity(0.1))
+                                .frame(height: 8)
+                            Capsule()
+                                .fill(
+                                    achievement.isUnlocked
+                                        ? achievement.category.color
+                                        : achievement.category.color.opacity(0.5)
+                                )
+                                .frame(width: max(4, geo.size.width * achievement.progress), height: 8)
+                        }
+                    }
+                    .frame(height: 8)
+                }
+                .padding(20)
+                .background(Color.white)
+                .cornerRadius(16)
+                .shadow(color: .black.opacity(0.04), radius: 10, y: 4)
+                .padding(.horizontal, 20)
+                
+                Spacer()
+            }
         }
     }
+}
 
-    // =========================================
-    // MARK: - Achievement Detail Sheet
-    // =========================================
+// =========================================
+// MARK: - Edit Account View (Premium Dark)
+// =========================================
 
-    struct AchievementDetailSheet: View {
-        let achievement: Achievement
-        @Environment(\.dismiss) var dismiss
-        
-        var body: some View {
+struct EditAccountView: View {
+    @EnvironmentObject var appState: AppState
+    @Environment(\.dismiss) var dismiss
+    
+    @StateObject private var locationFetcher = LocationFetcher()
+    
+    @State private var draftName: String = ""
+    @State private var draftHandle: String = ""
+    @State private var draftRegion: String = ""
+    @State private var draftInsta: String = ""
+    @State private var photoItem: PhotosPickerItem? = nil
+    @State private var draftImageData: Data? = nil
+    @State private var draftSports: [String] = []
+    @State private var draftHobbies: [String] = []
+    @State private var draftSpecialties: [String] = []
+    @State private var showHandleErrorAlert = false
+    @State private var isSaving = false
+
+    // Custom hobby input
+    @State private var customHobbyInput: String = ""
+    @State private var hobbySuggestions: [HobbyEntry] = []
+    @State private var isSearchingHobbies: Bool = false
+    @State private var hobbyInputError: String? = nil
+    @State private var hobbySearchTask: Task<Void, Never>? = nil
+    
+    private let gold = DesignSystem.Colors.accent
+    private let cardBg = Color.white
+    
+    let availableSports = [
+        "Mountaineering", "Climbing", "Ski Touring", "Hiking", "Bouldering", "Ice Climbing", "Alpinism",
+        "Trail Running", "Ultra Running", "Fastpacking", "Paragliding", "Speedflying",
+        "Mountain Biking", "Gravel Biking", "Bikepacking",
+        "Freeride Skiing", "Splitboarding", "Snowshoeing",
+        "Kayaking", "Packrafting", "Canyoning", "Caving"
+    ]
+    let availableSpecialties = [
+        "Ice Climbing", "Mixed Climbing", "Dry Tooling", "Scrambling",
+        "Bouldering", "Highball Bouldering", "Lead Climbing", "Sport Climbing",
+        "Trad Climbing", "Aid Climbing", "Big Wall", "Multi-pitch", "Alpine Climbing",
+        "Expedition", "Klettersteig / Via Ferrata", "Deep Water Solo", "Free Solo",
+        "Crack Climbing", "Slab Climbing", "Roof Climbing",
+        "Ski Mountaineering", "Couloir Skiing", "Glacier Travel", "Crevasse Rescue",
+        "Highlining", "Slacklining"
+    ]
+    let availableHobbies = [
+        // Fitness / gym
+        "Gym", "CrossFit", "Calisthenics", "Powerlifting", "Weightlifting", "Pilates", "Yoga", "Stretching", "Mobility",
+        // Combat sports
+        "Boxing", "Kickboxing", "Muay Thai", "MMA", "Jiu-Jitsu", "Judo", "Karate", "Taekwondo", "Wrestling", "Fencing",
+        // Ball sports
+        "Soccer", "Basketball", "Tennis", "Table Tennis", "Badminton", "Squash", "Volleyball",
+        "Baseball", "Rugby", "Hockey", "Handball", "Golf", "Bowling",
+        // Running / endurance
+        "Running", "Marathon", "Triathlon", "Swimming", "Cycling", "Rowing",
+        // Water
+        "Surfing", "Kitesurfing", "Windsurfing", "Wakeboarding", "Sailing", "Diving", "Freediving", "SUP",
+        // Board / wheels
+        "Skateboarding", "Snowboarding", "Skiing", "Longboarding", "Inline Skating", "Parkour", "Freerunning",
+        // Horse / outdoors
+        "Horseback Riding", "Archery", "Fishing", "Hunting", "Camping", "Birdwatching", "Gardening",
+        // Creative
+        "Photography", "Videography", "Drawing", "Painting", "Sculpting", "Writing", "Blogging", "Podcasting",
+        "Music", "Guitar", "Piano", "Drums", "Singing", "DJing", "Dancing",
+        // Mind / indoor
+        "Reading", "Chess", "Meditation", "Cooking", "Baking", "Coffee", "Wine Tasting",
+        "Traveling", "Gaming", "Board Games", "Astronomy",
+        // Tech / maker
+        "Coding", "Electronics", "Robotics", "3D Printing", "Woodworking", "DIY"
+    ]
+    
+    var body: some View {
+        NavigationView {
             ZStack {
                 Color(white: 0.98).ignoresSafeArea()
                 
-                VStack(spacing: 24) {
-                    // Handle
-                    Capsule()
-                        .fill(Color.black.opacity(0.2))
-                        .frame(width: 36, height: 4)
-                        .padding(.top, 12)
-                    
-                    // Badge
-                    ZStack {
-                        Circle()
-                            .fill(
-                                achievement.isUnlocked
-                                    ? achievement.category.color.opacity(0.12)
-                                    : Color.gray.opacity(0.05)
-                            )
-                            .frame(width: 100, height: 100)
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 24) {
                         
-                        if achievement.isUnlocked {
-                            Circle()
-                                .fill(achievement.category.color.opacity(0.06))
-                                .frame(width: 130, height: 130)
-                            
-                            Image(systemName: achievement.icon)
-                                .font(.app(size: 44))
-                                .foregroundColor(achievement.category.color)
-                                .shadow(color: achievement.category.color.opacity(0.5), radius: 12)
-                        } else {
-                            Image(systemName: achievement.icon)
-                                .font(.app(size: 44))
-                                .foregroundColor(.gray.opacity(0.2))
-                        }
-                    }
-                    
-                    VStack(spacing: 8) {
-                        Text(achievement.title)
-                            .font(.app(size: 22, weight: .bold))
-                            .foregroundColor(.primary)
-                        
-                        Text(achievement.description)
-                            .font(.app(size: 15))
-                            .foregroundColor(.gray)
-                            .multilineTextAlignment(.center)
-                        
-                        // Category pill
-                        HStack(spacing: 5) {
-                            Image(systemName: achievement.category.icon)
-                                .font(.app(size: 10, weight: .bold))
-                            Text(achievement.category.rawValue)
-                                .font(.app(size: 11, weight: .bold))
-                        }
-                        .foregroundColor(achievement.category.color)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(achievement.category.color.opacity(0.12))
-                        .clipShape(Capsule())
-                        .padding(.top, 4)
-                    }
-                    
-                    // Progress
-                    VStack(spacing: 10) {
-                        HStack {
-                            Text("Progress")
-                                .font(.app(size: 13, weight: .semibold))
-                                .foregroundColor(.gray)
-                            Spacer()
-                            Text(achievement.progressText)
-                                .font(.app(size: 13, weight: .bold))
-                                .foregroundColor(achievement.isUnlocked ? achievement.category.color : .primary)
-                        }
-                        
-                        GeometryReader { geo in
-                            ZStack(alignment: .leading) {
-                                Capsule()
-                                    .fill(Color.gray.opacity(0.1))
-                                    .frame(height: 8)
-                                Capsule()
-                                    .fill(
-                                        achievement.isUnlocked
-                                            ? achievement.category.color
-                                            : achievement.category.color.opacity(0.5)
-                                    )
-                                    .frame(width: max(4, geo.size.width * achievement.progress), height: 8)
-                            }
-                        }
-                        .frame(height: 8)
-                    }
-                    .padding(20)
-                    .background(Color.white)
-                    .cornerRadius(16)
-                    .shadow(color: .black.opacity(0.04), radius: 10, y: 4)
-                    .padding(.horizontal, 20)
-                    
-                    Spacer()
-                }
-            }
-        }
-    }
-
-    // =========================================
-    // MARK: - Edit Account View (Premium Dark)
-    // =========================================
-
-    struct EditAccountView: View {
-        @EnvironmentObject var appState: AppState
-        @Environment(\.dismiss) var dismiss
-        
-        @StateObject private var locationFetcher = LocationFetcher()
-        
-        @State private var draftName: String = ""
-        @State private var draftHandle: String = ""
-        @State private var draftRegion: String = ""
-        @State private var draftInsta: String = ""
-        @State private var photoItem: PhotosPickerItem? = nil
-        @State private var draftImageData: Data? = nil
-        @State private var draftSports: [String] = []
-        @State private var draftHobbies: [String] = []
-        @State private var draftSpecialties: [String] = []
-        @State private var showHandleErrorAlert = false
-        @State private var isSaving = false
-
-        // Custom hobby input
-        @State private var customHobbyInput: String = ""
-        @State private var hobbySuggestions: [HobbyEntry] = []
-        @State private var isSearchingHobbies: Bool = false
-        @State private var hobbyInputError: String? = nil
-        @State private var hobbySearchTask: Task<Void, Never>? = nil
-        
-        private let gold = DesignSystem.Colors.accent
-        private let cardBg = Color.white
-        
-        let availableSports = [
-            "Mountaineering", "Climbing", "Ski Touring", "Hiking", "Bouldering", "Ice Climbing", "Alpinism",
-            "Trail Running", "Ultra Running", "Fastpacking", "Paragliding", "Speedflying",
-            "Mountain Biking", "Gravel Biking", "Bikepacking",
-            "Freeride Skiing", "Splitboarding", "Snowshoeing",
-            "Kayaking", "Packrafting", "Canyoning", "Caving"
-        ]
-        let availableSpecialties = [
-            "Ice Climbing", "Mixed Climbing", "Dry Tooling", "Scrambling",
-            "Bouldering", "Highball Bouldering", "Lead Climbing", "Sport Climbing",
-            "Trad Climbing", "Aid Climbing", "Big Wall", "Multi-pitch", "Alpine Climbing",
-            "Expedition", "Klettersteig / Via Ferrata", "Deep Water Solo", "Free Solo",
-            "Crack Climbing", "Slab Climbing", "Roof Climbing",
-            "Ski Mountaineering", "Couloir Skiing", "Glacier Travel", "Crevasse Rescue",
-            "Highlining", "Slacklining"
-        ]
-        let availableHobbies = [
-            // Fitness / gym
-            "Gym", "CrossFit", "Calisthenics", "Powerlifting", "Weightlifting", "Pilates", "Yoga", "Stretching", "Mobility",
-            // Combat sports
-            "Boxing", "Kickboxing", "Muay Thai", "MMA", "Jiu-Jitsu", "Judo", "Karate", "Taekwondo", "Wrestling", "Fencing",
-            // Ball sports
-            "Soccer", "Basketball", "Tennis", "Table Tennis", "Badminton", "Squash", "Volleyball",
-            "Baseball", "Rugby", "Hockey", "Handball", "Golf", "Bowling",
-            // Running / endurance
-            "Running", "Marathon", "Triathlon", "Swimming", "Cycling", "Rowing",
-            // Water
-            "Surfing", "Kitesurfing", "Windsurfing", "Wakeboarding", "Sailing", "Diving", "Freediving", "SUP",
-            // Board / wheels
-            "Skateboarding", "Snowboarding", "Skiing", "Longboarding", "Inline Skating", "Parkour", "Freerunning",
-            // Horse / outdoors
-            "Horseback Riding", "Archery", "Fishing", "Hunting", "Camping", "Birdwatching", "Gardening",
-            // Creative
-            "Photography", "Videography", "Drawing", "Painting", "Sculpting", "Writing", "Blogging", "Podcasting",
-            "Music", "Guitar", "Piano", "Drums", "Singing", "DJing", "Dancing",
-            // Mind / indoor
-            "Reading", "Chess", "Meditation", "Cooking", "Baking", "Coffee", "Wine Tasting",
-            "Traveling", "Gaming", "Board Games", "Astronomy",
-            // Tech / maker
-            "Coding", "Electronics", "Robotics", "3D Printing", "Woodworking", "DIY"
-        ]
-        
-        var body: some View {
-            NavigationView {
-                ZStack {
-                    Color(white: 0.98).ignoresSafeArea()
-                    
-                    ScrollView(showsIndicators: false) {
-                        VStack(spacing: 24) {
-                            
-                            // === PHOTO SECTION ===
-                            VStack(spacing: 14) {
-                                ZStack(alignment: .bottomTrailing) {
-                                    if let data = draftImageData, let uiImage = UIImage(data: data) {
-                                        Image(uiImage: uiImage)
-                                            .resizable().scaledToFill()
-                                            .frame(width: 100, height: 100)
-                                            .clipShape(Circle())
-                                            .overlay(Circle().stroke(gold.opacity(0.3), lineWidth: 2))
-                                    } else if let urlString = appState.avatarURL, let url = URL(string: urlString) {
-                                        CachedAsyncImage(url: url) { image in
-                                            image.resizable().scaledToFill()
-                                        } placeholder: {
-                                            Circle().fill(cardBg)
-                                        }
+                        // === PHOTO SECTION ===
+                        VStack(spacing: 14) {
+                            ZStack(alignment: .bottomTrailing) {
+                                if let data = draftImageData, let uiImage = UIImage(data: data) {
+                                    Image(uiImage: uiImage)
+                                        .resizable().scaledToFill()
                                         .frame(width: 100, height: 100)
                                         .clipShape(Circle())
+                                        .overlay(Circle().stroke(gold.opacity(0.3), lineWidth: 2))
+                                } else if let urlString = appState.avatarURL, let url = URL(string: urlString) {
+                                    CachedAsyncImage(url: url) { image in
+                                        image.resizable().scaledToFill()
+                                    } placeholder: {
+                                        Circle().fill(cardBg)
+                                    }
+                                    .frame(width: 100, height: 100)
+                                    .clipShape(Circle())
+                                    .overlay(Circle().stroke(Color.white.opacity(0.1), lineWidth: 2))
+                                } else {
+                                    Circle()
+                                        .fill(cardBg)
+                                        .frame(width: 100, height: 100)
+                                        .overlay(
+                                            Image(systemName: "person.fill")
+                                                .font(.app(size: 36))
+                                                .foregroundColor(.gray)
+                                        )
                                         .overlay(Circle().stroke(Color.white.opacity(0.1), lineWidth: 2))
-                                    } else {
-                                        Circle()
-                                            .fill(cardBg)
-                                            .frame(width: 100, height: 100)
-                                            .overlay(
-                                                Image(systemName: "person.fill")
-                                                    .font(.app(size: 36))
-                                                    .foregroundColor(.gray)
-                                            )
-                                            .overlay(Circle().stroke(Color.white.opacity(0.1), lineWidth: 2))
+                                }
+                                
+                                PhotosPicker(selection: $photoItem, matching: .images) {
+                                    ZStack {
+                                        Circle().fill(gold).frame(width: 32, height: 32)
+                                        Image(systemName: "camera.fill")
+                                            .font(.app(size: 13, weight: .bold))
+                                            .foregroundColor(.black)
                                     }
-                                    
-                                    PhotosPicker(selection: $photoItem, matching: .images) {
-                                        ZStack {
-                                            Circle().fill(gold).frame(width: 32, height: 32)
-                                            Image(systemName: "camera.fill")
-                                                .font(.app(size: 13, weight: .bold))
-                                                .foregroundColor(.black)
-                                        }
-                                        .overlay(Circle().stroke(Color(red: 0.05, green: 0.05, blue: 0.08), lineWidth: 3))
-                                    }
+                                    .overlay(Circle().stroke(Color(red: 0.05, green: 0.05, blue: 0.08), lineWidth: 3))
                                 }
                             }
-                            .padding(.top, 20)
+                        }
+                        .padding(.top, 20)
+                        
+                        // === PROFILE INFO SECTION ===
+                        VStack(alignment: .leading, spacing: 16) {
+                            Text("PROFILE INFO")
+                                .font(.app(size: 11, weight: .black))
+                                .foregroundColor(.gray)
+                                .tracking(2)
                             
-                            // === PROFILE INFO SECTION ===
-                            VStack(alignment: .leading, spacing: 16) {
-                                Text("PROFILE INFO")
-                                    .font(.app(size: 11, weight: .black))
-                                    .foregroundColor(.gray)
-                                    .tracking(2)
-                                
-                                EditField(icon: "person.fill", placeholder: "Display Name", text: $draftName)
-                                
-                                HStack(spacing: 12) {
-                                    ZStack {
-                                        RoundedRectangle(cornerRadius: 10)
-                                            .fill(Color.gray.opacity(0.1))
-                                            .frame(width: 38, height: 38)
-                                        Text("@")
-                                            .font(.app(size: 16, weight: .bold))
-                                            .foregroundColor(.gray)
+                            EditField(icon: "person.fill", placeholder: "Display Name", text: $draftName)
+                            
+                            HStack(spacing: 12) {
+                                ZStack {
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .fill(Color.gray.opacity(0.1))
+                                        .frame(width: 38, height: 38)
+                                    Text("@")
+                                        .font(.app(size: 16, weight: .bold))
+                                        .foregroundColor(.gray)
+                                }
+                                TextField("username", text: $draftHandle)
+                                    .font(.app(size: 15))
+                                    .foregroundColor(.primary)
+                                    .textInputAutocapitalization(.never)
+                                    .autocorrectionDisabled()
+                                    .onChange(of: draftHandle) { _, newValue in
+                                        draftHandle = newValue.replacingOccurrences(of: "@", with: "")
                                     }
-                                    TextField("username", text: $draftHandle)
-                                        .font(.app(size: 15))
-                                        .foregroundColor(.primary)
-                                        .textInputAutocapitalization(.never)
-                                        .autocorrectionDisabled()
-                                        .onChange(of: draftHandle) { _, newValue in
-                                            draftHandle = newValue.replacingOccurrences(of: "@", with: "")
-                                        }
                             }
                             .padding(12)
                             .background(cardBg)
@@ -1828,6 +1777,211 @@ struct SafariView: UIViewControllerRepresentable {
     func updateUIViewController(_ uiViewController: SFSafariViewController, context: Context) {}
 }
 
+// =========================================
+// MARK: - Equipment Locker View
+// =========================================
+
+struct EquipmentLockerView: View {
+    let equipment: Equipment
+    
+    var body: some View {
+        ZStack {
+            // Background environment using premium gradient and frost
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(LinearGradient(colors: [Color.white, Color(red: 0.98, green: 0.98, blue: 0.99)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                .shadow(color: .black.opacity(0.04), radius: 15, y: 6)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 24, style: .continuous)
+                        .stroke(Color.white, lineWidth: 2)
+                )
+            
+            // Subtle contour lines in the background
+            Image(systemName: "map.fill")
+                .font(.app(size: 150))
+                .foregroundColor(.black.opacity(0.02))
+                .rotationEffect(.degrees(-15))
+                .offset(x: 50, y: -20)
+            
+            // Character Silhouette
+            Image(systemName: "figure.climbing")
+                .font(.app(size: 160))
+                .foregroundColor(.black.opacity(0.07))
+                .offset(y: 10)
+            
+            // Equipment Slots layout around the character
+            VStack(spacing: 20) {
+                // Head
+                EquipmentSlot(icon: "crown.fill", label: "Head", value: equipment.head, color: .orange)
+                    .offset(y: -15)
+                
+                HStack(spacing: 90) {
+                    // Jacket
+                    EquipmentSlot(icon: "tshirt.fill", label: "Jacket", value: equipment.jacket, color: .blue)
+                    
+                    // Backpack
+                    EquipmentSlot(icon: "backpack.fill", label: "Pack", value: equipment.backpack, color: .red)
+                }
+                
+                HStack(spacing: 120) {
+                    // Pants
+                    EquipmentSlot(icon: "figure.walk", label: "Pants", value: equipment.pants, color: .indigo)
+                        .offset(y: 10)
+                    
+                    // Extras
+                    EquipmentSlot(icon: "sparkles", label: "Extras", value: equipment.extras, color: .orange)
+                        .offset(y: 10)
+                }
+                
+                // Boots
+                EquipmentSlot(icon: "shoe.fill", label: "Boots", value: equipment.boots, color: .brown)
+                    .offset(y: 30)
+            }
+            .padding(.vertical, 40)
+        }
+        .padding(.horizontal, 20)
+    }
+}
+
+struct EquipmentSlot: View {
+    let icon: String
+    let label: String
+    let value: String
+    let color: Color
+    
+    @State private var showDetail = false
+    
+    var body: some View {
+        Button(action: {
+            showDetail = true
+        }) {
+            VStack(spacing: 6) {
+                ZStack {
+                    Circle()
+                        .fill(Color.white)
+                        .frame(width: 46, height: 46)
+                        .shadow(color: color.opacity(0.2), radius: 8, y: 4)
+                        .overlay(Circle().stroke(Color.black.opacity(0.05), lineWidth: 1))
+                    
+                    Image(systemName: icon)
+                        .font(.app(size: 18, weight: .bold))
+                        .foregroundColor(color)
+                }
+                
+                VStack(spacing: 2) {
+                    Text(value)
+                        .font(.app(size: 11, weight: .bold))
+                        .foregroundColor(.primary)
+                        .lineLimit(1)
+                        .frame(width: 80)
+                    
+                    Text(label.uppercased())
+                        .font(.app(size: 9, weight: .black))
+                        .foregroundColor(.gray)
+                        .tracking(1)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .sheet(isPresented: $showDetail) {
+            VStack(spacing: 20) {
+                Image(systemName: icon)
+                    .font(.app(size: 60))
+                    .foregroundColor(color)
+                    .padding(.top, 40)
+                    .shadow(color: color.opacity(0.3), radius: 10, y: 5)
+                
+                Text(label.uppercased())
+                    .font(.app(size: 14, weight: .black))
+                    .foregroundColor(.gray)
+                    .tracking(2)
+                
+                Text(value)
+                    .font(.app(size: 28, weight: .bold))
+                
+                Text("This is a preview of the equipment detail view. In the future, you will be able to select and change your \(label) gear from a vast library of items here.")
+                    .font(.app(size: 15))
+                    .multilineTextAlignment(.center)
+                    .foregroundColor(.gray)
+                    .padding(.horizontal, 30)
+                    .padding(.top, 10)
+                
+                Spacer()
+            }
+            .presentationDetents([.fraction(0.45)])
+            .preferredColorScheme(.light)
+        }
+    }
+}
+
+// =========================================
+// MARK: - All Achievements Sheet
+// =========================================
+
+struct AllAchievementsSheet: View {
+    @Environment(\.dismiss) var dismiss
+    let achievements: [Achievement]
+    let unlockedCount: Int
+    @State private var selectedAchievement: Achievement? = nil
+    
+    var body: some View {
+        NavigationView {
+            ZStack {
+                LinearGradient(
+                    colors: [Color(red: 0.96, green: 0.98, blue: 1.00), Color(red: 0.90, green: 0.94, blue: 1.00)],
+                    startPoint: .top, endPoint: .bottom
+                ).ignoresSafeArea()
+                
+                ScrollView {
+                    VStack(spacing: 20) {
+                        // Stat Summary
+                        HStack {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Total Unlocked")
+                                    .font(.app(.subheadline))
+                                    .foregroundColor(.gray)
+                                Text("\(unlockedCount) of \(achievements.count)")
+                                    .font(.app(.title))
+                                    .fontWeight(.black)
+                                    .foregroundColor(DesignSystem.Colors.accent)
+                            }
+                            Spacer()
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.top, 10)
+                        
+                        LazyVGrid(
+                            columns: [GridItem(.flexible(), spacing: 15), GridItem(.flexible(), spacing: 15), GridItem(.flexible(), spacing: 15)],
+                            spacing: 15
+                        ) {
+                            ForEach(achievements) { achievement in
+                                AchievementBadgeCard(achievement: achievement, onTap: {
+                                    selectedAchievement = achievement
+                                })
+                            }
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 40)
+                    }
+                }
+            }
+            .navigationTitle("Trophy Room")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: { dismiss() }) {
+                        Image(systemName: "xmark.circle.fill").foregroundColor(.gray)
+                    }
+                }
+            }
+            .sheet(item: $selectedAchievement) { achievement in
+                AchievementDetailSheet(achievement: achievement)
+                    .presentationDetents([.medium])
+                    .preferredColorScheme(.light)
+            }
+        }
+    }
+}
+
 // MARK: - Profile Collections List (For Profile Tab)
 struct ProfileCollectionsList: View {
     @EnvironmentObject var appState: AppState
@@ -1881,7 +2035,13 @@ struct ProfileCollectionsList: View {
                     }
                 }
                 .padding(.horizontal, 20)
-                .padding(.bottom, 40)
+                .task(id: appState.myCollections) {
+                    for collection in appState.myCollections {
+                        if previewCache[collection.id] == nil {
+                            previewCache[collection.id] = await tempManager.fetchPreviewMountains(for: collection, limit: 4)
+                        }
+                    }
+                }
             }
         }
         .sheet(isPresented: $showCreateSheet) {
@@ -1999,3 +2159,4 @@ struct FilteredActivitiesView: View {
         }
     }
 }
+
