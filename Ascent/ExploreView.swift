@@ -1,5 +1,5 @@
 import SwiftUI
-import MapKit
+import MapboxMaps
 import CoreLocation
 import Combine
 import Charts
@@ -76,7 +76,7 @@ struct ExploreView: View {
     @StateObject private var mountainManager = MountainManager()
     @StateObject private var locationManager = ExploreLocationManager()
 
-    @State private var cameraPosition: MapCameraPosition = .automatic
+    @State private var viewport: Viewport = .styleDefault
     @State private var selectedMarkerTag: UUID? = nil
     @State private var selectedMountain: Mountain? = nil
 
@@ -323,32 +323,36 @@ struct ExploreView: View {
 
     @ViewBuilder
     var mapLayer: some View {
-        Map(position: $cameraPosition, bounds: MapCameraBounds(maximumDistance: 6_000_000), selection: $selectedMarkerTag) {
-            UserAnnotation()
+        Map(viewport: $viewport) {
+            Puck2D(bearing: .heading)
 
             ForEach(visibleMountains, id: \.id) { mountain in
-                // Safe coordinate — visibleMountains already filters nil, but guard defensively
                 let coord = CLLocationCoordinate2D(latitude: mountain.latitude ?? 0, longitude: mountain.longitude ?? 0)
                 
                 if isRouteCreationMode {
                     if let idx = routeMountains.firstIndex(where: { $0.id == mountain.id }) {
-                        Annotation("\(idx + 1)", coordinate: coord) {
+                        ViewAnnotation(coordinate: coord) {
                             ZStack {
                                 Circle().fill(gold).frame(width: 32, height: 32)
                                 Text("\(idx + 1)").font(.app(size: 14, weight: .black)).foregroundColor(.black)
                             }
                             .shadow(color: .black.opacity(0.3), radius: 4, y: 2)
+                            .onTapGesture { selectedMarkerTag = mountain.id }
                         }
-                        .tag(mountain.id)
+                        .allowOverlap(true)
                     } else {
-                        Marker(mountain.name, systemImage: "plus.circle.fill", coordinate: coord)
-                            .tint(.primary.opacity(0.7))
-                            .tag(mountain.id)
+                        ViewAnnotation(coordinate: coord) {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.title)
+                                .foregroundColor(.primary.opacity(0.7))
+                                .background(Circle().fill(Color.white.opacity(0.8)).frame(width: 20, height: 20))
+                                .onTapGesture { selectedMarkerTag = mountain.id }
+                        }
+                        .allowOverlap(true)
                     }
                 }
-                // 🟢 NEU: Highlight-Annotation, wenn dieser Berg angeklickt wurde!
                 else if selectedMountain?.id == mountain.id {
-                    Annotation(mountain.name, coordinate: coord) {
+                    ViewAnnotation(coordinate: coord) {
                         VStack(spacing: 0) {
                             Text(mountain.name)
                                 .font(.app(size: 13, weight: .bold))
@@ -366,23 +370,32 @@ struct ExploreView: View {
                                 .offset(y: -2)
                         }
                     }
-                    .tag(mountain.id)
+                    .allowOverlap(true)
                 }
                 else if mountain.isPrestigePeak {
-                    Marker(mountain.name, systemImage: "crown.fill", coordinate: coord)
-                        .tint(gold)
-                        .tag(mountain.id)
+                    ViewAnnotation(coordinate: coord) {
+                        Image(systemName: "crown.fill")
+                            .font(.title2)
+                            .foregroundColor(gold)
+                            .shadow(color: .black.opacity(0.5), radius: 2, y: 1)
+                            .onTapGesture { selectMountain(mountain) }
+                    }
+                    .allowOverlap(true)
                 } else {
-                    Marker(mountain.name, systemImage: "mountain.2.fill", coordinate: coord)
-                        .tint(difficultyColor(mountain.difficulty))
-                        .tag(mountain.id)
+                    ViewAnnotation(coordinate: coord) {
+                        Image(systemName: "mountain.2.fill")
+                            .font(.title3)
+                            .foregroundColor(difficultyColor(mountain.difficulty))
+                            .shadow(color: .black.opacity(0.5), radius: 2, y: 1)
+                            .onTapGesture { selectMountain(mountain) }
+                    }
+                    .allowOverlap(true)
                 }
             }
 
-            // POI markers (parking, viewpoints, huts, etc.)
             if showNearby {
                 ForEach(mountainManager.nearbyPOIs) { poi in
-                    Annotation(poi.name, coordinate: CLLocationCoordinate2D(latitude: poi.latitude, longitude: poi.longitude)) {
+                    ViewAnnotation(coordinate: CLLocationCoordinate2D(latitude: poi.latitude, longitude: poi.longitude)) {
                         Image(systemName: poiIcon(for: poi.type))
                             .font(.app(size: 12, weight: .bold))
                             .foregroundColor(.white)
@@ -391,6 +404,7 @@ struct ExploreView: View {
                             .clipShape(Circle())
                             .shadow(color: .black.opacity(0.2), radius: 3, y: 1)
                     }
+                    .allowOverlap(true)
                 }
             }
 
@@ -399,7 +413,9 @@ struct ExploreView: View {
                     guard let lat = m.latitude, let lon = m.longitude else { return nil }
                     return CLLocationCoordinate2D(latitude: lat, longitude: lon)
                 }
-                MapPolyline(coordinates: coords).stroke(gold, lineWidth: 3)
+                PolylineAnnotation(lineCoordinates: coords)
+                    .lineColor(StyleColor(gold))
+                    .lineWidth(3.0)
             }
             
             if let route = selectedRouteToShow {
@@ -408,30 +424,44 @@ struct ExploreView: View {
                     guard let lat = m.latitude, let lon = m.longitude else { return nil }
                     return CLLocationCoordinate2D(latitude: lat, longitude: lon)
                 }
-                MapPolyline(coordinates: coords).stroke(gold, lineWidth: 4)
+                PolylineAnnotation(lineCoordinates: coords)
+                    .lineColor(StyleColor(gold))
+                    .lineWidth(4.0)
             }
         }
         .mapStyle(mapStyleForCurrentLayer)
+        .onMapStyleLoaded { style in
+            var demSource = RasterDemSource(id: "mapbox-dem")
+            demSource.url = "mapbox://mapbox.mapbox-terrain-dem-v1"
+            try? style.addSource(demSource)
+            
+            var terrain = Terrain(sourceId: "mapbox-dem")
+            terrain.exaggeration = .constant(1.5)
+            try? style.setTerrain(terrain)
+        }
         .safeAreaPadding(.top, 160)
-        .onMapCameraChange(frequency: .onEnd) { context in
-            let region = context.region
-            let spanKm = region.span.latitudeDelta * 111
+        .onCameraChanged { cameraChanged in
+            let center = cameraChanged.cameraState.center
+            let zoom = cameraChanged.cameraState.zoom
             
             let newZoom: ZoomLevel
-            if spanKm > 100 { newZoom = .far }
-            else if spanKm > 20 { newZoom = .medium }
+            if zoom < 9 { newZoom = .far }
+            else if zoom < 11.5 { newZoom = .medium }
             else { newZoom = .close }
             
-            withAnimation(.easeInOut(duration: 0.2)) { currentZoomLevel = newZoom }
+            if currentZoomLevel != newZoom {
+                withAnimation(.easeInOut(duration: 0.2)) { currentZoomLevel = newZoom }
+            }
             
-            let latDelta = region.span.latitudeDelta * 2.0
-            let lonDelta = region.span.longitudeDelta * 2.0
-            let minLat = region.center.latitude - (latDelta / 2)
-            let maxLat = region.center.latitude + (latDelta / 2)
-            let minLon = region.center.longitude - (lonDelta / 2)
-            let maxLon = region.center.longitude + (lonDelta / 2)
+            let span = 360.0 / pow(2.0, zoom)
+            let latDelta = span * 0.8
+            let lonDelta = span
 
-            // Debounce: cancel pending fetch, wait 500ms before firing to avoid map lag
+            let minLat = center.latitude - latDelta
+            let maxLat = center.latitude + latDelta
+            let minLon = center.longitude - lonDelta
+            let maxLon = center.longitude + lonDelta
+
             mapFetchTask?.cancel()
             mapFetchTask = Task {
                 try? await Task.sleep(nanoseconds: 500_000_000)
@@ -439,16 +469,15 @@ struct ExploreView: View {
                 await mountainManager.fetchMountainsInBounds(minLat: minLat, maxLat: maxLat, minLon: minLon, maxLon: maxLon, zoomLevel: newZoom)
             }
         }
-        .mapControls { }
         .safeAreaPadding(.bottom, -40)
         .ignoresSafeArea()
     }
 
-    var mapStyleForCurrentLayer: MapStyle {
+    var mapStyleForCurrentLayer: MapboxMaps.MapStyle {
         switch currentMapLayer {
-        case .standard:  return .standard(elevation: .flat)
-        case .satellite: return .hybrid(elevation: .flat)
-        case .night:     return .standard(elevation: .flat)
+        case .standard:  return .outdoors
+        case .satellite: return .satelliteStreets
+        case .night:     return .dark
         }
     }
 
@@ -814,7 +843,7 @@ struct ExploreView: View {
     func flyToMyLocation() {
         if let loc = locationManager.userLocation {
             withAnimation(.easeInOut(duration: 1.5)) {
-                cameraPosition = .camera(MapCamera(centerCoordinate: loc.coordinate, distance: 5000, heading: 0, pitch: 0))
+                viewport = .camera(center: loc.coordinate, zoom: 12, bearing: 0, pitch: 0)
             }
         } else {
             if locationManager.authorizationStatus == .denied || locationManager.authorizationStatus == .restricted {
@@ -875,13 +904,14 @@ struct ExploreView: View {
 
     func flyToMountain(lat: Double, lon: Double) {
         withAnimation(.easeInOut(duration: 1.5)) {
-            cameraPosition = .camera(MapCamera(centerCoordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon), distance: 8000, heading: 0, pitch: 0))
+            viewport = .camera(center: CLLocationCoordinate2D(latitude: lat, longitude: lon), zoom: 11.5, bearing: 0, pitch: 45)
         }
     }
 
     func flyTo(lat: Double, lon: Double, distance: Double) {
+        let zoom = max(5.0, 15.0 - log2(max(1000, distance) / 1000.0))
         withAnimation(.easeInOut(duration: 1.5)) {
-            cameraPosition = .camera(MapCamera(centerCoordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon), distance: distance, heading: 0, pitch: 0))
+            viewport = .camera(center: CLLocationCoordinate2D(latitude: lat, longitude: lon), zoom: zoom, bearing: 0, pitch: 45)
         }
     }
 

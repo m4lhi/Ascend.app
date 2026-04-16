@@ -1,5 +1,5 @@
 import SwiftUI
-import MapKit
+import MapboxMaps
 import Combine
 import CoreLocation
 import CoreMotion
@@ -287,7 +287,7 @@ struct LiveRecordView: View {
     @State private var blinkToggle: Bool = false
     let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
-    @State private var cameraPosition: MapCameraPosition
+    @State private var viewport: Viewport
 
     @State private var showSaveForm = false
     @State private var showElevationProfile = false
@@ -327,11 +327,11 @@ struct LiveRecordView: View {
         
         if let target = targetMountain, let lat = target.latitude, let lon = target.longitude {
             // Center on mountain initially, recenter button will appear
-            _cameraPosition = State(initialValue: .camera(MapCamera(centerCoordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon), distance: 15000)))
+            _viewport = State(initialValue: .camera(center: CLLocationCoordinate2D(latitude: lat, longitude: lon), zoom: 11.5, bearing: 0, pitch: 45))
             _isMapCenteredOnUser = State(initialValue: false)
         } else {
             // Center on user location
-            _cameraPosition = State(initialValue: .userLocation(fallback: .automatic))
+            _viewport = State(initialValue: .styleDefault)
         }
     }
 
@@ -375,12 +375,15 @@ struct LiveRecordView: View {
     var body: some View {
         ZStack(alignment: .topTrailing) {
             // === LAYER 1: Map ===
-            Map(position: $cameraPosition, bounds: MapCameraBounds(maximumDistance: 150_000)) {
-                UserAnnotation()
+            Map(viewport: $viewport) {
+                Puck2D(bearing: .heading)
                 
                 if let approach = appleApproachRoute {
-                    MapPolyline(coordinates: approach)
-                        .stroke(.gray.opacity(0.82), style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round))
+                    PolylineAnnotation(lineCoordinates: approach)
+                        .lineColor(StyleColor(.gray.opacity(0.82)))
+                        .lineWidth(5.0)
+                        .lineJoin(.round)
+                        .lineCap(.round)
                 }
                 
                 // 🟢 Zeichnet die Offline Ascent Polyline (z.T. ignoriert, z.T. aktiv)
@@ -391,33 +394,47 @@ struct LiveRecordView: View {
                     
                     // Der ignorierte untere Teil (vor dem Interception Point)
                     if safeIntercept > 0 {
-                        MapPolyline(coordinates: Array(routeCoords[0...safeIntercept]))
-                            .stroke(.gray.opacity(0.35), style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round))
+                        PolylineAnnotation(lineCoordinates: Array(routeCoords[0...safeIntercept]))
+                            .lineColor(StyleColor(.gray.opacity(0.35)))
+                            .lineWidth(4.0)
+                            .lineJoin(.round)
+                            .lineCap(.round)
                     }
                     
                     // Das Stück vom Interception-Point bis zur aktuellen User-Position (bereits gelaufen / grau)
                     if safeActiveStart > safeIntercept {
-                        MapPolyline(coordinates: Array(routeCoords[safeIntercept...safeActiveStart]))
-                            .stroke(.gray.opacity(0.68), style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round))
+                        PolylineAnnotation(lineCoordinates: Array(routeCoords[safeIntercept...safeActiveStart]))
+                            .lineColor(StyleColor(.gray.opacity(0.68)))
+                            .lineWidth(5.0)
+                            .lineJoin(.round)
+                            .lineCap(.round)
                     }
                     
                     // Das restliche, noch zu laufende Stück in die Zukunft (Sattes Cyan)
                     if safeActiveStart < routeCoords.count - 1 {
-                        MapPolyline(coordinates: Array(routeCoords[safeActiveStart...]))
-                            .stroke(.cyan, style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round))
+                        PolylineAnnotation(lineCoordinates: Array(routeCoords[safeActiveStart...]))
+                            .lineColor(StyleColor(.cyan))
+                            .lineWidth(5.0)
+                            .lineJoin(.round)
+                            .lineCap(.round)
                     }
                 }
                 
                 // 🟢 Zeigt den Ziel-Marker auf dem Berg
                 if let target = targetMountain, let lat = target.latitude, let lon = target.longitude {
-                    Marker(target.name, systemImage: "mountain.2.fill", coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon))
-                        .tint(gold)
+                    ViewAnnotation(coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon)) {
+                        Image(systemName: "mountain.2.fill")
+                            .font(.title)
+                            .foregroundColor(gold)
+                            .shadow(color: .black.opacity(0.3), radius: 2, y: 1)
+                    }
+                    .allowOverlap(true)
                         
                     // 🟢 Zeigt optional das Trailhead-Startsymbol (den Parkplatz)
                     if let routes = target.routes, let first = routes.first {
                         let tLat = first.start_lat
                         let tLon = first.start_lon
-                        Annotation("Trailhead", coordinate: CLLocationCoordinate2D(latitude: tLat, longitude: tLon)) {
+                        ViewAnnotation(coordinate: CLLocationCoordinate2D(latitude: tLat, longitude: tLon)) {
                             Image(systemName: "figure.walk.arrival")
                                 .font(.app(size: 14, weight: .bold))
                                 .foregroundColor(.white)
@@ -427,26 +444,41 @@ struct LiveRecordView: View {
                                 .overlay(Circle().stroke(Color.white, lineWidth: 2))
                                 .shadow(radius: 3)
                         }
+                        .allowOverlap(true)
                     }
                 }
                 
                 // 🟢 Zeigt die Linie an, die du tatsächlich gelaufen bist
                 if !gpsManager.routePoints.isEmpty {
-                    MapPolyline(coordinates: gpsManager.routePoints)
-                        .stroke(userRouteColor, style: StrokeStyle(lineWidth: 6, lineCap: .round, lineJoin: .round))
+                    PolylineAnnotation(lineCoordinates: gpsManager.routePoints)
+                        .lineColor(StyleColor(userRouteColor))
+                        .lineWidth(6.0)
+                        .lineJoin(.round)
+                        .lineCap(.round)
                 }
             }
-            .mapStyle(.imagery(elevation: .realistic))
-            .mapControls { }
+            .mapStyle(.outdoors)
+            .onMapStyleLoaded { style in
+                var demSource = RasterDemSource(id: "mapbox-dem")
+                demSource.url = "mapbox://mapbox.mapbox-terrain-dem-v1"
+                try? style.addSource(demSource)
+                
+                var terrain = Terrain(sourceId: "mapbox-dem")
+                terrain.exaggeration = .constant(1.5)
+                try? style.setTerrain(terrain)
+            }
             .safeAreaPadding(.bottom, -40)
             .ignoresSafeArea()
-            .onMapCameraChange(frequency: .onEnd) { context in
+            .onCameraChanged { cameraChanged in
                 if let userLoc = gpsManager.currentLocation {
-                    let camCenter = context.region.center
+                    let camCenter = cameraChanged.cameraState.center
                     let camLoc = CLLocation(latitude: camCenter.latitude, longitude: camCenter.longitude)
                     let distance = userLoc.distance(from: camLoc)
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                        isMapCenteredOnUser = distance < 500
+                    let newIsCentered = distance < 500
+                    if isMapCenteredOnUser != newIsCentered {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                            isMapCenteredOnUser = newIsCentered
+                        }
                     }
                 }
             }
@@ -729,7 +761,7 @@ struct LiveRecordView: View {
         HapticManager.shared.light()
         if let userLoc = gpsManager.currentLocation {
             withAnimation(.easeInOut(duration: 1.0)) {
-                cameraPosition = .camera(MapCamera(centerCoordinate: userLoc.coordinate, distance: 3000))
+                viewport = .camera(center: userLoc.coordinate, zoom: 13, bearing: 0, pitch: 45)
                 isMapCenteredOnUser = true
             }
         }
@@ -779,18 +811,29 @@ struct LiveRecordView: View {
         
         withAnimation(.easeInOut(duration: 1.0)) {
             if !allPoints.isEmpty {
-                let rects = allPoints.map { MKMapRect(origin: MKMapPoint($0), size: MKMapSize(width: 1, height: 1)) }
-                var finalRect = rects.first!
-                for rect in rects { finalRect = finalRect.union(rect) }
-                cameraPosition = .rect(padMapRect(finalRect))
+                let maxLat = allPoints.map(\.latitude).max()!
+                let minLat = allPoints.map(\.latitude).min()!
+                let maxLon = allPoints.map(\.longitude).max()!
+                let minLon = allPoints.map(\.longitude).min()!
+                
+                let centerLat = (maxLat + minLat) / 2
+                let centerLon = (maxLon + minLon) / 2
+                let maxDelta = max(maxLat - minLat, maxLon - minLon)
+                
+                let tempZoom = log2(360.0 / max(0.0001, maxDelta)) - 1.0
+                let finalZoom = min(15.0, max(5.0, tempZoom))
+
+                viewport = .camera(center: CLLocationCoordinate2D(latitude: centerLat, longitude: centerLon), zoom: finalZoom, bearing: 0, pitch: 0)
+
             } else if let target = targetMountain, let userLoc = gpsManager.currentLocation, let lat = target.latitude, let lon = target.longitude {
-                let p1 = MKMapPoint(userLoc.coordinate)
-                let p2 = MKMapPoint(CLLocationCoordinate2D(latitude: lat, longitude: lon))
-                let rect = MKMapRect(
-                    x: min(p1.x, p2.x), y: min(p1.y, p2.y),
-                    width: abs(p1.x - p2.x), height: abs(p1.y - p2.y)
-                )
-                cameraPosition = .rect(padMapRect(rect))
+                let centerLat = (userLoc.coordinate.latitude + lat) / 2
+                let centerLon = (userLoc.coordinate.longitude + lon) / 2
+                let maxDelta = max(abs(userLoc.coordinate.latitude - lat), abs(userLoc.coordinate.longitude - lon))
+                
+                let tempZoom = log2(360.0 / max(0.0001, maxDelta)) - 1.0
+                let finalZoom = min(15.0, max(5.0, tempZoom))
+
+                viewport = .camera(center: CLLocationCoordinate2D(latitude: centerLat, longitude: centerLon), zoom: finalZoom, bearing: 0, pitch: 0)
             }
         }
     }
