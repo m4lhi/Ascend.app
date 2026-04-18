@@ -1,7 +1,7 @@
 {
   "images" : [
     {
-      "filename" : "Ascend Logo-iOS-Dark-1024x1024@1x.png",
+      "filename" : "LOGO.jpg",
       "idiom" : "universal",
       "platform" : "ios",
       "size" : "1024x1024"
@@ -13,7 +13,7 @@
           "value" : "dark"
         }
       ],
-      "filename" : "Ascend Logo-iOS-Dark-1024x1024@1x 1.png",
+      "filename" : "LOGO_DESIGN_18_04_2026.jpg",
       "idiom" : "universal",
       "platform" : "ios",
       "size" : "1024x1024"

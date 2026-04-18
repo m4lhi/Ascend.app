@@ -1,5 +1,5 @@
 import SwiftUI
-import CommonCrypto
+import CryptoKit
 
 // =========================================
 // === Memory & Disk Image Cache ===
@@ -29,18 +29,9 @@ final class ImageCache: @unchecked Sendable {
     }
 
     private func md5(_ string: String) -> String {
-        let length = Int(CC_MD5_DIGEST_LENGTH)
-        var digest = [UInt8](repeating: 0, count: length)
-        
-        if let d = string.data(using: .utf8) {
-            _ = d.withUnsafeBytes { body -> String in
-                CC_MD5(body.baseAddress, CC_LONG(d.count), &digest)
-                return ""
-            }
-        }
-        return (0..<length).reduce("") {
-            $0 + String(format: "%02x", digest[$1])
-        }
+        let data = Data(string.utf8)
+        let hash = Insecure.MD5.hash(data: data)
+        return hash.map { String(format: "%02x", $0) }.joined()
     }
 
     private func diskURL(for url: URL) -> URL {

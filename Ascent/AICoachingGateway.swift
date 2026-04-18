@@ -266,10 +266,11 @@ final class CoachingViewModel: ObservableObject {
         let region = MountainRegion.infer(from: data.location)
         
         var availableMts: [Mountain] = []
-        if let mts = try? await supabase.from("mountains")
+        if let mts: [Mountain] = try? await supabase.from("mountains")
             .select("*, routes:mountain_routes(*)")
             .limit(200) // basic sampling to map fallbacks
-            .execute().value as? [Mountain] {
+            .execute()
+            .value {
             availableMts = mts
         }
 
@@ -1167,7 +1168,7 @@ struct CoachingMapView: View {
 
                     if selectedTab == .chat {
                         AIChatGuideView(isEmbedded: true)
-                            .frame(height: UIScreen.main.bounds.height * 0.6)
+                            .frame(height: ((UIApplication.shared.connectedScenes.first as? UIWindowScene)?.screen.bounds.height ?? 852) * 0.6)
                             .clipShape(RoundedRectangle(cornerRadius: 16))
                             .padding(.horizontal, 16)
                             .padding(.top, 16)

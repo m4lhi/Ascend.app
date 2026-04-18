@@ -7,12 +7,10 @@ import SwiftUI
 
 @main
 struct AscentApp: App {
-    // Unser App-Gehirn
     @StateObject private var appState = AppState()
-    
-    // @AppStorage merkt sich dauerhaft, ob wir eingeloggt sind.
-    // Startwert ist "false" (nicht eingeloggt).
     @AppStorage("isLoggedIn") private var isLoggedIn = false
+    @AppStorage("fitnessOnboardingCompleted") private var fitnessOnboardingCompleted = false
+    @State private var showFitnessOnboarding = false
 
     var body: some Scene {
         WindowGroup {
@@ -23,6 +21,19 @@ struct AscentApp: App {
                         .roundedFontDesign()
                         .onAppear {
                             appState.fetchProfileFromCloud()
+                            // DEBUG: Uncomment once to re-show onboarding, then remove
+                            fitnessOnboardingCompleted = false
+                            if !fitnessOnboardingCompleted {
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                                    showFitnessOnboarding = true
+                                }
+                            }
+                        }
+                        .fullScreenCover(isPresented: $showFitnessOnboarding) {
+                            FitnessOnboardingView {
+                                showFitnessOnboarding = false
+                            }
+                            .roundedFontDesign()
                         }
                 } else {
                     LoginView()

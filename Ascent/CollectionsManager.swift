@@ -318,7 +318,7 @@ class CollectionsManager: ObservableObject {
             let member = MemberInsert(collection_id: collectionId, user_id: userId, role: role, invited_by: invitedBy)
             try await supabase.from("collection_members").insert(member).execute()
             // Try to update visibility — gracefully ignore if column doesn't exist yet
-            try? await supabase.from("collections")
+            _ = try? await supabase.from("collections")
                 .update(VisUpdate(visibility: "shared"))
                 .eq("id", value: collectionId)
                 .execute()
@@ -1559,8 +1559,6 @@ struct AddPeaksToCollectionSheet: View {
     
                                 let isAlreadyInCollection = collection.mountain_ids.contains(mountain.id)
                                 let isSelected = addedIds.contains(mountain.id)
-                                let alreadyIn = isAlreadyInCollection || isSelected
-
                                 Button {
                                     guard !isAlreadyInCollection else { return }
                                     if isSelected {

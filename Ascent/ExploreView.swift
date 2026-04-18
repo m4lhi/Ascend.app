@@ -1,5 +1,7 @@
 import SwiftUI
-import MapboxMaps
+import Supabase
+import PostgREST
+@_spi(Experimental) import MapboxMaps
 import CoreLocation
 import Combine
 import Charts
@@ -70,11 +72,20 @@ enum MapLayerType: String, CaseIterable, Identifiable {
     }
 }
 
+// MARK: - Mountain Champion
+struct MountainChampion {
+    let userId: UUID
+    let avatarUrl: String?
+    let username: String
+}
+
 // MARK: - ExploreView
 struct ExploreView: View {
     @EnvironmentObject var appState: AppState
     @StateObject private var mountainManager = MountainManager()
     @StateObject private var locationManager = ExploreLocationManager()
+
+    @AppStorage("userFitnessLevel") private var userFitnessLevel = 0
 
     @State private var viewport: Viewport = .styleDefault
     @State private var selectedMarkerTag: UUID? = nil
@@ -82,6 +93,7 @@ struct ExploreView: View {
 
     @FocusState private var isSearchFocused: Bool
     @State private var isSearchActive = false
+    @State private var searchExpanded = false
     @State private var searchText = ""
     @State private var searchTask: Task<Void, Never>? = nil
 
@@ -91,8 +103,14 @@ struct ExploreView: View {
     @State private var showNearby = false
     @State private var nearbyRadiusKm: Double = 25
 
-    @State private var currentMapLayer: MapLayerType = .satellite
+    @AppStorage("mapLayerType") private var mapLayerRaw: String = MapLayerType.satellite.rawValue
+    private var currentMapLayer: MapLayerType {
+        get { MapLayerType(rawValue: mapLayerRaw) ?? .satellite }
+    }
     @State private var isLayersExpanded = false
+    @State private var is3DMode: Bool = false
+    @State private var cameraCenter: CLLocationCoordinate2D = CLLocationCoordinate2D(latitude: 47.0, longitude: 11.0)
+    @State private var cameraZoom: Double = 8.0
 
     @State private var showLocationDeniedAlert = false
     @State private var isRouteCreationMode = false
@@ -115,6 +133,7 @@ struct ExploreView: View {
 
     @State private var hasCenteredOnUser = false
     @State private var showMyRoutesLibrary = false
+    @State private var mountainChampions: [UUID: MountainChampion] = [:]
 
     private let gold = DesignSystem.Colors.accent
 
@@ -134,34 +153,41 @@ struct ExploreView: View {
         }
     }
 
+    var fitnessMatchedMountains: [Mountain] {
+        guard userFitnessLevel > 0 else { return [] }
+        let level = fitnessLevels[min(userFitnessLevel - 1, fitnessLevels.count - 1)]
+        let matched = mountainManager.mountains
+            .filter { level.difficulties.contains($0.difficulty) && $0.elevation <= level.elevationCap && $0.latitude != nil && $0.longitude != nil }
+        if matched.count >= 6 { return Array(matched.prefix(15)) }
+        let matchedIds = Set(matched.map { $0.id })
+        let extra = mountainManager.mountains
+            .filter { $0.latitude != nil && $0.longitude != nil && !matchedIds.contains($0.id) }
+            .prefix(max(0, 15 - matched.count))
+        return matched + Array(extra)
+    }
+
     var body: some View {
         ZStack(alignment: .top) {
             mapLayer
 
-            LinearGradient(
-                colors: [
-                    Color(red: 0.90, green: 0.94, blue: 1.00).opacity(0.98),
-                    Color(red: 0.94, green: 0.97, blue: 1.00).opacity(0.75),
-                    .clear
-                ],
-                startPoint: .top, endPoint: .bottom
-            )
-            .frame(height: 200)
-            .ignoresSafeArea()
-            .allowsHitTesting(false)
-
-            VStack(spacing: 8) {
-                searchBar
-                toolbarRow
-                filterChips
-
+            VStack(alignment: .leading, spacing: 8) {
+                floatingSearchArea
+                if searchExpanded {
+                    toolbarRow
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                    filterChips
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                }
                 if isSearchActive {
                     searchSuggestionsView
+                        .transition(.move(edge: .top).combined(with: .opacity))
                 }
                 Spacer()
             }
             .padding(.horizontal, 16)
-            .padding(.top, 10)
+            .padding(.top, 56)
+            .animation(.spring(response: 0.42, dampingFraction: 0.82), value: searchExpanded)
+            .animation(.spring(response: 0.42, dampingFraction: 0.82), value: isSearchActive)
 
             VStack {
                 Spacer()
@@ -169,9 +195,9 @@ struct ExploreView: View {
                     Spacer()
                     VStack(spacing: 8) {
                         if isLayersExpanded {
-                            ForEach(MapLayerType.allCases.filter { $0 != currentMapLayer }) { layer in 
+                            ForEach(MapLayerType.allCases.filter { $0 != currentMapLayer }) { layer in
                                 FloatingMapButton(icon: layer.icon) {
-                                    currentMapLayer = layer
+                                    mapLayerRaw = layer.rawValue
                                     withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { isLayersExpanded = false }
                                 }
                                 .transition(.scale(scale: 0.5).combined(with: .opacity))
@@ -180,6 +206,11 @@ struct ExploreView: View {
                         FloatingMapButton(icon: "square.3.layers.3d", active: isLayersExpanded) {
                             withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                                 isLayersExpanded.toggle()
+                            }
+                        }
+                        FloatingMapButton3D(is3D: is3DMode) {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                is3DMode.toggle()
                             }
                         }
                         FloatingMapButton(icon: "location.fill") { flyToMyLocation() }
@@ -194,7 +225,7 @@ struct ExploreView: View {
                 if isRouteCreationMode {
                     routeCreationPanel
                         .transition(.move(edge: .bottom).combined(with: .opacity))
-                } else if !isSearchActive {
+                } else if !searchExpanded {
                     discoverySheet
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
@@ -244,10 +275,14 @@ struct ExploreView: View {
             }
         }
         .onChange(of: isSearchFocused) { _, focused in
-            withAnimation(.spring()) { isSearchActive = focused }
+            withAnimation(.spring()) {
+                isSearchActive = focused
+                if focused { searchExpanded = true }
+            }
             if focused { Task { await mountainManager.fetchTopMountains() } }
         }
         .onChange(of: searchText) { _, _ in performDebouncedSearch() }
+        .onChange(of: mountainManager.mountains) { _, _ in Task { await fetchChampions() } }
         .onChange(of: selectedDifficulty) { _, _ in Task { await refreshResults() } }
         .onChange(of: showNearby) { _, _ in Task { await refreshResults() } }
         .onChange(of: nearbyRadiusKm) { _, _ in performDebouncedSearch() }
@@ -321,17 +356,17 @@ struct ExploreView: View {
         }
     }
 
-    @ViewBuilder
     var mapLayer: some View {
+        MapReader { proxy in
         Map(viewport: $viewport) {
             Puck2D(bearing: .heading)
 
-            ForEach(visibleMountains, id: \.id) { mountain in
+            ForEvery(visibleMountains, id: \.id) { mountain in
                 let coord = CLLocationCoordinate2D(latitude: mountain.latitude ?? 0, longitude: mountain.longitude ?? 0)
                 
                 if isRouteCreationMode {
                     if let idx = routeMountains.firstIndex(where: { $0.id == mountain.id }) {
-                        ViewAnnotation(coordinate: coord) {
+                        MapViewAnnotation(coordinate:coord) {
                             ZStack {
                                 Circle().fill(gold).frame(width: 32, height: 32)
                                 Text("\(idx + 1)").font(.app(size: 14, weight: .black)).foregroundColor(.black)
@@ -341,7 +376,7 @@ struct ExploreView: View {
                         }
                         .allowOverlap(true)
                     } else {
-                        ViewAnnotation(coordinate: coord) {
+                        MapViewAnnotation(coordinate:coord) {
                             Image(systemName: "plus.circle.fill")
                                 .font(.title)
                                 .foregroundColor(.primary.opacity(0.7))
@@ -352,7 +387,7 @@ struct ExploreView: View {
                     }
                 }
                 else if selectedMountain?.id == mountain.id {
-                    ViewAnnotation(coordinate: coord) {
+                    MapViewAnnotation(coordinate:coord) {
                         VStack(spacing: 0) {
                             Text(mountain.name)
                                 .font(.app(size: 13, weight: .bold))
@@ -372,30 +407,21 @@ struct ExploreView: View {
                     }
                     .allowOverlap(true)
                 }
-                else if mountain.isPrestigePeak {
-                    ViewAnnotation(coordinate: coord) {
-                        Image(systemName: "crown.fill")
-                            .font(.title2)
-                            .foregroundColor(gold)
-                            .shadow(color: .black.opacity(0.5), radius: 2, y: 1)
-                            .onTapGesture { selectMountain(mountain) }
-                    }
-                    .allowOverlap(true)
-                } else {
-                    ViewAnnotation(coordinate: coord) {
-                        Image(systemName: "mountain.2.fill")
-                            .font(.title3)
-                            .foregroundColor(difficultyColor(mountain.difficulty))
-                            .shadow(color: .black.opacity(0.5), radius: 2, y: 1)
-                            .onTapGesture { selectMountain(mountain) }
+                else {
+                    MapViewAnnotation(coordinate: coord) {
+                        MountainMapPin(
+                            mountain: mountain,
+                            champion: mountainChampions[mountain.id],
+                            color: mountain.isPrestigePeak ? gold : difficultyColor(mountain.difficulty)
+                        ) { selectMountain(mountain) }
                     }
                     .allowOverlap(true)
                 }
             }
 
             if showNearby {
-                ForEach(mountainManager.nearbyPOIs) { poi in
-                    ViewAnnotation(coordinate: CLLocationCoordinate2D(latitude: poi.latitude, longitude: poi.longitude)) {
+                ForEvery(mountainManager.nearbyPOIs) { poi in
+                    MapViewAnnotation(coordinate:CLLocationCoordinate2D(latitude: poi.latitude, longitude: poi.longitude)) {
                         Image(systemName: poiIcon(for: poi.type))
                             .font(.app(size: 12, weight: .bold))
                             .foregroundColor(.white)
@@ -414,7 +440,7 @@ struct ExploreView: View {
                     return CLLocationCoordinate2D(latitude: lat, longitude: lon)
                 }
                 PolylineAnnotation(lineCoordinates: coords)
-                    .lineColor(StyleColor(gold))
+                    .lineColor(StyleColor(UIColor(gold)))
                     .lineWidth(3.0)
             }
             
@@ -425,34 +451,36 @@ struct ExploreView: View {
                     return CLLocationCoordinate2D(latitude: lat, longitude: lon)
                 }
                 PolylineAnnotation(lineCoordinates: coords)
-                    .lineColor(StyleColor(gold))
+                    .lineColor(StyleColor(UIColor(gold)))
                     .lineWidth(4.0)
             }
         }
         .mapStyle(mapStyleForCurrentLayer)
-        .onMapStyleLoaded { style in
+        .onStyleLoaded { _ in
+            guard let map = proxy.map else { return }
             var demSource = RasterDemSource(id: "mapbox-dem")
             demSource.url = "mapbox://mapbox.mapbox-terrain-dem-v1"
-            try? style.addSource(demSource)
-            
+            try? map.addSource(demSource)
+
             var terrain = Terrain(sourceId: "mapbox-dem")
             terrain.exaggeration = .constant(1.5)
-            try? style.setTerrain(terrain)
+            try? map.setTerrain(terrain)
         }
-        .safeAreaPadding(.top, 160)
         .onCameraChanged { cameraChanged in
-            let center = cameraChanged.cameraState.center
-            let zoom = cameraChanged.cameraState.zoom
-            
+            cameraCenter = cameraChanged.cameraState.center
+            cameraZoom   = cameraChanged.cameraState.zoom
+            let center = cameraCenter
+            let zoom = cameraZoom
+
             let newZoom: ZoomLevel
             if zoom < 9 { newZoom = .far }
             else if zoom < 11.5 { newZoom = .medium }
             else { newZoom = .close }
-            
+
             if currentZoomLevel != newZoom {
                 withAnimation(.easeInOut(duration: 0.2)) { currentZoomLevel = newZoom }
             }
-            
+
             let span = 360.0 / pow(2.0, zoom)
             let latDelta = span * 0.8
             let lonDelta = span
@@ -469,8 +497,19 @@ struct ExploreView: View {
                 await mountainManager.fetchMountainsInBounds(minLat: minLat, maxLat: maxLat, minLon: minLon, maxLon: maxLon, zoomLevel: newZoom)
             }
         }
-        .safeAreaPadding(.bottom, -40)
+        .onChange(of: is3DMode) { _, enabled in
+            guard let map = proxy.map else { return }
+            var terrain = Terrain(sourceId: "mapbox-dem")
+            terrain.exaggeration = .constant(enabled ? 1.5 : 0)
+            try? map.setTerrain(terrain)
+            withAnimation(.easeInOut(duration: 0.5)) {
+                viewport = .camera(center: cameraCenter, zoom: cameraZoom, bearing: 0, pitch: enabled ? 50 : 0)
+            }
+        }
+        .safeAreaPadding(Edge.Set.top, 110)
+        .safeAreaPadding(Edge.Set.bottom, -40)
         .ignoresSafeArea()
+        } // end MapReader
     }
 
     var mapStyleForCurrentLayer: MapboxMaps.MapStyle {
@@ -479,6 +518,65 @@ struct ExploreView: View {
         case .satellite: return .satelliteStreets
         case .night:     return .dark
         }
+    }
+
+    @ViewBuilder
+    var floatingSearchArea: some View {
+        HStack(spacing: 8) {
+            Button {
+                withAnimation(.spring(response: 0.48, dampingFraction: 0.76)) {
+                    searchExpanded.toggle()
+                    if !searchExpanded {
+                        searchText = ""
+                        isSearchFocused = false
+                        isSearchActive = false
+                        selectedDifficulty = nil
+                    }
+                }
+            } label: {
+                ZStack {
+                    Circle()
+                        .fill(.ultraThinMaterial)
+                        .frame(width: 46, height: 46)
+                        .shadow(color: .black.opacity(0.22), radius: 12, y: 4)
+                    Image(systemName: searchExpanded ? "xmark" : "magnifyingglass")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(.black)
+                        .rotationEffect(.degrees(searchExpanded ? 90 : 0))
+                        .scaleEffect(searchExpanded ? 0.9 : 1.0)
+                        .animation(.spring(response: 0.35, dampingFraction: 0.7), value: searchExpanded)
+                }
+            }
+
+            if searchExpanded {
+                HStack(spacing: 8) {
+                    TextField("Search peaks, regions…", text: $searchText)
+                        .focused($isSearchFocused)
+                        .font(.app(size: 15))
+                        .foregroundColor(.primary)
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never)
+                    if !searchText.isEmpty {
+                        Button { searchText = "" } label: {
+                            Image(systemName: "xmark.circle.fill").foregroundColor(.secondary)
+                        }
+                    }
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 12)
+                .background(.ultraThinMaterial)
+                .clipShape(RoundedRectangle(cornerRadius: 23))
+                .shadow(color: .black.opacity(0.14), radius: 10, y: 3)
+                .transition(.asymmetric(
+                    insertion: .move(edge: .leading).combined(with: .opacity),
+                    removal: .move(edge: .leading).combined(with: .opacity)
+                ))
+                .onAppear {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { isSearchFocused = true }
+                }
+            }
+        }
+        .frame(maxWidth: searchExpanded ? .infinity : 46, alignment: .leading)
     }
 
     @ViewBuilder
@@ -750,38 +848,78 @@ struct ExploreView: View {
     @ViewBuilder
     var discoverySheet: some View {
         let nearbyCards: [Mountain] = {
-            guard let loc = locationManager.userLocation else { return Array(visibleMountains.prefix(10)) }
-            return visibleMountains.sorted { m1, m2 in
-                let loc1 = CLLocation(latitude: m1.latitude ?? 0, longitude: m1.longitude ?? 0)
-                let loc2 = CLLocation(latitude: m2.latitude ?? 0, longitude: m2.longitude ?? 0)
-                return loc.distance(from: loc1) < loc.distance(from: loc2)
-            }.prefix(10).map { $0 }
+            var result: [Mountain]
+            if let loc = locationManager.userLocation {
+                result = visibleMountains.sorted { m1, m2 in
+                    let loc1 = CLLocation(latitude: m1.latitude ?? 0, longitude: m1.longitude ?? 0)
+                    let loc2 = CLLocation(latitude: m2.latitude ?? 0, longitude: m2.longitude ?? 0)
+                    return loc.distance(from: loc1) < loc.distance(from: loc2)
+                }
+            } else {
+                result = Array(visibleMountains)
+            }
+            if result.count < 6 {
+                let ids = Set(result.map { $0.id })
+                let extra = mountainManager.mountains
+                    .filter { $0.latitude != nil && $0.longitude != nil && !ids.contains($0.id) }
+                    .prefix(15 - result.count)
+                result += Array(extra)
+            }
+            return Array(result.prefix(15))
         }()
 
+        let forYouCards = fitnessMatchedMountains
         let savedRoutes = mountainManager.savedRoutes
 
         VStack(alignment: .leading, spacing: 0) {
-            HStack { Spacer(); Capsule().fill(Color.white.opacity(0.4)).frame(width: 40, height: 4); Spacer() }
+            // Drag handle with pulse hint
+            HStack { Spacer(); SheetDragHandle(); Spacer() }
                 .padding(.top, 12).padding(.bottom, 8).contentShape(Rectangle())
                 .onTapGesture { withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { discoverySheetExpanded.toggle() } }
 
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 18) {
-                    
-                    if !nearbyCards.isEmpty && !showRoutesFilter {
-                        discoverySectionHeader(title: "Nearby Missions", icon: "mountain.2.fill")
+
+                    // "For Your Level" section — shown when fitness profile is set
+                    if !forYouCards.isEmpty && !showRoutesFilter {
+                        let levelName = userFitnessLevel > 0 ? fitnessLevels[min(userFitnessLevel - 1, fitnessLevels.count - 1)].title : "You"
+                        discoverySectionHeader(title: "For Your Level · \(levelName)", icon: "figure.hiking")
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 12) {
                                 Spacer().frame(width: 4)
-                                ForEach(nearbyCards, id: \.id) { mountain in
-                                    ExploreDiscoveryCard(mountain: mountain, userLocation: locationManager.userLocation, compact: true) { selectMountain(mountain) }
+                                ForEach(Array(forYouCards.enumerated()), id: \.element.id) { index, mountain in
+                                    ExploreDiscoveryCard(
+                                        mountain: mountain,
+                                        userLocation: locationManager.userLocation,
+                                        compact: true,
+                                        entranceDelay: Double(index) * 0.06
+                                    ) { selectMountain(mountain) }
                                 }
                                 Spacer().frame(width: 4)
                             }
                         }
                     }
 
-                    if (discoverySheetExpanded || showRoutesFilter || nearbyCards.isEmpty) {
+                    // Nearby Missions — always show when no fitness filter active or as fallback
+                    if !nearbyCards.isEmpty && !showRoutesFilter && (forYouCards.isEmpty || discoverySheetExpanded) {
+                        discoverySectionHeader(title: "Nearby Missions", icon: "mountain.2.fill")
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 12) {
+                                Spacer().frame(width: 4)
+                                ForEach(Array(nearbyCards.enumerated()), id: \.element.id) { index, mountain in
+                                    ExploreDiscoveryCard(
+                                        mountain: mountain,
+                                        userLocation: locationManager.userLocation,
+                                        compact: true,
+                                        entranceDelay: Double(index) * 0.05
+                                    ) { selectMountain(mountain) }
+                                }
+                                Spacer().frame(width: 4)
+                            }
+                        }
+                    }
+
+                    if discoverySheetExpanded || showRoutesFilter || (nearbyCards.isEmpty && forYouCards.isEmpty) {
                         HStack {
                             discoverySectionHeader(title: "My Routes", icon: "bookmark.fill")
                             Button { showMyRoutesLibrary = true } label: {
@@ -816,7 +954,7 @@ struct ExploreView: View {
                     }
                 }.padding(.bottom, 16)
             }
-            .frame(maxHeight: discoverySheetExpanded ? 350 : 130)
+            .frame(maxHeight: discoverySheetExpanded ? 440 : 220)
         }
         .background(.ultraThinMaterial.opacity(0.95))
         .clipShape(RoundedRectangle(cornerRadius: 24))
@@ -897,7 +1035,7 @@ struct ExploreView: View {
 
     func selectMountain(_ mountain: Mountain) {
         withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-            selectedMountain = mountain; selectedMarkerTag = mountain.id; isSearchFocused = false; isSearchActive = false; searchText = ""; selectedRouteToShow = nil
+            selectedMountain = mountain; selectedMarkerTag = mountain.id; isSearchFocused = false; isSearchActive = false; searchExpanded = false; searchText = ""; selectedRouteToShow = nil
         }
         if let lat = mountain.latitude, let lon = mountain.longitude { flyToMountain(lat: lat, lon: lon) }
     }
@@ -929,6 +1067,58 @@ struct ExploreView: View {
                 await mountainManager.searchMountains(query: searchText, difficulty: selectedDifficulty)
             }
         }
+    }
+
+    func fetchChampions() async {
+        let names = Array(Set(visibleMountains.map { $0.name }))
+        guard !names.isEmpty else { return }
+
+        struct ChampRow: Codable {
+            let name: String
+            let user_id: UUID
+            let duration_seconds: Int?
+        }
+        guard let rows: [ChampRow] = try? await supabase
+            .from("tours")
+            .select("name, user_id, duration_seconds")
+            .in("name", values: names)
+            .execute()
+            .value else { return }
+
+        // Find fastest per mountain name
+        var fastest: [String: ChampRow] = [:]
+        for row in rows {
+            guard let dur = row.duration_seconds, dur > 0 else { continue }
+            if let ex = fastest[row.name], let exDur = ex.duration_seconds, exDur <= dur { continue }
+            fastest[row.name] = row
+        }
+        guard !fastest.isEmpty else { return }
+
+        let userIds = Array(Set(fastest.values.map { $0.user_id }))
+        let profiles: [ShareableUser] = (try? await supabase
+            .from("profiles")
+            .select("id, username, avatar_url, handle")
+            .in("id", values: userIds)
+            .execute()
+            .value) ?? []
+        
+        var profileMap: [UUID: ShareableUser] = [:]
+        for profile in profiles {
+            profileMap[profile.id] = profile
+        }
+
+        var result: [UUID: MountainChampion] = [:]
+        for mountain in visibleMountains {
+            if let champ = fastest[mountain.name] {
+                let p = profileMap[champ.user_id]
+                result[mountain.id] = MountainChampion(
+                    userId: champ.user_id,
+                    avatarUrl: p?.avatar_url,
+                    username: p?.username ?? "?"
+                )
+            }
+        }
+        mountainChampions = result
     }
 
     func saveCreatedRoute() {
@@ -1087,17 +1277,125 @@ struct FloatingMapButton: View {
     }
 }
 
+struct FloatingMapButton3D: View {
+    let is3D: Bool
+    let action: () -> Void
+    private let gold = DesignSystem.Colors.accent
+    var body: some View {
+        Button(action: action) {
+            Text(is3D ? "3D" : "2D")
+                .font(.system(size: 14, weight: .black))
+                .foregroundColor(is3D ? .white : .black)
+                .frame(width: 44, height: 44)
+                .background(is3D ? AnyShapeStyle(gold) : AnyShapeStyle(.ultraThinMaterial))
+                .clipShape(Circle())
+                .shadow(color: .black.opacity(0.15), radius: 8, y: 4)
+        }
+    }
+}
+
+// MARK: - Mountain Map Pin
+struct MountainMapPin: View {
+    let mountain: Mountain
+    let champion: MountainChampion?
+    let color: Color
+    let onTap: () -> Void
+
+    @State private var appeared = false
+    @State private var tapped = false
+
+    var body: some View {
+        Button {
+            withAnimation(.spring(response: 0.25, dampingFraction: 0.5)) { tapped = true }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { tapped = false }
+            }
+            onTap()
+        } label: {
+            pinContent
+        }
+        .buttonStyle(.plain)
+        .scaleEffect(appeared ? (tapped ? 1.25 : 1.0) : 0.1)
+        .opacity(appeared ? 1 : 0)
+        .animation(.spring(response: 0.4, dampingFraction: 0.55), value: appeared)
+        .animation(.spring(response: 0.25, dampingFraction: 0.5), value: tapped)
+        .onAppear {
+            withAnimation(.spring(response: 0.45, dampingFraction: 0.55).delay(Double.random(in: 0...0.12))) {
+                appeared = true
+            }
+        }
+    }
+
+    @ViewBuilder
+    var pinContent: some View {
+        if let champ = champion, let avatarUrlStr = champ.avatarUrl, let avatarUrl = URL(string: avatarUrlStr) {
+            CachedAsyncImage(url: avatarUrl) { image in
+                image.resizable().scaledToFill()
+            } placeholder: {
+                Circle().fill(color.opacity(0.3))
+            }
+            .frame(width: 36, height: 36)
+            .clipShape(Circle())
+            .overlay(Circle().stroke(color, lineWidth: 2.5))
+            .overlay(
+                Image(systemName: "crown.fill")
+                    .font(.system(size: 8, weight: .black))
+                    .foregroundColor(.white)
+                    .padding(2)
+                    .background(color)
+                    .clipShape(Circle())
+                    .offset(x: 12, y: -12),
+                alignment: .topTrailing
+            )
+            .shadow(color: color.opacity(0.5), radius: 6, y: 3)
+        } else {
+            ZStack {
+                Circle()
+                    .fill(color)
+                    .frame(width: 30, height: 30)
+                Image(systemName: "mountain.2")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(.white)
+            }
+            .shadow(color: color.opacity(0.45), radius: 5, y: 3)
+            .overlay(Circle().stroke(Color.white.opacity(0.8), lineWidth: 1.5))
+        }
+    }
+}
+
+// MARK: - Animated Drag Handle
+struct SheetDragHandle: View {
+    @State private var pulse = false
+
+    var body: some View {
+        Capsule()
+            .fill(Color.white.opacity(pulse ? 0.6 : 0.3))
+            .frame(width: 40, height: 4)
+            .scaleEffect(x: pulse ? 1.15 : 1.0, y: 1.0)
+            .animation(.easeInOut(duration: 1.4).repeatForever(autoreverses: true), value: pulse)
+            .onAppear { pulse = true }
+    }
+}
+
 struct ToolbarButton: View {
     let icon: String
     let label: String
     let isActive: Bool
     let action: () -> Void
+
+    @State private var pressed = false
+
     var body: some View {
-        Button(action: action) {
+        Button {
+            withAnimation(.spring(response: 0.2, dampingFraction: 0.6)) { pressed = true }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { pressed = false }
+            }
+            action()
+        } label: {
             HStack(spacing: 6) {
                 Image(systemName: icon)
-                Text(label)
-                    .fontWeight(.semibold)
+                Text(label).fontWeight(.semibold)
             }
             .font(.app(size: 13))
             .foregroundColor(isActive ? .white : .primary)
@@ -1105,6 +1403,7 @@ struct ToolbarButton: View {
             .padding(.vertical, 10)
             .background(isActive ? DesignSystem.Colors.accent : Color(.systemGray6))
             .clipShape(Capsule())
+            .scaleEffect(pressed ? 0.93 : 1.0)
         }
     }
 }
@@ -1114,8 +1413,17 @@ struct DifficultyChip: View {
     let color: Color
     let isSelected: Bool
     let action: () -> Void
+
+    @State private var pressed = false
+
     var body: some View {
-        Button(action: action) {
+        Button {
+            withAnimation(.spring(response: 0.22, dampingFraction: 0.6)) { pressed = true }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { pressed = false }
+            }
+            action()
+        } label: {
             Text(label)
                 .font(.app(size: 13, weight: .bold))
                 .foregroundColor(isSelected ? .white : color)
@@ -1123,6 +1431,8 @@ struct DifficultyChip: View {
                 .padding(.vertical, 8)
                 .background(isSelected ? color : color.opacity(0.1))
                 .clipShape(Capsule())
+                .scaleEffect(isSelected ? 1.05 : (pressed ? 0.93 : 1.0))
+                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
         }
     }
 }
@@ -1158,24 +1468,98 @@ struct ExploreDiscoveryCard: View {
     let mountain: Mountain
     let userLocation: CLLocation?
     let compact: Bool
+    var entranceDelay: Double = 0
     let action: () -> Void
+
+    private let cardSize: CGFloat = 140
+    @State private var appeared = false
+    @State private var pressed = false
+
     var body: some View {
-        Button(action: action) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text(mountain.name)
-                    .font(.app(.headline))
-                    .foregroundColor(.primary)
-                Text("\(mountain.elevation)m • \(mountain.difficulty.rawValue)")
-                    .font(.app(.subheadline))
-                    .foregroundColor(.secondary)
+        Button {
+            withAnimation(.spring(response: 0.22, dampingFraction: 0.6)) { pressed = true }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { pressed = false }
             }
-            .padding()
-            .frame(width: compact ? 160 : 200, alignment: .leading)
-            .background(.ultraThinMaterial)
-            .cornerRadius(16)
-            .shadow(color: .black.opacity(0.1), radius: 5, y: 2)
+            action()
+        } label: {
+            ZStack(alignment: .bottomLeading) {
+                if let imgUrl = mountain.effectiveImageUrl, let url = URL(string: imgUrl) {
+                    CachedAsyncImage(url: url) { image in
+                        image.resizable().scaledToFill()
+                    } placeholder: {
+                        Rectangle().fill(
+                            LinearGradient(
+                                colors: [difficultyColor.opacity(0.5), difficultyColor.opacity(0.25)],
+                                startPoint: .topLeading, endPoint: .bottomTrailing
+                            )
+                        )
+                    }
+                } else {
+                    Rectangle().fill(
+                        LinearGradient(
+                            colors: [difficultyColor.opacity(0.5), difficultyColor.opacity(0.25)],
+                            startPoint: .topLeading, endPoint: .bottomTrailing
+                        )
+                    )
+                    .overlay(
+                        Image(systemName: "mountain.2")
+                            .font(.system(size: 36, weight: .light))
+                            .foregroundColor(.white.opacity(0.4))
+                    )
+                }
+
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(mountain.name)
+                        .font(.app(size: 13, weight: .bold))
+                        .foregroundColor(.white)
+                        .lineLimit(2)
+                    Text("\(mountain.elevation)m")
+                        .font(.app(size: 11, weight: .semibold))
+                        .foregroundColor(.white.opacity(0.85))
+                }
+                .padding(.horizontal, 10)
+                .padding(.bottom, 10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(
+                    LinearGradient(
+                        colors: [.clear, .black.opacity(0.7)],
+                        startPoint: .center, endPoint: .bottom
+                    )
+                )
+
+                // Difficulty dot top-right
+                difficultyColor
+                    .frame(width: 8, height: 8)
+                    .clipShape(Circle())
+                    .overlay(Circle().stroke(Color.white.opacity(0.8), lineWidth: 1))
+                    .padding(8)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+            }
+            .frame(width: cardSize, height: cardSize)
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .shadow(color: .black.opacity(0.2), radius: 8, y: 4)
+            .scaleEffect(pressed ? 0.94 : 1.0)
         }
         .buttonStyle(.plain)
+        .opacity(appeared ? 1 : 0)
+        .offset(y: appeared ? 0 : 20)
+        .scaleEffect(appeared ? 1 : 0.88)
+        .onAppear {
+            withAnimation(.spring(response: 0.45, dampingFraction: 0.72).delay(entranceDelay)) {
+                appeared = true
+            }
+        }
+    }
+
+    private var difficultyColor: Color {
+        switch mountain.difficulty {
+        case .easy:    return .green
+        case .medium:  return .yellow
+        case .hard:    return .orange
+        case .extreme: return .red
+        case .expert:  return .purple
+        }
     }
 }
 

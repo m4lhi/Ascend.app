@@ -1,8 +1,9 @@
 import SwiftUI
-import MapboxMaps
+@_spi(Experimental) import MapboxMaps
 import Combine
 import CoreLocation
 import CoreMotion
+import MapKit
 import Charts
 import PhotosUI
 
@@ -308,10 +309,26 @@ struct LiveRecordView: View {
     @State private var hasCalculatedRoute = false
     @State private var isTooFarForRoute = false
     @State private var isMapCenteredOnUser = true
+    @State private var is3DMode: Bool = true
+    @State private var cameraCenter: CLLocationCoordinate2D = CLLocationCoordinate2D(latitude: 47.5, longitude: 11.0)
+    @State private var cameraZoom: Double = 13.0
 
     private let gold = DesignSystem.Colors.accent
     @AppStorage("routeColor") private var routeColorName: String = "blue"
     @AppStorage("turnByTurnEnabled") private var turnByTurnEnabled = false
+    @AppStorage("mapLayerType") private var mapLayerRaw: String = MapLayerType.satellite.rawValue
+
+    private var currentMapLayer: MapLayerType {
+        MapLayerType(rawValue: mapLayerRaw) ?? .satellite
+    }
+
+    private var mapStyleForCurrentLayer: MapboxMaps.MapStyle {
+        switch currentMapLayer {
+        case .standard:  return .outdoors
+        case .satellite: return .satelliteStreets
+        case .night:     return .dark
+        }
+    }
 
     private var userRouteColor: Color {
         switch routeColorName {
@@ -375,15 +392,15 @@ struct LiveRecordView: View {
     var body: some View {
         ZStack(alignment: .topTrailing) {
             // === LAYER 1: Map ===
+            MapReader { proxy in
             Map(viewport: $viewport) {
                 Puck2D(bearing: .heading)
                 
                 if let approach = appleApproachRoute {
                     PolylineAnnotation(lineCoordinates: approach)
-                        .lineColor(StyleColor(.gray.opacity(0.82)))
+                        .lineColor(StyleColor(UIColor.gray.withAlphaComponent(0.82)))
                         .lineWidth(5.0)
                         .lineJoin(.round)
-                        .lineCap(.round)
                 }
                 
                 // 🟢 Zeichnet die Offline Ascent Polyline (z.T. ignoriert, z.T. aktiv)
@@ -395,34 +412,32 @@ struct LiveRecordView: View {
                     // Der ignorierte untere Teil (vor dem Interception Point)
                     if safeIntercept > 0 {
                         PolylineAnnotation(lineCoordinates: Array(routeCoords[0...safeIntercept]))
-                            .lineColor(StyleColor(.gray.opacity(0.35)))
+                            .lineColor(StyleColor(UIColor.gray.withAlphaComponent(0.35)))
                             .lineWidth(4.0)
                             .lineJoin(.round)
-                            .lineCap(.round)
                     }
                     
                     // Das Stück vom Interception-Point bis zur aktuellen User-Position (bereits gelaufen / grau)
                     if safeActiveStart > safeIntercept {
                         PolylineAnnotation(lineCoordinates: Array(routeCoords[safeIntercept...safeActiveStart]))
-                            .lineColor(StyleColor(.gray.opacity(0.68)))
+                            .lineColor(StyleColor(UIColor.gray.withAlphaComponent(0.68)))
                             .lineWidth(5.0)
                             .lineJoin(.round)
-                            .lineCap(.round)
                     }
                     
                     // Das restliche, noch zu laufende Stück in die Zukunft (Sattes Cyan)
                     if safeActiveStart < routeCoords.count - 1 {
-                        PolylineAnnotation(lineCoordinates: Array(routeCoords[safeActiveStart...]))
-                            .lineColor(StyleColor(.cyan))
+                        let remainingPoints = Array(routeCoords[safeActiveStart...])
+                        PolylineAnnotation(lineCoordinates: remainingPoints)
+                            .lineColor(StyleColor(UIColor.cyan))
                             .lineWidth(5.0)
                             .lineJoin(.round)
-                            .lineCap(.round)
                     }
                 }
                 
                 // 🟢 Zeigt den Ziel-Marker auf dem Berg
                 if let target = targetMountain, let lat = target.latitude, let lon = target.longitude {
-                    ViewAnnotation(coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon)) {
+                    MapViewAnnotation(coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon)) {
                         Image(systemName: "mountain.2.fill")
                             .font(.title)
                             .foregroundColor(gold)
@@ -434,7 +449,7 @@ struct LiveRecordView: View {
                     if let routes = target.routes, let first = routes.first {
                         let tLat = first.start_lat
                         let tLon = first.start_lon
-                        ViewAnnotation(coordinate: CLLocationCoordinate2D(latitude: tLat, longitude: tLon)) {
+                        MapViewAnnotation(coordinate: CLLocationCoordinate2D(latitude: tLat, longitude: tLon)) {
                             Image(systemName: "figure.walk.arrival")
                                 .font(.app(size: 14, weight: .bold))
                                 .foregroundColor(.white)
@@ -451,30 +466,28 @@ struct LiveRecordView: View {
                 // 🟢 Zeigt die Linie an, die du tatsächlich gelaufen bist
                 if !gpsManager.routePoints.isEmpty {
                     PolylineAnnotation(lineCoordinates: gpsManager.routePoints)
-                        .lineColor(StyleColor(userRouteColor))
+                        .lineColor(StyleColor(UIColor(userRouteColor)))
                         .lineWidth(6.0)
                         .lineJoin(.round)
-                        .lineCap(.round)
                 }
             }
-            .mapStyle(.outdoors)
-            .onMapStyleLoaded { style in
+            .mapStyle(mapStyleForCurrentLayer)
+            .onStyleLoaded { _ in
+                guard let map = proxy.map else { return }
                 var demSource = RasterDemSource(id: "mapbox-dem")
                 demSource.url = "mapbox://mapbox.mapbox-terrain-dem-v1"
-                try? style.addSource(demSource)
-                
+                try? map.addSource(demSource)
+
                 var terrain = Terrain(sourceId: "mapbox-dem")
                 terrain.exaggeration = .constant(1.5)
-                try? style.setTerrain(terrain)
+                try? map.setTerrain(terrain)
             }
-            .safeAreaPadding(.bottom, -40)
-            .ignoresSafeArea()
             .onCameraChanged { cameraChanged in
+                cameraCenter = cameraChanged.cameraState.center
+                cameraZoom   = cameraChanged.cameraState.zoom
                 if let userLoc = gpsManager.currentLocation {
-                    let camCenter = cameraChanged.cameraState.center
-                    let camLoc = CLLocation(latitude: camCenter.latitude, longitude: camCenter.longitude)
-                    let distance = userLoc.distance(from: camLoc)
-                    let newIsCentered = distance < 500
+                    let camLoc = CLLocation(latitude: cameraCenter.latitude, longitude: cameraCenter.longitude)
+                    let newIsCentered = userLoc.distance(from: camLoc) < 500
                     if isMapCenteredOnUser != newIsCentered {
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                             isMapCenteredOnUser = newIsCentered
@@ -482,6 +495,17 @@ struct LiveRecordView: View {
                     }
                 }
             }
+            .onChange(of: is3DMode) { _, enabled in
+                guard let map = proxy.map else { return }
+                var terrain = Terrain(sourceId: "mapbox-dem")
+                terrain.exaggeration = .constant(enabled ? 1.5 : 0)
+                try? map.setTerrain(terrain)
+                withAnimation(.easeInOut(duration: 0.5)) {
+                    viewport = .camera(center: cameraCenter, zoom: cameraZoom, bearing: 0, pitch: enabled ? 50 : 0)
+                }
+            }
+            .safeAreaPadding(Edge.Set.bottom, -40)
+            .ignoresSafeArea()
             .onChange(of: gpsManager.currentLocation) { _, newLoc in
                 guard let loc = newLoc else { return }
 
@@ -497,36 +521,24 @@ struct LiveRecordView: View {
 
                 // Off-Route Detection: Snapping & Splitting update
                 updateClosestRouteIndex(to: loc.coordinate)
-                
+
                 print("🧭 GPS: onChange fired — target=\(targetMountain?.name ?? "nil"), hasCalc=\(hasCalculatedRoute), lat=\(targetMountain?.latitude ?? -1)")
-                
+
                 guard let target = targetMountain, !hasCalculatedRoute,
                       let targetLat = target.latitude, let targetLon = target.longitude else { return }
-                
+
                 hasCalculatedRoute = true
                 withAnimation { self.isTooFarForRoute = false }
                 calculateRouteToMountain(from: loc.coordinate, to: CLLocationCoordinate2D(latitude: targetLat, longitude: targetLon))
             }
+            } // end MapReader
 
-            // === LAYER 2: Lightening overlay ===
-            Color.white.opacity(0.4).ignoresSafeArea()
-                .allowsHitTesting(false)
-
-            // === LAYER 3: Top gradient ===
-            VStack {
-                LinearGradient(colors: [.white.opacity(0.95), .white.opacity(0.5), .clear],
-                               startPoint: .top, endPoint: .bottom)
-                    .frame(height: 200).ignoresSafeArea()
-                    .allowsHitTesting(false)
-                Spacer()
-            }
-
-            // === LAYER 4: Bottom gradient ===
+            // === LAYER 3: Bottom gradient (subtle lift for panel) ===
             VStack {
                 Spacer()
-                LinearGradient(colors: [.clear, .white.opacity(0.8)],
+                LinearGradient(colors: [.clear, .white.opacity(0.55)],
                                startPoint: .top, endPoint: .bottom)
-                    .frame(height: 300).ignoresSafeArea()
+                    .frame(height: 220).ignoresSafeArea()
                     .allowsHitTesting(false)
             }
             
@@ -556,6 +568,21 @@ struct LiveRecordView: View {
                     }
                     .transition(.scale.combined(with: .opacity))
                 }
+
+                // 3D / 2D toggle
+                Button(action: {
+                    HapticManager.shared.light()
+                    is3DMode.toggle()
+                }) {
+                    Text(is3DMode ? "3D" : "2D")
+                        .font(.app(size: 13, weight: .black))
+                        .foregroundColor(is3DMode ? gold : .primary)
+                        .frame(width: 40, height: 40)
+                        .background(.ultraThinMaterial, in: Circle())
+                        .overlay(Circle().stroke(is3DMode ? gold.opacity(0.35) : Color.black.opacity(0.04), lineWidth: 1.5))
+                        .shadow(color: .black.opacity(0.1), radius: 6, y: 3)
+                }
+                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: is3DMode)
 
                 // Weather button
                 if weatherManager.currentWeather != nil {
@@ -880,8 +907,8 @@ struct LiveRecordView: View {
             
             Task {
                 let request = MKDirections.Request()
-                request.source = MKMapItem(placemark: MKPlacemark(coordinate: userLoc))
-                request.destination = MKMapItem(placemark: MKPlacemark(coordinate: interceptCoord))
+                request.source = MKMapItem(location: CLLocation(latitude: userLoc.latitude, longitude: userLoc.longitude), address: nil)
+                request.destination = MKMapItem(location: CLLocation(latitude: interceptCoord.latitude, longitude: interceptCoord.longitude), address: nil)
                 
                 // WICHTIG: Zuerst Auto probieren! Apple weigert sich oft, weite Strecken als "Walking" zu berechnen.
                 request.transportType = .automobile
@@ -920,7 +947,7 @@ struct LiveRecordView: View {
                                     let rects = allActiveCoords.map { MKMapRect(origin: MKMapPoint($0), size: MKMapSize(width: 1, height: 1)) }
                                     if var finalRect = rects.first {
                                         for r in rects { finalRect = finalRect.union(r) }
-                                        self.cameraPosition = .rect(self.padMapRect(finalRect))
+                                        self.viewport = viewportFromMapRect(self.padMapRect(finalRect))
                                     }
                                 }
                             }
@@ -945,14 +972,14 @@ struct LiveRecordView: View {
                     x: min(p1.x, p2.x), y: min(p1.y, p2.y),
                     width: abs(p1.x - p2.x), height: abs(p1.y - p2.y)
                 )
-                self.cameraPosition = .rect(padMapRect(rect))
+                self.viewport = viewportFromMapRect(padMapRect(rect))
             }
         }
 
         Task {
             let request = MKDirections.Request()
-            request.source = MKMapItem(placemark: MKPlacemark(coordinate: userLoc))
-            request.destination = MKMapItem(placemark: MKPlacemark(coordinate: dest))
+            request.source = MKMapItem(location: CLLocation(latitude: userLoc.latitude, longitude: userLoc.longitude), address: nil)
+            request.destination = MKMapItem(location: CLLocation(latitude: dest.latitude, longitude: dest.longitude), address: nil)
             request.transportType = .automobile // Auch hier .automobile als Standard setzen
 
             var calculatedRoute: MKRoute? = nil
@@ -979,7 +1006,7 @@ struct LiveRecordView: View {
                     withAnimation(.easeInOut(duration: 1.0)) {
                         self.appleApproachRoute = coords
                         if !self.isRunning {
-                            self.cameraPosition = .rect(self.padMapRect(route.polyline.boundingMapRect))
+                            self.viewport = viewportFromMapRect(self.padMapRect(route.polyline.boundingMapRect))
                         }
                     }
                     // Trigger navigation if recording is already active
@@ -998,6 +1025,15 @@ struct LiveRecordView: View {
             width: rect.size.width * 1.6,
             height: rect.size.height * 1.6
         )
+    }
+
+    private func viewportFromMapRect(_ rect: MKMapRect) -> Viewport {
+        let center = MKMapPoint(x: rect.midX, y: rect.midY).coordinate
+        let worldSize = 268435456.0
+        let zoomW = log2(worldSize / max(rect.size.width, 1)) - 0.5
+        let zoomH = log2(worldSize / max(rect.size.height, 1)) - 0.5
+        let zoom = max(1.0, min(zoomW, zoomH))
+        return .camera(center: center, zoom: zoom, bearing: 0, pitch: 0)
     }
 
     // MARK: - Top Bar
@@ -1095,6 +1131,13 @@ struct LiveRecordView: View {
         }
         .padding(.horizontal, 20)
         .padding(.top, 58)
+        .padding(.bottom, 14)
+        .background(.ultraThinMaterial.opacity(0.92))
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(Color.black.opacity(0.06))
+                .frame(height: 0.5)
+        }
     }
 
     // MARK: - Data Panel
