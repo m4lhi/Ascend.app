@@ -129,7 +129,7 @@ class WeatherManager: ObservableObject {
             let weather = try await weatherService.weather(for: location)
 
             let current = weather.currentWeather
-            let hourly = Array(weather.hourlyForecast.prefix(12))
+            let hourly = Array(weather.hourlyForecast.prefix(24))
 
             let hourlyItems = hourly.map { hour in
                 HourlyWeather(

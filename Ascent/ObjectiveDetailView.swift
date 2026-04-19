@@ -16,7 +16,8 @@ struct ObjectiveDetailView: View {
     let target: Int
     let unit: String
 
-    private let gold = DesignSystem.Colors.accent
+    @State private var appeared = false
+    private let accent = DesignSystem.Colors.accent
 
     private var progress: Double {
         guard target > 0 else { return 0 }
@@ -24,77 +25,102 @@ struct ObjectiveDetailView: View {
     }
 
     var body: some View {
-        ZStack {
-            Color.clear.ignoresSafeArea()
+        VStack(spacing: 0) {
+            // Drag handle
+            Capsule()
+                .fill(Color.secondary.opacity(0.3))
+                .frame(width: 36, height: 4)
+                .padding(.top, 12)
+                .padding(.bottom, 4)
 
-            VStack(spacing: 20) {
-                // Header (fix fixiert oben)
-                HStack {
-                    Text(title).font(.app(.title2)).fontWeight(.bold).foregroundColor(.primary)
-                    Spacer()
-                    Button(action: { dismiss() }) {
-                        Image(systemName: "xmark.circle.fill").font(.app(size: 24)).foregroundColor(.gray)
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 28) {
+                    // Animated hero icon
+                    ZStack {
+                        Circle()
+                            .fill(accent.opacity(0.10))
+                            .frame(width: 110, height: 110)
+                        Circle()
+                            .fill(accent.opacity(0.07))
+                            .frame(width: 82, height: 82)
+                        // Animated progress ring
+                        Circle()
+                            .stroke(Color.secondary.opacity(0.08), lineWidth: 6)
+                            .frame(width: 110, height: 110)
+                        Circle()
+                            .trim(from: 0, to: appeared ? progress : 0)
+                            .stroke(accent, style: StrokeStyle(lineWidth: 6, lineCap: .round))
+                            .frame(width: 110, height: 110)
+                            .rotationEffect(.degrees(-90))
+                            .animation(.easeOut(duration: 1.1).delay(0.2), value: appeared)
+                        Image(systemName: icon)
+                            .font(.system(size: 34, weight: .black))
+                            .foregroundColor(accent)
                     }
-                }
-                .padding(.top, 25)
-                .padding(.horizontal, 25)
+                    .scaleEffect(appeared ? 1.0 : 0.5)
+                    .opacity(appeared ? 1 : 0)
+                    .animation(.spring(response: 0.48, dampingFraction: 0.60).delay(0.04), value: appeared)
+                    .padding(.top, 20)
 
-                ScrollView(showsIndicators: false) {
-                    VStack(spacing: 30) {
-                        // Circular progress
-                        ZStack {
-                            Circle()
-                                .stroke(Color.black.opacity(0.06), lineWidth: 10)
-                                .frame(width: 140, height: 140)
-                            Circle()
-                                .trim(from: 0, to: progress)
-                                .stroke(gold, style: StrokeStyle(lineWidth: 10, lineCap: .round))
-                                .frame(width: 140, height: 140)
-                                .rotationEffect(.degrees(-90))
-                            VStack(spacing: 4) {
-                                Image(systemName: icon).font(.app(size: 28)).foregroundColor(gold)
-                                Text("\(Int(progress * 100))%")
-                                    .font(.app(size: 20, weight: .bold))
-                                    .foregroundColor(.primary)
-                            }
-                        }
-                        .padding(.top, 10)
+                    // Title + numbers
+                    VStack(spacing: 6) {
+                        Text(title)
+                            .font(.app(size: 22, weight: .black))
+                            .foregroundColor(.primary)
+                            .multilineTextAlignment(.center)
+                        Text("\(Int(progress * 100))%")
+                            .font(.appMono(size: 42, weight: .black))
+                            .foregroundColor(accent)
+                            .contentTransition(.numericText())
+                        Text("\(current) / \(target) \(unit)")
+                            .font(.appMono(size: 13, weight: .semibold))
+                            .foregroundColor(.secondary)
+                    }
+                    .opacity(appeared ? 1 : 0)
+                    .offset(y: appeared ? 0 : 16)
+                    .animation(.spring(response: 0.5, dampingFraction: 0.8).delay(0.12), value: appeared)
 
-                        VStack(spacing: 8) {
-                            Text("\(current) / \(target) \(unit)")
-                                .font(.app(.title3)).fontWeight(.bold).foregroundColor(.primary)
-                            Text("Resets every Monday")
-                                .font(.app(.caption)).foregroundColor(.gray)
-                        }
-
-                        // This week's tours
-                        if !appState.weeklyTours.isEmpty {
-                            VStack(alignment: .leading, spacing: 12) {
-                                Text("This Week").font(.app(.headline)).foregroundColor(.primary)
-                                ForEach(appState.weeklyTours) { tour in
-                                    HStack {
-                                        VStack(alignment: .leading, spacing: 2) {
-                                            Text(tour.summitName).font(.app(.subheadline)).fontWeight(.semibold).foregroundColor(.primary)
-                                            Text(tour.date, style: .date).font(.app(.caption2)).foregroundColor(.gray)
-                                        }
-                                        Spacer()
-                                        Text("+\(tour.elevationGainMeters)m")
-                                            .font(.app(.caption)).fontWeight(.bold).foregroundColor(gold)
+                    // This week's tours
+                    if !appState.weeklyTours.isEmpty {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("THIS WEEK")
+                                .font(.appMono(size: 10, weight: .bold))
+                                .foregroundColor(.secondary)
+                                .tracking(1.4)
+                                .padding(.horizontal, 4)
+                            ForEach(appState.weeklyTours) { tour in
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(tour.summitName)
+                                            .font(.app(size: 14, weight: .semibold))
+                                        Text(tour.date, style: .date)
+                                            .font(.app(size: 12))
+                                            .foregroundColor(.secondary)
                                     }
-                                    .padding(12)
-                                    .background(Color.white)
-                                    .cornerRadius(12)
-                                    .shadow(color: .black.opacity(0.04), radius: 8, y: 4)
+                                    Spacer()
+                                    Text("+\(tour.elevationGainMeters)m")
+                                        .font(.appMono(size: 13, weight: .black))
+                                        .foregroundColor(accent)
                                 }
+                                .padding(14)
+                                .background(.ultraThinMaterial)
+                                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                             }
                         }
-
-                        Spacer(minLength: 40)
+                        .opacity(appeared ? 1 : 0)
+                        .offset(y: appeared ? 0 : 20)
+                        .animation(.spring(response: 0.5, dampingFraction: 0.8).delay(0.2), value: appeared)
                     }
-                    .padding(.horizontal, 25)
+
+                    Spacer(minLength: 40)
                 }
+                .padding(.horizontal, 24)
             }
+            .scrollContentBackground(.hidden)
+            .background(.clear)
         }
+        .background(.clear)
         .presentationBackground(.ultraThinMaterial)
+        .onAppear { withAnimation { appeared = true } }
     }
 }

@@ -342,7 +342,11 @@ struct EquipmentCatalog {
 
 @MainActor
 class AppState: ObservableObject {
-    
+
+    init() {
+        loadContextualPersistence()
+    }
+
     // --- GLOBAL TRACKER STATE ---
     @Published var isTrackerActive: Bool = false
     @Published var isTrackerMinimized: Bool = false
@@ -372,6 +376,10 @@ class AppState: ObservableObject {
     
     // Ascend Progress
     @Published var ascendProfile: AscendProfile? = nil
+    
+    // Readiness & Health
+    @Published var readiness: ReadinessBreakdown? = nil
+    @Published var healthProfile: HealthKitProfile? = nil
 
     
     // Feeds & Leaderboards
@@ -395,6 +403,101 @@ class AppState: ObservableObject {
     // Explicit navigation triggers
     @Published var exploreSelectedMountain: Mountain? = nil
     @Published var exploreSearchQuery: String? = nil
+
+    // Requested tab switch from a child view. ContentView observes this and
+    // flips `selectedTab`; nil'd back out after the switch is applied.
+    @Published var pendingTab: Int? = nil
+
+    // Time-to-Go — answers to the contextual questionnaire, keyed by question id.
+    // Multi-select answers are stored as arrays of strings, boolean/scalar answers
+    // as a one-element array ("true" / "3" / etc.) so the storage stays uniform.
+    @Published var timeToGoAnswers: [String: [String]] = [:] {
+        didSet { saveTimeToGoAnswers() }
+    }
+    @Published var timeToGoAnsweredAt: Date? = nil
+
+    // Extended Summit Readiness — subjective answers beyond the 5 mandatory sliders.
+    @Published var extendedReadinessAnswers: [String: [String]] = [:] {
+        didSet { saveExtendedReadiness() }
+    }
+    @Published var extendedReadinessAnsweredAt: Date? = nil
+
+    // Weekly go-score log: one entry per ISO weekday (1 = Monday … 7 = Sunday).
+    // Each value is a 0–100 score used by the 5-stage tracker pill.
+    @Published var weeklyGoScores: [Int: Int] = [:] {
+        didSet { saveWeeklyGoScores() }
+    }
+
+    private func saveTimeToGoAnswers() {
+        if let data = try? JSONEncoder().encode(timeToGoAnswers) {
+            UserDefaults.standard.set(data, forKey: "timeToGoAnswers")
+        }
+        if let at = timeToGoAnsweredAt {
+            UserDefaults.standard.set(at, forKey: "timeToGoAnsweredAt")
+        }
+    }
+    private func saveExtendedReadiness() {
+        if let data = try? JSONEncoder().encode(extendedReadinessAnswers) {
+            UserDefaults.standard.set(data, forKey: "extendedReadinessAnswers")
+        }
+        if let at = extendedReadinessAnsweredAt {
+            UserDefaults.standard.set(at, forKey: "extendedReadinessAnsweredAt")
+        }
+    }
+    private func saveWeeklyGoScores() {
+        let strKeyed = Dictionary(uniqueKeysWithValues: weeklyGoScores.map { (String($0.key), $0.value) })
+        if let data = try? JSONEncoder().encode(strKeyed) {
+            UserDefaults.standard.set(data, forKey: "weeklyGoScores")
+        }
+    }
+    func loadContextualPersistence() {
+        if let data = UserDefaults.standard.data(forKey: "timeToGoAnswers"),
+           let decoded = try? JSONDecoder().decode([String: [String]].self, from: data) {
+            timeToGoAnswers = decoded
+        }
+        timeToGoAnsweredAt = UserDefaults.standard.object(forKey: "timeToGoAnsweredAt") as? Date
+        if let data = UserDefaults.standard.data(forKey: "extendedReadinessAnswers"),
+           let decoded = try? JSONDecoder().decode([String: [String]].self, from: data) {
+            extendedReadinessAnswers = decoded
+        }
+        extendedReadinessAnsweredAt = UserDefaults.standard.object(forKey: "extendedReadinessAnsweredAt") as? Date
+        if let data = UserDefaults.standard.data(forKey: "weeklyGoScores"),
+           let decoded = try? JSONDecoder().decode([String: Int].self, from: data) {
+            weeklyGoScores = Dictionary(uniqueKeysWithValues: decoded.compactMap {
+                guard let k = Int($0.key) else { return nil }
+                return (k, $0.value)
+            })
+        }
+    }
+
+    /// Time-to-Go composite score (0–100). Combines readiness, recent workload
+    /// and the subjective answers from `timeToGoAnswers`. Conservative by design:
+    /// missing data pulls the score down rather than up.
+    var timeToGoScore: Int {
+        let readinessPart = Double(readiness?.totalScore ?? 50)
+        // Subjective component: every answered question contributes +3, capped at 30.
+        let answered = timeToGoAnswers.values.filter { !$0.isEmpty && $0 != [""] }.count
+        let subjectiveBonus = min(Double(answered) * 3.0, 30.0)
+        // Mandatory questions penalty: if fewer than 6 mandatory answers, scale down.
+        let mandatoryAnswered = ["sleep", "nutrition", "weather", "gear", "partners", "motivation"]
+            .filter { !(timeToGoAnswers[$0]?.isEmpty ?? true) }
+            .count
+        let mandatoryFactor = Double(mandatoryAnswered) / 6.0
+        let raw = (readinessPart * 0.55 + subjectiveBonus * 1.5) * max(0.4, mandatoryFactor)
+        return min(100, max(0, Int(raw)))
+    }
+
+    /// Map a 0–100 score onto 5 stages for the Time-to-Go tracker pills.
+    /// Stages: 0 = deep-red (do not go), 4 = deep-green (prime).
+    func goStage(for score: Int) -> Int {
+        switch score {
+        case ..<25: return 0
+        case ..<45: return 1
+        case ..<65: return 2
+        case ..<82: return 3
+        default:    return 4
+        }
+    }
 
     // Pagination
     @Published var isLoadingMoreFeed: Bool = false
@@ -519,6 +622,48 @@ class AppState: ObservableObject {
                     prestige_mountains_completed: 0
                 )
                 self.syncAscendTierWithCurrentLevel() // <- Selbst beim leeren Start der richtige Rang
+            }
+        }
+    }
+    
+    // --- READINESS FUNKTIONEN ---
+    
+    func refreshReadiness() {
+        Task {
+            let profile = await HealthKitBridge.shared.requestAndFetch()
+            self.healthProfile = profile
+            
+            // Try to find a target mountain for environmental evaluation
+            var targetMt: Mountain? = nil
+            // If the user has a coaching plan, we use that as target
+            if let goalData = UserDefaults.standard.data(forKey: "coaching_plan_data"),
+               let plan = try? JSONDecoder().decode(CoachingPlan.self, from: goalData) {
+                // Find mountain by name if possible
+                let results: [Mountain]? = try? await supabase
+                    .from("mountains")
+                    .select("id,name,elevation,difficulty,region,country,image_url,latitude,longitude,isPrestigePeak")
+                    .ilike("name", value: "%\(plan.goalName)%")
+                    .limit(1)
+                    .execute()
+                    .value
+                targetMt = results?.first
+            }
+            
+            var weather: MountainWeather? = nil
+            if let targetMt, let lat = targetMt.latitude, let lon = targetMt.longitude {
+                await WeatherManager.shared.fetchWeather(latitude: lat, longitude: lon)
+                weather = WeatherManager.shared.currentWeather
+            }
+            
+            let result = ReadinessManager.shared.calculate(
+                profile: profile,
+                tours: self.recentTours,
+                targetMountain: targetMt,
+                targetWeather: weather
+            )
+            
+            withAnimation(.spring()) {
+                self.readiness = result
             }
         }
     }

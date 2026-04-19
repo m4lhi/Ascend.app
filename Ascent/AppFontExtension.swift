@@ -6,8 +6,8 @@ import SwiftUI
 
 extension Font {
     static func app(size: CGFloat, weight: Font.Weight = .regular) -> Font {
-        // Alles ab Größe 20 oder explizit fette Typo betrachten wir als Überschrift
-        let isHeading = size >= 20 || weight == .bold || weight == .heavy || weight == .black
+        // High-contrast technical look: CabinetGrotesk for headings, Satoshi for UI
+        let isHeading = size >= 18 || weight == .bold || weight == .heavy || weight == .black
         
         if isHeading {
             return Font.custom("CabinetGrotesk-Bold", size: size)
@@ -16,33 +16,31 @@ extension Font {
         }
     }
 
+    /// Technical instrument-readout font (Monospaced).
+    /// Used for telemetry, altimeter, and numeric stats.
+    static func appMono(size: CGFloat, weight: Font.Weight = .regular) -> Font {
+        Font.system(size: size, weight: weight, design: .monospaced)
+    }
+
+    /// Rounded variants for secondary status labels / pills.
+    static func appTech(size: CGFloat, weight: Font.Weight = .semibold) -> Font {
+        Font.system(size: size, weight: weight, design: .rounded)
+    }
+
     static func app(_ style: Font.TextStyle) -> Font {
         switch style {
-        case .largeTitle:
-            return Font.custom("CabinetGrotesk-Bold", size: 34)
-        case .title:
-            return Font.custom("CabinetGrotesk-Bold", size: 28)
-        case .title2:
-            return Font.custom("CabinetGrotesk-Bold", size: 22)
-        case .title3:
-            return Font.custom("CabinetGrotesk-Bold", size: 20)
-        case .headline:
-            return Font.custom("CabinetGrotesk-Bold", size: 17)
-            
-        case .body:
-            return Font.custom("Satoshi-Regular", size: 17)
-        case .callout:
-            return Font.custom("Satoshi-Regular", size: 16)
-        case .subheadline:
-            return Font.custom("Satoshi-Regular", size: 15)
-        case .footnote:
-            return Font.custom("Satoshi-Regular", size: 13)
-        case .caption:
-            return Font.custom("Satoshi-Regular", size: 12)
-        case .caption2:
-            return Font.custom("Satoshi-Regular", size: 11)
-        @unknown default:
-            return Font.custom("Satoshi-Regular", size: 16)
+        case .largeTitle: return .app(size: 34, weight: .black)
+        case .title:      return .app(size: 28, weight: .bold)
+        case .title2:     return .app(size: 22, weight: .bold)
+        case .title3:     return .app(size: 20, weight: .bold)
+        case .headline:   return .app(size: 17, weight: .bold)
+        case .body:       return .app(size: 16, weight: .regular)
+        case .callout:    return .app(size: 15, weight: .regular)
+        case .subheadline: return .app(size: 14, weight: .regular)
+        case .footnote:   return .app(size: 12, weight: .medium)
+        case .caption:    return .app(size: 11, weight: .medium)
+        case .caption2:   return .app(size: 10, weight: .bold)
+        @unknown default: return .app(size: 16, weight: .regular)
         }
     }
 }

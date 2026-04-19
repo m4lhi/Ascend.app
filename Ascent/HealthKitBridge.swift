@@ -18,6 +18,13 @@ struct HealthKitProfile {
     var restingHeartRate: Int?
     var weeklyWorkoutsCount: Int?
     var avgRunningPaceMinPerKm: Double?
+    
+    // Pro Mountaineer Metrics
+    var heartRateVariability: Double?    // SDNN in ms
+    var bloodOxygenSaturation: Double?   // SpO2 in %
+    var respiratoryRate: Double?         // Breaths per min
+    var sleepMinutesLastNight: Int?
+    var isSleepRestful: Bool?
 
     var bmi: Double? {
         guard let h = heightCm, let w = weightKg, h > 0 else { return nil }
@@ -46,9 +53,13 @@ final class HealthKitBridge {
         let energy  = HKObjectType.quantityType(forIdentifier: .activeEnergyBurned)!
         let steps   = HKObjectType.quantityType(forIdentifier: .stepCount)!
         let rhr     = HKObjectType.quantityType(forIdentifier: .restingHeartRate)!
+        let hrv     = HKObjectType.quantityType(forIdentifier: .heartRateVariabilitySDNN)!
+        let spo2    = HKObjectType.quantityType(forIdentifier: .oxygenSaturation)!
+        let resp    = HKObjectType.quantityType(forIdentifier: .respiratoryRate)!
+        let sleep   = HKObjectType.categoryType(forIdentifier: .sleepAnalysis)!
         let workout = HKObjectType.workoutType()
 
-        let readSet: Set<HKObjectType> = [height, weight, vo2, energy, steps, rhr, workout]
+        let readSet: Set<HKObjectType> = [height, weight, vo2, energy, steps, rhr, hrv, spo2, resp, sleep, workout]
 
         do {
             try await store.requestAuthorization(toShare: [], read: readSet)
@@ -65,12 +76,26 @@ final class HealthKitBridge {
         async let rhrVal    = Self.latestQuantity(store: store, type: rhr, unit: .count().unitDivided(by: .minute()))
         async let workoutsVal = Self.recentWorkouts(store: store, days: 7)
         async let runPaceVal  = Self.avgRunningPaceMinPerKm(store: store, days: 30)
+        
+        async let hrvVal      = Self.latestQuantity(store: store, type: hrv, unit: .secondUnit(with: .milli))
+        async let spo2Val     = Self.latestQuantity(store: store, type: spo2, unit: .percent())
+        async let respVal     = Self.latestQuantity(store: store, type: resp, unit: HKUnit.count().unitDivided(by: .minute()))
+        async let sleepVal    = Self.lastNightSleep(store: store)
 
         result.heightCm             = await heightVal.map { Int($0.rounded()) }
         result.weightKg             = await weightVal.map { Int($0.rounded()) }
         result.vo2max               = await vo2Val.map { Int($0.rounded()) }
         result.restingHeartRate     = await rhrVal.map { Int($0.rounded()) }
         result.avgRunningPaceMinPerKm = await runPaceVal
+        
+        result.heartRateVariability = await hrvVal
+        result.bloodOxygenSaturation = await spo2Val.map { $0 * 100.0 }
+        result.respiratoryRate      = await respVal
+        
+        if let sData = await sleepVal {
+            result.sleepMinutesLastNight = sData.minutes
+            result.isSleepRestful = sData.isRestful
+        }
 
         if let kcal = await kcalVal {
             let intKcal = Int(kcal.rounded())
@@ -145,6 +170,30 @@ final class HealthKitBridge {
                 }
                 guard !paces.isEmpty else { cont.resume(returning: nil); return }
                 cont.resume(returning: paces.reduce(0, +) / Double(paces.count))
+            }
+            store.execute(query)
+        }
+    }
+
+    private static func lastNightSleep(store: HKHealthStore) async -> (minutes: Int, isRestful: Bool)? {
+        await withCheckedContinuation { cont in
+            let sleepType = HKObjectType.categoryType(forIdentifier: .sleepAnalysis)!
+            let calendar = Calendar.current
+            let start = calendar.date(byAdding: .hour, value: -24, to: Date()) ?? Date()
+            let pred = HKQuery.predicateForSamples(withStart: start, end: Date(), options: .strictStartDate)
+            let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)
+            
+            let query = HKSampleQuery(sampleType: sleepType, predicate: pred, limit: HKObjectQueryNoLimit, sortDescriptors: [sort]) { _, samples, _ in
+                guard let sleepSamples = samples as? [HKCategorySample], !sleepSamples.isEmpty else {
+                    cont.resume(returning: nil)
+                    return
+                }
+                
+                let totalSeconds = sleepSamples.filter { $0.value == HKCategoryValueSleepAnalysis.asleep.rawValue }
+                    .reduce(0) { $0 + $1.endDate.timeIntervalSince($1.startDate) }
+                
+                let isRestful = totalSeconds > 7 * 3600 // Subjective pro metric: > 7h 
+                cont.resume(returning: (Int(totalSeconds / 60), isRestful))
             }
             store.execute(query)
         }

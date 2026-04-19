@@ -214,7 +214,16 @@ class FitnessOnboardingState: NSObject, ObservableObject, CLLocationManagerDeleg
         healthState = .requesting
         let profile = await HealthKitBridge.shared.requestAndFetch()
         healthProfile = profile
-        healthState = (profile.heightCm != nil || profile.vo2max != nil || profile.dailyStepsAvg != nil) ? .granted : .denied
+        // Check if ANY health data was returned — even partial access is "granted"
+        let hasAnyData = profile.heightCm != nil || profile.weightKg != nil ||
+                         profile.vo2max != nil || profile.dailyStepsAvg != nil ||
+                         profile.weeklyActiveCalories != nil || profile.restingHeartRate != nil ||
+                         profile.heartRateVariability != nil || profile.bloodOxygenSaturation != nil ||
+                         profile.sleepMinutesLastNight != nil || profile.weeklyWorkoutsCount != nil
+        healthState = hasAnyData ? .granted : .denied
+        // Even if no data was found, the user granted permission — mark as connected
+        // so the app can fetch data later when it becomes available
+        UserDefaults.standard.set(true, forKey: "healthKitConnected")
         isLoadingHealth = false
         // Pre-fill stats from Health if not yet set
         if let h = profile.heightCm { heightCm = h }
@@ -1050,9 +1059,9 @@ private struct ActivityStep: View {
                                 } label: {
                                     Text(d == 0 ? "–" : "\(d)")
                                         .font(.app(size: 13, weight: .bold))
-                                        .foregroundColor(state.weeklyStrengthDays == d ? .black : .white.opacity(0.5))
+                                        .foregroundColor(state.weeklyStrengthDays == d ? .white : .primary)
                                         .frame(maxWidth: .infinity).padding(.vertical, 9)
-                                        .background(state.weeklyStrengthDays == d ? Color.orange : Color.white.opacity(0.08))
+                                        .background(state.weeklyStrengthDays == d ? Color.orange : Color(.systemGray5))
                                         .clipShape(RoundedRectangle(cornerRadius: 10))
                                         .scaleEffect(state.weeklyStrengthDays == d ? 1.06 : 1.0)
                                 }
