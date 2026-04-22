@@ -99,29 +99,48 @@ struct AnimatedLaunchView: View {
                             .frame(width: 146, height: 146)
                             .blur(radius: 0.6)
 
-                        Image("AscentLogo")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 130, height: 130)
-                            .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-                            .shadow(color: .black.opacity(0.28), radius: 30, y: 14)
-                            .overlay(
-                                // Diagonal shine sweep
-                                GeometryReader { geo in
+                        // Use the real logo if it exists, otherwise a premium SF Symbol
+                        Group {
+                            if UIImage(named: "AscentLogo") != nil {
+                                Image("AscentLogo")
+                                    .resizable()
+                                    .scaledToFit()
+                            } else {
+                                ZStack {
                                     LinearGradient(
-                                        colors: [.clear, .white.opacity(0.45), .clear],
-                                        startPoint: .topLeading, endPoint: .bottomTrailing
+                                        colors: [
+                                            Color(red: 0.15, green: 0.50, blue: 1.00),
+                                            Color(red: 0.40, green: 0.75, blue: 1.00)
+                                        ],
+                                        startPoint: .bottom, endPoint: .top
                                     )
-                                    .frame(width: geo.size.width * 0.6)
-                                    .rotationEffect(.degrees(20))
-                                    .offset(x: shine ? geo.size.width : -geo.size.width)
-                                    .blendMode(.plusLighter)
+                                    Image(systemName: "mountain.2.fill")
+                                        .font(.system(size: 58, weight: .bold))
+                                        .foregroundColor(.white)
+                                        .shadow(color: .black.opacity(0.2), radius: 8, y: 4)
                                 }
-                                .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-                            )
-                            .scaleEffect(logoScale)
-                            .rotationEffect(.degrees(logoRotation))
-                            .opacity(logoOpacity)
+                            }
+                        }
+                        .frame(width: 130, height: 130)
+                        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+                        .shadow(color: .black.opacity(0.28), radius: 30, y: 14)
+                        .overlay(
+                            // Diagonal shine sweep
+                            GeometryReader { geo in
+                                LinearGradient(
+                                    colors: [.clear, .white.opacity(0.45), .clear],
+                                    startPoint: .topLeading, endPoint: .bottomTrailing
+                                )
+                                .frame(width: geo.size.width * 0.6)
+                                .rotationEffect(.degrees(20))
+                                .offset(x: shine ? geo.size.width : -geo.size.width)
+                                .blendMode(.plusLighter)
+                            }
+                            .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+                        )
+                        .scaleEffect(logoScale)
+                        .rotationEffect(.degrees(logoRotation))
+                        .opacity(logoOpacity)
                     }
                 }
 

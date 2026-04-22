@@ -146,11 +146,14 @@ struct ExploreView: View {
     }
 
     var visibleMountains: [Mountain] {
+        // In 3D mode reduce pin count to avoid mass-spawn on camera rotation
+        let limit: Int
         switch currentZoomLevel {
-        case .far:    return Array(mapMountains.prefix(30))
-        case .medium: return Array(mapMountains.prefix(80))
-        case .close:  return Array(mapMountains.prefix(200))
+        case .far:    limit = is3DMode ? 15 : 30
+        case .medium: limit = is3DMode ? 40 : 80
+        case .close:  limit = is3DMode ? 80 : 200
         }
+        return Array(mapMountains.prefix(limit))
     }
 
     var fitnessMatchedMountains: [Mountain] {
@@ -233,6 +236,7 @@ struct ExploreView: View {
             .animation(.spring(response: 0.4, dampingFraction: 0.8), value: isRouteCreationMode)
             .animation(.spring(response: 0.4, dampingFraction: 0.8), value: selectedMountain?.id)
         }
+        .ignoresSafeArea()
         .ignoresSafeArea(.keyboard, edges: .bottom)
         .sheet(item: $selectedMountain, onDismiss: {
             selectedMarkerTag = nil
@@ -491,8 +495,10 @@ struct ExploreView: View {
             let maxLon = center.longitude + lonDelta
 
             mapFetchTask?.cancel()
+            // Longer debounce in 3D mode — camera rotates constantly, avoid rapid refetches
+            let debounce: UInt64 = is3DMode ? 900_000_000 : 500_000_000
             mapFetchTask = Task {
-                try? await Task.sleep(nanoseconds: 500_000_000)
+                try? await Task.sleep(nanoseconds: debounce)
                 guard !Task.isCancelled else { return }
                 await mountainManager.fetchMountainsInBounds(minLat: minLat, maxLat: maxLat, minLon: minLon, maxLon: maxLon, zoomLevel: newZoom)
             }
@@ -506,10 +512,9 @@ struct ExploreView: View {
                 viewport = .camera(center: cameraCenter, zoom: cameraZoom, bearing: 0, pitch: enabled ? 50 : 0)
             }
         }
-        .safeAreaPadding(Edge.Set.top, 110)
-        .safeAreaPadding(Edge.Set.bottom, -40)
         .ignoresSafeArea()
         } // end MapReader
+        .ignoresSafeArea()
     }
 
     var mapStyleForCurrentLayer: MapboxMaps.MapStyle {
@@ -522,9 +527,9 @@ struct ExploreView: View {
 
     @ViewBuilder
     var floatingSearchArea: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 0) {
             Button {
-                withAnimation(.spring(response: 0.48, dampingFraction: 0.76)) {
+                withAnimation(.spring(response: 0.45, dampingFraction: 0.82)) {
                     searchExpanded.toggle()
                     if !searchExpanded {
                         searchText = ""
@@ -535,49 +540,54 @@ struct ExploreView: View {
                 }
             } label: {
                 ZStack {
-                    Circle()
-                        .fill(.ultraThinMaterial)
-                        .frame(width: 46, height: 46)
-                        .shadow(color: .black.opacity(0.22), radius: 12, y: 4)
-                    Image(systemName: searchExpanded ? "xmark" : "magnifyingglass")
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundColor(.black)
+                    if !searchExpanded {
+                        Circle()
+                            .fill(.ultraThinMaterial)
+                            .frame(width: 44, height: 44)
+                            .shadow(color: .black.opacity(0.12), radius: 8, y: 3)
+                    }
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundColor(.primary)
                         .rotationEffect(.degrees(searchExpanded ? 90 : 0))
-                        .scaleEffect(searchExpanded ? 0.9 : 1.0)
-                        .animation(.spring(response: 0.35, dampingFraction: 0.7), value: searchExpanded)
                 }
             }
+            .padding(.leading, 4)
 
             if searchExpanded {
-                HStack(spacing: 8) {
+                HStack(spacing: 10) {
                     TextField("Search peaks, regions…", text: $searchText)
                         .focused($isSearchFocused)
                         .font(.app(size: 15))
                         .foregroundColor(.primary)
-                        .autocorrectionDisabled()
-                        .textInputAutocapitalization(.never)
+                    
                     if !searchText.isEmpty {
                         Button { searchText = "" } label: {
                             Image(systemName: "xmark.circle.fill").foregroundColor(.secondary)
                         }
+                    } else {
+                        Button {
+                            withAnimation { searchExpanded = false }
+                        } label: {
+                            Image(systemName: "chevron.right").font(.system(size: 12, weight: .bold)).foregroundColor(.secondary)
+                        }
                     }
                 }
                 .padding(.horizontal, 14)
-                .padding(.vertical, 12)
+                .padding(.vertical, 10)
                 .background(.ultraThinMaterial)
-                .clipShape(RoundedRectangle(cornerRadius: 23))
-                .shadow(color: .black.opacity(0.14), radius: 10, y: 3)
+                .clipShape(Capsule())
+                .shadow(color: .black.opacity(0.1), radius: 6, y: 2)
+                .padding(.leading, 8)
                 .transition(.asymmetric(
-                    insertion: .move(edge: .leading).combined(with: .opacity),
-                    removal: .move(edge: .leading).combined(with: .opacity)
+                    insertion: .opacity.combined(with: .move(edge: .leading)).combined(with: .scale(scale: 0.9)),
+                    removal: .opacity.combined(with: .move(edge: .leading))
                 ))
-                .onAppear {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { isSearchFocused = true }
-                }
             }
         }
-        .frame(maxWidth: searchExpanded ? .infinity : 46, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
+
 
     @ViewBuilder
     var searchBar: some View {
@@ -1294,6 +1304,18 @@ struct FloatingMapButton3D: View {
     }
 }
 
+// MARK: - Pin Pointer Shape
+private struct PinPointer: Shape {
+    func path(in rect: CGRect) -> Path {
+        Path { p in
+            p.move(to: CGPoint(x: rect.midX, y: rect.maxY))
+            p.addLine(to: CGPoint(x: rect.minX, y: rect.minY))
+            p.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
+            p.closeSubpath()
+        }
+    }
+}
+
 // MARK: - Mountain Map Pin
 struct MountainMapPin: View {
     let mountain: Mountain
@@ -1304,61 +1326,99 @@ struct MountainMapPin: View {
     @State private var appeared = false
     @State private var tapped = false
 
+    private var elevationLabel: String {
+        let e = mountain.elevation
+        return e >= 1000 ? String(format: "%gk", Double(e) / 1000) : "\(e)"
+    }
+
     var body: some View {
         Button {
-            withAnimation(.spring(response: 0.25, dampingFraction: 0.5)) { tapped = true }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { tapped = false }
+            withAnimation(.spring(response: 0.22, dampingFraction: 0.6)) { tapped = true }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+                withAnimation(.spring(response: 0.28, dampingFraction: 0.75)) { tapped = false }
             }
             onTap()
         } label: {
             pinContent
         }
         .buttonStyle(.plain)
-        .scaleEffect(appeared ? (tapped ? 1.25 : 1.0) : 0.1)
+        .scaleEffect(appeared ? (tapped ? 1.18 : 1.0) : 0.6)
         .opacity(appeared ? 1 : 0)
-        .animation(.spring(response: 0.4, dampingFraction: 0.55), value: appeared)
-        .animation(.spring(response: 0.25, dampingFraction: 0.5), value: tapped)
+        .animation(.easeOut(duration: 0.18), value: appeared)
+        .animation(.spring(response: 0.22, dampingFraction: 0.6), value: tapped)
         .onAppear {
-            withAnimation(.spring(response: 0.45, dampingFraction: 0.55).delay(Double.random(in: 0...0.12))) {
-                appeared = true
-            }
+            withAnimation(.easeOut(duration: 0.2)) { appeared = true }
         }
     }
 
     @ViewBuilder
     var pinContent: some View {
         if let champ = champion, let avatarUrlStr = champ.avatarUrl, let avatarUrl = URL(string: avatarUrlStr) {
-            CachedAsyncImage(url: avatarUrl) { image in
-                image.resizable().scaledToFill()
-            } placeholder: {
-                Circle().fill(color.opacity(0.3))
-            }
-            .frame(width: 36, height: 36)
-            .clipShape(Circle())
-            .overlay(Circle().stroke(color, lineWidth: 2.5))
-            .overlay(
-                Image(systemName: "crown.fill")
-                    .font(.system(size: 8, weight: .black))
-                    .foregroundColor(.white)
-                    .padding(2)
-                    .background(color)
-                    .clipShape(Circle())
-                    .offset(x: 12, y: -12),
-                alignment: .topTrailing
-            )
-            .shadow(color: color.opacity(0.5), radius: 6, y: 3)
-        } else {
-            ZStack {
-                Circle()
+            // Champion avatar pin
+            VStack(spacing: 0) {
+                CachedAsyncImage(url: avatarUrl) { image in
+                    image.resizable().scaledToFill()
+                } placeholder: {
+                    Circle().fill(color.opacity(0.3))
+                }
+                .frame(width: 34, height: 34)
+                .clipShape(Circle())
+                .overlay(Circle().stroke(color, lineWidth: 2))
+                .overlay(
+                    Image(systemName: "crown.fill")
+                        .font(.system(size: 7, weight: .black))
+                        .foregroundColor(.white)
+                        .padding(2)
+                        .background(color)
+                        .clipShape(Circle())
+                        .offset(x: 11, y: -11),
+                    alignment: .topTrailing
+                )
+                .shadow(color: color.opacity(0.45), radius: 5, y: 2)
+
+                PinPointer()
                     .fill(color)
-                    .frame(width: 30, height: 30)
-                Image(systemName: "mountain.2")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(.white)
+                    .frame(width: 8, height: 5)
+                    .offset(y: -1)
             }
-            .shadow(color: color.opacity(0.45), radius: 5, y: 3)
-            .overlay(Circle().stroke(Color.white.opacity(0.8), lineWidth: 1.5))
+        } else if mountain.isPrestigePeak {
+            // Prestige peak — gold badge with crown
+            VStack(spacing: 0) {
+                HStack(spacing: 3) {
+                    Image(systemName: "crown.fill")
+                        .font(.system(size: 7, weight: .black))
+                    Text(elevationLabel)
+                        .font(.system(size: 10, weight: .black, design: .rounded))
+                }
+                .foregroundColor(.black)
+                .padding(.horizontal, 7)
+                .padding(.vertical, 4)
+                .background(color)
+                .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                .shadow(color: color.opacity(0.55), radius: 5, y: 2)
+
+                PinPointer()
+                    .fill(color)
+                    .frame(width: 7, height: 4)
+                    .offset(y: -1)
+            }
+        } else {
+            // Standard elevation badge
+            VStack(spacing: 0) {
+                Text(elevationLabel)
+                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 4)
+                    .background(color)
+                    .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                    .shadow(color: color.opacity(0.5), radius: 4, y: 2)
+
+                PinPointer()
+                    .fill(color)
+                    .frame(width: 7, height: 4)
+                    .offset(y: -1)
+            }
         }
     }
 }
