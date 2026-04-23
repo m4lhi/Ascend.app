@@ -617,10 +617,10 @@ struct AICoachingGatewayView: View {
         ZStack {
             // Background adapts once region is known
             if let region = vm.plan?.region {
-                region.skyGradient.ignoresSafeArea()
+                
                 AmbientParticlesLayer(region: region).ignoresSafeArea()
             } else {
-                CT.Gradients.sky.ignoresSafeArea()
+                
             }
 
             VStack(spacing: 0) {

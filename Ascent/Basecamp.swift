@@ -165,6 +165,8 @@ struct BasecampView: View {
                 .presentationDetents([.medium, .large])
                 .presentationCornerRadius(36)
                 .presentationBackground(.ultraThinMaterial)
+.presentationBackgroundInteraction(.enabled(upThrough: .large))
+
         }
         .sheet(isPresented: $showObjectiveDetail) {
             if let obj = selectedObjective {
@@ -172,12 +174,16 @@ struct BasecampView: View {
                     .presentationDetents([.medium, .large])
                     .presentationCornerRadius(36)
                     .presentationBackground(.ultraThinMaterial)
+.presentationBackgroundInteraction(.enabled(upThrough: .large))
+
             }
         }
         .sheet(isPresented: $showAllActivities) {
             AllActivitiesView()
                 .presentationCornerRadius(36)
                 .presentationBackground(.ultraThinMaterial)
+.presentationBackgroundInteraction(.enabled(upThrough: .large))
+
         }
         .onChange(of: showTracker) { _, show in
             if show {
@@ -191,17 +197,26 @@ struct BasecampView: View {
                 .environmentObject(appState)
                 .presentationCornerRadius(36)
                 .presentationBackground(.ultraThinMaterial)
+.presentationBackgroundInteraction(.enabled(upThrough: .large))
+
         }
         .sheet(isPresented: $showAlpineWeather) {
             AlpineWeatherMapView()
                 .environmentObject(appState)
                 .presentationCornerRadius(36)
                 .presentationBackground(.ultraThinMaterial)
+.presentationBackgroundInteraction(.enabled(upThrough: .large))
+
         }
         // Time-to-Go questionnaire merged into SummitReadinessExtendedView
-        .fullScreenCover(isPresented: $showCoachingGateway) {
+        .sheet(isPresented: $showCoachingGateway) {
             AICoachingGatewayView()
                 .environmentObject(appState)
+                .presentationDetents([.large])
+                .presentationCornerRadius(36)
+                .presentationBackground(.ultraThinMaterial)
+.presentationBackgroundInteraction(.enabled(upThrough: .large))
+
         }
         .sheet(isPresented: $showElevationDetail) {
             ObjectiveDetailView(
@@ -214,6 +229,8 @@ struct BasecampView: View {
             .presentationDetents([.medium, .large])
             .presentationCornerRadius(36)
             .presentationBackground(.ultraThinMaterial)
+.presentationBackgroundInteraction(.enabled(upThrough: .large))
+
         }
         .sheet(isPresented: $showActiveGoalDetail) {
             ObjectiveDetailView(
@@ -226,6 +243,8 @@ struct BasecampView: View {
             .presentationDetents([.medium, .large])
             .presentationCornerRadius(36)
             .presentationBackground(.ultraThinMaterial)
+.presentationBackgroundInteraction(.enabled(upThrough: .large))
+
         }
         .sheet(item: $mountainDetailToShow) { mountain in
             BasecampMountainDetailSheet(mountain: mountain) {
@@ -238,6 +257,8 @@ struct BasecampView: View {
             .presentationDetents([.fraction(0.85), .large])
             .presentationCornerRadius(36)
             .presentationBackground(.ultraThinMaterial)
+.presentationBackgroundInteraction(.enabled(upThrough: .large))
+
         }
     }
 
@@ -1215,6 +1236,8 @@ struct XPDetailView: View {
         }
         .background(.clear)
         .presentationBackground(.ultraThinMaterial)
+.presentationBackgroundInteraction(.enabled(upThrough: .large))
+
         .onAppear { withAnimation { appeared = true } }
     }
 
@@ -1234,7 +1257,7 @@ struct XPDetailView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 20)
-        .background(.ultraThinMaterial)
+        
         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(color.opacity(0.15), lineWidth: 1))
     }
@@ -1315,6 +1338,8 @@ struct AllActivitiesView: View {
         }
         .background(.clear)
         .presentationBackground(.ultraThinMaterial)
+.presentationBackgroundInteraction(.enabled(upThrough: .large))
+
     }
 }
 
@@ -1428,6 +1453,8 @@ struct BasecampMountainDetailSheet: View {
             }
         }
         .presentationBackground(.ultraThinMaterial)
+.presentationBackgroundInteraction(.enabled(upThrough: .large))
+
         .presentationCornerRadius(36)
     }
 
