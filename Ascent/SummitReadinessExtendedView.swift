@@ -30,19 +30,49 @@ struct SummitReadinessExtendedView: View {
     @State private var showTipFor: String? = nil
     @State private var showSkipWarning = false
     @State private var barProgress: Double = 0
-    @State private var barSquished: Bool = false
+    @State private var squeezeAmount: CGFloat = 0
+    @State private var charBounces: [CGFloat] = [0, 0, 0, 0]
+    @State private var showFlashlight = false
 
     private let accent = DesignSystem.Colors.accent
 
-    private var readinessScore: Int { appState.timeToGoScore }
+    private var readinessScore: Int {
+        #if DEBUG
+        return 80  // ← Testwert ändern um Animation zu prüfen
+        #else
+        return appState.timeToGoScore
+        #endif
+    }
 
     private var barColor: Color {
         switch readinessScore {
-        case ..<35: return Color(red: 1.0, green: 0.23, blue: 0.19)
-        case ..<60: return Color(red: 1.0, green: 0.58, blue: 0.0)
+        case ..<35: return Color(red: 1.0,  green: 0.23, blue: 0.19)
+        case ..<60: return Color(red: 1.0,  green: 0.58, blue: 0.0)
         case ..<80: return Color(red: 0.65, green: 0.84, blue: 0.0)
-        default:    return Color(red: 0.20, green: 0.78, blue: 0.35)
+        default:    return Color(red: 0.04, green: 0.92, blue: 0.45) // Cool, neon emerald/spring green
         }
+    }
+
+    private var barGradient: LinearGradient {
+        let base = UIColor(barColor)
+        var h: CGFloat = 0, s: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        base.getHue(&h, saturation: &s, brightness: &b, alpha: &a)
+        let top    = Color(UIColor(hue: h, saturation: max(0, s - 0.14), brightness: min(1, b + 0.18), alpha: a))
+        let bottom = Color(UIColor(hue: h, saturation: min(1, s + 0.06), brightness: max(0, b - 0.14), alpha: a))
+        return LinearGradient(stops: [
+            .init(color: top,      location: 0),
+            .init(color: barColor, location: 0.48),
+            .init(color: bottom,   location: 1)
+        ], startPoint: .top, endPoint: .bottom)
+    }
+
+    // Track uses a diagonal gradient — still tinted by bar color but clearly "empty"
+    private var trackGradient: LinearGradient {
+        LinearGradient(stops: [
+            .init(color: barColor.opacity(0.20), location: 0),
+            .init(color: barColor.opacity(0.09), location: 0.55),
+            .init(color: Color.white.opacity(0.04),  location: 1)
+        ], startPoint: .topLeading, endPoint: .bottomTrailing)
     }
 
     private var statusLabel: String {
@@ -141,18 +171,43 @@ struct SummitReadinessExtendedView: View {
                         answers[id] = [String(Int(defaultVal))]
                     }
                 }
-                // Fill bar animates in
+                // Squeeze in immediately like pressing a sponge
+                withAnimation(.spring(response: 0.28, dampingFraction: 0.72)) {
+                    squeezeAmount = 0.82
+                }
+                // Fill bar animates in while sponge is squeezed
                 withAnimation(.spring(response: 1.1, dampingFraction: 0.78).delay(0.3)) {
                     barProgress = Double(readinessScore) / 100.0
                 }
-                // Squeeze fires when fill lands
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) {
-                    withAnimation(.spring(response: 0.18, dampingFraction: 0.82)) {
-                        barSquished = true
+                
+                // Trigger the flashlight right as the bar begins to move (delay 0.3)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    showFlashlight = true
+                }
+
+                // Release sponge when fill lands
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.85) {
+                    withAnimation(.spring(response: 0.6, dampingFraction: 0.38)) {
+                        squeezeAmount = 0
                     }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.22) {
-                        withAnimation(.spring(response: 0.5, dampingFraction: 0.52)) {
-                            barSquished = false
+                    withAnimation(.easeOut(duration: 0.5)) {
+                        showFlashlight = false
+                    }
+                }
+                // Per-character wiggle — each digit hops exactly when bar sweeps past it
+                let chars = Array("\(readinessScore)%")
+                for (i, _) in chars.enumerated() {
+                    // Spring reaches x≈33pt at t≈0.30s, stagger 55ms per char after that
+                    let t = 0.30 + Double(i) * 0.055
+                    DispatchQueue.main.asyncAfter(deadline: .now() + t) {
+                        guard i < charBounces.count else { return }
+                        withAnimation(.spring(response: 0.14, dampingFraction: 0.28)) {
+                            charBounces[i] = -10
+                        }
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.09) {
+                            withAnimation(.spring(response: 0.28, dampingFraction: 0.42)) {
+                                charBounces[i] = 0
+                            }
                         }
                     }
                 }
@@ -182,28 +237,53 @@ struct SummitReadinessExtendedView: View {
             .padding(.top, 22)
             .padding(.bottom, 12)
 
-            // THE BAR — edge-to-edge, height = number size
+            // THE BAR — edge-to-edge, sponge-deformed during animation
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
-                    // Empty track — neutral, no color tint
+                    // Track gets its own diagonal gradient — not flat grey anymore
                     Rectangle()
-                        .fill(Color(UIColor.systemFill))
+                        .fill(trackGradient)
 
-                    // Animated color fill from the left
+                    // Animated gradient fill from the left — with shine + outer glow
                     Rectangle()
-                        .fill(barColor)
+                        .fill(barGradient)
+                        .overlay(
+                            // Flashlight glow tracking the leading edge
+                            GeometryReader { glowGeo in
+                                Rectangle()
+                                    .fill(
+                                        LinearGradient(
+                                            stops: [
+                                                .init(color: .clear, location: 0.0),
+                                                .init(color: Color.white.opacity(0.4), location: 0.7),
+                                                .init(color: Color.white.opacity(0.9), location: 1.0)
+                                            ],
+                                            startPoint: .leading, endPoint: .trailing
+                                        )
+                                    )
+                                    .frame(width: 60)
+                                    .position(x: glowGeo.size.width - 30, y: glowGeo.size.height / 2)
+                                    .opacity(showFlashlight ? 1 : 0)
+                            }
+                            .blendMode(.plusLighter)
+                        )
                         .frame(width: geo.size.width * barProgress)
                         .animation(.spring(response: 1.1, dampingFraction: 0.78).delay(0.25), value: barProgress)
 
-                    // Percentage number lives INSIDE the bar
-                    Text("\(readinessScore)%")
-                        .font(.appMono(size: 44, weight: .black))
-                        .foregroundColor(.white)
-                        .padding(.leading, 20)
+                    // Characters bounce individually as the bar sweeps past each one
+                    HStack(spacing: 0) {
+                        ForEach(Array(Array("\(readinessScore)%").enumerated()), id: \.offset) { i, ch in
+                            Text(String(ch))
+                                .font(.appMono(size: 44, weight: .black))
+                                .foregroundColor(.white)
+                                .offset(y: i < charBounces.count ? charBounces[i] : 0)
+                        }
+                    }
+                    .padding(.leading, 20)
                 }
+                .clipShape(SpongeBendShape(squeeze: squeezeAmount, fillProgress: barProgress))
             }
             .frame(height: 72)
-            .scaleEffect(x: 1.0, y: barSquished ? 0.48 : 1.0, anchor: .center)
 
             // Status label + progress info below bar
             HStack(spacing: 6) {
@@ -464,6 +544,36 @@ struct FlowOptions: View {
                 .buttonStyle(.plain)
             }
         }
+    }
+}
+
+// Parabolic sponge — pinch point travels with the fill progress
+private struct SpongeBendShape: Shape {
+    var squeeze: CGFloat      // 0 = flat, 1 = fully pinched
+    var fillProgress: CGFloat // 0–1, mirrors barProgress so pinch follows the fill edge
+
+    var animatableData: AnimatablePair<CGFloat, CGFloat> {
+        get { AnimatablePair(squeeze, fillProgress) }
+        set { squeeze = newValue.first; fillProgress = newValue.second }
+    }
+
+    func path(in rect: CGRect) -> Path {
+        let inset = rect.height * squeeze * 0.46
+        // Pinch sits at the midpoint of the filled area, not always at midX
+        let pinchX = rect.width * fillProgress * 0.5
+        var path = Path()
+        path.move(to: CGPoint(x: rect.minX, y: rect.minY))
+        path.addQuadCurve(
+            to: CGPoint(x: rect.maxX, y: rect.minY),
+            control: CGPoint(x: pinchX, y: rect.minY + inset)
+        )
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+        path.addQuadCurve(
+            to: CGPoint(x: rect.minX, y: rect.maxY),
+            control: CGPoint(x: pinchX, y: rect.maxY - inset)
+        )
+        path.closeSubpath()
+        return path
     }
 }
 
