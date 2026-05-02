@@ -4,14 +4,6 @@ import SwiftUI
 // === DATEI: SummitReadinessExtendedView.swift ===
 // === 20-question Summit Readiness assessment ===
 // =========================================
-//
-// Replaces the 5-slider "ReadinessQuestionnaireView" as the tap-target for
-// the Summit Readiness widget. Structure:
-//
-//   • 5 mandatory sliders / pickers (sleep, soreness, joints, motivation, HR)
-//   • 15 extended questions across Nutrition, Mental, Environment, Logistics
-//   • Tips per question (small "i" button that reveals expert context)
-//   • Skip-at-own-risk button → logs an empty assessment but flags warning
 
 struct SummitReadinessExtendedView: View {
     @Environment(\.dismiss) private var dismiss
@@ -24,55 +16,37 @@ struct SummitReadinessExtendedView: View {
     @State private var mentalMotivation: Double = 3
     @State private var perceivedHR: Double = 3
 
-    // Extended answers — stored by question id so we can persist them.
     @State private var answers: [String: [String]] = [:]
-
+    @State private var showAssessment: Bool = false
     @State private var showTipFor: String? = nil
     @State private var showSkipWarning = false
+
+    // Bar animation
     @State private var barProgress: Double = 0
     @State private var squeezeAmount: CGFloat = 0
     @State private var charBounces: [CGFloat] = [0, 0, 0, 0]
-    @State private var showFlashlight = false
+    @State private var shimmerPhase: CGFloat = -0.5
 
     private let accent = DesignSystem.Colors.accent
 
-    private var readinessScore: Int {
-        #if DEBUG
-        return 80  // ← Testwert ändern um Animation zu prüfen
-        #else
-        return appState.timeToGoScore
-        #endif
-    }
+    private var readinessScore: Int { appState.timeToGoScore }
 
     private var barColor: Color {
         switch readinessScore {
-        case ..<35: return Color(red: 1.0,  green: 0.23, blue: 0.19)
-        case ..<60: return Color(red: 1.0,  green: 0.58, blue: 0.0)
-        case ..<80: return Color(red: 0.65, green: 0.84, blue: 0.0)
-        default:    return Color(red: 0.04, green: 0.92, blue: 0.45) // Cool, neon emerald/spring green
+        case ..<35: return Color(red: 0.80, green: 0.22, blue: 0.20)
+        case ..<60: return Color(red: 0.92, green: 0.62, blue: 0.12)
+        case ..<80: return Color(red: 0.10, green: 0.64, blue: 0.60)
+        default:    return Color(red: 0.08, green: 0.66, blue: 0.44)
         }
     }
 
-    private var barGradient: LinearGradient {
-        let base = UIColor(barColor)
-        var h: CGFloat = 0, s: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
-        base.getHue(&h, saturation: &s, brightness: &b, alpha: &a)
-        let top    = Color(UIColor(hue: h, saturation: max(0, s - 0.14), brightness: min(1, b + 0.18), alpha: a))
-        let bottom = Color(UIColor(hue: h, saturation: min(1, s + 0.06), brightness: max(0, b - 0.14), alpha: a))
-        return LinearGradient(stops: [
-            .init(color: top,      location: 0),
-            .init(color: barColor, location: 0.48),
-            .init(color: bottom,   location: 1)
-        ], startPoint: .top, endPoint: .bottom)
-    }
-
-    // Track uses a diagonal gradient — still tinted by bar color but clearly "empty"
-    private var trackGradient: LinearGradient {
-        LinearGradient(stops: [
-            .init(color: barColor.opacity(0.20), location: 0),
-            .init(color: barColor.opacity(0.09), location: 0.55),
-            .init(color: Color.white.opacity(0.04),  location: 1)
-        ], startPoint: .topLeading, endPoint: .bottomTrailing)
+    // Vivid left-to-right gradient on the fill
+    private var fillGradient: LinearGradient {
+        LinearGradient(
+            colors: [barColor.opacity(0.75), barColor, barColor.opacity(0.88)],
+            startPoint: .leading,
+            endPoint: .trailing
+        )
     }
 
     private var statusLabel: String {
@@ -84,14 +58,12 @@ struct SummitReadinessExtendedView: View {
         }
     }
 
-    // Mandatory question metadata kept alongside the sliders — the ids are
-    // what we write back into `appState.extendedReadinessAnswers` on save.
     private let mandatoryIds = ["sleep", "soreness", "joints", "motivation", "hr"]
 
     private let sections: [ReadinessSection] = [
         .init(title: "Nutrition & Fuel", icon: "fork.knife", items: [
             .init(id: "hydration", prompt: "Hydration over last 24h", options: ["Excellent (>3L)", "Adequate (2-3L)", "Low (<2L)", "Dehydrated"], tip: "Dehydration >2% bodyweight halves aerobic capacity at altitude."),
-            .init(id: "lastMeal", prompt: "When did you last eat?", options: ["<1h ago", "1-3h ago", "3-6h ago", ">6h ago"], tip: "Below 3000 kcal/day of intake in preparation weeks risks glycogen depletion on summit day."),
+            .init(id: "lastMeal", prompt: "When did you last eat?", options: ["<1h ago", "1-3h ago", "3-6h ago", ">6h ago"], tip: "Below 3000 kcal/day in preparation weeks risks glycogen depletion on summit day."),
             .init(id: "caffeine", prompt: "Caffeine today (mg est.)", options: ["None", "<100", "100-300", ">300"], tip: "Caffeine >400mg shortens REM sleep — compounding fatigue for back-to-back days."),
             .init(id: "alcohol", prompt: "Alcohol in last 48h?", options: ["None", "1-2 drinks", "3-5 drinks", ">5 drinks"], tip: "Alcohol reduces VO₂ max up to 72h after consumption — avoid before technical ascents.")
         ]),
@@ -116,43 +88,47 @@ struct SummitReadinessExtendedView: View {
 
     var body: some View {
         NavigationView {
-            ZStack(alignment: .topLeading) {
-                // Animated gradient wash — starts at width 0, sweeps right with bar
-                GeometryReader { geo in
-                    LinearGradient(
-                        colors: [barColor.opacity(0.55), barColor.opacity(0.22), .clear],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                    .frame(width: geo.size.width * barProgress, height: 320)
-                    .ignoresSafeArea(edges: .top)
-                    .animation(.spring(response: 1.1, dampingFraction: 0.78).delay(0.25), value: barProgress)
-                }
-                .allowsHitTesting(false)
-
-                ScrollView {
-                    VStack(spacing: 22) {
-                        header
-                        mandatorySection
-                        ForEach(sections) { section in
-                            extendedSection(section)
+            Group {
+                if showAssessment {
+                    ScrollView {
+                        VStack(spacing: 22) {
+                            assessmentHeader
+                            mandatorySection
+                            ForEach(sections) { section in
+                                extendedSection(section)
+                            }
+                            saveSection
                         }
-                        saveSection
+                        .padding(.bottom, 40)
                     }
-                    .padding(.bottom, 40)
+                    .scrollContentBackground(.hidden)
+                    .transition(.move(edge: .trailing).combined(with: .opacity))
+                } else {
+                    historyView
+                        .transition(.opacity)
+                        .onAppear { runBarAnimation() }
                 }
-                .scrollContentBackground(.hidden)
             }
             .background(.clear)
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(.hidden, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") { dismiss() }
+                    if showAssessment {
+                        Button("Back") {
+                            withAnimation(.spring(response: 0.38, dampingFraction: 0.82)) {
+                                showAssessment = false
+                            }
+                        }
+                    } else {
+                        Button("Close") { dismiss() }
+                    }
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Skip") { showSkipWarning = true }
-                        .foregroundColor(.orange)
+                    if showAssessment {
+                        Button("Skip") { showSkipWarning = true }
+                            .foregroundColor(.orange)
+                    }
                 }
             }
             .alert("Skip at your own risk", isPresented: $showSkipWarning) {
@@ -161,8 +137,10 @@ struct SummitReadinessExtendedView: View {
             } message: {
                 Text("Skipping means no subjective readiness factors feed into your Time-to-Go score. We strongly recommend answering the 5 essential questions — they take under 60 seconds.")
             }
-            .background(.clear)
             .onAppear {
+                if appState.readinessHistory.isEmpty && appState.extendedReadinessAnsweredAt == nil {
+                    showAssessment = true
+                }
                 answers = appState.extendedReadinessAnswers
                 for (id, defaultVal) in [("sleep", sleepQuality), ("soreness", muscleSoreness),
                                           ("joints", jointPain), ("motivation", mentalMotivation),
@@ -171,159 +149,311 @@ struct SummitReadinessExtendedView: View {
                         answers[id] = [String(Int(defaultVal))]
                     }
                 }
-                // Squeeze in immediately like pressing a sponge
-                withAnimation(.spring(response: 0.28, dampingFraction: 0.72)) {
-                    squeezeAmount = 0.82
-                }
-                // Fill bar animates in while sponge is squeezed
-                withAnimation(.spring(response: 1.1, dampingFraction: 0.78).delay(0.3)) {
-                    barProgress = Double(readinessScore) / 100.0
-                }
-                
-                // Trigger the flashlight right as the bar begins to move (delay 0.3)
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    showFlashlight = true
-                }
-
-                // Release sponge when fill lands
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.85) {
-                    withAnimation(.spring(response: 0.6, dampingFraction: 0.38)) {
-                        squeezeAmount = 0
-                    }
-                    withAnimation(.easeOut(duration: 0.5)) {
-                        showFlashlight = false
-                    }
-                }
-                // Per-character wiggle — each digit hops exactly when bar sweeps past it
-                let chars = Array("\(readinessScore)%")
-                for (i, _) in chars.enumerated() {
-                    // Spring reaches x≈33pt at t≈0.30s, stagger 55ms per char after that
-                    let t = 0.30 + Double(i) * 0.055
-                    DispatchQueue.main.asyncAfter(deadline: .now() + t) {
-                        guard i < charBounces.count else { return }
-                        withAnimation(.spring(response: 0.14, dampingFraction: 0.28)) {
-                            charBounces[i] = -10
-                        }
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.09) {
-                            withAnimation(.spring(response: 0.28, dampingFraction: 0.42)) {
-                                charBounces[i] = 0
-                            }
-                        }
-                    }
-                }
             }
         }
         .background(.clear)
-        .presentationBackground(.ultraThinMaterial)
+        .adaptiveSheetBackground()
     }
 
-    // MARK: - Sections
+    // MARK: - Bar animation
 
-    private var header: some View {
-        VStack(spacing: 0) {
-            // Small label row above the bar
-            HStack {
-                Text("SUMMIT READINESS")
-                    .font(.appMono(size: 10, weight: .bold))
-                    .foregroundColor(.secondary)
-                    .tracking(1.8)
+    private func runBarAnimation() {
+        guard appState.readiness != nil else { return }
+
+        // Reset state without animation — otherwise SwiftUI animates the bar shrinking to 0,
+        // which creates the "thin bar that pops in late" delay the user reported.
+        var noAnim = Transaction()
+        noAnim.disablesAnimations = true
+        withTransaction(noAnim) {
+            barProgress = 0
+            squeezeAmount = 0
+            shimmerPhase = -0.5
+            charBounces = Array(repeating: 0, count: "\(readinessScore)%".count)
+        }
+
+        // 1. Squeeze — bar pinches at the fill edge as it launches
+        withAnimation(.spring(response: 0.28, dampingFraction: 0.68)) {
+            squeezeAmount = 0.80
+        }
+
+        // 2. Bar fills with a single elastic spring (no extra delay — that's what made it sit thin)
+        withAnimation(.spring(response: 0.95, dampingFraction: 0.62)) {
+            barProgress = Double(readinessScore) / 100.0
+        }
+
+        // 3. Release squeeze once fill arrives
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.8) {
+            withAnimation(.spring(response: 0.55, dampingFraction: 0.40)) {
+                squeezeAmount = 0
+            }
+        }
+
+        // 4. Digits bounce in staggered
+        let chars = Array("\(readinessScore)%")
+        for (i, _) in chars.enumerated() {
+            let t = 0.22 + Double(i) * 0.07
+            DispatchQueue.main.asyncAfter(deadline: .now() + t) {
+                guard i < charBounces.count else { return }
+                withAnimation(.spring(response: 0.13, dampingFraction: 0.25)) { charBounces[i] = -14 }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.10) {
+                    withAnimation(.spring(response: 0.32, dampingFraction: 0.50)) { charBounces[i] = 0 }
+                }
+            }
+        }
+
+        // 5. Shimmer sweeps after bar fills
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) {
+            withAnimation(.easeInOut(duration: 0.70)) {
+                shimmerPhase = 1.5
+            }
+        }
+    }
+
+    // MARK: - History / Score view
+
+    private var historyView: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+
+                // Label row
+                HStack {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("SUMMIT READINESS")
+                            .font(.appMono(size: 10, weight: .bold))
+                            .foregroundColor(.secondary)
+                            .tracking(1.8)
+                        if let lastDate = appState.extendedReadinessAnsweredAt {
+                            Text("Updated \(relativeDateString(lastDate))")
+                                .font(.app(size: 12))
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    Spacer()
+                    Image(systemName: "mountain.2.fill")
+                        .font(.system(size: 18, weight: .black))
+                        .foregroundColor(barColor)
+                        .animation(.easeOut(duration: 0.5), value: barColor)
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 22)
+                .padding(.bottom, 16)
+
+                // ── The bar ──────────────────────────────────
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+
+                        // Track
+                        Rectangle()
+                            .fill(barColor.opacity(0.10))
+
+                        // Animated fill
+                        Rectangle()
+                            .fill(fillGradient)
+                            // Static top-half gloss
+                            .overlay(
+                                LinearGradient(
+                                    colors: [Color.white.opacity(0.28), .clear],
+                                    startPoint: .top,
+                                    endPoint: .center
+                                )
+                            )
+                            // Diagonal shimmer sweep
+                            .overlay(
+                                LinearGradient(
+                                    colors: [.clear,
+                                             Color.white.opacity(0.0),
+                                             Color.white.opacity(0.55),
+                                             Color.white.opacity(0.0),
+                                             .clear],
+                                    startPoint: UnitPoint(x: shimmerPhase - 0.25, y: 0),
+                                    endPoint:   UnitPoint(x: shimmerPhase + 0.25, y: 1)
+                                )
+                                .blendMode(.plusLighter)
+                            )
+                            .frame(width: geo.size.width * barProgress)
+                            .clipShape(SpongeBendShape(squeeze: squeezeAmount, fillProgress: barProgress))
+
+                        // Score digits — bounce in as bar sweeps
+                        HStack(spacing: 1) {
+                            ForEach(Array(Array("\(readinessScore)%").enumerated()), id: \.offset) { i, ch in
+                                Text(String(ch))
+                                    .font(.appMono(size: 46, weight: .black))
+                                    .foregroundColor(.white)
+                                    .shadow(color: .black.opacity(0.18), radius: 4, y: 2)
+                                    .offset(y: i < charBounces.count ? charBounces[i] : 0)
+                            }
+                        }
+                        .padding(.leading, 22)
+                    }
+                }
+                .frame(height: 78)
+                // ─────────────────────────────────────────────
+
+                // Status + recommendation
+                HStack(alignment: .firstTextBaseline, spacing: 0) {
+                    Text(statusLabel)
+                        .font(.appMono(size: 10, weight: .bold))
+                        .foregroundColor(barColor)
+                        .tracking(1.4)
+                        .animation(.easeOut(duration: 0.3), value: statusLabel)
+                    Spacer()
+                    if let readiness = appState.readiness {
+                        Text("\(readiness.totalScore) / 100")
+                            .font(.appMono(size: 10, weight: .semibold))
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 10)
+                .padding(.bottom, 6)
+
+                if let readiness = appState.readiness {
+                    Text(readiness.recommendation)
+                        .font(.app(size: 13))
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 20)
+
+                    // Sub-scores
+                    HStack(spacing: 8) {
+                        subScorePill(label: "Physio",   score: readiness.physiologicalScore)
+                        subScorePill(label: "Workload", score: readiness.workloadScore)
+                        subScorePill(label: "Altitude", score: readiness.altitudeScore)
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 28)
+                }
+
+                // Calendar
+                if !appState.readinessHistory.isEmpty {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("LAST 90 DAYS")
+                            .font(.appMono(size: 10, weight: .bold))
+                            .foregroundColor(.secondary)
+                            .tracking(1.4)
+                            .padding(.horizontal, 20)
+                        ReadinessCalendarGrid(history: appState.readinessHistory)
+                            .padding(.horizontal, 16)
+                    }
+                    .padding(.bottom, 28)
+                }
+
+                // CTA
+                Button {
+                    withAnimation(.spring(response: 0.38, dampingFraction: 0.82)) { showAssessment = true }
+                } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: "checkmark.shield.fill")
+                            .font(.app(size: 16, weight: .bold))
+                        Text(appState.readiness == nil ? "Start Assessment" : "Reassess Today")
+                            .font(.app(size: 16, weight: .black))
+                    }
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(accent)
+                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .shadow(color: accent.opacity(0.30), radius: 12, y: 6)
+                }
+                .buttonStyle(PressableButtonStyle())
+                .padding(.horizontal, 20)
+                .padding(.bottom, 40)
+            }
+        }
+        .scrollContentBackground(.hidden)
+    }
+
+    private func subScorePill(label: String, score: Int) -> some View {
+        let c = colorForScore(score)
+        return HStack(spacing: 6) {
+            Circle().fill(c).frame(width: 6, height: 6)
+            Text(label)
+                .font(.appMono(size: 9, weight: .bold))
+                .foregroundColor(.secondary)
+                .tracking(0.8)
+            Spacer()
+            Text("\(score)")
+                .font(.appMono(size: 12, weight: .black))
+                .foregroundColor(.primary)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+
+    // MARK: - Assessment Header (clean form header — no bar)
+
+    private var assessmentHeader: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("SUMMIT READINESS")
+                        .font(.appMono(size: 10, weight: .bold))
+                        .foregroundColor(.secondary)
+                        .tracking(1.6)
+                    Text("20 Questions")
+                        .font(.app(size: 26, weight: .black))
+                }
                 Spacer()
-                Image(systemName: "mountain.2.fill")
-                    .font(.system(size: 16, weight: .black))
-                    .foregroundColor(barColor)
-                    .animation(.easeOut(duration: 0.4), value: barColor)
+                ZStack {
+                    RoundedRectangle(cornerRadius: 11, style: .continuous)
+                        .fill(accent.opacity(0.12))
+                        .frame(width: 42, height: 42)
+                    Image(systemName: "mountain.2.fill")
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundColor(accent)
+                        .symbolRenderingMode(.hierarchical)
+                }
             }
             .padding(.horizontal, 20)
             .padding(.top, 22)
-            .padding(.bottom, 12)
+            .padding(.bottom, 14)
 
-            // THE BAR — edge-to-edge, sponge-deformed during animation
+            // Progress bar
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
-                    // Track gets its own diagonal gradient — not flat grey anymore
-                    Rectangle()
-                        .fill(trackGradient)
-
-                    // Animated gradient fill from the left — with shine + outer glow
-                    Rectangle()
-                        .fill(barGradient)
-                        .overlay(
-                            // Flashlight glow tracking the leading edge
-                            GeometryReader { glowGeo in
-                                Rectangle()
-                                    .fill(
-                                        LinearGradient(
-                                            stops: [
-                                                .init(color: .clear, location: 0.0),
-                                                .init(color: Color.white.opacity(0.4), location: 0.7),
-                                                .init(color: Color.white.opacity(0.9), location: 1.0)
-                                            ],
-                                            startPoint: .leading, endPoint: .trailing
-                                        )
-                                    )
-                                    .frame(width: 60)
-                                    .position(x: glowGeo.size.width - 30, y: glowGeo.size.height / 2)
-                                    .opacity(showFlashlight ? 1 : 0)
-                            }
-                            .blendMode(.plusLighter)
-                        )
-                        .frame(width: geo.size.width * barProgress)
-                        .animation(.spring(response: 1.1, dampingFraction: 0.78).delay(0.25), value: barProgress)
-
-                    // Characters bounce individually as the bar sweeps past each one
-                    HStack(spacing: 0) {
-                        ForEach(Array(Array("\(readinessScore)%").enumerated()), id: \.offset) { i, ch in
-                            Text(String(ch))
-                                .font(.appMono(size: 44, weight: .black))
-                                .foregroundColor(.white)
-                                .offset(y: i < charBounces.count ? charBounces[i] : 0)
-                        }
-                    }
-                    .padding(.leading, 20)
+                    Capsule().fill(Color.primary.opacity(0.06))
+                    Capsule()
+                        .fill(LinearGradient(colors: [accent, accent.opacity(0.7)], startPoint: .leading, endPoint: .trailing))
+                        .frame(width: geo.size.width * (Double(mandatoryAnsweredCount) / 5.0))
+                        .animation(.spring(response: 0.4, dampingFraction: 0.75), value: mandatoryAnsweredCount)
                 }
-                .clipShape(SpongeBendShape(squeeze: squeezeAmount, fillProgress: barProgress))
             }
-            .frame(height: 72)
+            .frame(height: 4)
+            .padding(.horizontal, 20)
 
-            // Status label + progress info below bar
-            HStack(spacing: 6) {
-                Text(statusLabel)
-                    .font(.appMono(size: 10, weight: .bold))
-                    .foregroundColor(barColor)
-                    .tracking(1.3)
-                    .animation(.easeOut(duration: 0.3), value: statusLabel)
-                Spacer()
-                Circle().fill(Color.orange).frame(width: 5, height: 5)
-                Text("\(mandatoryAnsweredCount)/5 essential answered")
+            HStack(spacing: 5) {
+                Circle()
+                    .fill(mandatoryAnsweredCount >= 5 ? accent : Color.orange)
+                    .frame(width: 5, height: 5)
+                Text("\(mandatoryAnsweredCount)/5 essential questions answered")
                     .font(.appMono(size: 10, weight: .semibold))
                     .foregroundColor(.secondary)
             }
             .padding(.horizontal, 20)
-            .padding(.top, 10)
+            .padding(.top, 8)
             .padding(.bottom, 16)
         }
     }
 
+    // MARK: - Sections
+
     private var mandatorySection: some View {
         VStack(alignment: .leading, spacing: 14) {
             sectionHeader(title: "Essential (required)", icon: "star.fill", color: .orange)
-
             mandatorySlider(id: "sleep", title: "Sleep quality", value: $sleepQuality, icon: "bed.double.fill",
                             minLabel: "Exhausted", maxLabel: "Fully restored",
                             tip: "Sleep <6h trebles altitude headache risk.")
-
             mandatorySlider(id: "soreness", title: "Muscle soreness", value: $muscleSoreness, icon: "figure.run",
                             minLabel: "Heavy", maxLabel: "Fresh",
                             tip: "DOMS >72h indicates overreach — delay technical objectives.")
-
             mandatorySlider(id: "joints", title: "Joint / tendon pain", value: $jointPain, icon: "bolt.heart.fill",
                             minLabel: "None", maxLabel: "Acute",
                             tip: "Joint pain is the #1 silent summit-day failure. Don't ignore.", reverse: true)
-
             mandatorySlider(id: "motivation", title: "Mental motivation", value: $mentalMotivation, icon: "brain.head.profile",
                             minLabel: "Flat", maxLabel: "Laser focused",
                             tip: "Low motivation with high-stakes objective → abort calibration required.")
-
             mandatorySlider(id: "hr", title: "Resting HR feel", value: $perceivedHR, icon: "heart.fill",
                             minLabel: "Racing", maxLabel: "Calm",
                             tip: "RHR >7bpm above baseline for 2 days = probable under-recovery.")
@@ -335,9 +465,7 @@ struct SummitReadinessExtendedView: View {
         VStack(alignment: .leading, spacing: 12) {
             sectionHeader(title: section.title, icon: section.icon, color: accent)
             VStack(spacing: 10) {
-                ForEach(section.items) { item in
-                    questionCard(item)
-                }
+                ForEach(section.items) { item in questionCard(item) }
             }
         }
         .padding(.horizontal, 16)
@@ -346,8 +474,7 @@ struct SummitReadinessExtendedView: View {
     private func questionCard(_ item: ReadinessQuestion) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text(item.prompt)
-                    .font(.app(size: 14, weight: .bold))
+                Text(item.prompt).font(.app(size: 14, weight: .bold))
                 Spacer()
                 Button {
                     withAnimation(.spring(response: 0.32, dampingFraction: 0.72)) {
@@ -359,46 +486,42 @@ struct SummitReadinessExtendedView: View {
                         .foregroundColor(accent)
                 }
             }
-
             if showTipFor == item.id {
                 HStack(alignment: .top, spacing: 8) {
-                    Image(systemName: "lightbulb.fill")
-                        .font(.app(size: 11))
-                        .foregroundColor(.orange)
-                    Text(item.tip)
-                        .font(.app(size: 12))
-                        .foregroundColor(.secondary)
+                    Image(systemName: "lightbulb.fill").font(.app(size: 11)).foregroundColor(.orange)
+                    Text(item.tip).font(.app(size: 12)).foregroundColor(.secondary)
                 }
                 .padding(10)
                 .background(Color.orange.opacity(0.08))
                 .clipShape(RoundedRectangle(cornerRadius: 10))
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
-
             FlowOptions(options: item.options, selected: answers[item.id]?.first) { picked in
                 answers[item.id] = [picked]
             }
         }
         .padding(14)
-        .background(Color.white)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 
     private var saveSection: some View {
         VStack(spacing: 12) {
             Button(action: save) {
-                Text("Save Assessment")
+                Text("Save & See Results")
                     .font(.app(size: 16, weight: .bold))
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 15)
-                    .background(accent)
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                    .padding(.vertical, 16)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .fill(mandatoryAnsweredCount >= 5 ? accent : Color.gray.opacity(0.35))
+                    )
             }
             .disabled(mandatoryAnsweredCount < 5)
-            .opacity(mandatoryAnsweredCount < 5 ? 0.5 : 1.0)
-
-            Text(mandatoryAnsweredCount < 5 ? "Answer all 5 essential questions to save" : "Your extended answers feed into Time-to-Go and AI Coach.")
+            Text(mandatoryAnsweredCount < 5
+                 ? "Answer all 5 essential questions to save"
+                 : "Your answers feed into Time-to-Go and AI Coach.")
                 .font(.app(size: 11))
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
@@ -420,9 +543,6 @@ struct SummitReadinessExtendedView: View {
         }
     }
 
-    /// Mandatory questions always have a non-nil value stored (they start at 3).
-    /// The user becomes "answered" the moment they touch the slider — we track
-    /// that by comparing against the initial defaults.
     private var mandatoryAnsweredCount: Int {
         mandatoryIds.filter { answers[$0] != nil }.count
     }
@@ -433,7 +553,9 @@ struct SummitReadinessExtendedView: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 10) {
                 ZStack {
-                    Circle().fill(accent.opacity(0.12)).frame(width: 30, height: 30)
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(accent.opacity(0.12))
+                        .frame(width: 30, height: 30)
                     Image(systemName: icon).font(.app(size: 12)).foregroundColor(accent)
                 }
                 Text(title).font(.app(size: 14, weight: .bold))
@@ -444,28 +566,19 @@ struct SummitReadinessExtendedView: View {
                 Button {
                     withAnimation { showTipFor = showTipFor == id ? nil : id }
                 } label: {
-                    Image(systemName: "info.circle")
-                        .font(.app(size: 14))
-                        .foregroundColor(accent)
+                    Image(systemName: "info.circle").font(.app(size: 14)).foregroundColor(accent)
                 }
             }
-
             if showTipFor == id {
-                Text(tip)
-                    .font(.app(size: 11))
-                    .foregroundColor(.secondary)
+                Text(tip).font(.app(size: 11)).foregroundColor(.secondary)
                     .padding(8)
                     .background(Color.orange.opacity(0.08))
                     .clipShape(RoundedRectangle(cornerRadius: 8))
             }
-
             Slider(value: value, in: 1...5, step: 1) { editing in
-                if !editing {
-                    answers[id] = [String(Int(value.wrappedValue))]
-                }
+                if !editing { answers[id] = [String(Int(value.wrappedValue))] }
             }
             .tint(accent)
-
             HStack {
                 Text(minLabel).font(.appMono(size: 9, weight: .semibold)).foregroundColor(.secondary)
                 Spacer()
@@ -473,8 +586,22 @@ struct SummitReadinessExtendedView: View {
             }
         }
         .padding(14)
-        .background(Color.white)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+    }
+
+    private func colorForScore(_ score: Int) -> Color {
+        switch score {
+        case ..<35: return Color(red: 0.80, green: 0.22, blue: 0.20)
+        case ..<60: return Color(red: 0.92, green: 0.62, blue: 0.12)
+        case ..<80: return Color(red: 0.10, green: 0.64, blue: 0.60)
+        default:    return Color(red: 0.08, green: 0.66, blue: 0.44)
+        }
+    }
+
+    private func relativeDateString(_ date: Date) -> String {
+        let fmt = RelativeDateTimeFormatter(); fmt.unitsStyle = .short
+        return fmt.localizedString(for: date, relativeTo: Date())
     }
 
     private func save() {
@@ -482,7 +609,10 @@ struct SummitReadinessExtendedView: View {
         appState.extendedReadinessAnsweredAt = Date()
         appState.refreshReadiness()
         logTodayGoStage()
-        dismiss()
+        appState.recordReadinessScore(appState.timeToGoScore)
+        withAnimation(.spring(response: 0.38, dampingFraction: 0.82)) {
+            showAssessment = false
+        }
     }
 
     private func saveSkipped() {
@@ -491,9 +621,6 @@ struct SummitReadinessExtendedView: View {
         dismiss()
     }
 
-    /// After saving, capture today's composite go-stage into the weekly log so
-    /// the Basecamp tracker pills light up immediately without waiting for the
-    /// Time-to-Go flow.
     private func logTodayGoStage() {
         let iso = Calendar.current.component(.weekday, from: Date()).mapISO
         appState.weeklyGoScores[iso] = appState.timeToGoScore
@@ -504,42 +631,28 @@ struct SummitReadinessExtendedView: View {
 
 private struct ReadinessSection: Identifiable {
     var id: String { title }
-    let title: String
-    let icon: String
-    let items: [ReadinessQuestion]
+    let title: String; let icon: String; let items: [ReadinessQuestion]
 }
-
 private struct ReadinessQuestion: Identifiable {
-    let id: String
-    let prompt: String
-    let options: [String]
-    let tip: String
+    let id: String; let prompt: String; let options: [String]; let tip: String
 }
 
-// MARK: - FlowOptions — chip row that wraps automatically
+// MARK: - FlowOptions
 
-/// Lightweight flow layout for multiple-choice chips. Falls back to a plain
-/// HStack on iOS <16 via `ViewThatFits`, but we're iOS 17+ anyway so the
-/// native `Layout` protocol does the work.
 struct FlowOptions: View {
-    let options: [String]
-    let selected: String?
-    let onSelect: (String) -> Void
-
+    let options: [String]; let selected: String?; let onSelect: (String) -> Void
     var body: some View {
         FlowLayout(spacing: 6) {
             ForEach(options, id: \.self) { option in
-                Button {
-                    onSelect(option)
-                } label: {
+                Button { onSelect(option) } label: {
                     Text(option)
                         .font(.app(size: 12, weight: .semibold))
                         .foregroundColor(selected == option ? .white : .primary)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 7)
-                        .background(
-                            Capsule().fill(selected == option ? DesignSystem.Colors.accent : Color(white: 0.94))
-                        )
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(Capsule().fill(selected == option
+                            ? DesignSystem.Colors.accent
+                            : Color.primary.opacity(0.07)))
                 }
                 .buttonStyle(.plain)
             }
@@ -547,10 +660,13 @@ struct FlowOptions: View {
     }
 }
 
-// Parabolic sponge — pinch point travels with the fill progress
+// FlowLayout is declared in AICoachingGateway.swift
+
+// MARK: - Sponge bend shape
+
 private struct SpongeBendShape: Shape {
-    var squeeze: CGFloat      // 0 = flat, 1 = fully pinched
-    var fillProgress: CGFloat // 0–1, mirrors barProgress so pinch follows the fill edge
+    var squeeze: CGFloat
+    var fillProgress: CGFloat
 
     var animatableData: AnimatablePair<CGFloat, CGFloat> {
         get { AnimatablePair(squeeze, fillProgress) }
@@ -559,7 +675,6 @@ private struct SpongeBendShape: Shape {
 
     func path(in rect: CGRect) -> Path {
         let inset = rect.height * squeeze * 0.46
-        // Pinch sits at the midpoint of the filled area, not always at midX
         let pinchX = rect.width * fillProgress * 0.5
         var path = Path()
         path.move(to: CGPoint(x: rect.minX, y: rect.minY))
@@ -577,4 +692,66 @@ private struct SpongeBendShape: Shape {
     }
 }
 
-// FlowLayout is declared in AICoachingGateway.swift
+// MARK: - Readiness Calendar Grid
+
+struct ReadinessCalendarGrid: View {
+    let history: [String: Int]
+    private let dateFmt: DateFormatter = {
+        let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; return f
+    }()
+
+    private var weeks: [[Date?]] {
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: Date())
+        guard let start = cal.date(byAdding: .day, value: -89, to: today) else { return [] }
+        let weekday = cal.component(.weekday, from: start)
+        let isoOffset = ((weekday + 5) % 7)
+        guard let gridStart = cal.date(byAdding: .day, value: -isoOffset, to: start) else { return [] }
+        var result: [[Date?]] = []; var cursor = gridStart
+        while cursor <= today {
+            var week: [Date?] = []
+            for _ in 0..<7 {
+                week.append(cursor < start ? nil : (cursor <= today ? cursor : nil))
+                cursor = cal.date(byAdding: .day, value: 1, to: cursor) ?? cursor
+            }
+            result.append(week)
+        }
+        return result
+    }
+
+    var body: some View {
+        VStack(spacing: 5) {
+            HStack(spacing: 4) {
+                ForEach(["M","T","W","T","F","S","S"].indices, id: \.self) { i in
+                    Text(["M","T","W","T","F","S","S"][i])
+                        .font(.appMono(size: 9, weight: .bold))
+                        .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity)
+                }
+            }
+            ForEach(weeks.indices, id: \.self) { wi in
+                HStack(spacing: 4) {
+                    ForEach(0..<7, id: \.self) { di in
+                        if let day = weeks[wi][di] {
+                            let score = history[dateFmt.string(from: day)]
+                            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                                .fill(dotColor(for: score))
+                                .frame(maxWidth: .infinity)
+                                .aspectRatio(1, contentMode: .fit)
+                        } else {
+                            Color.clear.frame(maxWidth: .infinity).aspectRatio(1, contentMode: .fit)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func dotColor(for score: Int?) -> Color {
+        guard let s = score else { return Color.gray.opacity(0.13) }
+        if s > 80 { return Color(red: 0.08, green: 0.66, blue: 0.44) }
+        if s > 60 { return Color(red: 0.10, green: 0.64, blue: 0.60) }
+        if s > 35 { return Color(red: 0.92, green: 0.62, blue: 0.12) }
+        return Color(red: 0.80, green: 0.22, blue: 0.20)
+    }
+}

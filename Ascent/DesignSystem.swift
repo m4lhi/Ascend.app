@@ -99,7 +99,7 @@ enum DesignSystem {
         static let lg:   CGFloat = 18
         static let xl:   CGFloat = 24
         static let xxl:  CGFloat = 32
-        static let card: CGFloat = 20
+        static let card: CGFloat = 28
         static let full: CGFloat = 999  // Für Pills / Capsules
     }
 
@@ -113,6 +113,8 @@ enum DesignSystem {
         static let subtle = ShadowStyle(color: .black.opacity(0.05), radius:  6, x: 0, y: 2)
         // Akzent-Schatten — farbig, für Hero-Karten
         static let accent = ShadowStyle(color: Colors.accent.opacity(0.25), radius: 16, x: 0, y: 8)
+        // Liquid Glass Glow — luminous halo for glass elements
+        static let liquidGlow = ShadowStyle(color: .white.opacity(0.35), radius: 8, x: 0, y: -2)
     }
 
     // =========================================
@@ -162,36 +164,116 @@ struct ShadowStyle {
 // =========================================
 // === VIEW MODIFIER: ASCENT CARD ===
 // =========================================
-// Einheitliches Karten-Styling — einfach .ascentCard() an jede View hängen
+// Liquid Glass card for solid-background contexts — subtle glass with a
+// light frosted fill that works over both light and dark backgrounds.
 struct AscentCardModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
-            .background(DesignSystem.Colors.cardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: DesignSystem.Radius.card))
-            .shadow(
-                color:  DesignSystem.Shadow.card.color,
-                radius: DesignSystem.Shadow.card.radius,
-                x:      DesignSystem.Shadow.card.x,
-                y:      DesignSystem.Shadow.card.y
+            .background(
+                ZStack {
+                    RoundedRectangle(cornerRadius: DesignSystem.Radius.card)
+                        .fill(.regularMaterial)
+                    RoundedRectangle(cornerRadius: DesignSystem.Radius.card)
+                        .fill(
+                            LinearGradient(
+                                colors: [.white.opacity(0.45), .white.opacity(0.08)],
+                                startPoint: .top, endPoint: .bottom
+                            )
+                        )
+                    // Top specular strip
+                    RoundedRectangle(cornerRadius: DesignSystem.Radius.card)
+                        .fill(
+                            LinearGradient(
+                                colors: [.white.opacity(0.50), .clear],
+                                startPoint: .top,
+                                endPoint: UnitPoint(x: 0.5, y: 0.30)
+                            )
+                        )
+                }
             )
+            .clipShape(RoundedRectangle(cornerRadius: DesignSystem.Radius.card))
+            .overlay(
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.card)
+                    .stroke(
+                        LinearGradient(
+                            stops: [
+                                .init(color: .white.opacity(0.85), location: 0.0),
+                                .init(color: .white.opacity(0.35), location: 0.40),
+                                .init(color: .white.opacity(0.10), location: 1.0)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 0.8
+                    )
+            )
+            .shadow(color: .black.opacity(0.08), radius: 14, x: 0, y: 5)
+            .shadow(color: .black.opacity(0.04), radius: 3,  x: 0, y: 1)
     }
 }
 
 // =========================================
-// === VIEW MODIFIER: GLASS CARD ===
+// === VIEW MODIFIER: LIQUID GLASS CARD ===
 // =========================================
-// Glasoptik — moderner Frosted-Glass-Effekt für Karten über farbigen Hintergründen
+// Apple-style Liquid Glass — multi-layer frosted glass with specular highlights,
+// luminous inner glow, and gradient stroke border.
 struct GlassCardModifier: ViewModifier {
     var tint: Color = .white
+    var cornerRadius: CGFloat = DesignSystem.Radius.card
 
     func body(content: Content) -> some View {
         content
-            .background(.ultraThinMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: DesignSystem.Radius.card))
-            .overlay(
-                RoundedRectangle(cornerRadius: DesignSystem.Radius.card)
-                    .stroke(tint.opacity(0.18), lineWidth: 0.8)
+            .background(
+                ZStack {
+                    // Layer 1: blur material base
+                    RoundedRectangle(cornerRadius: cornerRadius)
+                        .fill(.ultraThinMaterial)
+
+                    // Layer 2: luminous glass body
+                    RoundedRectangle(cornerRadius: cornerRadius)
+                        .fill(
+                            LinearGradient(
+                                stops: [
+                                    .init(color: .white.opacity(0.30), location: 0.0),
+                                    .init(color: tint.opacity(0.06),   location: 0.55),
+                                    .init(color: .white.opacity(0.04), location: 1.0)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+
+                    // Layer 3: top specular highlight — the key "glass bubble" look
+                    RoundedRectangle(cornerRadius: cornerRadius)
+                        .fill(
+                            LinearGradient(
+                                colors: [.white.opacity(0.60), .white.opacity(0.18), .clear],
+                                startPoint: .top,
+                                endPoint: UnitPoint(x: 0.5, y: 0.38)
+                            )
+                        )
+                }
             )
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
+            .overlay(
+                // Gradient border — bright at top-left, fades toward bottom-right
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .stroke(
+                        LinearGradient(
+                            stops: [
+                                .init(color: .white.opacity(0.88), location: 0.0),
+                                .init(color: .white.opacity(0.50), location: 0.25),
+                                .init(color: .white.opacity(0.20), location: 0.60),
+                                .init(color: .white.opacity(0.05), location: 1.0)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1.0
+                    )
+            )
+            .shadow(color: .black.opacity(0.10), radius: 18, x: 0, y: 7)
+            .shadow(color: .black.opacity(0.05), radius: 4,  x: 0, y: 2)
     }
 }
 
@@ -200,9 +282,64 @@ extension View {
         modifier(AscentCardModifier())
     }
 
-    // Glasoptik-Karte — für Elemente über Gradienten
+    // Liquid Glass card — for elements over gradients/images
     func glassCard(tint: Color = .white) -> some View {
         modifier(GlassCardModifier(tint: tint))
+    }
+
+    // Liquid Glass with custom corner radius
+    func liquidGlass(tint: Color = .white, cornerRadius: CGFloat = DesignSystem.Radius.card) -> some View {
+        modifier(GlassCardModifier(tint: tint, cornerRadius: cornerRadius))
+    }
+
+    /// Plain solid card — Apple-Health-style content surface for lists/sections.
+    /// Use for content that sits on a neutral background (not over imagery/gradients).
+    /// Default radius `Radius.lg` (18), default padding `Spacing.md` (16).
+    func sectionCard(
+        padding: CGFloat = DesignSystem.Spacing.md,
+        cornerRadius: CGFloat = DesignSystem.Radius.lg
+    ) -> some View {
+        self
+            .padding(padding)
+            .background(
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .fill(Color(.secondarySystemBackground))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .stroke(Color.black.opacity(0.04), lineWidth: 0.5)
+            )
+            .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 2)
+    }
+}
+
+// MARK: - Section Header — Apple-style "Health" header
+// Use above grouped content sections. Always title-case, with optional trailing accessory.
+struct SectionHeader<Trailing: View>: View {
+    let title: String
+    let subtitle: String?
+    @ViewBuilder let trailing: () -> Trailing
+
+    init(_ title: String, subtitle: String? = nil, @ViewBuilder trailing: @escaping () -> Trailing = { EmptyView() }) {
+        self.title = title
+        self.subtitle = subtitle
+        self.trailing = trailing
+    }
+
+    var body: some View {
+        HStack(alignment: .lastTextBaseline) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                if let subtitle {
+                    Text(subtitle)
+                        .font(.system(size: 13, weight: .medium, design: .rounded))
+                        .foregroundColor(.secondary)
+                }
+            }
+            Spacer()
+            trailing()
+        }
     }
 }
 
@@ -220,9 +357,10 @@ struct AscentButtonStyle: ButtonStyle {
 }
 
 // =========================================
-// === BUTTON STYLE: PRIMARY BUTTON ===
+// === BUTTON STYLE: PRIMARY BUTTON (Liquid Glass) ===
 // =========================================
-// Gefüllter CTA-Button (z.B. "Tour loggen")
+// Full-width CTA button with Liquid Glass treatment — gradient fill,
+// specular highlight, gradient border, and colored glow shadow.
 struct PrimaryButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -231,16 +369,46 @@ struct PrimaryButtonStyle: ButtonStyle {
             .frame(maxWidth: .infinity)
             .padding(DesignSystem.Spacing.md)
             .background(
+                ZStack {
+                    // Gradient fill
+                    RoundedRectangle(cornerRadius: DesignSystem.Radius.lg)
+                        .fill(DesignSystem.Colors.mountainGradient)
+                    // Specular top shine
+                    RoundedRectangle(cornerRadius: DesignSystem.Radius.lg)
+                        .fill(
+                            LinearGradient(
+                                colors: [.white.opacity(0.38), .clear],
+                                startPoint: .top,
+                                endPoint: UnitPoint(x: 0.5, y: 0.42)
+                            )
+                        )
+                    // Bottom glass reflection
+                    RoundedRectangle(cornerRadius: DesignSystem.Radius.lg)
+                        .fill(
+                            LinearGradient(
+                                colors: [.clear, .white.opacity(0.10)],
+                                startPoint: .top, endPoint: .bottom
+                            )
+                        )
+                }
+            )
+            .overlay(
                 RoundedRectangle(cornerRadius: DesignSystem.Radius.lg)
-                    .fill(DesignSystem.Colors.mountainGradient)
-                    .shadow(
-                        color:  DesignSystem.Shadow.accent.color,
-                        radius: configuration.isPressed ? 4 : DesignSystem.Shadow.accent.radius,
-                        x:      DesignSystem.Shadow.accent.x,
-                        y:      configuration.isPressed ? 2 : DesignSystem.Shadow.accent.y
+                    .stroke(
+                        LinearGradient(
+                            colors: [.white.opacity(0.75), .white.opacity(0.15)],
+                            startPoint: .topLeading, endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 0.8
                     )
             )
+            .shadow(
+                color: DesignSystem.Colors.accent.opacity(configuration.isPressed ? 0.18 : 0.42),
+                radius: configuration.isPressed ? 5 : 18,
+                x: 0, y: configuration.isPressed ? 2 : 8
+            )
             .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
+            .brightness(configuration.isPressed ? -0.04 : 0)
             .animation(DesignSystem.Animations.quick, value: configuration.isPressed)
     }
 }
@@ -252,6 +420,60 @@ extension Color {
     static let systemGreen  = Color(.systemGreen)
     static let systemOrange = Color(.systemOrange)
     static let systemRed    = Color(.systemRed)
+}
+
+// =========================================
+// === BUTTON STYLE: LIQUID GLASS BUTTON ===
+// =========================================
+// Secondary/tertiary glass button — frosted glass look with specular shine.
+// Use for icon buttons, chips, and non-primary actions.
+struct LiquidGlassButtonStyle: ButtonStyle {
+    var tint: Color = .white
+    var cornerRadius: CGFloat = DesignSystem.Radius.lg
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .background(
+                ZStack {
+                    RoundedRectangle(cornerRadius: cornerRadius)
+                        .fill(.ultraThinMaterial)
+                    RoundedRectangle(cornerRadius: cornerRadius)
+                        .fill(
+                            LinearGradient(
+                                colors: [.white.opacity(0.45), tint.opacity(0.06), .white.opacity(0.05)],
+                                startPoint: .topLeading, endPoint: .bottomTrailing
+                            )
+                        )
+                    RoundedRectangle(cornerRadius: cornerRadius)
+                        .fill(
+                            LinearGradient(
+                                colors: [.white.opacity(0.55), .clear],
+                                startPoint: .top,
+                                endPoint: UnitPoint(x: 0.5, y: 0.35)
+                            )
+                        )
+                }
+            )
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .stroke(
+                        LinearGradient(
+                            stops: [
+                                .init(color: .white.opacity(0.85), location: 0.0),
+                                .init(color: .white.opacity(0.40), location: 0.30),
+                                .init(color: .white.opacity(0.10), location: 1.0)
+                            ],
+                            startPoint: .topLeading, endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 0.8
+                    )
+            )
+            .shadow(color: .black.opacity(0.08), radius: 10, x: 0, y: 4)
+            .scaleEffect(configuration.isPressed ? 0.94 : 1.0)
+            .brightness(configuration.isPressed ? -0.04 : 0)
+            .animation(DesignSystem.Animations.quick, value: configuration.isPressed)
+    }
 }
 
 // =========================================
@@ -270,5 +492,83 @@ struct RoundedFontDesignModifier: ViewModifier {
 extension View {
     func roundedFontDesign() -> some View {
         modifier(RoundedFontDesignModifier())
+    }
+}
+
+// MARK: - Adaptive sheet glass background
+// iOS 26: let the system apply native Liquid Glass automatically.
+// iOS < 26: apply ultraThinMaterial as fallback.
+extension View {
+    @ViewBuilder
+    func adaptiveSheetBackground() -> some View {
+        if #available(iOS 26, *) {
+            self
+        } else {
+            self.presentationBackground(.ultraThinMaterial)
+        }
+    }
+
+    /// One-call sheet polish: corner radius, adaptive glass background, and
+    /// background-interaction enabled so the parent stays alive behind the sheet.
+    /// Use as the LAST modifier on any sheet root view for consistent feel.
+    @ViewBuilder
+    func ascentSheet(detents: Set<PresentationDetent> = [.large]) -> some View {
+        self
+            .presentationDetents(detents)
+            .presentationCornerRadius(36)
+            .adaptiveSheetBackground()
+            .presentationBackgroundInteraction(.enabled(upThrough: .large))
+            .preferredColorScheme(.light)
+    }
+}
+
+// MARK: - Polished sheet header
+// Consistent close button + optional title that all our sheets can use.
+// Drop-in replacement for hand-rolled NavigationView toolbar setups.
+struct AscentSheetHeader: View {
+    let title: String
+    var subtitle: String?
+    var onClose: () -> Void
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                if let subtitle {
+                    Text(subtitle)
+                        .font(.system(size: 13, weight: .medium, design: .rounded))
+                        .foregroundColor(.secondary)
+                }
+            }
+            Spacer()
+            Button(action: onClose) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 13, weight: .heavy))
+                    .foregroundColor(.secondary)
+                    .frame(width: 30, height: 30)
+                    .background(Color(.tertiarySystemFill))
+                    .clipShape(Circle())
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, DesignSystem.Spacing.md)
+        .padding(.top, DesignSystem.Spacing.md)
+        .padding(.bottom, DesignSystem.Spacing.sm)
+    }
+}
+
+// MARK: - Polished section divider strip
+// 1pt translucent rule with a subtle gradient — drops into any list-style content.
+struct AscentDivider: View {
+    var body: some View {
+        Rectangle()
+            .fill(
+                LinearGradient(
+                    colors: [Color.black.opacity(0.0), Color.black.opacity(0.08), Color.black.opacity(0.0)],
+                    startPoint: .leading, endPoint: .trailing
+                )
+            )
+            .frame(height: 0.5)
     }
 }

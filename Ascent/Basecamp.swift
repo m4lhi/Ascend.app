@@ -30,13 +30,14 @@ struct BasecampView: View {
     @State private var showCoachingGateway = false
     @State private var showElevationDetail = false
     @State private var showActiveGoalDetail = false
+    @State private var showGoalsList = false
+    @State private var showArena = false
     @State private var phase = false
 
     @ObservedObject private var weather = WeatherManager.shared
 
     private let bannerTimer = Timer.publish(every: 5, on: .main, in: .common).autoconnect()
     private let accent = DesignSystem.Colors.accent
-    private let bg = Color(red: 0.945, green: 0.945, blue: 0.96)
     private let gold = Color(red: 0.85, green: 0.65, blue: 0.13)
 
     private var tierColor: Color {
@@ -68,15 +69,23 @@ struct BasecampView: View {
 
     var body: some View {
         ZStack {
-            bg.ignoresSafeArea()
+            // Base gradient — richer so white cards float above it clearly
+            LinearGradient(
+                colors: [
+                    Color(red: 0.70, green: 0.82, blue: 1.0),
+                    Color(red: 0.80, green: 0.90, blue: 1.0),
+                    Color(red: 0.88, green: 0.94, blue: 1.0)
+                ],
+                startPoint: .topLeading, endPoint: .bottomTrailing
+            ).ignoresSafeArea()
 
             // Tier-colored hero wash at top
             VStack(spacing: 0) {
                 LinearGradient(
-                    colors: [tierColor.opacity(0.18), bg.opacity(0)],
+                    colors: [tierColor.opacity(0.25), Color.clear],
                     startPoint: .top, endPoint: .bottom
                 )
-                .frame(height: 260)
+                .frame(height: 320)
                 .ignoresSafeArea(edges: .top)
                 Spacer()
             }
@@ -103,6 +112,12 @@ struct BasecampView: View {
                             .opacity(phase ? 1 : 0)
                             .offset(y: phase ? 0 : 24)
                             .animation(.spring(response: 0.5, dampingFraction: 0.82).delay(0.02), value: phase)
+
+                        rankCard
+                            .padding(.horizontal, 16)
+                            .opacity(phase ? 1 : 0)
+                            .offset(y: phase ? 0 : 28)
+                            .animation(.spring(response: 0.52, dampingFraction: 0.8).delay(0.05), value: phase)
 
                         // DASHBOARD GRID
                         VStack(spacing: 16) {
@@ -164,59 +179,66 @@ struct BasecampView: View {
             XPDetailView()
                 .presentationDetents([.medium, .large])
                 .presentationCornerRadius(36)
-                .presentationBackground(.ultraThinMaterial)
-.presentationBackgroundInteraction(.enabled(upThrough: .large))
-
+                .adaptiveSheetBackground()
+                .presentationBackgroundInteraction(.enabled(upThrough: .large))
         }
         .sheet(isPresented: $showObjectiveDetail) {
             if let obj = selectedObjective {
                 ObjectiveDetailView(title: obj.title, icon: obj.icon, current: obj.current, target: obj.target, unit: obj.unit)
                     .presentationDetents([.medium, .large])
                     .presentationCornerRadius(36)
-                    .presentationBackground(.ultraThinMaterial)
-.presentationBackgroundInteraction(.enabled(upThrough: .large))
-
+                    .adaptiveSheetBackground()
+                    .presentationBackgroundInteraction(.enabled(upThrough: .large))
             }
         }
         .sheet(isPresented: $showAllActivities) {
             AllActivitiesView()
                 .presentationCornerRadius(36)
-                .presentationBackground(.ultraThinMaterial)
-.presentationBackgroundInteraction(.enabled(upThrough: .large))
-
+                .adaptiveSheetBackground()
+                .presentationBackgroundInteraction(.enabled(upThrough: .large))
         }
         .onChange(of: showTracker) { _, show in
             if show {
                 appState.activeMountain = mountainToTrack
                 withAnimation { appState.isTrackerActive = true }
-                showTracker = false // reset local state
+                showTracker = false
             }
         }
         .sheet(isPresented: $showExtendedReadiness) {
             SummitReadinessExtendedView()
                 .environmentObject(appState)
                 .presentationCornerRadius(36)
-                .presentationBackground(.ultraThinMaterial)
-.presentationBackgroundInteraction(.enabled(upThrough: .large))
-
+                .adaptiveSheetBackground()
+                .presentationBackgroundInteraction(.enabled(upThrough: .large))
         }
         .sheet(isPresented: $showAlpineWeather) {
             AlpineWeatherMapView()
                 .environmentObject(appState)
                 .presentationCornerRadius(36)
-                .presentationBackground(.ultraThinMaterial)
-.presentationBackgroundInteraction(.enabled(upThrough: .large))
-
+                .adaptiveSheetBackground()
+                .presentationBackgroundInteraction(.enabled(upThrough: .large))
         }
-        // Time-to-Go questionnaire merged into SummitReadinessExtendedView
+        .sheet(isPresented: $showArena) {
+            ArenaView()
+                .environmentObject(appState)
+                .presentationDetents([.large])
+                .presentationCornerRadius(36)
+                .adaptiveSheetBackground()
+        }
+        .sheet(isPresented: $showGoalsList) {
+            GoalsListView()
+                .environmentObject(appState)
+                .presentationDetents([.large])
+                .presentationCornerRadius(36)
+                .adaptiveSheetBackground()
+        }
         .sheet(isPresented: $showCoachingGateway) {
             AICoachingGatewayView()
                 .environmentObject(appState)
                 .presentationDetents([.large])
                 .presentationCornerRadius(36)
-                .presentationBackground(.ultraThinMaterial)
-.presentationBackgroundInteraction(.enabled(upThrough: .large))
-
+                .adaptiveSheetBackground()
+                .presentationBackgroundInteraction(.enabled(upThrough: .large))
         }
         .sheet(isPresented: $showElevationDetail) {
             ObjectiveDetailView(
@@ -228,9 +250,8 @@ struct BasecampView: View {
             )
             .presentationDetents([.medium, .large])
             .presentationCornerRadius(36)
-            .presentationBackground(.ultraThinMaterial)
-.presentationBackgroundInteraction(.enabled(upThrough: .large))
-
+            .adaptiveSheetBackground()
+            .presentationBackgroundInteraction(.enabled(upThrough: .large))
         }
         .sheet(isPresented: $showActiveGoalDetail) {
             ObjectiveDetailView(
@@ -242,9 +263,8 @@ struct BasecampView: View {
             )
             .presentationDetents([.medium, .large])
             .presentationCornerRadius(36)
-            .presentationBackground(.ultraThinMaterial)
-.presentationBackgroundInteraction(.enabled(upThrough: .large))
-
+            .adaptiveSheetBackground()
+            .presentationBackgroundInteraction(.enabled(upThrough: .large))
         }
         .sheet(item: $mountainDetailToShow) { mountain in
             BasecampMountainDetailSheet(mountain: mountain) {
@@ -256,9 +276,8 @@ struct BasecampView: View {
             }
             .presentationDetents([.fraction(0.85), .large])
             .presentationCornerRadius(36)
-            .presentationBackground(.ultraThinMaterial)
-.presentationBackgroundInteraction(.enabled(upThrough: .large))
-
+            .adaptiveSheetBackground()
+            .presentationBackgroundInteraction(.enabled(upThrough: .large))
         }
     }
 
@@ -304,6 +323,94 @@ struct BasecampView: View {
     // =========================================
     // MARK: - Top Bar
     // =========================================
+    // MARK: - Rank Card (opens Arena sheet on tap)
+
+    private var globalRank: Int? {
+        let me = appState.userHandle.lowercased()
+        guard !me.isEmpty else { return nil }
+        let board = appState.globalLeaderboard
+        guard let idx = board.firstIndex(where: { $0.handle.lowercased() == me }) else { return nil }
+        return idx + 1
+    }
+
+    private var tierLabel: String {
+        (appState.ascendProfile?.ascend_tier ?? "Bronze").capitalized
+    }
+
+    private var rankCard: some View {
+        Button {
+            HapticManager.shared.light()
+            showArena = true
+        } label: {
+            HStack(spacing: 14) {
+                // Tier Disc
+                ZStack {
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: [tierColor, tierColorDeep],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 48, height: 48)
+                        .shadow(color: tierColorDeep.opacity(0.35), radius: 6, y: 3)
+                    Image(systemName: "trophy.fill")
+                        .font(.system(size: 19, weight: .black))
+                        .foregroundColor(.white)
+                }
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(tierLabel.uppercased())
+                        .font(.appMono(size: 10, weight: .bold))
+                        .tracking(1.6)
+                        .foregroundColor(.secondary)
+                    if let rank = globalRank {
+                        Text("Global Rank #\(rank)")
+                            .font(.app(size: 17, weight: .heavy))
+                    } else {
+                        Text("\(appState.currentXP) XP · Lvl \(appState.currentLevel)")
+                            .font(.app(size: 17, weight: .heavy))
+                    }
+                }
+                Spacer()
+
+                HStack(spacing: 6) {
+                    Text("ARENA")
+                        .font(.appMono(size: 10, weight: .bold))
+                        .tracking(1.4)
+                        .foregroundColor(DesignSystem.Colors.accent)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12, weight: .heavy))
+                        .foregroundColor(DesignSystem.Colors.accent)
+                }
+            }
+            .padding(.horizontal, DesignSystem.Spacing.md)
+            .padding(.vertical, 14)
+            .frame(maxWidth: .infinity)
+            .background(
+                ZStack {
+                    RoundedRectangle(cornerRadius: DesignSystem.Radius.xl)
+                        .fill(.regularMaterial)
+                    RoundedRectangle(cornerRadius: DesignSystem.Radius.xl)
+                        .fill(
+                            LinearGradient(
+                                colors: [.white.opacity(0.5), .white.opacity(0.15)],
+                                startPoint: .top, endPoint: .bottom
+                            )
+                        )
+                }
+            )
+            .clipShape(RoundedRectangle(cornerRadius: DesignSystem.Radius.xl))
+            .overlay(
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.xl)
+                    .stroke(Color.white.opacity(0.6), lineWidth: 0.8)
+            )
+            .shadow(color: .black.opacity(0.08), radius: 12, y: 4)
+        }
+        .buttonStyle(AscentButtonStyle())
+    }
+
     private var topBar: some View {
         VStack(spacing: 0) {
             // Greeting + Avatar
@@ -369,23 +476,31 @@ struct BasecampView: View {
                 heroStatCell(value: "LV \(appState.currentLevel)", label: "LEVEL", icon: "star.fill") { showXPDetails = true }
             }
         }
-        .padding(.horizontal, 18)
-        .padding(.vertical, 18)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 22)
         .background(
             ZStack {
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                // Base tier gradient
+                RoundedRectangle(cornerRadius: 28, style: .continuous)
                     .fill(LinearGradient(
                         colors: [tierColor, tierColorDeep],
                         startPoint: .topLeading, endPoint: .bottomTrailing
                     ))
-                // Gloss highlight top-left
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                // Accent blue iridescent shimmer — always vivid
+                RoundedRectangle(cornerRadius: 28, style: .continuous)
                     .fill(LinearGradient(
-                        colors: [Color.white.opacity(0.18), .clear],
-                        startPoint: .topLeading, endPoint: .center
+                        colors: [DesignSystem.Colors.accent.opacity(0.45), .clear],
+                        startPoint: .topTrailing, endPoint: .bottomLeading
+                    ))
+                // Strong specular top-left
+                RoundedRectangle(cornerRadius: 28, style: .continuous)
+                    .fill(LinearGradient(
+                        colors: [Color.white.opacity(0.38), .clear],
+                        startPoint: .topLeading, endPoint: .init(x: 0.6, y: 0.55)
                     ))
             }
-            .shadow(color: tierColorDeep.opacity(0.38), radius: 18, y: 10)
+            .shadow(color: tierColorDeep.opacity(0.50), radius: 26, y: 14)
+            .shadow(color: DesignSystem.Colors.accent.opacity(0.18), radius: 16, y: 8)
         )
         .padding(.horizontal, 16)
         .padding(.top, 2)
@@ -393,18 +508,20 @@ struct BasecampView: View {
 
     private func heroStatCell(value: String, label: String, icon: String, action: @escaping () -> Void) -> some View {
         Button(action: { HapticManager.shared.light(); action() }) {
-            VStack(spacing: 5) {
-                Image(systemName: icon)
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundColor(.white.opacity(0.55))
+            VStack(spacing: 4) {
                 Text(value)
-                    .font(.appMono(size: 15, weight: .black))
+                    .font(.appMono(size: 20, weight: .black))
                     .foregroundColor(.white)
                     .contentTransition(.numericText())
-                Text(label)
-                    .font(.appMono(size: 7, weight: .bold))
-                    .foregroundColor(.white.opacity(0.48))
-                    .tracking(1.2)
+                HStack(spacing: 4) {
+                    Image(systemName: icon)
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundColor(.white.opacity(0.65))
+                    Text(label)
+                        .font(.appMono(size: 8, weight: .bold))
+                        .foregroundColor(.white.opacity(0.55))
+                        .tracking(1.2)
+                }
             }
             .frame(maxWidth: .infinity)
         }
@@ -429,78 +546,127 @@ struct BasecampView: View {
             HapticManager.shared.light()
             showExtendedReadiness = true
         } label: {
-            VStack(alignment: .leading, spacing: 14) {
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("SUMMIT READINESS")
-                            .font(.appMono(size: 10, weight: .bold))
-                            .foregroundColor(.secondary)
-                            .tracking(1.2)
-                        Text(appState.readiness?.status ?? "Start Assessment")
-                            .font(.app(size: 20, weight: .bold))
-                    }
-                    Spacer()
-                    ZStack {
-                        Circle()
-                            .stroke(Color.gray.opacity(0.1), lineWidth: 7)
-                        Circle()
-                            .trim(from: 0, to: CGFloat(appState.readiness?.totalScore ?? 0) / 100.0)
-                            .stroke(readinessColor, style: StrokeStyle(lineWidth: 7, lineCap: .round))
-                            .rotationEffect(.degrees(-90))
-                            .animation(.easeOut(duration: 0.9), value: appState.readiness?.totalScore)
+            VStack(alignment: .leading, spacing: 16) {
 
-                        Text("\(appState.readiness?.totalScore ?? 0)")
-                            .font(.appMono(size: 15, weight: .bold))
+                // — Header row —
+                HStack(spacing: 10) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 11, style: .continuous)
+                            .fill(LinearGradient(colors: [readinessColor.opacity(0.28), readinessColor.opacity(0.10)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                            .frame(width: 36, height: 36)
+                        Image(systemName: "heart.text.clipboard.fill")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(readinessColor)
+                            .symbolRenderingMode(.hierarchical)
                     }
-                    .frame(width: 54, height: 54)
+                    Text("SUMMIT READINESS")
+                        .font(.appMono(size: 10, weight: .bold))
+                        .foregroundColor(.secondary)
+                        .tracking(1.2)
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(.secondary.opacity(0.5))
                 }
 
                 if let readiness = appState.readiness {
-                    Text(readiness.recommendation)
-                        .font(.app(size: 13))
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.leading)
-                        .fixedSize(horizontal: false, vertical: true)
+                    // — Score ring + status side by side —
+                    HStack(spacing: 18) {
+                        ZStack {
+                            Circle()
+                                .stroke(readinessColor.opacity(0.12), lineWidth: 9)
+                            Circle()
+                                .trim(from: 0, to: CGFloat(readiness.totalScore) / 100.0)
+                                .stroke(
+                                    LinearGradient(colors: [readinessColor, readinessColor.opacity(0.6)], startPoint: .topLeading, endPoint: .bottomTrailing),
+                                    style: StrokeStyle(lineWidth: 9, lineCap: .round)
+                                )
+                                .rotationEffect(.degrees(-90))
+                                .animation(.spring(response: 0.9, dampingFraction: 0.75), value: readiness.totalScore)
+                            VStack(spacing: 1) {
+                                Text("\(readiness.totalScore)")
+                                    .font(.appMono(size: 22, weight: .bold))
+                                    .foregroundColor(.primary)
+                                Text("/ 100")
+                                    .font(.appMono(size: 9, weight: .medium))
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        .frame(width: 68, height: 68)
 
-                    HStack(spacing: 12) {
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text(readiness.status)
+                                .font(.app(size: 19, weight: .bold))
+                                .foregroundColor(.primary)
+                            Text(readiness.recommendation)
+                                .font(.app(size: 12))
+                                .foregroundColor(.secondary)
+                                .lineLimit(3)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        Spacer(minLength: 0)
+                    }
+
+                    // — Sub-score pills —
+                    HStack(spacing: 8) {
                         ReadinessMiniStat(label: "Physio", score: readiness.physiologicalScore)
                         ReadinessMiniStat(label: "Load", score: readiness.workloadScore)
                         ReadinessMiniStat(label: "Altitude", score: readiness.altitudeScore)
                     }
-                    
-                    Divider().padding(.vertical, 4)
-                    
-                    Text("WEEKLY TREND")
-                        .font(.appMono(size: 10, weight: .bold))
-                        .foregroundColor(.secondary)
-                        .tracking(1.2)
-                        
-                    // Weekly tracker — 7 capsules, each coloured by the stored go-stage
-                    // for that weekday. Empty weekdays stay neutral-grey.
-                    HStack(spacing: 6) {
-                        ForEach(1...7, id: \.self) { weekday in
-                            weekdayPill(weekday: weekday)
+
+                    // — Weekly trend —
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("WEEKLY TREND")
+                            .font(.appMono(size: 9, weight: .bold))
+                            .foregroundColor(.secondary)
+                            .tracking(1.2)
+                        HStack(spacing: 6) {
+                            ForEach(1...7, id: \.self) { weekday in
+                                weekdayPill(weekday: weekday)
+                            }
                         }
                     }
+
                 } else {
-                    HStack(spacing: 8) {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundColor(.orange)
-                            .font(.app(size: 12))
-                        Text("Tap to complete 20-question assessment")
-                            .font(.app(size: 12))
-                            .foregroundColor(.secondary)
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(.app(size: 11, weight: .bold))
-                            .foregroundColor(.secondary)
+                    // — Empty state —
+                    HStack(spacing: 10) {
+                        ZStack {
+                            Circle()
+                                .stroke(Color.gray.opacity(0.12), lineWidth: 7)
+                            Circle()
+                                .trim(from: 0, to: 0)
+                                .stroke(Color.gray.opacity(0.3), style: StrokeStyle(lineWidth: 7, lineCap: .round))
+                            Text("?")
+                                .font(.appMono(size: 20, weight: .bold))
+                                .foregroundColor(.secondary)
+                        }
+                        .frame(width: 56, height: 56)
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Not assessed yet")
+                                .font(.app(size: 16, weight: .semibold))
+                            Text("Tap to complete the 20-question assessment")
+                                .font(.app(size: 12))
+                                .foregroundColor(.secondary)
+                                .lineLimit(2)
+                        }
+                        Spacer(minLength: 0)
                     }
-                    .padding(.vertical, 2)
                 }
             }
-            .padding(18)
+            .padding(20)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .ascentCard()
+            .background(
+                ZStack {
+                    Rectangle().fill(Color.white.opacity(0.92))
+                    LinearGradient(colors: [readinessColor.opacity(0.18), .clear], startPoint: .topLeading, endPoint: .bottomTrailing)
+                    LinearGradient(colors: [Color.white.opacity(0.70), .clear], startPoint: .top, endPoint: .init(x: 0.5, y: 0.4))
+                }
+            )
+            .clipShape(RoundedRectangle(cornerRadius: DesignSystem.Radius.card, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: DesignSystem.Radius.card, style: .continuous).stroke(Color.white, lineWidth: 1.5))
+            .shadow(color: readinessColor.opacity(0.22), radius: 22, x: 0, y: 8)
+            .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 3)
         }
         .buttonStyle(PressableButtonStyle())
     }
@@ -513,10 +679,13 @@ struct BasecampView: View {
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
                     ZStack {
-                        Circle().fill(accent.opacity(0.12)).frame(width: 28, height: 28)
+                        RoundedRectangle(cornerRadius: 11, style: .continuous)
+                            .fill(LinearGradient(colors: [accent.opacity(0.28), accent.opacity(0.10)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                            .frame(width: 36, height: 36)
                         Image(systemName: "sparkles")
-                            .font(.system(size: 13, weight: .bold))
+                            .font(.system(size: 16, weight: .semibold))
                             .foregroundColor(accent)
+                            .symbolRenderingMode(.hierarchical)
                     }
                     Text("AI COACH")
                         .font(.appMono(size: 9, weight: .bold))
@@ -534,16 +703,19 @@ struct BasecampView: View {
                     .font(.app(size: 10))
                     .foregroundColor(.secondary)
             }
-            .padding(14)
+            .padding(18)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .background(
                 ZStack {
-                    DesignSystem.Colors.cardBackground
-                    LinearGradient(colors: [accent.opacity(0.07), .clear], startPoint: .topLeading, endPoint: .bottomTrailing)
+                    Rectangle().fill(Color.white.opacity(0.92))
+                    LinearGradient(colors: [accent.opacity(0.20), .clear], startPoint: .topLeading, endPoint: .bottomTrailing)
+                    LinearGradient(colors: [Color.white.opacity(0.70), .clear], startPoint: .top, endPoint: .init(x: 0.5, y: 0.4))
                 }
             )
             .clipShape(RoundedRectangle(cornerRadius: DesignSystem.Radius.card, style: .continuous))
-            .shadow(color: accent.opacity(0.10), radius: 10, y: 4)
+            .overlay(RoundedRectangle(cornerRadius: DesignSystem.Radius.card, style: .continuous).stroke(Color.white, lineWidth: 1.5))
+            .shadow(color: accent.opacity(0.22), radius: 22, x: 0, y: 8)
+            .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 3)
         }
         .buttonStyle(PressableButtonStyle())
     }
@@ -556,10 +728,13 @@ struct BasecampView: View {
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
                     ZStack {
-                        Circle().fill(Color.green.opacity(0.12)).frame(width: 28, height: 28)
-                        Image(systemName: "arrow.up.right")
-                            .font(.system(size: 13, weight: .bold))
+                        RoundedRectangle(cornerRadius: 11, style: .continuous)
+                            .fill(LinearGradient(colors: [Color.green.opacity(0.28), Color.green.opacity(0.10)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                            .frame(width: 36, height: 36)
+                        Image(systemName: "mountain.2.fill")
+                            .font(.system(size: 15, weight: .semibold))
                             .foregroundColor(.green)
+                            .symbolRenderingMode(.hierarchical)
                     }
                     Text("ALTITUDE")
                         .font(.appMono(size: 9, weight: .bold))
@@ -581,21 +756,22 @@ struct BasecampView: View {
                     .font(.app(size: 10))
                     .foregroundColor(.secondary)
             }
-            .padding(14)
+            .padding(18)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .background(
                 ZStack {
-                    DesignSystem.Colors.cardBackground
-                    LinearGradient(colors: [Color.green.opacity(0.07), .clear], startPoint: .topLeading, endPoint: .bottomTrailing)
+                    Rectangle().fill(Color.white.opacity(0.92))
+                    LinearGradient(colors: [Color.green.opacity(0.22), .clear], startPoint: .topLeading, endPoint: .bottomTrailing)
+                    LinearGradient(colors: [Color.white.opacity(0.70), .clear], startPoint: .top, endPoint: .init(x: 0.5, y: 0.4))
                 }
             )
             .clipShape(RoundedRectangle(cornerRadius: DesignSystem.Radius.card, style: .continuous))
-            .shadow(color: Color.green.opacity(0.10), radius: 10, y: 4)
+            .overlay(RoundedRectangle(cornerRadius: DesignSystem.Radius.card, style: .continuous).stroke(Color.white, lineWidth: 1.5))
+            .shadow(color: Color.green.opacity(0.22), radius: 22, x: 0, y: 8)
+            .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 3)
         }
         .buttonStyle(PressableButtonStyle())
     }
-
-
 
     private func weekdayPill(weekday: Int) -> some View {
         let score = appState.weeklyGoScores[weekday]
@@ -622,11 +798,11 @@ struct BasecampView: View {
 
     private func goColor(for stage: Int) -> Color {
         switch stage {
-        case 0: return Color(red: 0.70, green: 0.10, blue: 0.10) // deep red
-        case 1: return Color(red: 0.92, green: 0.38, blue: 0.20) // red-orange
-        case 2: return Color(red: 0.95, green: 0.78, blue: 0.18) // amber
-        case 3: return Color(red: 0.45, green: 0.80, blue: 0.35) // light green
-        default: return Color(red: 0.12, green: 0.58, blue: 0.28) // deep green
+        case 0: return Color(red: 0.72, green: 0.16, blue: 0.16) // brick
+        case 1: return Color(red: 0.90, green: 0.42, blue: 0.16) // terracotta
+        case 2: return Color(red: 0.92, green: 0.62, blue: 0.12) // amber
+        case 3: return Color(red: 0.10, green: 0.64, blue: 0.60) // alpine teal
+        default: return Color(red: 0.08, green: 0.66, blue: 0.44) // emerald
         }
     }
 
@@ -655,10 +831,13 @@ struct BasecampView: View {
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
                     ZStack {
-                        Circle().fill(Color.orange.opacity(0.12)).frame(width: 28, height: 28)
-                        Image(systemName: "figure.climbing")
-                            .font(.system(size: 13, weight: .bold))
+                        RoundedRectangle(cornerRadius: 11, style: .continuous)
+                            .fill(LinearGradient(colors: [Color.orange.opacity(0.28), Color.orange.opacity(0.10)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                            .frame(width: 36, height: 36)
+                        Image(systemName: "figure.hiking")
+                            .font(.system(size: 16, weight: .semibold))
                             .foregroundColor(.orange)
+                            .symbolRenderingMode(.hierarchical)
                     }
                     Text("ACTIVITY")
                         .font(.appMono(size: 9, weight: .bold))
@@ -680,76 +859,107 @@ struct BasecampView: View {
                     .font(.app(size: 10))
                     .foregroundColor(.secondary)
             }
-            .padding(14)
+            .padding(18)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .background(
                 ZStack {
-                    DesignSystem.Colors.cardBackground
-                    LinearGradient(colors: [Color.orange.opacity(0.07), .clear], startPoint: .topLeading, endPoint: .bottomTrailing)
+                    Rectangle().fill(Color.white.opacity(0.92))
+                    LinearGradient(colors: [Color.orange.opacity(0.22), .clear], startPoint: .topLeading, endPoint: .bottomTrailing)
+                    LinearGradient(colors: [Color.white.opacity(0.70), .clear], startPoint: .top, endPoint: .init(x: 0.5, y: 0.4))
                 }
             )
             .clipShape(RoundedRectangle(cornerRadius: DesignSystem.Radius.card, style: .continuous))
-            .shadow(color: Color.orange.opacity(0.10), radius: 10, y: 4)
+            .overlay(RoundedRectangle(cornerRadius: DesignSystem.Radius.card, style: .continuous).stroke(Color.white, lineWidth: 1.5))
+            .shadow(color: Color.orange.opacity(0.22), radius: 22, x: 0, y: 8)
+            .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 3)
         }
         .buttonStyle(PressableButtonStyle())
+    }
+
+    /// Smart selection: prefer active mountain → primary goal (next deadline) → first recommended peak
+    private var primaryGoal: Goal? {
+        if let active = appState.activeMountain { return Goal(from: active) }
+        return appState.goals.primary
     }
 
     private var targetGoalWidget: some View {
         Button {
             HapticManager.shared.light()
-            showActiveGoalDetail = true
+            showGoalsList = true
         } label: {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 3) {
-                        Text("ACTIVE GOAL")
+                        Text(appState.goals.isEmpty ? "GOALS" : "NEXT GOAL")
                             .font(.appMono(size: 9, weight: .bold))
                             .foregroundColor(.secondary)
                             .tracking(1.4)
-                        Text(appState.activeMountain?.name ?? "Mont Blanc")
+                        Text(primaryGoal?.mountainName ?? "Add Goal")
                             .font(.app(size: 16, weight: .black))
                             .lineLimit(2)
                     }
                     Spacer()
                     ZStack {
-                        Circle().fill(accent.opacity(0.10)).frame(width: 30, height: 30)
-                        Image(systemName: "flag.checkered")
-                            .font(.system(size: 14, weight: .bold))
+                        RoundedRectangle(cornerRadius: 11, style: .continuous)
+                            .fill(LinearGradient(colors: [accent.opacity(0.28), accent.opacity(0.10)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                            .frame(width: 36, height: 36)
+                        Image(systemName: appState.goals.isEmpty ? "plus" : "flag.2.crossed.fill")
+                            .font(.system(size: 15, weight: .semibold))
                             .foregroundColor(accent)
+                            .symbolRenderingMode(.hierarchical)
                     }
                 }
 
+                let readinessPct: Double = {
+                    if let r = appState.readiness { return min(max(Double(r.totalScore) / 100.0, 0), 1) }
+                    return 0
+                }()
                 GeometryReader { geo in
                     ZStack(alignment: .leading) {
                         Capsule().fill(Color.gray.opacity(0.12)).frame(height: 5)
                         Capsule()
                             .fill(LinearGradient(colors: [accent, accent.opacity(0.6)], startPoint: .leading, endPoint: .trailing))
-                            .frame(width: phase ? geo.size.width * 0.65 : 0, height: 5)
+                            .frame(width: phase ? geo.size.width * readinessPct : 0, height: 5)
                             .animation(.easeOut(duration: 1.0).delay(0.4), value: phase)
                     }
                 }
                 .frame(height: 5)
 
                 HStack {
-                    Text("65% ready")
-                        .font(.appMono(size: 10, weight: .bold))
-                        .foregroundColor(accent)
+                    if appState.readiness != nil {
+                        Text("\(Int(readinessPct * 100))% ready")
+                            .font(.appMono(size: 10, weight: .bold))
+                            .foregroundColor(accent)
+                    } else {
+                        Text("Tap to plan")
+                            .font(.appMono(size: 10, weight: .bold))
+                            .foregroundColor(accent)
+                    }
                     Spacer()
-                    Text("Aug 2026")
-                        .font(.appMono(size: 10, weight: .semibold))
-                        .foregroundColor(.secondary)
+                    if let goal = primaryGoal, let date = goal.targetDate {
+                        Text(date, format: .dateTime.month(.abbreviated).year())
+                            .font(.appMono(size: 10, weight: .semibold))
+                            .foregroundColor(.secondary)
+                    } else if appState.goals.count > 1 {
+                        Text("\(appState.goals.count) goals")
+                            .font(.appMono(size: 10, weight: .semibold))
+                            .foregroundColor(.secondary)
+                    }
                 }
             }
-            .padding(14)
+            .padding(18)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .background(
                 ZStack {
-                    DesignSystem.Colors.cardBackground
-                    LinearGradient(colors: [accent.opacity(0.06), .clear], startPoint: .topLeading, endPoint: .bottomTrailing)
+                    Rectangle().fill(Color.white.opacity(0.92))
+                    LinearGradient(colors: [accent.opacity(0.20), .clear], startPoint: .topLeading, endPoint: .bottomTrailing)
+                    LinearGradient(colors: [Color.white.opacity(0.70), .clear], startPoint: .top, endPoint: .init(x: 0.5, y: 0.4))
                 }
             )
             .clipShape(RoundedRectangle(cornerRadius: DesignSystem.Radius.card, style: .continuous))
-            .shadow(color: accent.opacity(0.10), radius: 10, y: 4)
+            .overlay(RoundedRectangle(cornerRadius: DesignSystem.Radius.card, style: .continuous).stroke(Color.white, lineWidth: 1.5))
+            .shadow(color: accent.opacity(0.22), radius: 22, x: 0, y: 8)
+            .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 3)
         }
         .buttonStyle(PressableButtonStyle())
     }
@@ -773,10 +983,12 @@ struct BasecampView: View {
                 HStack {
                     HStack(spacing: 8) {
                         ZStack {
-                            Circle().fill(safetyColor.opacity(0.12)).frame(width: 28, height: 28)
+                            RoundedRectangle(cornerRadius: 11, style: .continuous)
+                                .fill(LinearGradient(colors: [safetyColor.opacity(0.28), safetyColor.opacity(0.10)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                                .frame(width: 36, height: 36)
                             Image(systemName: "cloud.sun.fill")
-                                .font(.system(size: 13, weight: .bold))
-                                .foregroundColor(safetyColor)
+                                .font(.system(size: 16, weight: .semibold))
+                                .symbolRenderingMode(.multicolor)
                         }
                         VStack(alignment: .leading, spacing: 1) {
                             Text("ALPINE SAFETY")
@@ -822,9 +1034,9 @@ struct BasecampView: View {
                         label: "Vis."
                     )
                 }
-                .padding(.vertical, 10)
-                .background(Color.gray.opacity(0.05))
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .padding(.vertical, 12)
+                .background(Color.white.opacity(0.15))
+                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
 
                 HStack(spacing: 6) {
                     Image(systemName: "map.fill")
@@ -843,21 +1055,25 @@ struct BasecampView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 ZStack {
-                    DesignSystem.Colors.cardBackground
-                    LinearGradient(colors: [safetyColor.opacity(0.06), .clear], startPoint: .topLeading, endPoint: .bottomTrailing)
+                    Rectangle().fill(Color.white.opacity(0.92))
+                    LinearGradient(colors: [safetyColor.opacity(0.22), .clear], startPoint: .topLeading, endPoint: .bottomTrailing)
+                    LinearGradient(colors: [Color.white.opacity(0.70), .clear], startPoint: .top, endPoint: .init(x: 0.5, y: 0.4))
                 }
             )
             .clipShape(RoundedRectangle(cornerRadius: DesignSystem.Radius.card, style: .continuous))
-            .shadow(color: safetyColor.opacity(0.10), radius: 10, y: 4)
+            .overlay(RoundedRectangle(cornerRadius: DesignSystem.Radius.card, style: .continuous).stroke(Color.white, lineWidth: 1.5))
+            .shadow(color: safetyColor.opacity(0.22), radius: 22, x: 0, y: 8)
+            .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 3)
         }
         .buttonStyle(PressableButtonStyle())
     }
 
     private var readinessColor: Color {
         let score = appState.readiness?.totalScore ?? 0
-        if score > 80 { return .green }
-        if score > 60 { return .orange }
-        return .red
+        if score > 80 { return Color(red: 0.08, green: 0.66, blue: 0.44) }
+        if score > 60 { return Color(red: 0.10, green: 0.64, blue: 0.60) }
+        if score > 35 { return Color(red: 0.92, green: 0.62, blue: 0.12) }
+        return Color(red: 0.80, green: 0.22, blue: 0.20)
     }
 
     // MARK: - Suggested Routes Section
@@ -1023,12 +1239,12 @@ struct WeekPill: View {
                 .frame(height: 3)
             }
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 9)
-        .frame(width: 108)
-        .background(Color.white)
-        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-        .shadow(color: color.opacity(0.06), radius: 4, y: 2)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .frame(width: 118)
+        .background(.regularMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .shadow(color: color.opacity(0.08), radius: 8, y: 3)
     }
 }
 
@@ -1098,9 +1314,9 @@ struct RouteCard: View {
                 .padding(.horizontal, 12).padding(.vertical, 10)
             }
             .frame(width: 180)
-            .background(Color.white)
-            .clipShape(RoundedRectangle(cornerRadius: 14))
-            .shadow(color: .black.opacity(0.06), radius: 8, y: 4)
+            .background(.regularMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .shadow(color: .black.opacity(0.05), radius: 10, y: 4)
         }
         .buttonStyle(PlainButtonStyle())
     }
@@ -1126,7 +1342,7 @@ struct DiscoverCard: View {
         Button(action: onTap) {
             HStack(spacing: 12) {
                 ZStack {
-                    RoundedRectangle(cornerRadius: 12)
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
                         .fill(mountain.isPrestigePeak ? gold.opacity(0.15) : Color.blue.opacity(0.1))
                         .frame(width: 48, height: 48)
                     Image(systemName: mountain.isPrestigePeak ? "crown.fill" : "mountain.2.fill")
@@ -1144,11 +1360,11 @@ struct DiscoverCard: View {
                     .background(mountain.difficulty.color)
                     .cornerRadius(4)
             }
-            .padding(12)
+            .padding(14)
             .frame(width: 260)
-            .background(Color.white)
-            .clipShape(RoundedRectangle(cornerRadius: 14))
-            .shadow(color: .black.opacity(0.05), radius: 8, y: 4)
+            .background(.regularMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .shadow(color: .black.opacity(0.04), radius: 10, y: 4)
         }
         .buttonStyle(PlainButtonStyle())
     }
@@ -1166,12 +1382,6 @@ struct XPDetailView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Drag indicator
-            Capsule()
-                .fill(Color.secondary.opacity(0.3))
-                .frame(width: 36, height: 4)
-                .padding(.top, 12)
-
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 28) {
                     // Hero icon that pops in
@@ -1235,9 +1445,8 @@ struct XPDetailView: View {
             .background(.clear)
         }
         .background(.clear)
-        .presentationBackground(.ultraThinMaterial)
-.presentationBackgroundInteraction(.enabled(upThrough: .large))
-
+        .adaptiveSheetBackground()
+        .presentationBackgroundInteraction(.enabled(upThrough: .large))
         .onAppear { withAnimation { appeared = true } }
     }
 
@@ -1337,9 +1546,8 @@ struct AllActivitiesView: View {
             }
         }
         .background(.clear)
-        .presentationBackground(.ultraThinMaterial)
-.presentationBackgroundInteraction(.enabled(upThrough: .large))
-
+        .adaptiveSheetBackground()
+        .presentationBackgroundInteraction(.enabled(upThrough: .large))
     }
 }
 
@@ -1351,6 +1559,7 @@ struct BasecampMountainDetailSheet: View {
     let mountain: Mountain
     let onStartTracking: () -> Void
     @Environment(\.dismiss) var dismiss
+    @State private var showProAnalysis = false
     private let gold = Color(red: 0.85, green: 0.65, blue: 0.13)
     private let accent = DesignSystem.Colors.accent
 
@@ -1400,9 +1609,9 @@ struct BasecampMountainDetailSheet: View {
                         statItem(icon: "chart.line.uptrend.xyaxis", value: "~\(mountain.elevation / 2)m", label: "Est. Gain")
                         statItem(icon: "clock", value: estimatedDuration, label: "Est. Time")
                     }
-                    .padding(.vertical, 12)
-                    .background(Color(white: 0.95))
-                    .cornerRadius(12)
+                    .padding(.vertical, 14)
+                    .background(.regularMaterial)
+                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
                     
                     if !mountain.description.isEmpty {
                         Text(mountain.description)
@@ -1425,12 +1634,39 @@ struct BasecampMountainDetailSheet: View {
                                 .tint(gold)
                         }
                         .frame(height: 120)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(white: 0.9), lineWidth: 1))
+                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(Color.white.opacity(0.4), lineWidth: 1))
                     }
                     
                     Spacer()
                     
+                    // Pro Analysis: weather + avalanche + slope angle breakdown
+                    Button { showProAnalysis = true } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: "chart.bar.doc.horizontal.fill")
+                            Text("Pro Analysis")
+                                .font(.app(size: 14, weight: .heavy))
+                            Spacer()
+                            HStack(spacing: 4) {
+                                Image(systemName: "cloud.sun.fill")
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                Image(systemName: "triangle.fill")
+                            }
+                            .font(.app(size: 11))
+                            .foregroundColor(.secondary)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 14)
+                        .frame(maxWidth: .infinity)
+                        .background(.ultraThinMaterial)
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14)
+                                .stroke(accent.opacity(0.4), lineWidth: 1.5)
+                        )
+                        .foregroundColor(.primary)
+                    }
+
                     Button {
                         onStartTracking()
                     } label: {
@@ -1452,10 +1688,14 @@ struct BasecampMountainDetailSheet: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
-        .presentationBackground(.ultraThinMaterial)
-.presentationBackgroundInteraction(.enabled(upThrough: .large))
-
+        .adaptiveSheetBackground()
+        .presentationBackgroundInteraction(.enabled(upThrough: .large))
         .presentationCornerRadius(36)
+        .sheet(isPresented: $showProAnalysis) {
+            MountainProAnalysisSheet(mountain: mountain)
+                .presentationDetents([.large])
+                .preferredColorScheme(.light)
+        }
     }
 
     private var estimatedDuration: String {

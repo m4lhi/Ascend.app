@@ -565,7 +565,13 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Ascent/Info.plist;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.sports";
-				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Ascent braucht dein GPS, um deine Touren und Höhenmeter zu tracken.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Ascend needs camera access to capture photo highlights during your mission.";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Ascent uses your health data (height, weight, VO₂max and activity) to personalize your mountaineering training plan.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Ascent may log mountaineering workouts to Apple Health so they appear in your fitness history.";
+				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Ascend needs background location access to keep recording your route even when your phone is locked in your pocket.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Ascend needs your location to track your route, distance, and speed during missions.";
+				INFOPLIST_KEY_NSMotionUsageDescription = "Ascend uses your iPhone's barometer and motion sensors to accurately calculate your exact elevation gain.";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -576,6 +582,8 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
+				OTHER_SWIFT_FLAGS = "";
+				"OTHER_SWIFT_FLAGS[arch=*]" = "-Xfrontend\n-no-verify-emitted-module-interface\n-Xfrontend\n-disable-modules-validate-system-headers";
 				PRODUCT_BUNDLE_IDENTIFIER = com.m4lhi.ascent.Ascent;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -602,7 +610,13 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Ascent/Info.plist;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.sports";
-				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Ascent braucht dein GPS, um deine Touren und Höhenmeter zu tracken.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Ascend needs camera access to capture photo highlights during your mission.";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Ascent uses your health data (height, weight, VO₂max and activity) to personalize your mountaineering training plan.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Ascent may log mountaineering workouts to Apple Health so they appear in your fitness history.";
+				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Ascend needs background location access to keep recording your route even when your phone is locked in your pocket.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Ascend needs your location to track your route, distance, and speed during missions.";
+				INFOPLIST_KEY_NSMotionUsageDescription = "Ascend uses your iPhone's barometer and motion sensors to accurately calculate your exact elevation gain.";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -613,6 +627,8 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
+				OTHER_SWIFT_FLAGS = "";
+				"OTHER_SWIFT_FLAGS[arch=*]" = "-Xfrontend\n-no-verify-emitted-module-interface\n-Xfrontend\n-disable-modules-validate-system-headers";
 				PRODUCT_BUNDLE_IDENTIFIER = com.m4lhi.ascent.Ascent;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -824,8 +840,8 @@
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/mapbox/mapbox-maps-ios";
 			requirement = {
-				kind = exactVersion;
-				version = 11.0.0;
+				kind = upToNextMajorVersion;
+				minimumVersion = 11.12.0;
 			};
 		};
 		D481256A2F5DFC3700E88A9F /* XCRemoteSwiftPackageReference "supabase-swift" */ = {

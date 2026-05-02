@@ -19,6 +19,12 @@ struct MyRoutesView: View {
     @State private var selectedSportFilter: SportType?
     @State private var sortMode: RouteSortMode = .newest
 
+    // GPX import flow
+    @State private var showGPXPicker = false
+    @State private var pendingGPX: ImportedGPXRoute?
+    @State private var gpxImportError: String?
+    @State private var isImporting = false
+
     enum RouteTab: String, CaseIterable {
         case routes = "Routes"
         case folders = "Folders"
@@ -100,22 +106,94 @@ struct MyRoutesView: View {
         .sheet(isPresented: $showCreateFolder) {
             CreateFolderSheet(routeManager: routeManager)
         }
+        .sheet(isPresented: $showGPXPicker) {
+            GPXDocumentPicker { url in
+                showGPXPicker = false
+                handleGPXFile(url: url)
+            }
+        }
+        .sheet(item: $pendingGPX) { gpx in
+            GPXImportConfirmSheet(
+                gpx: gpx,
+                onSave: { saveImportedRoute(gpx) },
+                onCancel: { pendingGPX = nil }
+            )
+            .presentationDetents([.medium, .large])
+            .preferredColorScheme(.light)
+        }
+        .alert("GPX Import Failed", isPresented: .constant(gpxImportError != nil)) {
+            Button("OK") { gpxImportError = nil }
+        } message: {
+            Text(gpxImportError ?? "")
+        }
+    }
+
+    // MARK: - GPX Import
+
+    private func handleGPXFile(url: URL) {
+        do {
+            let route = try GPXImporter.parse(url: url)
+            pendingGPX = route
+        } catch {
+            gpxImportError = error.localizedDescription
+        }
+    }
+
+    private func saveImportedRoute(_ gpx: ImportedGPXRoute) {
+        isImporting = true
+        // Build a polyline from coords using the existing RouteEncoder
+        let locs = zip(gpx.coordinates, gpx.elevations).map { coord, elev in
+            CLLocation(coordinate: coord, altitude: Double(elev),
+                       horizontalAccuracy: 0, verticalAccuracy: 0, timestamp: Date())
+        }
+        let polyline = RouteEncoder.encode(locs)
+
+        let estimatedMin = max(15, Int((gpx.totalDistanceKm * 12) + (Double(gpx.totalElevationGainM) / 8)))
+
+        let saved = SavedRoute(
+            user_id: nil,
+            name: gpx.name,
+            description: "Imported from GPX",
+            mountainIds: [],
+            routePolyline: polyline,
+            totalDistanceKm: gpx.totalDistanceKm,
+            totalElevationGain: gpx.totalElevationGainM,
+            estimatedDurationMinutes: estimatedMin,
+            difficulty: "Medium",
+            tags: ["imported", "gpx"]
+        )
+
+        Task {
+            _ = await routeManager.saveRoute(saved)
+            await routeManager.fetchAll()
+            await MainActor.run {
+                isImporting = false
+                pendingGPX = nil
+            }
+        }
     }
 
     // MARK: - Header
 
     @ViewBuilder
     var routeLibraryHeader: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("My Routes")
-                .font(.app(size: 32, weight: .bold))
-            Text("Your personal route library")
-                .font(.app(size: 15))
-                .foregroundColor(.secondary)
+        SectionHeader("My Routes", subtitle: "Your personal route library") {
+            Button { showGPXPicker = true } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "square.and.arrow.down.fill")
+                    Text("GPX")
+                }
+                .font(.system(size: 13, weight: .heavy, design: .rounded))
+                .foregroundColor(.white)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 7)
+                .background(accent)
+                .clipShape(Capsule())
+                .shadow(color: accent.opacity(0.3), radius: 6, y: 2)
+            }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 20)
-        .padding(.top, 12)
+        .padding(.horizontal, DesignSystem.Spacing.md)
+        .padding(.top, DesignSystem.Spacing.md)
     }
 
     // MARK: - Stats Summary
@@ -126,12 +204,16 @@ struct MyRoutesView: View {
         HStack(spacing: 0) {
             miniStat(value: "\(stats.count)", label: "Routes", icon: "map")
             miniStat(value: String(format: "%.0f km", stats.distance), label: "Total", icon: "point.topleft.down.to.point.bottomright.curvepath")
-            miniStat(value: "+\(stats.elevation)m", label: "Elevation", icon: "arrow.up.right")
+            miniStat(value: "+\(stats.elevation)m", label: "Elev", icon: "arrow.up.right")
             miniStat(value: "\(routeManager.myRoutes.filter { $0.isCompleted }.count)", label: "Done", icon: "checkmark.seal.fill")
         }
-        .padding(.vertical, 16)
-        .background(Color.white)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .padding(.vertical, DesignSystem.Spacing.md)
+        .background(Color(.secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: DesignSystem.Radius.lg))
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.lg)
+                .stroke(Color.black.opacity(0.04), lineWidth: 0.5)
+        )
         .shadow(color: .black.opacity(0.05), radius: 8, y: 2)
     }
 
@@ -1130,5 +1212,121 @@ struct ShareFolderSheet: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - GPX Import Confirmation Sheet
+
+struct GPXImportConfirmSheet: View {
+    let gpx: ImportedGPXRoute
+    let onSave: () -> Void
+    let onCancel: () -> Void
+    @Environment(\.dismiss) var dismiss
+
+    private let accent = DesignSystem.Colors.accent
+
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(spacing: 16) {
+                    // Preview map
+                    if let region = previewRegion {
+                        Map(initialPosition: .region(region), interactionModes: []) {
+                            MapPolyline(coordinates: gpx.coordinates)
+                                .stroke(accent, lineWidth: 4)
+                            if let first = gpx.coordinates.first {
+                                Annotation("Start", coordinate: first) {
+                                    Circle().fill(.green).frame(width: 16, height: 16)
+                                        .overlay(Circle().stroke(.white, lineWidth: 2))
+                                }
+                            }
+                            if let last = gpx.coordinates.last {
+                                Annotation("End", coordinate: last) {
+                                    Circle().fill(.red).frame(width: 16, height: 16)
+                                        .overlay(Circle().stroke(.white, lineWidth: 2))
+                                }
+                            }
+                        }
+                        .frame(height: 200)
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                        .padding(.horizontal, 20)
+                    }
+
+                    // Stats
+                    HStack(spacing: 0) {
+                        importStat(value: String(format: "%.1f", gpx.totalDistanceKm), unit: "km", label: "Distance")
+                        Divider().frame(height: 30)
+                        importStat(value: "+\(gpx.totalElevationGainM)", unit: "m", label: "Ascent")
+                        Divider().frame(height: 30)
+                        importStat(value: "\(gpx.coordinates.count)", unit: "", label: "Points")
+                    }
+                    .padding(.vertical, 12)
+                    .background(Color.white)
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                    .padding(.horizontal, 20)
+
+                    // Name
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Name")
+                            .font(.app(size: 11, weight: .bold))
+                            .foregroundColor(.secondary)
+                        Text(gpx.name)
+                            .font(.app(size: 16, weight: .heavy))
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 20)
+
+                    Spacer(minLength: 16)
+
+                    Button {
+                        onSave()
+                    } label: {
+                        Text("Save to My Routes")
+                            .font(.app(size: 16, weight: .heavy))
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(accent)
+                            .clipShape(RoundedRectangle(cornerRadius: 14))
+                    }
+                    .padding(.horizontal, 20)
+                }
+                .padding(.top, 16)
+                .padding(.bottom, 30)
+            }
+            .navigationTitle("Import GPX")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { onCancel() }
+                }
+            }
+        }
+    }
+
+    private var previewRegion: MKCoordinateRegion? {
+        guard !gpx.coordinates.isEmpty else { return nil }
+        let lats = gpx.coordinates.map(\.latitude)
+        let lons = gpx.coordinates.map(\.longitude)
+        let minLat = lats.min()!, maxLat = lats.max()!
+        let minLon = lons.min()!, maxLon = lons.max()!
+        return MKCoordinateRegion(
+            center: CLLocationCoordinate2D(latitude: (minLat + maxLat) / 2, longitude: (minLon + maxLon) / 2),
+            span: MKCoordinateSpan(latitudeDelta: max((maxLat - minLat) * 1.4, 0.01),
+                                   longitudeDelta: max((maxLon - minLon) * 1.4, 0.01))
+        )
+    }
+
+    private func importStat(value: String, unit: String, label: String) -> some View {
+        VStack(spacing: 4) {
+            HStack(alignment: .firstTextBaseline, spacing: 2) {
+                Text(value).font(.app(size: 18, weight: .heavy))
+                if !unit.isEmpty {
+                    Text(unit).font(.app(size: 10, weight: .heavy)).foregroundColor(.secondary)
+                }
+            }
+            Text(label).font(.app(size: 10)).foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity)
     }
 }

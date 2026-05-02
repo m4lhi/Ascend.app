@@ -21,8 +21,8 @@ struct AscentApp: App {
                         .roundedFontDesign()
                         .onAppear {
                             appState.fetchProfileFromCloud()
-                            // DEBUG: Uncomment once to re-show onboarding, then remove
-                            fitnessOnboardingCompleted = false
+                            // Start background Health analysis (runs every 6 hours)
+                            HealthAnalysisEngine.shared.start(appState: appState)
                             if !fitnessOnboardingCompleted {
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
                                     showFitnessOnboarding = true

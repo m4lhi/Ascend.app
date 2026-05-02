@@ -2,6 +2,8 @@ import Foundation
 import SwiftUI
 import Combine
 import Supabase
+import MapKit
+import CoreLocation
 
 // =========================================
 // === DATEI: CollectionsManager.swift ===
@@ -477,9 +479,13 @@ struct CollectionCardView: View {
                 .padding(.horizontal, 6)
                 .padding(.vertical, 10)
             }
-            .background(Color.white)
-            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .shadow(color: .black.opacity(0.06), radius: 8, y: 3)
+            .background(Color(.secondarySystemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: DesignSystem.Radius.lg, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.lg, style: .continuous)
+                    .stroke(Color.black.opacity(0.04), lineWidth: 0.5)
+            )
+            .shadow(color: .black.opacity(0.05), radius: 8, y: 2)
         }
         .buttonStyle(.plain)
     }
@@ -957,6 +963,13 @@ struct CollectionDetailSheet: View {
                         // Hero Header with mosaic
                         heroHeader
 
+                        // Map showing each peak with its OWN route — no lines between peaks
+                        if !mountains.isEmpty {
+                            collectionMapSection
+                                .padding(.horizontal, 20)
+                                .padding(.top, 16)
+                        }
+
                         // Stats row — positioned completely below the hero image
                         statsRow
                             .padding(.horizontal, 20)
@@ -1040,6 +1053,100 @@ struct CollectionDetailSheet: View {
                 }
             }
         }
+    }
+
+    // MARK: - Collection Map (per-peak routes, no lines between peaks)
+
+    @ViewBuilder
+    var collectionMapSection: some View {
+        let validMountains = mountains.filter { $0.latitude != nil && $0.longitude != nil }
+        let region = mapRegion(for: validMountains)
+
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Map")
+                    .font(.app(size: 16, weight: .bold))
+                Spacer()
+                Text("\(validMountains.count) peak\(validMountains.count == 1 ? "" : "s")")
+                    .font(.app(size: 12, weight: .medium))
+                    .foregroundColor(.secondary)
+            }
+
+            Map(initialPosition: .region(region)) {
+                // Each peak's own route polyline — peaks are NOT connected
+                ForEach(validMountains) { mountain in
+                    if let firstRoute = mountain.routes?.first,
+                       !firstRoute.route_polyline.isEmpty {
+                        let coords = PolylineUtility.decode(polyline: firstRoute.route_polyline)
+                        if coords.count >= 2 {
+                            MapPolyline(coordinates: coords)
+                                .stroke(accent, lineWidth: 4)
+                        }
+                    }
+                }
+
+                ForEach(Array(validMountains.enumerated()), id: \.element.id) { index, mountain in
+                    let coord = CLLocationCoordinate2D(
+                        latitude: mountain.latitude!,
+                        longitude: mountain.longitude!
+                    )
+                    Annotation(mountain.name, coordinate: coord) {
+                        Button { selectedMountain = mountain } label: {
+                            VStack(spacing: 2) {
+                                ZStack {
+                                    Circle()
+                                        .fill(accent)
+                                        .frame(width: 30, height: 30)
+                                    Text("\(index + 1)")
+                                        .font(.app(size: 13, weight: .black))
+                                        .foregroundColor(.white)
+                                }
+                                .shadow(color: .black.opacity(0.3), radius: 3, y: 2)
+                                Text(mountain.name)
+                                    .font(.app(size: 10, weight: .bold))
+                                    .foregroundColor(.primary)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(.ultraThinMaterial, in: Capsule())
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+            .mapStyle(.hybrid(elevation: .realistic))
+            .frame(height: 220)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .shadow(color: .black.opacity(0.06), radius: 8, y: 3)
+        }
+    }
+
+    // Compute a region that fits all mountain coordinates with reasonable padding.
+    private func mapRegion(for items: [Mountain]) -> MKCoordinateRegion {
+        let coords = items.compactMap { m -> CLLocationCoordinate2D? in
+            guard let lat = m.latitude, let lon = m.longitude else { return nil }
+            return CLLocationCoordinate2D(latitude: lat, longitude: lon)
+        }
+        guard !coords.isEmpty else {
+            return MKCoordinateRegion(
+                center: CLLocationCoordinate2D(latitude: 47.0, longitude: 11.0),
+                span: MKCoordinateSpan(latitudeDelta: 4, longitudeDelta: 4)
+            )
+        }
+        let lats = coords.map(\.latitude)
+        let lons = coords.map(\.longitude)
+        let minLat = lats.min()!, maxLat = lats.max()!
+        let minLon = lons.min()!, maxLon = lons.max()!
+        let center = CLLocationCoordinate2D(
+            latitude: (minLat + maxLat) / 2,
+            longitude: (minLon + maxLon) / 2
+        )
+        // 1.6× padding so pins aren't on the edge; minimum span so single peak isn't fully zoomed
+        let span = MKCoordinateSpan(
+            latitudeDelta: max((maxLat - minLat) * 1.6, 0.05),
+            longitudeDelta: max((maxLon - minLon) * 1.6, 0.05)
+        )
+        return MKCoordinateRegion(center: center, span: span)
     }
 
     // MARK: - Hero Header
@@ -1153,10 +1260,14 @@ struct CollectionDetailSheet: View {
             collectionStat(icon: "map", value: "\(regions)", label: "Regions")
             collectionStat(icon: "person.2.fill", value: "\(members.count + 1)", label: "Members")
         }
-        .padding(.vertical, 14)
-        .background(Color.white)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
-        .shadow(color: .black.opacity(0.04), radius: 6, y: 2)
+        .padding(.vertical, DesignSystem.Spacing.md)
+        .background(Color(.secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: DesignSystem.Radius.lg))
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.lg)
+                .stroke(Color.black.opacity(0.04), lineWidth: 0.5)
+        )
+        .shadow(color: .black.opacity(0.05), radius: 8, y: 2)
     }
 
     func collectionStat(icon: String, value: String, label: String) -> some View {
@@ -1410,6 +1521,23 @@ struct CollectionDetailSheet: View {
                                             .background(mountain.difficulty.color)
                                             .clipShape(Capsule())
                                             .padding(.top, 4)
+
+                                        // Per-mountain route stats (this peak's own route)
+                                        if let stats = routeStats(for: mountain) {
+                                            HStack(spacing: 6) {
+                                                Label(String(format: "%.1f km", stats.km),
+                                                      systemImage: "point.topleft.down.to.point.bottomright.curvepath")
+                                                    .font(.app(size: 9, weight: .semibold))
+                                                    .labelStyle(.titleAndIcon)
+                                                    .foregroundColor(.secondary)
+                                                Label("+\(stats.gainM)m",
+                                                      systemImage: "arrow.up.right")
+                                                    .font(.app(size: 9, weight: .semibold))
+                                                    .labelStyle(.titleAndIcon)
+                                                    .foregroundColor(.secondary)
+                                            }
+                                            .padding(.top, 4)
+                                        }
                                     }
                                     .padding(12)
                                     .frame(width: 140, alignment: .leading)
@@ -1467,6 +1595,29 @@ struct CollectionDetailSheet: View {
         } catch {
             print("❌ Failed to fetch mountains for collection: \(error)")
         }
+    }
+
+    // Per-mountain route stats: distance from polyline, elevation gain from profile
+    fileprivate func routeStats(for mountain: Mountain) -> (km: Double, gainM: Int)? {
+        guard let route = mountain.routes?.first, !route.route_polyline.isEmpty else { return nil }
+        let coords = PolylineUtility.decode(polyline: route.route_polyline)
+        guard coords.count >= 2 else { return nil }
+
+        var meters: CLLocationDistance = 0
+        for i in 1..<coords.count {
+            let a = CLLocation(latitude: coords[i - 1].latitude, longitude: coords[i - 1].longitude)
+            let b = CLLocation(latitude: coords[i].latitude, longitude: coords[i].longitude)
+            meters += b.distance(from: a)
+        }
+
+        var gain = 0
+        if let elevs = route.elevation_profile, elevs.count >= 2 {
+            for i in 1..<elevs.count {
+                let delta = elevs[i] - elevs[i - 1]
+                if delta > 0 { gain += delta }
+            }
+        }
+        return (km: meters / 1000.0, gainM: gain)
     }
 
     private func fetchMemberProfiles() async {

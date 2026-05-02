@@ -26,13 +26,6 @@ struct ObjectiveDetailView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Drag handle
-            Capsule()
-                .fill(Color.secondary.opacity(0.3))
-                .frame(width: 36, height: 4)
-                .padding(.top, 12)
-                .padding(.bottom, 4)
-
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 28) {
                     // Animated hero icon
@@ -120,7 +113,7 @@ struct ObjectiveDetailView: View {
             .background(.clear)
         }
         .background(.clear)
-        .presentationBackground(.ultraThinMaterial)
+        .adaptiveSheetBackground()
         .onAppear { withAnimation { appeared = true } }
     }
 }

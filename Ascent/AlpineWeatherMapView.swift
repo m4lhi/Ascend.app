@@ -58,13 +58,13 @@ struct WeatherTileMapView: UIViewRepresentable {
 
     func makeUIView(context: Context) -> MKMapView {
         let map = MKMapView()
-        map.mapType = .mutedStandard
         map.isRotateEnabled = false
         map.showsCompass = false
         map.showsUserLocation = true
         map.pointOfInterestFilter = .excludingAll
-        // Enable terrain / elevation
-        let config = MKStandardMapConfiguration(elevationStyle: .realistic)
+        // Flat elevation — 3D realistic terrain causes raster tile overlays to disappear at certain pitches.
+        // For weather radar visibility, flat is the right call.
+        let config = MKStandardMapConfiguration(elevationStyle: .flat, emphasisStyle: .muted)
         config.pointOfInterestFilter = .excludingAll
         map.preferredConfiguration = config
 
@@ -76,7 +76,7 @@ struct WeatherTileMapView: UIViewRepresentable {
 
         // Add initial tile overlay
         let overlay = Self.tileOverlay(for: layer, rvPath: rvPath)
-        map.addOverlay(overlay, level: .aboveLabels)
+        map.addOverlay(overlay, level: .aboveRoads)
         context.coordinator.currentOverlay = overlay
 
         // Mountain pin
@@ -93,7 +93,9 @@ struct WeatherTileMapView: UIViewRepresentable {
             map.removeOverlay(old)
         }
         let overlay = Self.tileOverlay(for: layer, rvPath: rvPath)
-        map.addOverlay(overlay, level: .aboveLabels)
+        // Use .aboveRoads (not .aboveLabels) — at .aboveLabels the tiles can be hidden by
+        // map labels or clipped against POI/text rendering passes.
+        map.addOverlay(overlay, level: .aboveRoads)
         context.coordinator.currentOverlay = overlay
     }
 
@@ -105,7 +107,7 @@ struct WeatherTileMapView: UIViewRepresentable {
         func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
             if let tile = overlay as? MKTileOverlay {
                 let renderer = MKTileOverlayRenderer(tileOverlay: tile)
-                renderer.alpha = 0.55 // semi-transparent so terrain shows through
+                renderer.alpha = 0.75 // visible enough but lets the base map show through
                 return renderer
             }
             return MKOverlayRenderer(overlay: overlay)
@@ -143,8 +145,7 @@ struct WeatherTileMapView: UIViewRepresentable {
         case .temp:   layerSlug = "temp_new"
         case .snow:   layerSlug = "snow_new"
         }
-        // Universal demo OWM key that reliably loads clouds/temp/snow tiles for prototyping without auth errors
-        let template = "https://tile.openweathermap.org/map/\(layerSlug)/{z}/{x}/{y}.png?appid=b6907d289e10d714a6e88b30761fae22"
+        let template = "https://tile.openweathermap.org/map/\(layerSlug)/{z}/{x}/{y}.png?appid=\(APIKeys.openWeatherMap)"
         let overlay = MKTileOverlay(urlTemplate: template)
         overlay.canReplaceMapContent = false
         overlay.maximumZ = 8
@@ -192,6 +193,9 @@ struct AlpineWeatherMapView: View {
     @State private var layer: Layer = .rain
     @State private var selectedHourOffset: Double = 0
     @State private var showLegend = false
+    @State private var avalancheBulletin: AvalancheBulletin?
+    @State private var avalancheLoading = true
+    @State private var showAvalancheHeatmap = false
 
     private var targetCoord: CLLocationCoordinate2D {
         if let m = appState.activeMountain, let lat = m.latitude, let lon = m.longitude {
@@ -208,6 +212,41 @@ struct AlpineWeatherMapView: View {
         return hourly[idx]
     }
 
+    private var driftStyle: WeatherDriftOverlay.Style {
+        switch layer {
+        case .clouds: return .clouds
+        case .rain:   return .rain
+        case .snow:   return .snow
+        case .wind:   return .wind
+        case .temp:   return .none
+        }
+    }
+
+    /// Convert compass-direction string ("N", "NE", "ENE"…) to degrees so the
+    /// drift overlay tilts streaks correctly.
+    private var windHeadingDegrees: Double {
+        guard let dir = weather.currentWeather?.windDirection.uppercased() else { return 270 }
+        switch dir {
+        case "N":   return 0
+        case "NNE": return 22.5
+        case "NE":  return 45
+        case "ENE": return 67.5
+        case "E":   return 90
+        case "ESE": return 112.5
+        case "SE":  return 135
+        case "SSE": return 157.5
+        case "S":   return 180
+        case "SSW": return 202.5
+        case "SW":  return 225
+        case "WSW": return 247.5
+        case "W":   return 270
+        case "WNW": return 292.5
+        case "NW":  return 315
+        case "NNW": return 337.5
+        default:    return 270
+        }
+    }
+
     var body: some View {
         NavigationView {
             ZStack(alignment: .top) {
@@ -220,6 +259,12 @@ struct AlpineWeatherMapView: View {
                 )
                 .ignoresSafeArea()
                 .animation(.easeInOut(duration: 0.4), value: layer)
+
+                // Animated atmospheric drift on top of the tile map
+                WeatherDriftOverlay(style: driftStyle, windDeg: windHeadingDegrees)
+                    .ignoresSafeArea()
+                    .opacity(driftStyle == .none ? 0 : 1)
+                    .animation(.easeInOut(duration: 0.5), value: layer)
 
                 // Loading overlay
                 if weather.isLoading {
@@ -248,7 +293,21 @@ struct AlpineWeatherMapView: View {
             .onAppear {
                 let c = targetCoord
                 Task { await weather.fetchWeather(latitude: c.latitude, longitude: c.longitude) }
+                Task { await loadAvalancheBulletin() }
             }
+            .sheet(isPresented: $showAvalancheHeatmap) {
+                AvalancheHeatmapSheet(center: targetCoord)
+                    .presentationDetents([.large])
+            }
+        }
+    }
+
+    private func loadAvalancheBulletin() async {
+        avalancheLoading = true
+        let bulletin = try? await AvalancheService.shared.fetchBulletin(for: targetCoord)
+        await MainActor.run {
+            self.avalancheBulletin = bulletin
+            self.avalancheLoading = false
         }
     }
 
@@ -314,6 +373,9 @@ struct AlpineWeatherMapView: View {
             // Layer switcher
             layerPicker
 
+            // Avalanche bulletin (always visible — critical safety info)
+            avalancheCard
+
             // Alpine telemetry readout
             alpineTelemetry
 
@@ -331,6 +393,82 @@ struct AlpineWeatherMapView: View {
         )
         .padding(.horizontal, 10)
         .padding(.bottom, 16)
+    }
+
+    // MARK: Avalanche Bulletin Card
+    @ViewBuilder
+    private var avalancheCard: some View {
+        if let b = avalancheBulletin {
+            Button { showAvalancheHeatmap = true } label: {
+                HStack(spacing: 12) {
+                    ZStack {
+                        Circle()
+                            .fill(Color(hex: b.dangerColorHex) ?? .gray)
+                            .frame(width: 44, height: 44)
+                        Text("\(b.dangerLevel)")
+                            .font(.system(size: 19, weight: .black))
+                            .foregroundColor(b.dangerLevel >= 4 ? .white : .black)
+                    }
+                    .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .font(.system(size: 9, weight: .heavy))
+                                .foregroundColor(.orange)
+                            Text("AVALANCHE — \(b.dangerLabel.uppercased())")
+                                .font(.appMono(size: 9, weight: .heavy))
+                                .tracking(1.0)
+                        }
+                        Text(b.regionName)
+                            .font(.app(size: 13, weight: .heavy))
+                            .foregroundColor(.primary)
+                            .lineLimit(1)
+                        if !b.problems.isEmpty {
+                            Text(b.problems.prefix(2).joined(separator: ", ").replacingOccurrences(of: "_", with: " "))
+                                .font(.app(size: 10))
+                                .foregroundColor(.secondary)
+                                .lineLimit(1)
+                        }
+                    }
+                    Spacer()
+                    Image(systemName: "map.fill")
+                        .font(.system(size: 13, weight: .heavy))
+                        .foregroundColor(.secondary)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .background(Color.white.opacity(0.5))
+                .clipShape(RoundedRectangle(cornerRadius: DesignSystem.Radius.md))
+            }
+            .buttonStyle(.plain)
+        } else if avalancheLoading {
+            HStack(spacing: 10) {
+                ProgressView().scaleEffect(0.7)
+                Text("Loading avalanche bulletin…")
+                    .font(.app(size: 11))
+                    .foregroundColor(.secondary)
+                Spacer()
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(Color.white.opacity(0.4))
+            .clipShape(RoundedRectangle(cornerRadius: DesignSystem.Radius.md))
+        } else {
+            // No bulletin available for region (e.g. summer or unsupported area)
+            HStack(spacing: 8) {
+                Image(systemName: "checkmark.shield.fill")
+                    .foregroundColor(.green)
+                Text("No avalanche bulletin issued for this region.")
+                    .font(.app(size: 11))
+                    .foregroundColor(.secondary)
+                Spacer()
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(Color.white.opacity(0.4))
+            .clipShape(RoundedRectangle(cornerRadius: DesignSystem.Radius.md))
+        }
     }
 
     // MARK: Layer Picker

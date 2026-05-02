@@ -18,13 +18,28 @@ struct HealthKitProfile {
     var restingHeartRate: Int?
     var weeklyWorkoutsCount: Int?
     var avgRunningPaceMinPerKm: Double?
-    
+
     // Pro Mountaineer Metrics
     var heartRateVariability: Double?    // SDNN in ms
     var bloodOxygenSaturation: Double?   // SpO2 in %
     var respiratoryRate: Double?         // Breaths per min
     var sleepMinutesLastNight: Int?
     var isSleepRestful: Bool?
+
+    // Extended Watch / Fitness metrics
+    var walkingHeartRateAvg: Int?        // bpm
+    var weeklyFlightsClimbed: Int?
+    var weeklyExerciseMinutes: Int?
+    var weeklyStandHours: Int?
+    var weeklyDistanceWalkingRunningKm: Double?
+    var weeklyDistanceCyclingKm: Double?
+    var weeklyBasalEnergyKcal: Int?
+    var bodyFatPercentage: Double?
+    var leanBodyMassKg: Double?
+    var waistCircumferenceCm: Double?
+    var bloodPressureSystolic: Int?
+    var bloodPressureDiastolic: Int?
+    var bodyTemperatureCelsius: Double?
 
     var bmi: Double? {
         guard let h = heightCm, let w = weightKg, h > 0 else { return nil }
@@ -51,15 +66,39 @@ final class HealthKitBridge {
         let weight  = HKObjectType.quantityType(forIdentifier: .bodyMass)!
         let vo2     = HKObjectType.quantityType(forIdentifier: .vo2Max)!
         let energy  = HKObjectType.quantityType(forIdentifier: .activeEnergyBurned)!
+        let basal   = HKObjectType.quantityType(forIdentifier: .basalEnergyBurned)!
         let steps   = HKObjectType.quantityType(forIdentifier: .stepCount)!
         let rhr     = HKObjectType.quantityType(forIdentifier: .restingHeartRate)!
+        let hr      = HKObjectType.quantityType(forIdentifier: .heartRate)!
+        let walkHR  = HKObjectType.quantityType(forIdentifier: .walkingHeartRateAverage)!
         let hrv     = HKObjectType.quantityType(forIdentifier: .heartRateVariabilitySDNN)!
         let spo2    = HKObjectType.quantityType(forIdentifier: .oxygenSaturation)!
         let resp    = HKObjectType.quantityType(forIdentifier: .respiratoryRate)!
         let sleep   = HKObjectType.categoryType(forIdentifier: .sleepAnalysis)!
         let workout = HKObjectType.workoutType()
+        let route   = HKSeriesType.workoutRoute()
 
-        let readSet: Set<HKObjectType> = [height, weight, vo2, energy, steps, rhr, hrv, spo2, resp, sleep, workout]
+        let flights      = HKObjectType.quantityType(forIdentifier: .flightsClimbed)!
+        let exerciseTime = HKObjectType.quantityType(forIdentifier: .appleExerciseTime)!
+        let standTime    = HKObjectType.quantityType(forIdentifier: .appleStandTime)!
+        let distWalkRun  = HKObjectType.quantityType(forIdentifier: .distanceWalkingRunning)!
+        let distCycling  = HKObjectType.quantityType(forIdentifier: .distanceCycling)!
+        let bodyFat      = HKObjectType.quantityType(forIdentifier: .bodyFatPercentage)!
+        let leanMass     = HKObjectType.quantityType(forIdentifier: .leanBodyMass)!
+        let waist        = HKObjectType.quantityType(forIdentifier: .waistCircumference)!
+        let bpSys        = HKObjectType.quantityType(forIdentifier: .bloodPressureSystolic)!
+        let bpDia        = HKObjectType.quantityType(forIdentifier: .bloodPressureDiastolic)!
+        let bodyTemp     = HKObjectType.quantityType(forIdentifier: .bodyTemperature)!
+
+        let readSet: Set<HKObjectType> = [
+            height, weight, vo2, energy, basal, steps,
+            rhr, hr, walkHR, hrv, spo2, resp, sleep,
+            workout, route,
+            flights, exerciseTime, standTime,
+            distWalkRun, distCycling,
+            bodyFat, leanMass, waist,
+            bpSys, bpDia, bodyTemp
+        ]
 
         do {
             try await store.requestAuthorization(toShare: [], read: readSet)
@@ -81,6 +120,21 @@ final class HealthKitBridge {
         async let spo2Val     = Self.latestQuantity(store: store, type: spo2, unit: .percent())
         async let respVal     = Self.latestQuantity(store: store, type: resp, unit: HKUnit.count().unitDivided(by: .minute()))
         async let sleepVal    = Self.lastNightSleep(store: store)
+
+        // Extended Watch / Fitness reads (weekly aggregates + latest body composition)
+        async let walkHRVal      = Self.latestQuantity(store: store, type: walkHR, unit: .count().unitDivided(by: .minute()))
+        async let flightsVal     = Self.periodSum(store: store, type: flights, unit: .count(), days: 7)
+        async let exerciseMinVal = Self.periodSum(store: store, type: exerciseTime, unit: .minute(), days: 7)
+        async let standHrsVal    = Self.periodSum(store: store, type: standTime, unit: .hour(), days: 7)
+        async let walkRunDistVal = Self.periodSum(store: store, type: distWalkRun, unit: .meter(), days: 7)
+        async let cycleDistVal   = Self.periodSum(store: store, type: distCycling, unit: .meter(), days: 7)
+        async let basalEnergyVal = Self.periodSum(store: store, type: basal, unit: .kilocalorie(), days: 7)
+        async let bodyFatVal     = Self.latestQuantity(store: store, type: bodyFat, unit: .percent())
+        async let leanMassVal    = Self.latestQuantity(store: store, type: leanMass, unit: .gramUnit(with: .kilo))
+        async let waistVal       = Self.latestQuantity(store: store, type: waist, unit: .meterUnit(with: .centi))
+        async let bpSysVal       = Self.latestQuantity(store: store, type: bpSys, unit: .millimeterOfMercury())
+        async let bpDiaVal       = Self.latestQuantity(store: store, type: bpDia, unit: .millimeterOfMercury())
+        async let bodyTempVal    = Self.latestQuantity(store: store, type: bodyTemp, unit: .degreeCelsius())
 
         result.heightCm             = await heightVal.map { Int($0.rounded()) }
         result.weightKg             = await weightVal.map { Int($0.rounded()) }
@@ -106,6 +160,21 @@ final class HealthKitBridge {
             result.dailyStepsAvg = Int((totalSteps / 30.0).rounded())
         }
         result.weeklyWorkoutsCount = await workoutsVal
+
+        // Extended assignments
+        result.walkingHeartRateAvg = await walkHRVal.map { Int($0.rounded()) }
+        result.weeklyFlightsClimbed = await flightsVal.map { Int($0.rounded()) }
+        result.weeklyExerciseMinutes = await exerciseMinVal.map { Int($0.rounded()) }
+        result.weeklyStandHours = await standHrsVal.map { Int($0.rounded()) }
+        if let m = await walkRunDistVal { result.weeklyDistanceWalkingRunningKm = m / 1000.0 }
+        if let m = await cycleDistVal   { result.weeklyDistanceCyclingKm = m / 1000.0 }
+        result.weeklyBasalEnergyKcal = await basalEnergyVal.map { Int($0.rounded()) }
+        result.bodyFatPercentage = await bodyFatVal.map { $0 * 100.0 }
+        result.leanBodyMassKg = await leanMassVal
+        result.waistCircumferenceCm = await waistVal
+        result.bloodPressureSystolic = await bpSysVal.map { Int($0.rounded()) }
+        result.bloodPressureDiastolic = await bpDiaVal.map { Int($0.rounded()) }
+        result.bodyTemperatureCelsius = await bodyTempVal
         #endif
 
         return result

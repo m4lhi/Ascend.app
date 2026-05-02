@@ -355,8 +355,17 @@ class AppState: ObservableObject {
     @Published var trackerDistanceKm: Double = 0.0
     @Published var trackerElevationGain: Double = 0.0
     @Published var isTrackerPaused: Bool = false
-    
-    
+
+    // Live workout metrics (streamed during active recording)
+    @Published var trackerHeartRateBpm: Int? = nil
+    @Published var trackerHeartRateSource: String? = nil // e.g. "Apple Watch"
+
+    // User-defined climbing goals (target peaks). Persisted in UserDefaults.
+    @Published var goals: [Goal] = GoalStore.load() {
+        didSet { GoalStore.save(goals) }
+    }
+
+
     // Lokale User-Daten
     @Published var userName: String = "New Alpinist"
     @Published var userHandle: String = "climber"
@@ -428,6 +437,12 @@ class AppState: ObservableObject {
         didSet { saveWeeklyGoScores() }
     }
 
+    // Historical readiness log keyed by "yyyy-MM-dd" → score 0–100.
+    // Retained for 90 days; used by the Summit Readiness calendar view.
+    @Published var readinessHistory: [String: Int] = [:] {
+        didSet { saveReadinessHistory() }
+    }
+
     private func saveTimeToGoAnswers() {
         if let data = try? JSONEncoder().encode(timeToGoAnswers) {
             UserDefaults.standard.set(data, forKey: "timeToGoAnswers")
@@ -450,6 +465,29 @@ class AppState: ObservableObject {
             UserDefaults.standard.set(data, forKey: "weeklyGoScores")
         }
     }
+    private func saveReadinessHistory() {
+        if let data = try? JSONEncoder().encode(readinessHistory) {
+            UserDefaults.standard.set(data, forKey: "readinessHistory")
+        }
+    }
+
+    /// Records today's score in the persistent readiness history and trims entries older than 90 days.
+    func recordReadinessScore(_ score: Int) {
+        let key = isoDateKey(Date())
+        readinessHistory[key] = score
+        let cutoff = Calendar.current.date(byAdding: .day, value: -90, to: Date()) ?? Date()
+        let fmt = DateFormatter(); fmt.dateFormat = "yyyy-MM-dd"
+        readinessHistory = readinessHistory.filter {
+            guard let d = fmt.date(from: $0.key) else { return false }
+            return d >= cutoff
+        }
+    }
+
+    private func isoDateKey(_ date: Date) -> String {
+        let fmt = DateFormatter(); fmt.dateFormat = "yyyy-MM-dd"
+        return fmt.string(from: date)
+    }
+
     func loadContextualPersistence() {
         if let data = UserDefaults.standard.data(forKey: "timeToGoAnswers"),
            let decoded = try? JSONDecoder().decode([String: [String]].self, from: data) {
@@ -467,6 +505,10 @@ class AppState: ObservableObject {
                 guard let k = Int($0.key) else { return nil }
                 return (k, $0.value)
             })
+        }
+        if let data = UserDefaults.standard.data(forKey: "readinessHistory"),
+           let decoded = try? JSONDecoder().decode([String: Int].self, from: data) {
+            readinessHistory = decoded
         }
     }
 
@@ -606,6 +648,7 @@ class AppState: ObservableObject {
                     .value
                 
                 self.ascendProfile = result
+                self.applyInactivityReset()
                 self.syncAscendTierWithCurrentLevel() // <- Hier wird der korrekte dynamische Rang ermittelt!
                 
             } catch {
@@ -626,8 +669,28 @@ class AppState: ObservableObject {
         }
     }
     
+    /// Resets streak and clears weekly scores if the user has been inactive for more than 7 days.
+    /// Also clears the weekly go-score grid so stale pills don't mislead.
+    private func applyInactivityReset() {
+        guard let profile = ascendProfile,
+              let lastActive = profile.last_activity_date else { return }
+        let daysSinceActive = Calendar.current.dateComponents([.day], from: lastActive, to: Date()).day ?? 0
+        guard daysSinceActive > 7 else { return }
+
+        // Reset streak locally; the next tour logged will rebuild it via Supabase
+        ascendProfile?.streak_days = 0
+        // Clear the current-week pill grid so the user sees blank history, not stale data
+        weeklyGoScores = [:]
+        // Clear readiness assessment so they start fresh after a long break
+        extendedReadinessAnswers = [:]
+        extendedReadinessAnsweredAt = nil
+        readiness = nil
+        UserDefaults.standard.removeObject(forKey: "extendedReadinessAnswers")
+        UserDefaults.standard.removeObject(forKey: "extendedReadinessAnsweredAt")
+    }
+
     // --- READINESS FUNKTIONEN ---
-    
+
     func refreshReadiness() {
         Task {
             let profile = await HealthKitBridge.shared.requestAndFetch()

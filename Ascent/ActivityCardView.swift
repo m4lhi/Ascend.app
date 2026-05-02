@@ -107,12 +107,13 @@ struct ActivityCardView: View {
                 .padding(.top, 10)
                 .padding(.bottom, 14)
         }
-        .background(Color.white)
+        .background(.regularMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .shadow(color: .black.opacity(0.08), radius: 12, y: 4)
+        .shadow(color: .black.opacity(0.06), radius: 12, y: 4)
         .sheet(isPresented: $showComments) {
             CommentSheetView(tour: tour)
                 .presentationDetents([.medium, .large])
+                .adaptiveSheetBackground()
                 .preferredColorScheme(.light)
         }
     }
@@ -306,7 +307,7 @@ struct ActivityCardView: View {
             .frame(maxWidth: .infinity)
         }
         .padding(.vertical, 10)
-        .background(Color(white: 0.97))
+        .background(.thinMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 
@@ -560,7 +561,7 @@ struct CommentSheetView: View {
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 12)
-                .background(Color(white: 0.97))
+                .background(.thinMaterial)
 
                 // Comments list
                 if isLoading {
@@ -597,7 +598,7 @@ struct CommentSheetView: View {
                         .font(.app(.subheadline))
                         .padding(10)
                         .padding(.horizontal, 4)
-                        .background(Color(white: 0.94))
+                        .background(.thinMaterial)
                         .clipShape(Capsule())
 
                     Button(action: {
@@ -617,10 +618,10 @@ struct CommentSheetView: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
-                .background(Color.white)
+                .background(.thinMaterial)
                 .overlay(alignment: .top) { Divider() }
             }
-            .background(Color(white: 0.99))
+            .background(.clear)
             .navigationTitle("Comments (\(comments.count))")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -692,7 +693,7 @@ struct StatBlock: View {
             Text(value).font(.app(size: 12, weight: .bold)).foregroundColor(isXP ? DesignSystem.Colors.accent : .primary)
         }
         .padding(.horizontal, 10).padding(.vertical, 8)
-        .background(isXP ? Color.blue.opacity(0.15) : Color(white: 0.95))
+        .background(isXP ? Color.blue.opacity(0.15) : Color.primary.opacity(0.06))
         .cornerRadius(8)
     }
 }

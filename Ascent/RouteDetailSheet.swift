@@ -130,13 +130,17 @@ struct RouteDetailSheet: View {
     var routeMapHeader: some View {
         ZStack(alignment: .bottomLeading) {
             Map {
-                if mountains.count >= 2 {
-                    let coords = mountains.compactMap { m -> CLLocationCoordinate2D? in
-                        guard let lat = m.latitude, let lon = m.longitude else { return nil }
-                        return CLLocationCoordinate2D(latitude: lat, longitude: lon)
+                // Per-mountain route polylines — each peak shows its OWN ascent route,
+                // not a straight line connecting peaks across hundreds of km.
+                ForEach(mountains) { mountain in
+                    if let firstRoute = mountain.routes?.first,
+                       !firstRoute.route_polyline.isEmpty {
+                        let coords = PolylineUtility.decode(polyline: firstRoute.route_polyline)
+                        if coords.count >= 2 {
+                            MapPolyline(coordinates: coords)
+                                .stroke(accent, lineWidth: 4)
+                        }
                     }
-                    MapPolyline(coordinates: coords)
-                        .stroke(accent, lineWidth: 4)
                 }
 
                 ForEach(Array(mountains.enumerated()), id: \.element.id) { index, mountain in

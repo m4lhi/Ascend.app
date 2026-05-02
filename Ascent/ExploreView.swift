@@ -52,6 +52,9 @@ enum MapLayerType: String, CaseIterable, Identifiable {
     case standard = "Standard"
     case satellite = "Satellite"
     case night = "Night"
+    case topo = "Topo"
+    case swissTopo = "SwissTopo"
+    case slope = "Slope"        // Swiss slope angle map (skitour avalanche reference)
 
     var id: String { rawValue }
 
@@ -60,6 +63,9 @@ enum MapLayerType: String, CaseIterable, Identifiable {
         case .standard:  return "map"
         case .satellite: return "globe.americas.fill"
         case .night:     return "moon.stars.fill"
+        case .topo:      return "mountain.2.fill"
+        case .swissTopo: return "flag.fill"
+        case .slope:     return "triangle.fill"
         }
     }
 
@@ -68,6 +74,38 @@ enum MapLayerType: String, CaseIterable, Identifiable {
         case .standard:  return "Default map"
         case .satellite: return "Hybrid with labels"
         case .night:     return "Dark map style"
+        case .topo:      return "Contour lines (worldwide)"
+        case .swissTopo: return "Swiss alpine topo (CH only)"
+        case .slope:     return "Slope angle 30°/35°/40°+ (CH)"
+        }
+    }
+
+    // Tile URL template for raster overlay layers (nil = native Mapbox style)
+    var tileURLTemplate: String? {
+        switch self {
+        case .topo:      return "https://tile.opentopomap.org/{z}/{x}/{y}.png"
+        case .swissTopo: return "https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.pixelkarte-farbe/default/current/3857/{z}/{x}/{y}.jpeg"
+        case .slope:     return "https://wmts.geo.admin.ch/1.0.0/ch.swisstopo-karto.hangneigung/default/current/3857/{z}/{x}/{y}.png"
+        default:         return nil
+        }
+    }
+
+    /// Whether this layer is overlaid on top of another base layer (true) or
+    /// replaces the entire base map (false). Slope is semi-transparent overlay.
+    var isOverlay: Bool {
+        switch self {
+        case .slope: return true
+        default:     return false
+        }
+    }
+
+    // Attribution required by tile providers
+    var attribution: String? {
+        switch self {
+        case .topo:      return "© OpenTopoMap (CC-BY-SA), © OSM"
+        case .swissTopo: return "© swisstopo"
+        case .slope:     return "© swisstopo (Hangneigung)"
+        default:         return nil
         }
     }
 }
@@ -263,6 +301,7 @@ struct ExploreView: View {
             )
             .presentationDetents([.fraction(0.4), .large])
             .presentationDragIndicator(.visible)
+            .adaptiveSheetBackground()
             .preferredColorScheme(.light)
         }
         .task {
@@ -469,6 +508,8 @@ struct ExploreView: View {
             var terrain = Terrain(sourceId: "mapbox-dem")
             terrain.exaggeration = .constant(1.5)
             try? map.setTerrain(terrain)
+
+            MapTileOverlayHelper.apply(layer: currentMapLayer, to: map)
         }
         .onCameraChanged { cameraChanged in
             cameraCenter = cameraChanged.cameraState.center
@@ -512,6 +553,10 @@ struct ExploreView: View {
                 viewport = .camera(center: cameraCenter, zoom: cameraZoom, bearing: 0, pitch: enabled ? 50 : 0)
             }
         }
+        .onChange(of: currentMapLayer) { _, _ in
+            guard let map = proxy.map else { return }
+            MapTileOverlayHelper.apply(layer: currentMapLayer, to: map)
+        }
         .ignoresSafeArea()
         } // end MapReader
         .ignoresSafeArea()
@@ -522,6 +567,8 @@ struct ExploreView: View {
         case .standard:  return .outdoors
         case .satellite: return .satelliteStreets
         case .night:     return .dark
+        case .topo, .swissTopo: return .light
+        case .slope:     return .satelliteStreets // slope overlay on satellite for terrain context
         }
     }
 
@@ -719,6 +766,9 @@ struct ExploreView: View {
         case .standard: return LinearGradient(colors: [.gray.opacity(0.3), .gray.opacity(0.15)], startPoint: .topLeading, endPoint: .bottomTrailing)
         case .satellite: return LinearGradient(colors: [.green.opacity(0.3), .blue.opacity(0.2)], startPoint: .topLeading, endPoint: .bottomTrailing)
         case .night: return LinearGradient(colors: [.indigo.opacity(0.4), .black.opacity(0.3)], startPoint: .topLeading, endPoint: .bottomTrailing)
+        case .topo: return LinearGradient(colors: [.brown.opacity(0.35), .green.opacity(0.2)], startPoint: .topLeading, endPoint: .bottomTrailing)
+        case .swissTopo: return LinearGradient(colors: [.red.opacity(0.3), .yellow.opacity(0.2)], startPoint: .topLeading, endPoint: .bottomTrailing)
+        case .slope: return LinearGradient(colors: [.orange.opacity(0.45), .red.opacity(0.30)], startPoint: .topLeading, endPoint: .bottomTrailing)
         }
     }
 
@@ -1728,7 +1778,7 @@ struct ExploreMountainDetailSheet: View {
 
     var body: some View {
         ZStack {
-            Color.white.ignoresSafeArea()
+            Color.clear.ignoresSafeArea()
             
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(spacing: 0) {
@@ -1803,8 +1853,8 @@ struct ExploreMountainDetailSheet: View {
                             }
                         }
                         .padding(.vertical, 16)
-                        .background(Color(white: 0.95))
-                        .cornerRadius(12)
+                        .background(.ultraThinMaterial)
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                         
                         // Action buttons row
                         HStack(spacing: 12) {

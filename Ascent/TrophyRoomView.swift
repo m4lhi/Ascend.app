@@ -894,14 +894,14 @@ struct TrophyRoomView: View {
                     .font(.app(.caption))
                     .foregroundColor(.gray)
             }
-            .padding(16)
-            .background(Color.white)
-            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-            .shadow(color: .black.opacity(0.04), radius: 8, y: 4)
+            .padding(DesignSystem.Spacing.md)
+            .background(Color(.secondarySystemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: DesignSystem.Radius.lg, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .stroke(Color.white.opacity(0.5), lineWidth: 0.5)
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.lg, style: .continuous)
+                    .stroke(Color.black.opacity(0.04), lineWidth: 0.5)
             )
+            .shadow(color: .black.opacity(0.05), radius: 8, y: 2)
         }
         .buttonStyle(.plain)
         .padding(.horizontal, 20)
@@ -1161,11 +1161,15 @@ struct AchievementDetailSheet: View {
                     }
                     .frame(height: 8)
                 }
-                .padding(20)
-                .background(Color.white)
-                .cornerRadius(16)
-                .shadow(color: .black.opacity(0.04), radius: 10, y: 4)
-                .padding(.horizontal, 20)
+                .padding(DesignSystem.Spacing.lg)
+                .background(Color(.secondarySystemBackground))
+                .clipShape(RoundedRectangle(cornerRadius: DesignSystem.Radius.lg))
+                .overlay(
+                    RoundedRectangle(cornerRadius: DesignSystem.Radius.lg)
+                        .stroke(Color.black.opacity(0.04), lineWidth: 0.5)
+                )
+                .shadow(color: .black.opacity(0.05), radius: 8, y: 2)
+                .padding(.horizontal, DesignSystem.Spacing.md)
                 
                 Spacer()
             }

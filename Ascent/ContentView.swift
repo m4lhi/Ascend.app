@@ -1,58 +1,86 @@
 import SwiftUI
 
-// =========================================
-// === DATEI: ContentView.swift ===
-// === Steuert das Menü und die Tabs ===
-// =========================================
-
-
-// MARK: - Content View
-
 struct ContentView: View {
     @EnvironmentObject var appState: AppState
     @State private var selectedTab = 0
+    @State private var prevTab = 0
     @State private var showAIChat = false
     @State private var showCoachingGateway = false
 
-    init() {
-        UITabBar.appearance().isHidden = true
+    var body: some View {
+        Group {
+            if #available(iOS 26, *) {
+                nativeTabLayout
+            } else {
+                customTabLayout
+            }
+        }
+        .preferredColorScheme(.light)
+        .fullScreenCover(isPresented: $showAIChat) { AIChatGuideView() }
+        .fullScreenCover(isPresented: $showCoachingGateway) {
+            AICoachingGatewayView().environmentObject(appState)
+        }
+        .onChange(of: appState.pendingTab) { _, newTab in
+            guard let t = newTab else { return }
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) { selectedTab = t }
+            appState.pendingTab = nil
+        }
+        .onChange(of: appState.exploreSelectedMountain) { _, newMountain in
+            if newMountain != nil { selectedTab = 1 }
+        }
+        .sheet(isPresented: $showAIChat) { AIChatGuideView() }
     }
 
-    var body: some View {
-        ZStack(alignment: .bottom) {
-            
-            LinearGradient(
-                colors: [
-                    Color(red: 0.96, green: 0.98, blue: 1.00),
-                    Color(red: 0.90, green: 0.94, blue: 1.00)
-                ],
-                startPoint: .top, endPoint: .bottom
-            ).ignoresSafeArea()
-            
-            Group {
-                switch selectedTab {
-                case 0: BasecampView()
-                case 1: ExploreView()
-                case 2: ArenaView()
-                case 3: TrophyRoomView()
-                default: BasecampView()
+    // MARK: - iOS 26+ native Liquid Glass tab bar
+
+    @available(iOS 26, *)
+    private var nativeTabLayout: some View {
+        ZStack {
+            TabView(selection: $selectedTab) {
+                Tab("Basecamp", systemImage: "house.fill",    value: 0) { BasecampView()   }
+                Tab("Explore",  systemImage: "map.fill",      value: 1) { ExploreView()    }
+                Tab(value: -1) {
+                    Color.clear.ignoresSafeArea()
+                } label: {
+                    // Visually distinct: filled circle icon + accent tint
+                    Label {
+                        Text("Record")
+                    } icon: {
+                        Image(systemName: "figure.walk.circle.fill")
+                            .foregroundStyle(DesignSystem.Colors.accent)
+                            .symbolRenderingMode(.hierarchical)
+                    }
+                }
+                Tab("Profile",  systemImage: "person.fill",    value: 3) { TrophyRoomView() }
+            }
+            .tint(DesignSystem.Colors.accent)
+            .onChange(of: selectedTab) { _, newVal in
+                guard newVal == -1 else { prevTab = newVal; return }
+                HapticManager.shared.heavy()
+                if appState.isTrackerActive {
+                    // Tracker already running (minimized) — just maximize it
+                    appState.isTrackerMinimized = false
+                    withAnimation(.none) { selectedTab = prevTab }
+                } else {
+                    // Start new tracker session; selectedTab stays at -1
+                    // until minimized or closed (see onChanges below)
+                    appState.isTrackerActive = true
                 }
             }
-            .transition(.opacity)
-            
-            // Custom Tab Bar overlay
-            if !appState.isTrackerActive || appState.isTrackerMinimized {
-                CustomTabBar(selectedTab: $selectedTab, showTracker: $appState.isTrackerActive)
-                
-                // AI Coach is accessible from dashboard widget — no floating button needed
+            .onChange(of: appState.isTrackerMinimized) { _, isMinimized in
+                // When minimized, show the real tab content underneath
+                if isMinimized { withAnimation(.none) { selectedTab = prevTab } }
+            }
+            .onChange(of: appState.isTrackerActive) { _, isActive in
+                if !isActive {
+                    withAnimation(.none) { selectedTab = prevTab }
+                }
             }
 
-            // --- Live Tracker Overlay (Full Screen & Mini Player) ---
             if appState.isTrackerActive {
                 GeometryReader { geo in
                     LiveRecordView(targetMountain: appState.activeMountain)
                         .environmentObject(appState)
-                        // Push the view completely off-screen if minimized (add safe padding)
                         .offset(y: appState.isTrackerMinimized ? geo.size.height + 200 : 0)
                         .opacity(appState.isTrackerMinimized ? 0 : 1)
                         .allowsHitTesting(!appState.isTrackerMinimized)
@@ -60,130 +88,199 @@ struct ContentView: View {
                 }
                 .zIndex(100)
             }
-            
-            // --- Mini Player Banner ---
+
+            // Mini Player — fixe Nike-Run-style Bottom-Bar über der Tab Bar
             if appState.isTrackerActive && appState.isTrackerMinimized {
-                HStack {
+                // Pass-through container so only the MiniTrackerPlayer button receives taps,
+                // and the area above (where map/tab content lives) keeps working.
+                VStack(spacing: 0) {
+                    Spacer()
+                        .allowsHitTesting(false)
                     MiniTrackerPlayer()
                         .environmentObject(appState)
-                    Spacer()
+                        .padding(.horizontal, 12)
+                        .padding(.bottom, 56) // Platz für Tab Bar
                 }
-                // Height of CustomTabBar is ~105 padding included, place it right above
-                .padding(.bottom, 115) 
-                .padding(.horizontal, 16)
+                .ignoresSafeArea(.keyboard)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
                 .zIndex(90)
             }
+        }
+    }
 
-        }
-        .preferredColorScheme(.light)
-        
-        .fullScreenCover(isPresented: $showAIChat) {
-            AIChatGuideView()
-        }
-        .fullScreenCover(isPresented: $showCoachingGateway) {
-            AICoachingGatewayView()
-                .environmentObject(appState)
-        }
-        .onChange(of: selectedTab) { _, _ in
-            // Reset FAB when switching tabs
-            withAnimation(.easeOut(duration: 0.2)) {
-                appState.isFABVisible = true
+    // MARK: - iOS < 26 custom tab bar fallback
+
+    private var customTabLayout: some View {
+        ZStack(alignment: .bottom) {
+
+            LinearGradient(
+                colors: [
+                    Color(red: 0.94, green: 0.97, blue: 1.00),
+                    Color(red: 0.88, green: 0.93, blue: 1.00),
+                    Color(red: 0.85, green: 0.90, blue: 0.98)
+                ],
+                startPoint: .topLeading, endPoint: .bottomTrailing
+            ).ignoresSafeArea()
+
+            Group {
+                switch selectedTab {
+                case 0: BasecampView()
+                case 1: ExploreView()
+                case 3: TrophyRoomView()
+                default: BasecampView()
+                }
             }
-        }
-        .onChange(of: appState.pendingTab) { _, newTab in
-            guard let t = newTab else { return }
-            withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
-                selectedTab = t
+            .transition(.opacity)
+
+            if !appState.isTrackerActive || appState.isTrackerMinimized {
+                CustomTabBar(selectedTab: $selectedTab, showTracker: $appState.isTrackerActive)
             }
-            appState.pendingTab = nil
-        }
-        .onChange(of: appState.exploreSelectedMountain) { _, newMountain in
-            if newMountain != nil {
-                showAIChat = false
-                showCoachingGateway = false
-                selectedTab = 1
+
+            if appState.isTrackerActive {
+                GeometryReader { geo in
+                    LiveRecordView(targetMountain: appState.activeMountain)
+                        .environmentObject(appState)
+                        .offset(y: appState.isTrackerMinimized ? geo.size.height + 200 : 0)
+                        .opacity(appState.isTrackerMinimized ? 0 : 1)
+                        .allowsHitTesting(!appState.isTrackerMinimized)
+                        .animation(.spring(response: 0.5, dampingFraction: 0.8), value: appState.isTrackerMinimized)
+                }
+                .zIndex(100)
             }
-        }
-        .sheet(isPresented: $showAIChat) {
-            AIChatGuideView()
+
+            if appState.isTrackerActive && appState.isTrackerMinimized {
+                VStack {
+                    Spacer()
+                        .allowsHitTesting(false)
+                    MiniTrackerPlayer().environmentObject(appState)
+                        .padding(.horizontal, 12)
+                        .padding(.bottom, 110)
+                }
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+                .zIndex(90)
+            }
         }
     }
 }
 
-// === DIE SCHWEBENDE LEISTE MIT PLAY-BUTTON ===
+
+// MARK: - Custom Tab Bar (iOS < 26 fallback)
+
 struct CustomTabBar: View {
     @Binding var selectedTab: Int
     @Binding var showTracker: Bool
-    
-    var body: some View {
-        ZStack(alignment: .top) {
-            RoundedRectangle(cornerRadius: 40)
-                .fill(.ultraThinMaterial)
-                .environment(\.colorScheme, .light)
-                .clipShape(RoundedRectangle(cornerRadius: 40))
-                .frame(height: 85)
-                .shadow(color: .black.opacity(0.1), radius: 25, y: 15)
-            
-            HStack(spacing: 0) {
-                TabBarIcon(icon: "house.fill", isSelected: selectedTab == 0) { withAnimation(.spring(response: 0.4, dampingFraction: 0.78)) { selectedTab = 0 } }
-                TabBarIcon(icon: "map.fill", isSelected: selectedTab == 1) { withAnimation(.spring(response: 0.4, dampingFraction: 0.78)) { selectedTab = 1 } }
-                Spacer().frame(width: 80)
-                TabBarIcon(icon: "chart.bar.fill", isSelected: selectedTab == 2) { withAnimation(.spring(response: 0.4, dampingFraction: 0.78)) { selectedTab = 2 } }
-                TabBarIcon(icon: "person.fill", isSelected: selectedTab == 3) { withAnimation(.spring(response: 0.4, dampingFraction: 0.78)) { selectedTab = 3 } }
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 25)
-            
-            Button(action: {
-                HapticManager.shared.heavy()
-                showTracker = true
-            }) {
-                ZStack {
-                    Circle()
-                        .fill(DesignSystem.Colors.accent)
-                        .clipShape(Circle())
-                        .frame(width: 70, height: 70)
-                        .shadow(color: DesignSystem.Colors.accent.opacity(0.4), radius: 15, y: 4)
-                    
-                    Image(systemName: "figure.walk")
-                        .font(.app(size: 28, weight: .black))
-                        .foregroundColor(.white)
-                        .offset(x: 2)
-                }
-            }
-            .offset(y: -25)
+    @State private var dragX: CGFloat? = nil
+    @State private var isDragging = false
+
+    // 3 tabs (Basecamp, Explore, Profile) split around the central record button.
+    // Layout: [0] [1]  [center 80pt record]  [3]
+    private func tabWidth(in bw: CGFloat) -> CGFloat { (bw - 120) / 3 }
+
+    private func tabCenter(for tab: Int, in bw: CGFloat) -> CGFloat {
+        let w = tabWidth(in: bw)
+        switch tab {
+        case 0: return 20 + w * 0.5
+        case 1: return 20 + w * 1.5
+        case 3: return 20 + w * 2.5 + 80
+        default: return 20 + w * 0.5
         }
+    }
+
+    private func nearestTab(for x: CGFloat, in bw: CGFloat) -> Int {
+        let candidates = [0, 1, 3]
+        return candidates.min(by: { abs(tabCenter(for: $0, in: bw) - x) < abs(tabCenter(for: $1, in: bw) - x) }) ?? 0
+    }
+
+    var body: some View {
+        GeometryReader { geo in
+            let bw = geo.size.width
+            let tw = tabWidth(in: bw)
+            let pillX = dragX ?? tabCenter(for: selectedTab, in: bw)
+
+            ZStack(alignment: .top) {
+                RoundedRectangle(cornerRadius: 40)
+                    .fill(.ultraThinMaterial)
+                    .environment(\.colorScheme, .light)
+                    .frame(height: 85)
+                    .overlay(RoundedRectangle(cornerRadius: 40).stroke(.white.opacity(0.5), lineWidth: 0.8))
+                    .shadow(color: .black.opacity(0.1), radius: 20, x: 0, y: 6)
+                    .zIndex(0)
+
+                HStack(spacing: 0) {
+                    tabButton("house.fill", 0)
+                    tabButton("map.fill", 1)
+                    Spacer().frame(width: 80)
+                    tabButton("person.fill", 3)
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 25)
+                .zIndex(1)
+
+                Capsule()
+                    .fill(.ultraThinMaterial)
+                    .environment(\.colorScheme, .light)
+                    .overlay(Capsule().stroke(.white.opacity(0.85), lineWidth: 1))
+                    .frame(width: tw - 4, height: 50)
+                    .scaleEffect(isDragging ? 1.08 : 1.0)
+                    .shadow(color: .black.opacity(isDragging ? 0.18 : 0.1), radius: isDragging ? 20 : 10, x: 0, y: isDragging ? 8 : 3)
+                    .offset(x: pillX - bw / 2, y: 17)
+                    .allowsHitTesting(false)
+                    .animation(.spring(response: 0.28, dampingFraction: 0.65), value: isDragging)
+                    .animation(
+                        isDragging ? .interactiveSpring(response: 0.1, dampingFraction: 0.9) : .spring(response: 0.35, dampingFraction: 0.72),
+                        value: pillX
+                    )
+                    .zIndex(2)
+
+                Button(action: { HapticManager.shared.heavy(); showTracker = true }) {
+                    ZStack {
+                        Circle()
+                            .fill(DesignSystem.Colors.accent)
+                            .frame(width: 70, height: 70)
+                            .shadow(color: DesignSystem.Colors.accent.opacity(0.4), radius: 15, y: 4)
+                        Image(systemName: "figure.walk")
+                            .font(.app(size: 28, weight: .black))
+                            .foregroundColor(.white)
+                            .offset(x: 2)
+                    }
+                }
+                .offset(y: -25)
+                .zIndex(10)
+            }
+            .frame(height: 85, alignment: .top)
+            .contentShape(Rectangle().size(width: bw, height: 85))
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 6)
+                    .onChanged { value in
+                        if !isDragging { isDragging = true }
+                        dragX = max(tabCenter(for: 0, in: bw), min(tabCenter(for: 3, in: bw), value.location.x))
+                    }
+                    .onEnded { value in
+                        isDragging = false
+                        let nearest = nearestTab(for: value.location.x, in: bw)
+                        if nearest != selectedTab { HapticManager.shared.light() }
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.72)) { selectedTab = nearest; dragX = nil }
+                    }
+            )
+        }
+        .frame(height: 85)
         .padding(.horizontal, 16)
         .padding(.bottom, 20)
     }
-}
 
-struct TabBarIcon: View {
-    let icon: String
-    let isSelected: Bool
-    let action: () -> Void
-
-    var body: some View {
+    @ViewBuilder
+    private func tabButton(_ icon: String, _ tag: Int) -> some View {
         Button(action: {
             HapticManager.shared.light()
-            action()
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.78)) { selectedTab = tag }
         }) {
-            ZStack {
-                if isSelected {
-                    Circle()
-                        .fill(DesignSystem.Colors.accent.opacity(0.14))
-                        .frame(width: 44, height: 44)
-                        .transition(.scale.combined(with: .opacity))
-                }
-                Image(systemName: icon)
-                    .font(.app(size: 24, weight: isSelected ? .bold : .regular))
-                    .foregroundColor(isSelected ? DesignSystem.Colors.accent : .gray.opacity(0.55))
-                    .scaleEffect(isSelected ? 1.08 : 1.0)
-                    .symbolEffect(.bounce, value: isSelected)
-            }
-            .frame(maxWidth: .infinity)
-            .animation(.spring(response: 0.38, dampingFraction: 0.7), value: isSelected)
+            Image(systemName: icon)
+                .font(.app(size: 22, weight: selectedTab == tag ? .bold : .regular))
+                .foregroundColor(selectedTab == tag ? DesignSystem.Colors.accent : .gray.opacity(0.7))
+                .scaleEffect(selectedTab == tag ? 1.06 : 1.0)
+                .symbolEffect(.bounce, value: selectedTab == tag)
+                .frame(maxWidth: .infinity)
+                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: selectedTab == tag)
         }
         .buttonStyle(PressableButtonStyle())
     }

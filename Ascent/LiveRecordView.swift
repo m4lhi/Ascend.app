@@ -59,9 +59,11 @@ class LiveGPSManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     override init() {
         super.init()
         manager.delegate = self
-        manager.desiredAccuracy = kCLLocationAccuracyBest
-        manager.distanceFilter = 2
+        manager.desiredAccuracy = kCLLocationAccuracyBestForNavigation
+        manager.distanceFilter = kCLDistanceFilterNone
+        manager.activityType = .fitness
         manager.allowsBackgroundLocationUpdates = true
+        manager.pausesLocationUpdatesAutomatically = false
         manager.showsBackgroundLocationIndicator = true
         manager.requestWhenInUseAuthorization()
         
@@ -282,10 +284,12 @@ struct LiveRecordView: View {
     @ObservedObject private var weatherManager = WeatherManager.shared
     @StateObject private var photoHighlightManager = PhotoHighlightManager()
     @ObservedObject private var emergencyManager = EmergencyManager.shared
+    @ObservedObject private var heartRateMonitor = LiveHeartRateMonitor.shared
 
     @State private var timeElapsed: Int = 0
     @State private var isRunning: Bool = false
     @State private var blinkToggle: Bool = false
+    @State private var showDiscardConfirm: Bool = false
     let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     @State private var viewport: Viewport
@@ -327,6 +331,9 @@ struct LiveRecordView: View {
         case .standard:  return .outdoors
         case .satellite: return .satelliteStreets
         case .night:     return .dark
+        // Topo overlays use a light Mapbox base behind the raster tiles
+        case .topo, .swissTopo: return .light
+        case .slope:     return .satelliteStreets
         }
     }
 
@@ -481,6 +488,8 @@ struct LiveRecordView: View {
                 var terrain = Terrain(sourceId: "mapbox-dem")
                 terrain.exaggeration = .constant(1.5)
                 try? map.setTerrain(terrain)
+
+                MapTileOverlayHelper.apply(layer: currentMapLayer, to: map)
             }
             .onCameraChanged { cameraChanged in
                 cameraCenter = cameraChanged.cameraState.center
@@ -504,10 +513,22 @@ struct LiveRecordView: View {
                     viewport = .camera(center: cameraCenter, zoom: cameraZoom, bearing: 0, pitch: enabled ? 50 : 0)
                 }
             }
+            .onChange(of: currentMapLayer) { _, _ in
+                guard let map = proxy.map else { return }
+                MapTileOverlayHelper.apply(layer: currentMapLayer, to: map)
+            }
             .safeAreaPadding(Edge.Set.bottom, -40)
             .ignoresSafeArea()
-            .onChange(of: gpsManager.currentLocation) { _, newLoc in
+            .onChange(of: gpsManager.currentLocation) { oldLoc, newLoc in
                 guard let loc = newLoc else { return }
+
+                // First GPS fix: snap camera to user (followPuck) unless we're targeting a mountain far away
+                if oldLoc == nil && targetMountain == nil {
+                    withAnimation(.easeInOut(duration: 0.5)) {
+                        viewport = .followPuck(zoom: 16, bearing: .heading, pitch: is3DMode ? 50 : 0)
+                        isMapCenteredOnUser = true
+                    }
+                }
 
                 // Feed navigation manager with GPS updates
                 if navigationManager.isNavigating {
@@ -533,14 +554,15 @@ struct LiveRecordView: View {
             }
             } // end MapReader
 
-            // === LAYER 3: Bottom gradient (subtle lift for panel) ===
-            VStack {
+            // === LAYER 3: Bottom gradient — flush to screen edge ===
+            VStack(spacing: 0) {
                 Spacer()
-                LinearGradient(colors: [.clear, .white.opacity(0.55)],
+                LinearGradient(colors: [.clear, .white.opacity(0.72)],
                                startPoint: .top, endPoint: .bottom)
-                    .frame(height: 220).ignoresSafeArea()
+                    .frame(maxWidth: .infinity, maxHeight: 280)
                     .allowsHitTesting(false)
             }
+            .ignoresSafeArea(edges: .bottom)
             
             // === LAYER 5: Map Controls (Buttons) ===
             VStack(spacing: 10) {
@@ -638,15 +660,22 @@ struct LiveRecordView: View {
             .padding(.trailing, 16)
             .padding(.top, navigationManager.isNavigating ? (navHUDCollapsed ? 200 : 280) : 140)
 
-            // Navigation HUD overlay
+            // Navigation HUD overlay — explicit pass-through Spacers so taps only land on the HUD
             if navigationManager.isNavigating {
                 VStack {
-                    Spacer().frame(height: navHUDCollapsed ? 140 : 180)
-                    HStack { NavigationHUDView(navManager: navigationManager, isCollapsed: $navHUDCollapsed); if navHUDCollapsed { Spacer() } }
-                        .padding(.horizontal, 16)
                     Spacer()
+                        .frame(height: navHUDCollapsed ? 140 : 180)
+                        .allowsHitTesting(false)
+                    HStack {
+                        NavigationHUDView(navManager: navigationManager, isCollapsed: $navHUDCollapsed)
+                        if navHUDCollapsed {
+                            Spacer().allowsHitTesting(false)
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    Spacer()
+                        .allowsHitTesting(false)
                 }
-                .allowsHitTesting(true)
                 .animation(.spring(response: 0.35, dampingFraction: 0.8), value: navHUDCollapsed)
             }
 
@@ -685,6 +714,8 @@ struct LiveRecordView: View {
             appState.trackerDistanceKm = gpsManager.distance / 1000.0
             appState.trackerElevationGain = gpsManager.elevationGain
             appState.isTrackerPaused = !isRunning || gpsManager.isAutoPaused
+            appState.trackerHeartRateBpm = heartRateMonitor.currentBpm
+            appState.trackerHeartRateSource = heartRateMonitor.sourceName
             
             #if canImport(ActivityKit)
             if #available(iOS 16.2, *) {
@@ -713,7 +744,20 @@ struct LiveRecordView: View {
                 totalPauseDuration: gpsManager.totalPauseDuration,
                 rawRoute: gpsManager.rawRoute,
                 photoHighlights: photoHighlightManager.highlights,
-                onDismissTracker: { dismiss() }
+                onDismissTracker: {
+                    // Fully tear down the tracker so the MiniTrackerPlayer doesn't
+                    // re-appear after the user has saved & exited.
+                    isRunning = false
+                    timeElapsed = 0
+                    appState.trackerElapsedSeconds = 0
+                    appState.trackerDistanceKm = 0
+                    appState.trackerElevationGain = 0
+                    appState.activeMountain = nil
+                    withAnimation {
+                        appState.isTrackerActive = false
+                        appState.isTrackerMinimized = false
+                    }
+                }
             )
         }
         .sheet(isPresented: $showExportSheet) {
@@ -744,6 +788,7 @@ struct LiveRecordView: View {
         }
         .sheet(isPresented: $showTrackerSettings) {
             TrackerSettingsSheet()
+                .adaptiveSheetBackground()
         }
         .onChange(of: offlineAscentRoute?.count) { _, _ in
             if isRunning, turnByTurnEnabled, !navigationManager.isNavigating {
@@ -786,11 +831,10 @@ struct LiveRecordView: View {
     // 🟢 BUTTON-FUNKTION: Zurück auf User zoomen
     private func centerOnUser() {
         HapticManager.shared.light()
-        if let userLoc = gpsManager.currentLocation {
-            withAnimation(.easeInOut(duration: 1.0)) {
-                viewport = .camera(center: userLoc.coordinate, zoom: 13, bearing: 0, pitch: 45)
-                isMapCenteredOnUser = true
-            }
+        guard gpsManager.currentLocation != nil else { return }
+        withAnimation(.easeInOut(duration: 0.6)) {
+            viewport = .followPuck(zoom: 16, bearing: .heading, pitch: is3DMode ? 50 : 0)
+            isMapCenteredOnUser = true
         }
     }
     
@@ -1040,9 +1084,12 @@ struct LiveRecordView: View {
     private var topBar: some View {
         VStack(spacing: 14) {
             HStack {
+                // Cancel/discard button
+                // - No active session yet: closes tracker immediately
+                // - Active session: confirmation dialog with Minimize / Discard / Cancel
                 Button(action: {
                     if isRunning || timeElapsed > 0 || appState.isTrackerPaused {
-                        withAnimation { appState.isTrackerMinimized = true }
+                        showDiscardConfirm = true
                     } else {
                         withAnimation { appState.isTrackerActive = false }
                     }
@@ -1053,6 +1100,32 @@ struct LiveRecordView: View {
                         .frame(width: 40, height: 40)
                         .background(.ultraThinMaterial, in: Circle())
                         .overlay(Circle().stroke(Color.black.opacity(0.04), lineWidth: 1))
+                }
+                .confirmationDialog("End this session?", isPresented: $showDiscardConfirm, titleVisibility: .visible) {
+                    Button("Minimize (keep tracking)") {
+                        withAnimation { appState.isTrackerMinimized = true }
+                    }
+                    Button("Discard Session", role: .destructive) {
+                        // Tear down without saving
+                        isRunning = false
+                        timeElapsed = 0
+                        gpsManager.stopTracking()
+                        gpsManager.finalizeSession()
+                        heartRateMonitor.stop()
+                        navigationManager.stopNavigation()
+                        Task { await emergencyManager.stopLiveTracking() }
+                        appState.trackerElapsedSeconds = 0
+                        appState.trackerDistanceKm = 0
+                        appState.trackerElevationGain = 0
+                        appState.activeMountain = nil
+                        withAnimation {
+                            appState.isTrackerActive = false
+                            appState.isTrackerMinimized = false
+                        }
+                    }
+                    Button("Cancel", role: .cancel) {}
+                } message: {
+                    Text("Save the recording, keep it running in the background, or discard it.")
                 }
 
                 Spacer()
@@ -1132,12 +1205,14 @@ struct LiveRecordView: View {
         .padding(.horizontal, 20)
         .padding(.top, 58)
         .padding(.bottom, 14)
-        .background(.ultraThinMaterial.opacity(0.92))
-        .overlay(alignment: .bottom) {
-            Rectangle()
-                .fill(Color.black.opacity(0.06))
-                .frame(height: 0.5)
-        }
+        .background(
+            LinearGradient(
+                colors: [.white.opacity(0.92), .white.opacity(0.60), .white.opacity(0.0)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea(edges: .top)
+        )
     }
 
     // MARK: - Data Panel
@@ -1400,6 +1475,13 @@ struct LiveRecordView: View {
 
         gpsManager.logManualResume()
         gpsManager.startTracking()
+        heartRateMonitor.start()
+
+        // Snap camera to follow the user on recording start so live position is always visible
+        withAnimation(.easeInOut(duration: 0.6)) {
+            viewport = .followPuck(zoom: 16, bearing: .heading, pitch: is3DMode ? 50 : 0)
+            isMapCenteredOnUser = true
+        }
 
         // Force route calculation if it hasn't happened yet (e.g. simulator with static location)
         if !hasCalculatedRoute, let target = targetMountain,
@@ -1489,6 +1571,7 @@ struct LiveRecordView: View {
         isRunning = false
         gpsManager.stopTracking()
         gpsManager.finalizeSession()
+        heartRateMonitor.stop()
         navigationManager.stopNavigation()
         Task { await emergencyManager.stopLiveTracking() }
         showSaveForm = true
@@ -1510,7 +1593,7 @@ struct TrackerSettingsSheet: View {
     var body: some View {
         NavigationView {
             ZStack {
-                Color(red: 0.95, green: 0.95, blue: 0.97).ignoresSafeArea()
+                Color.clear.ignoresSafeArea()
 
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 20) {
