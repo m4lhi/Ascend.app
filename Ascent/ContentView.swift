@@ -113,14 +113,7 @@ struct ContentView: View {
     private var customTabLayout: some View {
         ZStack(alignment: .bottom) {
 
-            LinearGradient(
-                colors: [
-                    Color(red: 0.94, green: 0.97, blue: 1.00),
-                    Color(red: 0.88, green: 0.93, blue: 1.00),
-                    Color(red: 0.85, green: 0.90, blue: 0.98)
-                ],
-                startPoint: .topLeading, endPoint: .bottomTrailing
-            ).ignoresSafeArea()
+            DesignSystem.Colors.surfaceMuted.ignoresSafeArea()
 
             Group {
                 switch selectedTab {

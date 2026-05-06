@@ -20,7 +20,7 @@ struct ReadinessQuestionnaireView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                Color(.systemGroupedBackground).ignoresSafeArea()
+                DesignSystem.Colors.surfaceMuted.ignoresSafeArea()
                 
                 ScrollView {
                     VStack(spacing: 24) {
@@ -75,14 +75,8 @@ struct ReadinessQuestionnaireView: View {
                         
                         Button(action: saveAndCalculate) {
                             Text("Calculate Manual Readiness")
-                                .font(.app(size: 16, weight: .bold))
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 16)
-                                .background(DesignSystem.Colors.mountainGradient)
-                                .clipShape(RoundedRectangle(cornerRadius: 16))
-                                .shadow(color: accent.opacity(0.3), radius: 10, y: 5)
                         }
+                        .buttonStyle(PrimaryButtonStyle())
                         .padding(.horizontal, 24)
                         .padding(.top, 12)
                         
@@ -163,9 +157,7 @@ struct QuestionSlider: View {
                 Text(maxLabel).font(.app(size: 10)).foregroundColor(.secondary)
             }
         }
-        .padding(16)
-        .background(Color.white)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .sectionCard()
     }
 }
 
@@ -191,8 +183,6 @@ struct ToggleSection: View {
             
             Toggle("", isOn: $isOn).labelsHidden()
         }
-        .padding(16)
-        .background(Color.white)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .sectionCard()
     }
 }

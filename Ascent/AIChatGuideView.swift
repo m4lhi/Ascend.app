@@ -267,8 +267,8 @@ struct AIChatGuideView: View {
     var isEmbedded: Bool = false
     
     // Theming Colors
-    private let accentColor = DesignSystem.Colors.accent // Ascent Blue
-    private let botBgColor = Color(red: 0.92, green: 0.93, blue: 0.95) // Slate Grey
+    private let accentColor = DesignSystem.Colors.accent
+    private let botBgColor = DesignSystem.Colors.surfaceMuted
     
     var body: some View {
         Group {
@@ -340,7 +340,7 @@ struct AIChatGuideView: View {
                     }
                     .padding(.vertical, 20)
                 }
-                .background(Color.white.ignoresSafeArea())
+                .background(DesignSystem.Colors.surface.ignoresSafeArea())
                 .onChange(of: viewModel.messages.count) {
                     withAnimation {
                         proxy.scrollTo(viewModel.messages.last?.id, anchor: .bottom)
@@ -365,7 +365,7 @@ struct AIChatGuideView: View {
                     TextField("Ask the Ascent Guide...", text: $viewModel.inputText)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 12)
-                        .background(Color(red: 0.95, green: 0.95, blue: 0.97))
+                        .background(DesignSystem.Colors.surfaceMuted)
                         .clipShape(Capsule())
                         .font(.app(size: 16))
                         .submitLabel(.send)
@@ -392,7 +392,7 @@ struct AIChatGuideView: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .background(Color.white.ignoresSafeArea())
+            .background(DesignSystem.Colors.surface.ignoresSafeArea())
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("AskAIAbooutStation"))) { notif in
             if let title = notif.object as? String {

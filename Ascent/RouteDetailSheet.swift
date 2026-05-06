@@ -33,7 +33,7 @@ struct RouteDetailSheet: View {
     var body: some View {
         NavigationView {
             ZStack {
-                Color(red: 0.945, green: 0.945, blue: 0.96).ignoresSafeArea()
+                DesignSystem.Colors.surfaceMuted.ignoresSafeArea()
 
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 0) {

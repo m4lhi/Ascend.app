@@ -32,14 +32,7 @@ struct SettingsView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                Color(red: 0.95, green: 0.95, blue: 0.97).ignoresSafeArea()
-
-                // Ambient blobs
-                Circle()
-                    .fill(RadialGradient(colors: [Color.blue.opacity(0.08), Color.clear], center: .center, startRadius: 0, endRadius: 125))
-                    .frame(width: 250, height: 250)
-                    .offset(x: -100, y: -100)
-                    .ignoresSafeArea()
+                DesignSystem.Colors.surfaceMuted.ignoresSafeArea()
 
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 20) {
@@ -276,19 +269,11 @@ struct SettingsSection<Content: View>: View {
         VStack(alignment: .leading, spacing: 10) {
             Text(title)
                 .font(.app(size: 11, weight: .black))
-                .foregroundColor(.gray)
+                .foregroundColor(.secondary)
                 .tracking(2)
                 .padding(.leading, 10)
             VStack(spacing: 15) { content }
-                .padding(20)
-                .background(.ultraThinMaterial)
-                .environment(\.colorScheme, .light)
-                .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 20, style: .continuous)
-                        .stroke(Color.white.opacity(0.5), lineWidth: 0.5)
-                )
-                .shadow(color: .black.opacity(0.04), radius: 8, y: 4)
+                .sectionCard()
         }
     }
 }
@@ -346,12 +331,7 @@ struct ExportAllToursSheet: View {
                         Label("Export as GPX", systemImage: "square.and.arrow.up")
                     }
                 }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 14)
-                .background(DesignSystem.Colors.accent)
-                .foregroundColor(.white)
-                .font(.app(.headline))
-                .clipShape(RoundedRectangle(cornerRadius: 14))
+                .buttonStyle(PrimaryButtonStyle())
                 .disabled(isExporting)
                 .padding(.horizontal, 20)
                 .padding(.bottom, 20)
@@ -443,12 +423,7 @@ struct ShareLocationSheet: View {
                 }) {
                     Label("Share", systemImage: "square.and.arrow.up")
                 }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 14)
-                .background(hasLocation ? Color.blue : Color.gray)
-                .foregroundColor(.white)
-                .font(.app(.headline))
-                .clipShape(RoundedRectangle(cornerRadius: 14))
+                .buttonStyle(PrimaryButtonStyle(fillColor: hasLocation ? DesignSystem.Colors.accent : Color.gray))
                 .disabled(!hasLocation)
                 .padding(.horizontal, 20)
                 .padding(.bottom, 20)

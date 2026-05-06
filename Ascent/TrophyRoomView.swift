@@ -332,15 +332,10 @@ struct TrophyRoomView: View {
     }
     
     private let gold = DesignSystem.Colors.accent
-    private let cardBg = Color.white
-    private let bg = LinearGradient(
-        colors: [
-            Color(red: 0.96, green: 0.98, blue: 1.00),
-            Color(red: 0.90, green: 0.94, blue: 1.00)
-        ],
-        startPoint: .top, endPoint: .bottom
-    )
-    
+    private let cardBg = DesignSystem.Colors.surfaceElevated
+    private var bg: some View { DesignSystem.Colors.surfaceMuted }
+
+
     private var requiredXP: Int { appState.xpNeededForNextLevel }
     private var xpProgress: Double {
         guard requiredXP > 0 else { return 0 }
@@ -386,20 +381,13 @@ struct TrophyRoomView: View {
         ZStack {
             ZStack {
                 bg.ignoresSafeArea()
-                
-                // Ambient color blobs (GPU-optimized)
+
+                // One soft accent halo near top — premium, calm
                 Circle()
-                    .fill(RadialGradient(colors: [Color.purple.opacity(0.08), Color.clear], center: .center, startRadius: 0, endRadius: 150))
-                    .frame(width: 300, height: 300)
-                    .offset(x: -80, y: -100)
-                Circle()
-                    .fill(RadialGradient(colors: [gold.opacity(0.07), Color.clear], center: .center, startRadius: 0, endRadius: 125))
-                    .frame(width: 250, height: 250)
-                    .offset(x: 120, y: 300)
-                Circle()
-                    .fill(RadialGradient(colors: [Color.green.opacity(0.06), Color.clear], center: .center, startRadius: 0, endRadius: 100))
-                    .frame(width: 200, height: 200)
-                    .offset(x: -50, y: 600)
+                    .fill(DesignSystem.Colors.accent.opacity(0.08))
+                    .frame(width: 420, height: 420)
+                    .blur(radius: 90)
+                    .offset(y: -240)
             }
             .ignoresSafeArea()
             
@@ -1207,8 +1195,8 @@ struct EditAccountView: View {
     @State private var hobbySearchTask: Task<Void, Never>? = nil
     
     private let gold = DesignSystem.Colors.accent
-    private let cardBg = Color.white
-    
+    private let cardBg = DesignSystem.Colors.surfaceElevated
+
     let availableSports = [
         "Mountaineering", "Climbing", "Ski Touring", "Hiking", "Bouldering", "Ice Climbing", "Alpinism",
         "Trail Running", "Ultra Running", "Fastpacking", "Paragliding", "Speedflying",
@@ -1929,10 +1917,7 @@ struct AllAchievementsSheet: View {
     var body: some View {
         NavigationView {
             ZStack {
-                LinearGradient(
-                    colors: [Color(red: 0.96, green: 0.98, blue: 1.00), Color(red: 0.90, green: 0.94, blue: 1.00)],
-                    startPoint: .top, endPoint: .bottom
-                ).ignoresSafeArea()
+                DesignSystem.Colors.surfaceMuted.ignoresSafeArea()
                 
                 ScrollView {
                     VStack(spacing: 20) {
@@ -2139,7 +2124,7 @@ struct FilteredActivitiesView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                Color(red: 0.945, green: 0.945, blue: 0.96).ignoresSafeArea()
+                DesignSystem.Colors.surfaceMuted.ignoresSafeArea()
                 ScrollView {
                     LazyVStack(spacing: 12) {
                         ForEach(tours) { tour in

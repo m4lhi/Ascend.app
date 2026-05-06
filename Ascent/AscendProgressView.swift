@@ -11,7 +11,7 @@ struct AscendProgressView: View {
     
     var body: some View {
         ZStack {
-            Color(red: 0.95, green: 0.95, blue: 0.97).ignoresSafeArea()
+            DesignSystem.Colors.surfaceMuted.ignoresSafeArea()
             
             VStack(spacing: 0) {
                 // Header Bar
@@ -566,7 +566,7 @@ struct RankGallerySheet: View {
     
     var body: some View {
         ZStack {
-            Color(red: 0.95, green: 0.95, blue: 0.97).ignoresSafeArea()
+            DesignSystem.Colors.surfaceMuted.ignoresSafeArea()
             
             // Subtle ambient background
             Circle()

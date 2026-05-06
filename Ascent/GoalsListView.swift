@@ -26,7 +26,7 @@ struct GoalsListView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                Color(.systemGroupedBackground).ignoresSafeArea()
+                DesignSystem.Colors.surfaceMuted.ignoresSafeArea()
                 ScrollView {
                     LazyVStack(spacing: 12) {
                         if sortedGoals.isEmpty {

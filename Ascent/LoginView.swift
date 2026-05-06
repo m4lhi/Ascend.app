@@ -1,205 +1,255 @@
 import SwiftUI
-import Supabase // WICHTIG: Supabase hier importieren!
+import Supabase
 import AuthenticationServices
 
 // =========================================
 // === DATEI: LoginView.swift ===
-// === Der echte Supabase Login ===
+// === Premium minimal sign-in ===
 // =========================================
 
 struct LoginView: View {
     @EnvironmentObject var appState: AppState
     @AppStorage("isLoggedIn") private var isLoggedIn = false
-    
+
     @State private var email = ""
     @State private var password = ""
     @State private var isRegistering = false
-    
-    // === NEU: Für Lade-Animation und Fehlermeldungen ===
     @State private var isLoading = false
     @State private var errorMessage: String? = nil
 
+    @FocusState private var focusedField: Field?
+    private enum Field { case email, password }
+
     var body: some View {
         ZStack {
-            DesignSystem.Colors.logoGradient.ignoresSafeArea()
+            // Solid surface — no gradient noise
+            DesignSystem.Colors.background
+                .ignoresSafeArea()
 
-            // Soft radial bloom
-            RadialGradient(
-                colors: [Color.white.opacity(0.35), .clear],
-                center: .top, startRadius: 20, endRadius: 500
-            )
-            .ignoresSafeArea()
-            .allowsHitTesting(false)
-            
-            VStack(spacing: 25) {
-                Spacer().frame(height: 30)
-                
-                // === LOGO & TITEL ===
-                VStack(spacing: 12) {
-                    Image("AscentLogo")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 110, height: 110)
-                        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-                        .shadow(color: .black.opacity(0.25), radius: 22, y: 12)
+            // One soft accent halo behind the logo. Subtle, premium.
+            Circle()
+                .fill(DesignSystem.Colors.accent.opacity(0.10))
+                .frame(width: 380, height: 380)
+                .blur(radius: 80)
+                .offset(y: -260)
+                .allowsHitTesting(false)
 
-                    Text("ASCENT")
-                        .font(.app(size: 40, weight: .black))
-                        .foregroundColor(.white)
-                        .tracking(6)
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 0) {
+                    Spacer().frame(height: 72)
 
-                    Text(isRegistering ? "Join the Elite" : "Welcome back, Alpinist")
-                        .font(.app(.subheadline))
-                        .foregroundColor(.white.opacity(0.82))
-                }
-                
-                Spacer().frame(height: 20)
-                
-                // === EINGABEFELDER ===
-                VStack(spacing: 15) {
-                    HStack {
-                        Image(systemName: "envelope.fill").foregroundColor(.gray)
-                        TextField("Email Address", text: $email)
-                            .foregroundColor(.primary)
-                            .textInputAutocapitalization(.never) // Wichtig für E-Mails!
-                            .keyboardType(.emailAddress)
-                            .autocorrectionDisabled(true)
-                    }
-                    .padding()
-                    .background(.ultraThinMaterial)
-                    .environment(\.colorScheme, .light)
-                    .cornerRadius(12)
-                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.5), lineWidth: 0.5))
-                    
-                    HStack {
-                        Image(systemName: "lock.fill").foregroundColor(.gray)
-                        SecureField("Password", text: $password)
-                            .foregroundColor(.primary)
-                    }
-                    .padding()
-                    .background(.ultraThinMaterial)
-                    .environment(\.colorScheme, .light)
-                    .cornerRadius(12)
-                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.5), lineWidth: 0.5))
-                }
-                .padding(.horizontal, 30)
-                
-                // === NEU: FEHLERMELDUNG ANZEIGEN ===
-                if let errorMessage = errorMessage {
-                    Text(errorMessage)
-                        .font(.app(.caption))
-                        .foregroundColor(.red)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 30)
-                }
-                
-                // === DER ECHTE SUPABASE LOGIN BUTTON ===
-                Button(action: {
-                    // Startet die Authentifizierung
-                    authenticateUser()
-                }) {
-                    ZStack {
-                        if isLoading {
-                            ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .black))
-                        } else {
-                            Text(isRegistering ? "CREATE ACCOUNT" : "SIGN IN")
-                                .font(.app(.headline))
-                                .fontWeight(.bold)
-                                .foregroundColor(.black)
+                    // === Logo / Brand ===
+                    VStack(spacing: 14) {
+                        Image("AscentLogo")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 84, height: 84)
+                            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                            .shadow(color: DesignSystem.Colors.accent.opacity(0.18), radius: 24, y: 12)
+
+                        VStack(spacing: 6) {
+                            Text("ASCENT")
+                                .font(.app(size: 30, weight: .black))
+                                .foregroundColor(.primary)
+                                .tracking(4)
+
+                            Text(isRegistering
+                                 ? "Build your alpine identity."
+                                 : "Welcome back. Your peaks await.")
+                                .font(.app(size: 15, weight: .regular))
+                                .foregroundColor(.secondary)
+                                .multilineTextAlignment(.center)
                         }
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(DesignSystem.Colors.accent)
-                    .cornerRadius(12)
-                    .shadow(color: DesignSystem.Colors.accent.opacity(0.3), radius: 10, y: 5)
-                }
-                .padding(.horizontal, 30)
-                .disabled(isLoading || email.isEmpty || password.isEmpty) // Button sperren, wenn Felder leer sind
-                .opacity((email.isEmpty || password.isEmpty) ? 0.5 : 1.0)
-                
-                // === "ODER" TRENNLINIE ===
-                HStack {
-                    VStack { Divider().background(Color.gray.opacity(0.5)) }
-                    Text("OR").font(.app(.caption)).foregroundColor(.gray).padding(.horizontal, 10)
-                    VStack { Divider().background(Color.gray.opacity(0.5)) }
-                }
-                .padding(.horizontal, 40)
-                .padding(.vertical, 5)
-                
-                // Apple Login (Für später geparkt, aktuell nur UI)
-                SignInWithAppleButton(
-                    .signIn,
-                    onRequest: { request in request.requestedScopes = [.fullName, .email] },
-                    onCompletion: { result in print("Apple Login vorerst deaktiviert.") }
-                )
-                .signInWithAppleButtonStyle(.black)
-                .frame(height: 55)
-                .cornerRadius(12)
-                .padding(.horizontal, 30)
-                
-                Spacer()
-                
-                // === WECHSEL ZWISCHEN LOGIN & REGISTRIERUNG ===
-                Button(action: {
-                    withAnimation(.easeInOut) {
-                        isRegistering.toggle()
-                        errorMessage = nil // Fehler beim Wechseln zurücksetzen
+
+                    Spacer().frame(height: 48)
+
+                    // === Form ===
+                    VStack(spacing: 14) {
+                        inputField(
+                            icon: "envelope",
+                            placeholder: "Email",
+                            text: $email,
+                            isSecure: false,
+                            keyboard: .emailAddress,
+                            field: .email
+                        )
+
+                        inputField(
+                            icon: "lock",
+                            placeholder: "Password",
+                            text: $password,
+                            isSecure: true,
+                            keyboard: .default,
+                            field: .password
+                        )
+
+                        if let errorMessage {
+                            HStack(spacing: 8) {
+                                Image(systemName: "exclamationmark.circle.fill")
+                                    .font(.system(size: 13, weight: .semibold))
+                                Text(errorMessage)
+                                    .font(.app(size: 13, weight: .medium))
+                                    .multilineTextAlignment(.leading)
+                                Spacer()
+                            }
+                            .foregroundColor(DesignSystem.Colors.error)
+                            .padding(.horizontal, 4)
+                            .transition(.opacity.combined(with: .move(edge: .top)))
+                        }
                     }
-                }) {
-                    HStack(spacing: 5) {
-                        Text(isRegistering ? "Already have an account?" : "Don't have an account?")
-                            .foregroundColor(.gray)
-                        Text(isRegistering ? "Sign In" : "Register")
-                            .fontWeight(.bold)
-                            .foregroundColor(DesignSystem.Colors.accent)
+                    .padding(.horizontal, 24)
+
+                    Spacer().frame(height: 24)
+
+                    // === Primary action ===
+                    Button(action: authenticateUser) {
+                        ZStack {
+                            if isLoading {
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                            } else {
+                                Text(isRegistering ? "Create account" : "Sign in")
+                            }
+                        }
                     }
-                    .font(.app(.subheadline))
+                    .buttonStyle(PrimaryButtonStyle())
+                    .disabled(isLoading || email.isEmpty || password.isEmpty)
+                    .opacity((email.isEmpty || password.isEmpty) ? 0.55 : 1.0)
+                    .padding(.horizontal, 24)
+
+                    Spacer().frame(height: 28)
+
+                    // === Divider ===
+                    HStack(spacing: 12) {
+                        Rectangle()
+                            .fill(DesignSystem.Colors.cardBorder)
+                            .frame(height: 0.5)
+                        Text("OR")
+                            .font(.app(size: 11, weight: .semibold))
+                            .foregroundColor(.secondary)
+                            .tracking(1.4)
+                        Rectangle()
+                            .fill(DesignSystem.Colors.cardBorder)
+                            .frame(height: 0.5)
+                    }
+                    .padding(.horizontal, 36)
+
+                    Spacer().frame(height: 24)
+
+                    // === Apple Sign-In (UI only for now) ===
+                    SignInWithAppleButton(
+                        .signIn,
+                        onRequest: { request in request.requestedScopes = [.fullName, .email] },
+                        onCompletion: { _ in print("Apple Login coming soon.") }
+                    )
+                    .signInWithAppleButtonStyle(.black)
+                    .frame(height: 52)
+                    .clipShape(RoundedRectangle(cornerRadius: DesignSystem.Radius.full, style: .continuous))
+                    .padding(.horizontal, 24)
+
+                    Spacer().frame(height: 40)
+
+                    // === Toggle Sign-In / Register ===
+                    Button {
+                        withAnimation(DesignSystem.Animations.standard) {
+                            isRegistering.toggle()
+                            errorMessage = nil
+                        }
+                    } label: {
+                        HStack(spacing: 5) {
+                            Text(isRegistering ? "Already a member?" : "New to Ascent?")
+                                .foregroundColor(.secondary)
+                            Text(isRegistering ? "Sign in" : "Create account")
+                                .foregroundColor(DesignSystem.Colors.accent)
+                                .fontWeight(.bold)
+                        }
+                        .font(.app(size: 14, weight: .medium))
+                    }
+                    .padding(.bottom, 32)
                 }
-                .padding(.bottom, 20)
             }
         }
+        .animation(DesignSystem.Animations.standard, value: errorMessage)
     }
-    
+
+    // MARK: - Input field
+    @ViewBuilder
+    private func inputField(
+        icon: String,
+        placeholder: String,
+        text: Binding<String>,
+        isSecure: Bool,
+        keyboard: UIKeyboardType,
+        field: Field
+    ) -> some View {
+        let isFocused = focusedField == field
+
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 15, weight: .medium))
+                .foregroundColor(isFocused ? DesignSystem.Colors.accent : .secondary)
+                .frame(width: 20)
+
+            Group {
+                if isSecure {
+                    SecureField(placeholder, text: text)
+                } else {
+                    TextField(placeholder, text: text)
+                        .keyboardType(keyboard)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                }
+            }
+            .font(.app(size: 16, weight: .regular))
+            .foregroundColor(.primary)
+            .focused($focusedField, equals: field)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md, style: .continuous)
+                .fill(DesignSystem.Colors.surfaceMuted)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md, style: .continuous)
+                .strokeBorder(
+                    isFocused ? DesignSystem.Colors.accent.opacity(0.55) : DesignSystem.Colors.cardBorder,
+                    lineWidth: isFocused ? 1.5 : 0.75
+                )
+        )
+        .animation(DesignSystem.Animations.quick, value: isFocused)
+    }
+
     // =========================================
-    // === DIE SUPABASE VERBINDUNGS-LOGIK ===
+    // === SUPABASE AUTH ===
     // =========================================
     private func authenticateUser() {
-        // Tastatur verstecken und Ladekreis anzeigen
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
         isLoading = true
         errorMessage = nil
-        
+
         HapticManager.shared.medium()
-        
-        // Asynchroner Task für die Netzwerkabfrage
+
         Task {
             do {
                 if isRegistering {
-                    // 1. NEUEN ACCOUNT ERSTELLEN
-                    // Greift auf die globale 'supabase' Variable zu!
                     _ = try await supabase.auth.signUp(email: email, password: password)
-                    print("✅ Erfolgreich registriert!")
                 } else {
-                    // 2. BESTEHENDEN ACCOUNT EINLOGGEN
                     _ = try await supabase.auth.signIn(email: email, password: password)
-                    print("✅ Erfolgreich eingeloggt!")
                 }
-                
-                // Wenn kein Fehler geworfen wurde, loggen wir den User in der App ein!
+
                 await MainActor.run {
                     isLoading = false
                     withAnimation(.spring()) {
                         isLoggedIn = true
                     }
                 }
-                
             } catch {
-                // Wenn das Passwort falsch ist oder die E-Mail schon existiert
                 await MainActor.run {
                     isLoading = false
                     errorMessage = error.localizedDescription
-                    print("❌ Auth Fehler: \(error.localizedDescription)")
+                    print("Auth error: \(error.localizedDescription)")
                 }
             }
         }

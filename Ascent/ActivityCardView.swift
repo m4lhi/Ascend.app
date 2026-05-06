@@ -107,9 +107,16 @@ struct ActivityCardView: View {
                 .padding(.top, 10)
                 .padding(.bottom, 14)
         }
-        .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .shadow(color: .black.opacity(0.06), radius: 12, y: 4)
+        .background(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(DesignSystem.Colors.surfaceElevated)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .strokeBorder(DesignSystem.Colors.cardBorder, lineWidth: 0.75)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .shadow(color: .black.opacity(0.05), radius: 14, y: 5)
         .sheet(isPresented: $showComments) {
             CommentSheetView(tour: tour)
                 .presentationDetents([.medium, .large])
@@ -135,7 +142,7 @@ struct ActivityCardView: View {
                             }
                         } else {
                             Circle()
-                                .fill(LinearGradient(colors: [accent.opacity(0.4), Color.purple.opacity(0.3)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                                .fill(DesignSystem.Colors.accent)
                                 .overlay(
                                     Text(String(tour.playerName.prefix(1)))
                                         .font(.app(size: 16, weight: .bold))

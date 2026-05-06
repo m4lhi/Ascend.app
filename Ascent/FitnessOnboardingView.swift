@@ -298,11 +298,19 @@ struct FitnessOnboardingView: View {
 
     var body: some View {
         ZStack {
-            Color(.systemGroupedBackground).ignoresSafeArea()
+            DesignSystem.Colors.surfaceMuted.ignoresSafeArea()
 
-            RadialGradient(colors: [accent.opacity(0.08), .clear], center: .top, startRadius: 0, endRadius: 360)
-                .ignoresSafeArea()
-                .allowsHitTesting(false)
+            // Single soft accent halo near top for depth
+            VStack {
+                Circle()
+                    .fill(accent.opacity(0.10))
+                    .frame(width: 380, height: 380)
+                    .blur(radius: 80)
+                    .offset(y: -200)
+                Spacer()
+            }
+            .ignoresSafeArea()
+            .allowsHitTesting(false)
 
             VStack(spacing: 0) {
                 // Top bar
@@ -392,17 +400,11 @@ struct FitnessOnboardingView: View {
         } label: {
             HStack(spacing: 8) {
                 Text(buttonTitle)
-                    .font(.app(size: 17, weight: .black))
                 Image(systemName: "arrow.right")
-                    .font(.app(size: 15, weight: .bold))
+                    .font(.system(size: 14, weight: .bold))
             }
-            .foregroundColor(.black)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 18)
-            .background(accent)
-            .clipShape(RoundedRectangle(cornerRadius: 18))
-            .shadow(color: accent.opacity(0.4), radius: 14, y: 6)
         }
+        .buttonStyle(PrimaryButtonStyle())
     }
 
     var buttonTitle: String {
@@ -449,62 +451,67 @@ private struct WelcomeStep: View {
     private let accent = DesignSystem.Colors.accent
 
     var body: some View {
-        VStack(spacing: 32) {
+        VStack(spacing: 0) {
             Spacer()
 
+            // Hero mark — single, confident
             ZStack {
-                ForEach(0..<3) { i in
-                    Circle()
-                        .fill(accent.opacity(0.08 - Double(i) * 0.02))
-                        .frame(width: CGFloat(130 + i * 50), height: CGFloat(130 + i * 50))
-                        .scaleEffect(appeared ? 1 : 0.4)
-                        .animation(.spring(response: 0.7, dampingFraction: 0.6).delay(Double(i) * 0.12), value: appeared)
-                }
-                Image(systemName: "mountain.2.fill")
-                    .font(.system(size: 64, weight: .bold))
-                    .foregroundStyle(LinearGradient(colors: [accent, accent.opacity(0.7)], startPoint: .top, endPoint: .bottom))
-                    .scaleEffect(appeared ? 1 : 0.3)
-                    .animation(.spring(response: 0.6, dampingFraction: 0.55).delay(0.1), value: appeared)
-            }
+                Circle()
+                    .fill(accent.opacity(0.10))
+                    .frame(width: 168, height: 168)
+                    .scaleEffect(appeared ? 1 : 0.6)
 
-            VStack(spacing: 14) {
+                Image(systemName: "mountain.2.fill")
+                    .font(.system(size: 72, weight: .bold))
+                    .foregroundColor(accent)
+                    .scaleEffect(appeared ? 1 : 0.6)
+            }
+            .animation(.spring(response: 0.7, dampingFraction: 0.7), value: appeared)
+
+            Spacer().frame(height: 40)
+
+            VStack(spacing: 16) {
                 Text("Know Your Mountain")
                     .font(.app(size: 32, weight: .black))
                     .foregroundColor(.primary)
                     .multilineTextAlignment(.center)
-                    .opacity(appeared ? 1 : 0)
-                    .offset(y: appeared ? 0 : 20)
-                    .animation(.spring(response: 0.5, dampingFraction: 0.8).delay(0.25), value: appeared)
 
-                Text("We analyze your real fitness data — not just what you think — to recommend peaks that challenge without risking you.")
-                    .font(.app(size: 15))
+                Text("Real fitness data. Real recommendations.\nClimb peaks that challenge — not break — you.")
+                    .font(.app(size: 16, weight: .regular))
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
                     .lineSpacing(4)
-                    .padding(.horizontal, 28)
-                    .opacity(appeared ? 1 : 0)
-                    .offset(y: appeared ? 0 : 16)
-                    .animation(.spring(response: 0.5, dampingFraction: 0.8).delay(0.38), value: appeared)
+                    .padding(.horizontal, 32)
             }
+            .opacity(appeared ? 1 : 0)
+            .offset(y: appeared ? 0 : 20)
+            .animation(.spring(response: 0.55, dampingFraction: 0.85).delay(0.15), value: appeared)
 
-            VStack(spacing: 10) {
-                ForEach(["Age · Height · Weight", "Location & Nearby Peaks", "Apple Health Integration", "VO₂ Max & Heart Rate", "Your Climbed Peaks"], id: \.self) { item in
-                    HStack(spacing: 10) {
-                        Image(systemName: "checkmark.circle.fill")
+            Spacer().frame(height: 36)
+
+            // Feature checklist — minimal, elegant
+            VStack(alignment: .leading, spacing: 14) {
+                ForEach(["Body & Health metrics", "Location & nearby peaks", "Apple Health integration", "VO₂ Max & cardio profile", "Climbed peaks history"], id: \.self) { item in
+                    HStack(spacing: 12) {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 11, weight: .bold))
                             .foregroundColor(accent)
-                            .font(.app(size: 14))
+                            .frame(width: 22, height: 22)
+                            .background(accent.opacity(0.12))
+                            .clipShape(Circle())
                         Text(item)
-                            .font(.app(size: 13, weight: .medium))
-                            .foregroundColor(.secondary)
+                            .font(.app(size: 15, weight: .medium))
+                            .foregroundColor(.primary)
                         Spacer()
                     }
                 }
             }
-            .padding(.horizontal, 40)
+            .padding(.horizontal, 36)
             .opacity(appeared ? 1 : 0)
             .offset(y: appeared ? 0 : 12)
-            .animation(.spring(response: 0.5, dampingFraction: 0.8).delay(0.5), value: appeared)
+            .animation(.spring(response: 0.55, dampingFraction: 0.85).delay(0.30), value: appeared)
 
+            Spacer()
             Spacer()
         }
         .onAppear { withAnimation { appeared = true } }
@@ -636,65 +643,67 @@ private struct LocationStep: View {
     }
 
     var body: some View {
-        VStack(spacing: 32) {
+        VStack(spacing: 0) {
             Spacer()
 
             ZStack {
-                ForEach(0..<2) { i in
-                    Circle()
-                        .fill(Color.blue.opacity(0.07 - Double(i) * 0.02))
-                        .frame(width: CGFloat(110 + i * 50), height: CGFloat(110 + i * 50))
-                        .scaleEffect(appeared ? 1 : 0.5)
-                        .animation(.spring(response: 0.65, dampingFraction: 0.65).delay(Double(i) * 0.1), value: appeared)
-                }
+                Circle()
+                    .fill(accent.opacity(0.10))
+                    .frame(width: 148, height: 148)
+                    .scaleEffect(appeared ? 1 : 0.6)
                 Image(systemName: "location.fill")
-                    .font(.system(size: 52, weight: .bold))
-                    .foregroundColor(.blue)
-                    .scaleEffect(appeared ? 1 : 0.3)
-                    .animation(.spring(response: 0.6, dampingFraction: 0.6).delay(0.08), value: appeared)
+                    .font(.system(size: 56, weight: .bold))
+                    .foregroundColor(accent)
+                    .scaleEffect(appeared ? 1 : 0.6)
             }
+            .animation(.spring(response: 0.7, dampingFraction: 0.7), value: appeared)
 
-            VStack(spacing: 12) {
+            Spacer().frame(height: 36)
+
+            VStack(spacing: 14) {
                 Text("Your Location")
-                    .font(.app(size: 28, weight: .black))
+                    .font(.app(size: 30, weight: .black))
                     .foregroundColor(.primary)
-                    .opacity(appeared ? 1 : 0)
-                    .offset(y: appeared ? 0 : 16)
-                    .animation(.spring(response: 0.5, dampingFraction: 0.8).delay(0.22), value: appeared)
 
-                Text("We use your location to recommend nearby peaks and calculate your distance to every mountain.")
-                    .font(.app(size: 15))
+                Text("Recommend nearby peaks. Calculate distance to every mountain. Stays on-device.")
+                    .font(.app(size: 16, weight: .regular))
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
                     .lineSpacing(3)
-                    .padding(.horizontal, 28)
-                    .opacity(appeared ? 1 : 0)
-                    .offset(y: appeared ? 0 : 12)
-                    .animation(.spring(response: 0.5, dampingFraction: 0.8).delay(0.32), value: appeared)
+                    .padding(.horizontal, 32)
             }
+            .opacity(appeared ? 1 : 0)
+            .offset(y: appeared ? 0 : 16)
+            .animation(.spring(response: 0.55, dampingFraction: 0.85).delay(0.15), value: appeared)
 
-            VStack(spacing: 10) {
+            Spacer().frame(height: 28)
+
+            VStack(alignment: .leading, spacing: 14) {
                 ForEach([
-                    ("location.fill", "Find peaks near you", Color.blue),
-                    ("arrow.triangle.swap", "Calculate distances", Color.green),
-                    ("mountain.2.fill", "Sort by proximity", accent),
-                ], id: \.0) { icon, text, color in
+                    ("location.fill", "Find peaks near you"),
+                    ("arrow.triangle.swap", "Calculate distances"),
+                    ("mountain.2.fill", "Sort by proximity"),
+                ], id: \.0) { icon, text in
                     HStack(spacing: 12) {
                         Image(systemName: icon)
-                            .foregroundColor(color)
-                            .font(.app(size: 16))
-                            .frame(width: 26)
+                            .foregroundColor(accent)
+                            .font(.system(size: 14, weight: .semibold))
+                            .frame(width: 22, height: 22)
+                            .background(accent.opacity(0.12))
+                            .clipShape(Circle())
                         Text(text)
-                            .font(.app(size: 14, weight: .medium))
+                            .font(.app(size: 15, weight: .medium))
                             .foregroundColor(.primary)
                         Spacer()
                     }
-                    .padding(.horizontal, 36)
                 }
             }
+            .padding(.horizontal, 36)
             .opacity(appeared ? 1 : 0)
             .offset(y: appeared ? 0 : 10)
-            .animation(.spring(response: 0.5, dampingFraction: 0.8).delay(0.42), value: appeared)
+            .animation(.spring(response: 0.55, dampingFraction: 0.85).delay(0.28), value: appeared)
+
+            Spacer().frame(height: 28)
 
             HStack(spacing: 6) {
                 Circle().fill(statusColor).frame(width: 7, height: 7)
@@ -712,15 +721,9 @@ private struct LocationStep: View {
                     HStack(spacing: 8) {
                         Image(systemName: "location.fill")
                         Text("Allow Location Access")
-                            .font(.app(size: 16, weight: .bold))
                     }
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(Color.blue)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
-                    .shadow(color: Color.blue.opacity(0.3), radius: 10, y: 4)
                 }
+                .buttonStyle(PrimaryButtonStyle())
                 .padding(.horizontal, 32)
                 .transition(.opacity.combined(with: .scale(scale: 0.95)))
             }
@@ -1280,15 +1283,9 @@ private struct ResultStep: View {
                     HStack(spacing: 8) {
                         Image(systemName: "mountain.2.fill")
                         Text("Explore My Mountains")
-                            .font(.app(size: 17, weight: .black))
                     }
-                    .foregroundColor(.black)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 18)
-                    .background(accent)
-                    .clipShape(RoundedRectangle(cornerRadius: 18))
-                    .shadow(color: accent.opacity(0.45), radius: 16, y: 8)
                 }
+                .buttonStyle(PrimaryButtonStyle())
                 .padding(.bottom, 40)
             }
             .padding(.horizontal, 20)
