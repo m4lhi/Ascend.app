@@ -263,6 +263,25 @@ struct ExploreView: View {
 
             VStack {
                 Spacer()
+
+                if !isRouteCreationMode && !searchExpanded {
+                    Button {
+                        HapticManager.shared.heavy()
+                        appState.isTrackerActive = true
+                    } label: {
+                        ZStack {
+                            Circle()
+                                .fill(DesignSystem.Colors.accent)
+                                .frame(width: 60, height: 60)
+                            Image(systemName: "figure.walk")
+                                .font(.system(size: 24, weight: .black))
+                                .foregroundColor(.white)
+                        }
+                    }
+                    .buttonStyle(PressableButtonStyle())
+                    .padding(.bottom, 12)
+                }
+
                 if isRouteCreationMode {
                     routeCreationPanel
                         .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -302,7 +321,7 @@ struct ExploreView: View {
             .presentationDetents([.fraction(0.4), .large])
             .presentationDragIndicator(.visible)
             .adaptiveSheetBackground()
-            .preferredColorScheme(.light)
+            .preferredColorScheme(.dark)
         }
         .task {
             await mountainManager.fetchSavedRoutes()
@@ -363,11 +382,11 @@ struct ExploreView: View {
         } message: {
             Text("Please enable location services for Ascend in your iPhone Settings to use this feature.")
         }
-        .preferredColorScheme(.light)
+        .preferredColorScheme(.dark)
         .sheet(item: $routeForDetailSheet) { route in
             RouteDetailSheet(route: route, routeManager: RouteSavingManager.shared)
                 .presentationDetents([.large])
-                .preferredColorScheme(.light)
+                .preferredColorScheme(.dark)
         }
         .sheet(isPresented: $showMyRoutesLibrary) {
             NavigationView {
@@ -381,7 +400,7 @@ struct ExploreView: View {
                     }
             }
             .presentationDetents([.large])
-            .preferredColorScheme(.light)
+            .preferredColorScheme(.dark)
         }
         .onChange(of: appState.exploreSelectedMountain) { _, mt in
             if let target = mt {
@@ -414,7 +433,6 @@ struct ExploreView: View {
                                 Circle().fill(gold).frame(width: 32, height: 32)
                                 Text("\(idx + 1)").font(.app(size: 14, weight: .black)).foregroundColor(.black)
                             }
-                            .shadow(color: .black.opacity(0.3), radius: 4, y: 2)
                             .onTapGesture { selectedMarkerTag = mountain.id }
                         }
                         .allowOverlap(true)
@@ -439,7 +457,6 @@ struct ExploreView: View {
                                 .background(gold)
                                 .foregroundColor(.white)
                                 .cornerRadius(10)
-                                .shadow(color: .black.opacity(0.4), radius: 5, y: 3)
                             
                             Image(systemName: "triangle.fill")
                                 .font(.app(size: 12))
@@ -471,7 +488,6 @@ struct ExploreView: View {
                             .frame(width: 26, height: 26)
                             .background(poiColor(for: poi.type))
                             .clipShape(Circle())
-                            .shadow(color: .black.opacity(0.2), radius: 3, y: 1)
                     }
                     .allowOverlap(true)
                 }
@@ -589,13 +605,12 @@ struct ExploreView: View {
                 ZStack {
                     if !searchExpanded {
                         Circle()
-                            .fill(.ultraThinMaterial)
+                            .fill(DesignSystem.Colors.surface)
                             .frame(width: 44, height: 44)
-                            .shadow(color: .black.opacity(0.12), radius: 8, y: 3)
                     }
                     Image(systemName: "magnifyingglass")
                         .font(.system(size: 18, weight: .bold))
-                        .foregroundColor(.primary)
+                        .foregroundColor(.white)
                         .rotationEffect(.degrees(searchExpanded ? 90 : 0))
                 }
             }
@@ -606,25 +621,24 @@ struct ExploreView: View {
                     TextField("Search peaks, regions…", text: $searchText)
                         .focused($isSearchFocused)
                         .font(.app(size: 15))
-                        .foregroundColor(.primary)
+                        .foregroundColor(.white)
                     
                     if !searchText.isEmpty {
                         Button { searchText = "" } label: {
-                            Image(systemName: "xmark.circle.fill").foregroundColor(.secondary)
+                            Image(systemName: "xmark.circle.fill").foregroundColor(DesignSystem.Colors.secondaryText)
                         }
                     } else {
                         Button {
                             withAnimation { searchExpanded = false }
                         } label: {
-                            Image(systemName: "chevron.right").font(.system(size: 12, weight: .bold)).foregroundColor(.secondary)
+                            Image(systemName: "chevron.right").font(.system(size: 12, weight: .bold)).foregroundColor(DesignSystem.Colors.secondaryText)
                         }
                     }
                 }
                 .padding(.horizontal, 14)
                 .padding(.vertical, 10)
-                .background(.ultraThinMaterial)
+                .background(DesignSystem.Colors.surface)
                 .clipShape(Capsule())
-                .shadow(color: .black.opacity(0.1), radius: 6, y: 2)
                 .padding(.leading, 8)
                 .transition(.asymmetric(
                     insertion: .opacity.combined(with: .move(edge: .leading)).combined(with: .scale(scale: 0.9)),
@@ -641,7 +655,7 @@ struct ExploreView: View {
         HStack(spacing: 10) {
             Image(systemName: "magnifyingglass").foregroundColor(.gray).font(.app(size: 16, weight: .medium))
             TextField("Search peaks, regions or countries…", text: $searchText)
-                .focused($isSearchFocused).foregroundColor(.primary).autocorrectionDisabled().textInputAutocapitalization(.never)
+                .focused($isSearchFocused).foregroundColor(.white).autocorrectionDisabled().textInputAutocapitalization(.never)
 
             if isSearchActive || !searchText.isEmpty {
                 Button {
@@ -655,7 +669,7 @@ struct ExploreView: View {
                 } label: { Image(systemName: "xmark.circle.fill").foregroundColor(.gray) }
             }
         }
-        .padding(.horizontal, 14).padding(.vertical, 12).background(.ultraThinMaterial)
+        .padding(.horizontal, 14).padding(.vertical, 12).background(DesignSystem.Colors.surface)
         .clipShape(RoundedRectangle(cornerRadius: 14)).overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black.opacity(0.08), lineWidth: 0.5))
     }
 
@@ -742,7 +756,7 @@ struct ExploreView: View {
                                     Image(systemName: mountain.isPrestigePeak ? "crown.fill" : "mountain.2.fill")
                                         .foregroundColor(mountain.isPrestigePeak ? gold : .gray).frame(width: 20)
                                     VStack(alignment: .leading, spacing: 2) {
-                                        Text(mountain.name).font(.app(size: 14, weight: .semibold)).foregroundColor(.primary)
+                                        Text(mountain.name).font(.app(size: 14, weight: .semibold)).foregroundColor(.white)
                                         Text("\(mountain.region) · \(mountain.elevation)m").font(.app(size: 11)).foregroundColor(.gray)
                                     }
                                     Spacer()
@@ -755,7 +769,7 @@ struct ExploreView: View {
                 }.frame(maxHeight: 320)
             }
         }
-        .background(.ultraThinMaterial).clipShape(RoundedRectangle(cornerRadius: 14))
+        .background(DesignSystem.Colors.surface).clipShape(RoundedRectangle(cornerRadius: 14))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black.opacity(0.08), lineWidth: 0.5))
     }
 
@@ -807,16 +821,16 @@ struct ExploreView: View {
         VStack(spacing: 12) {
             HStack {
                 Image(systemName: "pencil.line").foregroundColor(gold)
-                Text("Route Creator").font(.app(size: 16, weight: .bold)).foregroundColor(.primary)
+                Text("Route Creator").font(.app(size: 16, weight: .bold)).foregroundColor(.white)
                 Spacer()
                 Text("\(routeMountains.count) peaks").font(.app(size: 12, weight: .semibold)).foregroundColor(gold)
             }
 
             TextField("Route name…", text: $routeName).textFieldStyle(.plain).padding(10)
-                .background(Color.gray.opacity(0.1)).cornerRadius(10).foregroundColor(.primary)
+                .background(Color.gray.opacity(0.1)).cornerRadius(10).foregroundColor(.white)
 
             TextField("Description (optional)…", text: $routeDescription).textFieldStyle(.plain).padding(10)
-                .background(Color.gray.opacity(0.1)).cornerRadius(10).foregroundColor(.primary)
+                .background(Color.gray.opacity(0.1)).cornerRadius(10).foregroundColor(.white)
                 .font(.app(size: 14))
 
             // Sport type + visibility row
@@ -833,7 +847,7 @@ struct ExploreView: View {
                         Text(routeSportType.label).font(.app(size: 11, weight: .semibold))
                         Image(systemName: "chevron.down").font(.app(size: 8))
                     }
-                    .foregroundColor(.primary)
+                    .foregroundColor(.white)
                     .padding(.horizontal, 10).padding(.vertical, 7)
                     .background(Color.gray.opacity(0.1)).clipShape(Capsule())
                 }
@@ -850,7 +864,7 @@ struct ExploreView: View {
                         Text(routeVisibility.label).font(.app(size: 11, weight: .semibold))
                         Image(systemName: "chevron.down").font(.app(size: 8))
                     }
-                    .foregroundColor(.primary)
+                    .foregroundColor(.white)
                     .padding(.horizontal, 10).padding(.vertical, 7)
                     .background(Color.gray.opacity(0.1)).clipShape(Capsule())
                 }
@@ -892,14 +906,14 @@ struct ExploreView: View {
 
             HStack(spacing: 12) {
                 Button { withAnimation(.spring()) { isRouteCreationMode = false; routeMountains = []; routeName = ""; routeDescription = ""; routeSportType = .hiking; routeVisibility = .privateRoute } } label: {
-                    Text("Cancel").font(.app(size: 14, weight: .bold)).foregroundColor(.primary).frame(maxWidth: .infinity).padding(.vertical, 12).background(Color.gray.opacity(0.1)).cornerRadius(12)
+                    Text("Cancel").font(.app(size: 14, weight: .bold)).foregroundColor(.white).frame(maxWidth: .infinity).padding(.vertical, 12).background(Color.gray.opacity(0.1)).cornerRadius(12)
                 }
                 Button { saveCreatedRoute() } label: {
                     HStack(spacing: 4) { Image(systemName: "checkmark"); Text("Save Route") }.font(.app(size: 14, weight: .bold)).foregroundColor(.white).frame(maxWidth: .infinity).padding(.vertical, 12).background(routeMountains.count >= 2 ? gold : gold.opacity(0.3)).cornerRadius(12)
                 }.disabled(routeMountains.count < 2)
             }
         }
-        .padding(16).background(.ultraThinMaterial).clipShape(RoundedRectangle(cornerRadius: 24))
+        .padding(16).background(DesignSystem.Colors.surface).clipShape(RoundedRectangle(cornerRadius: 24))
         .overlay(RoundedRectangle(cornerRadius: 24).stroke(Color.black.opacity(0.05), lineWidth: 0.5))
         .padding(.horizontal, 16)
         .padding(.bottom, 120)
@@ -1016,9 +1030,8 @@ struct ExploreView: View {
             }
             .frame(maxHeight: discoverySheetExpanded ? 440 : 220)
         }
-        .background(.ultraThinMaterial.opacity(0.95))
+        .background(DesignSystem.Colors.surface)
         .clipShape(RoundedRectangle(cornerRadius: 24))
-        .shadow(color: .black.opacity(0.3), radius: 15, y: 5)
         .padding(.horizontal, 16)
         .padding(.bottom, 120)
     }
@@ -1027,7 +1040,7 @@ struct ExploreView: View {
     func discoverySectionHeader(title: String, icon: String) -> some View {
         HStack {
             Image(systemName: icon).font(.app(size: 13, weight: .bold)).foregroundColor(gold)
-            Text(title).font(.app(size: 15, weight: .bold)).foregroundColor(.primary)
+            Text(title).font(.app(size: 15, weight: .bold)).foregroundColor(.white)
             Spacer()
             if !discoverySheetExpanded {
                 Button { withAnimation(.spring()) { discoverySheetExpanded = true } } label: { Text("See All").font(.app(size: 12, weight: .semibold)).foregroundColor(gold) }
@@ -1330,9 +1343,8 @@ struct FloatingMapButton: View {
                 .font(.app(size: 20, weight: .semibold))
                 .foregroundColor(active ? .white : .black)
                 .frame(width: 44, height: 44)
-                .background(active ? AnyShapeStyle(DesignSystem.Colors.accent) : AnyShapeStyle(.ultraThinMaterial))
+                .background(active ? AnyShapeStyle(DesignSystem.Colors.accent) : AnyShapeStyle(DesignSystem.Colors.surface))
                 .clipShape(Circle())
-                .shadow(color: .black.opacity(0.15), radius: 8, y: 4)
         }
     }
 }
@@ -1347,9 +1359,8 @@ struct FloatingMapButton3D: View {
                 .font(.system(size: 14, weight: .black))
                 .foregroundColor(is3D ? .white : .black)
                 .frame(width: 44, height: 44)
-                .background(is3D ? AnyShapeStyle(gold) : AnyShapeStyle(.ultraThinMaterial))
+                .background(is3D ? AnyShapeStyle(gold) : AnyShapeStyle(DesignSystem.Colors.surface))
                 .clipShape(Circle())
-                .shadow(color: .black.opacity(0.15), radius: 8, y: 4)
         }
     }
 }
@@ -1424,7 +1435,6 @@ struct MountainMapPin: View {
                         .offset(x: 11, y: -11),
                     alignment: .topTrailing
                 )
-                .shadow(color: color.opacity(0.45), radius: 5, y: 2)
 
                 PinPointer()
                     .fill(color)
@@ -1445,7 +1455,6 @@ struct MountainMapPin: View {
                 .padding(.vertical, 4)
                 .background(color)
                 .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
-                .shadow(color: color.opacity(0.55), radius: 5, y: 2)
 
                 PinPointer()
                     .fill(color)
@@ -1462,7 +1471,6 @@ struct MountainMapPin: View {
                     .padding(.vertical, 4)
                     .background(color)
                     .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
-                    .shadow(color: color.opacity(0.5), radius: 4, y: 2)
 
                 PinPointer()
                     .fill(color)
@@ -1648,7 +1656,6 @@ struct ExploreDiscoveryCard: View {
             }
             .frame(width: cardSize, height: cardSize)
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .shadow(color: .black.opacity(0.2), radius: 8, y: 4)
             .scaleEffect(pressed ? 0.94 : 1.0)
         }
         .buttonStyle(.plain)
@@ -1689,7 +1696,7 @@ struct SavedRouteCard: View {
                         .foregroundColor(accent)
                     Text(route.name)
                         .font(.app(size: 15, weight: .bold))
-                        .foregroundColor(.primary)
+                        .foregroundColor(.white)
                         .lineLimit(1)
                 }
 
@@ -1712,7 +1719,7 @@ struct SavedRouteCard: View {
                     }
                 }
                 .font(.app(size: 11, weight: .medium))
-                .foregroundColor(.secondary)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
 
                 // Bottom row: difficulty + completed badge
                 HStack(spacing: 6) {
@@ -1739,9 +1746,8 @@ struct SavedRouteCard: View {
             }
             .padding(12)
             .frame(width: 200, alignment: .leading)
-            .background(.ultraThinMaterial)
+            .background(DesignSystem.Colors.surface)
             .cornerRadius(16)
-            .shadow(color: .black.opacity(0.1), radius: 5, y: 2)
         }
         .buttonStyle(.plain)
         .contextMenu {
@@ -1806,7 +1812,6 @@ struct ExploreMountainDetailSheet: View {
                                     Text("Foto: \(credit)")
                                         .font(.app(size: 9, weight: .medium))
                                         .foregroundColor(.white.opacity(0.8))
-                                        .shadow(color: .black.opacity(0.8), radius: 3, x: 0, y: 1)
                                         .padding(.trailing, 16)
                                         .padding(.bottom, 16)
                                 }
@@ -1823,8 +1828,8 @@ struct ExploreMountainDetailSheet: View {
                     VStack(alignment: .leading, spacing: 16) {
                         HStack(alignment: .top) {
                             VStack(alignment: .leading, spacing: 4) {
-                                Text(mountain.name).font(.app(size: 28, weight: .bold)).foregroundColor(.primary)
-                                Text("\(mountain.region), \(mountain.country)").font(.app(size: 15)).foregroundColor(.secondary)
+                                Text(mountain.name).font(.app(size: 28, weight: .bold)).foregroundColor(.white)
+                                Text("\(mountain.region), \(mountain.country)").font(.app(size: 15)).foregroundColor(DesignSystem.Colors.secondaryText)
                             }
                             Spacer()
                             VStack(alignment: .trailing, spacing: 4) {
@@ -1853,7 +1858,7 @@ struct ExploreMountainDetailSheet: View {
                             }
                         }
                         .padding(.vertical, 16)
-                        .background(.ultraThinMaterial)
+                        .background(DesignSystem.Colors.surface)
                         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                         
                         // Action buttons row
@@ -1877,7 +1882,7 @@ struct ExploreMountainDetailSheet: View {
                         if !mountain.description.isEmpty {
                             Text(mountain.description)
                                 .font(.app(size: 14))
-                                .foregroundColor(.secondary)
+                                .foregroundColor(DesignSystem.Colors.secondaryText)
                                 .lineSpacing(4)
                         }
                         
@@ -1902,7 +1907,6 @@ struct ExploreMountainDetailSheet: View {
                             .padding(.vertical, 16)
                             .background(gold)
                             .clipShape(RoundedRectangle(cornerRadius: 16))
-                            .shadow(color: gold.opacity(0.3), radius: 10, y: 5)
                         }
                         .padding(.bottom, 30)
                     }
@@ -1924,9 +1928,9 @@ struct ExploreMountainDetailSheet: View {
     
     private func statItem(icon: String, value: String, label: String) -> some View {
         VStack(spacing: 6) {
-            Image(systemName: icon).font(.app(size: 18)).foregroundColor(.secondary)
-            Text(value).font(.app(size: 18, weight: .bold)).foregroundColor(.primary)
-            Text(label).font(.app(size: 12)).foregroundColor(.secondary)
+            Image(systemName: icon).font(.app(size: 18)).foregroundColor(DesignSystem.Colors.secondaryText)
+            Text(value).font(.app(size: 18, weight: .bold)).foregroundColor(.white)
+            Text(label).font(.app(size: 12)).foregroundColor(DesignSystem.Colors.secondaryText)
         }
         .frame(maxWidth: .infinity)
     }

@@ -298,7 +298,7 @@ struct FitnessOnboardingView: View {
 
     var body: some View {
         ZStack {
-            DesignSystem.Colors.surfaceMuted.ignoresSafeArea()
+            DesignSystem.Colors.background.ignoresSafeArea()
 
             // Single soft accent halo near top for depth
             VStack {
@@ -334,7 +334,7 @@ struct FitnessOnboardingView: View {
                         Button { saveAndComplete() } label: {
                             Text("Skip")
                                 .font(.app(size: 13, weight: .semibold))
-                                .foregroundColor(.secondary)
+                                .foregroundColor(DesignSystem.Colors.secondaryText)
                         }
                     } else { Color.clear.frame(width: 36, height: 36) }
                 }
@@ -473,12 +473,12 @@ private struct WelcomeStep: View {
             VStack(spacing: 16) {
                 Text("Know Your Mountain")
                     .font(.app(size: 32, weight: .black))
-                    .foregroundColor(.primary)
+                    .foregroundColor(.white)
                     .multilineTextAlignment(.center)
 
                 Text("Real fitness data. Real recommendations.\nClimb peaks that challenge — not break — you.")
                     .font(.app(size: 16, weight: .regular))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
                     .multilineTextAlignment(.center)
                     .lineSpacing(4)
                     .padding(.horizontal, 32)
@@ -501,7 +501,7 @@ private struct WelcomeStep: View {
                             .clipShape(Circle())
                         Text(item)
                             .font(.app(size: 15, weight: .medium))
-                            .foregroundColor(.primary)
+                            .foregroundColor(.white)
                         Spacer()
                     }
                 }
@@ -556,7 +556,7 @@ private struct PersonalStatsStep: View {
                     HStack {
                         Text("\(state.age) years")
                             .font(.app(size: 22, weight: .black))
-                            .foregroundColor(.primary)
+                            .foregroundColor(.white)
                         Spacer()
                         Stepper("", value: $state.age, in: 14...90)
                             .labelsHidden()
@@ -571,7 +571,7 @@ private struct PersonalStatsStep: View {
                     HStack {
                         Text("\(state.heightCm) cm")
                             .font(.app(size: 22, weight: .black))
-                            .foregroundColor(.primary)
+                            .foregroundColor(.white)
                         Spacer()
                         Stepper("", value: $state.heightCm, in: 120...230)
                             .labelsHidden()
@@ -586,7 +586,7 @@ private struct PersonalStatsStep: View {
                     HStack {
                         Text("\(state.weightKg) kg")
                             .font(.app(size: 22, weight: .black))
-                            .foregroundColor(.primary)
+                            .foregroundColor(.white)
                         Spacer()
                         Stepper("", value: $state.weightKg, in: 30...200)
                             .labelsHidden()
@@ -663,11 +663,11 @@ private struct LocationStep: View {
             VStack(spacing: 14) {
                 Text("Your Location")
                     .font(.app(size: 30, weight: .black))
-                    .foregroundColor(.primary)
+                    .foregroundColor(.white)
 
                 Text("Recommend nearby peaks. Calculate distance to every mountain. Stays on-device.")
                     .font(.app(size: 16, weight: .regular))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
                     .multilineTextAlignment(.center)
                     .lineSpacing(3)
                     .padding(.horizontal, 32)
@@ -693,7 +693,7 @@ private struct LocationStep: View {
                             .clipShape(Circle())
                         Text(text)
                             .font(.app(size: 15, weight: .medium))
-                            .foregroundColor(.primary)
+                            .foregroundColor(.white)
                         Spacer()
                     }
                 }
@@ -757,7 +757,7 @@ private struct HealthStep: View {
 
                     Text("What we read")
                         .font(.app(size: 13, weight: .bold))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
 
                     VStack(spacing: 8) {
                         ForEach(healthItems, id: \.0) { item in
@@ -768,7 +768,7 @@ private struct HealthStep: View {
                                     .frame(width: 24)
                                 Text(item.0)
                                     .font(.app(size: 14, weight: .medium))
-                                    .foregroundColor(.primary)
+                                    .foregroundColor(.white)
                                 Spacer()
                                 if case .granted = state.healthState, let val = item.3 {
                                     Text(val)
@@ -796,22 +796,21 @@ private struct HealthStep: View {
                             ProgressView().tint(accent)
                             Text("Reading Apple Health…")
                                 .font(.app(size: 13))
-                                .foregroundColor(.secondary)
+                                .foregroundColor(DesignSystem.Colors.secondaryText)
                         }
                     }
                 }
                 .padding(20)
-                .background(Color(.systemBackground))
+                .background(DesignSystem.Colors.background)
                 .clipShape(RoundedRectangle(cornerRadius: 20))
-                .shadow(color: .black.opacity(0.06), radius: 12, y: 4)
                 .padding(.horizontal, 20)
 
                 // Privacy note
                 HStack(spacing: 6) {
-                    Image(systemName: "lock.fill").font(.app(size: 11)).foregroundColor(.secondary)
+                    Image(systemName: "lock.fill").font(.app(size: 11)).foregroundColor(DesignSystem.Colors.secondaryText)
                     Text("Read-only · Never stored on our servers")
                         .font(.app(size: 11))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
                 }
             }
             .padding(.bottom, 100)
@@ -847,10 +846,10 @@ private struct MountainSearchStep: View {
 
             // Search bar
             HStack(spacing: 10) {
-                Image(systemName: "magnifyingglass").foregroundColor(.secondary).font(.app(size: 15))
+                Image(systemName: "magnifyingglass").foregroundColor(DesignSystem.Colors.secondaryText).font(.app(size: 15))
                 TextField("Search mountains…", text: $state.searchText)
                     .focused($focused)
-                    .foregroundColor(.primary)
+                    .foregroundColor(.white)
                     .font(.app(size: 15))
                     .autocorrectionDisabled()
                     .textInputAutocapitalization(.never)
@@ -859,12 +858,12 @@ private struct MountainSearchStep: View {
                 }
                 if !state.searchText.isEmpty {
                     Button { state.searchText = "" } label: {
-                        Image(systemName: "xmark.circle.fill").foregroundColor(.secondary)
+                        Image(systemName: "xmark.circle.fill").foregroundColor(DesignSystem.Colors.secondaryText)
                     }
                 }
             }
             .padding(.horizontal, 14).padding(.vertical, 12)
-            .background(Color(.systemBackground))
+            .background(DesignSystem.Colors.background)
             .clipShape(RoundedRectangle(cornerRadius: 14))
             .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black.opacity(0.08), lineWidth: 1))
             .padding(.horizontal, 20)
@@ -921,10 +920,10 @@ private struct MountainSearchStep: View {
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(mountain.name)
                                             .font(.app(size: 15, weight: .bold))
-                                            .foregroundColor(.primary)
+                                            .foregroundColor(.white)
                                         Text("\(mountain.elevation)m · \(mountain.region)")
                                             .font(.app(size: 12))
-                                            .foregroundColor(.secondary)
+                                            .foregroundColor(DesignSystem.Colors.secondaryText)
                                     }
                                     Spacer()
                                     difficultyPill(mountain.difficulty)
@@ -945,7 +944,7 @@ private struct MountainSearchStep: View {
                         .foregroundColor(.secondary.opacity(0.4))
                     Text("Type at least 2 characters\nto search peaks from our database")
                         .font(.app(size: 13))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
                         .multilineTextAlignment(.center)
                     Spacer()
                 }
@@ -990,7 +989,7 @@ private struct ActivityStep: View {
                     Toggle(isOn: $state.includePace.animation(.spring())) {
                         Text("I run regularly")
                             .font(.app(size: 14, weight: .semibold))
-                            .foregroundColor(.primary)
+                            .foregroundColor(.white)
                     }
                     .tint(accent)
 
@@ -999,7 +998,7 @@ private struct ActivityStep: View {
                             HStack {
                                 Text("Average pace")
                                     .font(.app(size: 13))
-                                    .foregroundColor(.secondary)
+                                    .foregroundColor(DesignSystem.Colors.secondaryText)
                                 Spacer()
                                 Text(String(format: "%d:%02d min/km", state.paceMinutes, state.paceSeconds))
                                     .font(.app(size: 16, weight: .black))
@@ -1008,7 +1007,7 @@ private struct ActivityStep: View {
 
                             HStack(spacing: 16) {
                                 VStack(spacing: 4) {
-                                    Text("Minutes").font(.app(size: 10)).foregroundColor(.secondary)
+                                    Text("Minutes").font(.app(size: 10)).foregroundColor(DesignSystem.Colors.secondaryText)
                                     Picker("", selection: $state.paceMinutes) {
                                         ForEach(3...12, id: \.self) { Text("\($0)") }
                                     }
@@ -1016,9 +1015,9 @@ private struct ActivityStep: View {
                                     .frame(width: 70, height: 80)
                                     .clipped()
                                 }
-                                Text(":").font(.app(size: 24, weight: .black)).foregroundColor(.secondary)
+                                Text(":").font(.app(size: 24, weight: .black)).foregroundColor(DesignSystem.Colors.secondaryText)
                                 VStack(spacing: 4) {
-                                    Text("Seconds").font(.app(size: 10)).foregroundColor(.secondary)
+                                    Text("Seconds").font(.app(size: 10)).foregroundColor(DesignSystem.Colors.secondaryText)
                                     Picker("", selection: $state.paceSeconds) {
                                         ForEach(Array(stride(from: 0, to: 60, by: 5)), id: \.self) { Text(String(format: "%02d", $0)) }
                                     }
@@ -1037,7 +1036,7 @@ private struct ActivityStep: View {
                             Image(systemName: "heart.fill").font(.app(size: 10)).foregroundColor(.red)
                             Text(String(format: "From Apple Health: %.1f min/km", pace))
                                 .font(.app(size: 11, weight: .medium))
-                                .foregroundColor(.secondary)
+                                .foregroundColor(DesignSystem.Colors.secondaryText)
                         }
                     }
                 }
@@ -1048,7 +1047,7 @@ private struct ActivityStep: View {
                         HStack {
                             Text("Days per week")
                                 .font(.app(size: 14, weight: .semibold))
-                                .foregroundColor(.primary)
+                                .foregroundColor(.white)
                             Spacer()
                             Text(state.weeklyStrengthDays == 0 ? "None" : "\(state.weeklyStrengthDays)×")
                                 .font(.app(size: 16, weight: .black))
@@ -1080,7 +1079,7 @@ private struct ActivityStep: View {
                             HStack {
                                 Text("I know my VO₂ Max")
                                     .font(.app(size: 14, weight: .semibold))
-                                    .foregroundColor(.primary)
+                                    .foregroundColor(.white)
                                 Spacer()
                                 Toggle("", isOn: $state.showVo2Input.animation(.spring()))
                                     .labelsHidden()
@@ -1093,7 +1092,7 @@ private struct ActivityStep: View {
                                         .foregroundColor(.green)
                                     Text("ml/kg/min")
                                         .font(.app(size: 13))
-                                        .foregroundColor(.secondary)
+                                        .foregroundColor(DesignSystem.Colors.secondaryText)
                                     Spacer()
                                     Stepper("", value: Binding(
                                         get: { state.manualVo2Max ?? 35 },
@@ -1105,7 +1104,7 @@ private struct ActivityStep: View {
                                     set: { state.manualVo2Max = Int($0) }
                                 ), in: 20...90, step: 1).tint(.green)
                                 Text("Average: 35–45 · Elite: 60+")
-                                    .font(.app(size: 11)).foregroundColor(.secondary)
+                                    .font(.app(size: 11)).foregroundColor(DesignSystem.Colors.secondaryText)
                             }
                         }
                         .transition(.move(edge: .top).combined(with: .opacity))
@@ -1114,7 +1113,7 @@ private struct ActivityStep: View {
                             Image(systemName: "heart.fill").font(.app(size: 10)).foregroundColor(.red)
                             Text("From Apple Health: \(v) ml/kg/min")
                                 .font(.app(size: 12, weight: .medium))
-                                .foregroundColor(.secondary)
+                                .foregroundColor(DesignSystem.Colors.secondaryText)
                         }
                     }
                 }
@@ -1154,7 +1153,7 @@ private struct AnalysisStep: View {
 
                     Text("Analyzing your profile…")
                         .font(.app(size: 22, weight: .black))
-                        .foregroundColor(.primary)
+                        .foregroundColor(.white)
 
                     VStack(spacing: 10) {
                         ForEach(Array(state.analysisSteps.enumerated()), id: \.offset) { i, step in
@@ -1216,10 +1215,10 @@ private struct ResultStep: View {
                     VStack(spacing: 4) {
                         Text("\(scoreDisplayed)")
                             .font(.system(size: 42, weight: .black, design: .rounded))
-                            .foregroundColor(.primary)
+                            .foregroundColor(.white)
                         Text("/ 100")
                             .font(.app(size: 12))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
                     }
                 }
                 .padding(.top, 8)
@@ -1232,18 +1231,18 @@ private struct ResultStep: View {
                             .foregroundColor(level.color)
                         Text(level.title)
                             .font(.app(size: 28, weight: .black))
-                            .foregroundColor(.primary)
+                            .foregroundColor(.white)
                     }
                     Text(level.subtitle)
                         .font(.app(size: 14))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
                 }
 
                 // Breakdown
                 VStack(spacing: 0) {
                     Text("Score Breakdown")
                         .font(.app(size: 11, weight: .bold))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.bottom, 10)
 
@@ -1251,7 +1250,7 @@ private struct ResultStep: View {
                         HStack(spacing: 10) {
                             Text(item.label)
                                 .font(.app(size: 13))
-                                .foregroundColor(.secondary)
+                                .foregroundColor(DesignSystem.Colors.secondaryText)
                                 .frame(width: 130, alignment: .leading)
 
                             GeometryReader { geo in
@@ -1314,10 +1313,10 @@ private func stepHeader(title: String, subtitle: String) -> some View {
     VStack(alignment: .leading, spacing: 8) {
         Text(title)
             .font(.app(size: 28, weight: .black))
-            .foregroundColor(.primary)
+            .foregroundColor(.white)
         Text(subtitle)
             .font(.app(size: 14))
-            .foregroundColor(.secondary)
+            .foregroundColor(DesignSystem.Colors.secondaryText)
             .lineSpacing(2)
     }
 }
@@ -1336,16 +1335,15 @@ private struct StatCard<Content: View>: View {
                     .foregroundColor(color)
                 Text(label)
                     .font(.app(size: 12, weight: .bold))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
                     .textCase(.uppercase)
                     .tracking(0.5)
             }
             content()
         }
         .padding(16)
-        .background(Color(.systemBackground))
+        .background(DesignSystem.Colors.background)
         .clipShape(RoundedRectangle(cornerRadius: 18))
         .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.black.opacity(0.06), lineWidth: 1))
-        .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
     }
 }

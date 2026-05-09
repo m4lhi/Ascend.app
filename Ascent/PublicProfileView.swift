@@ -49,7 +49,7 @@ struct PublicProfileView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                DesignSystem.Colors.surfaceMuted.ignoresSafeArea()
+                DesignSystem.Colors.background.ignoresSafeArea()
                 
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 24) {
@@ -66,7 +66,6 @@ struct PublicProfileView: View {
                                     Circle()
                                         .stroke(rank.color, lineWidth: 3)
                                         .frame(width: 100, height: 100)
-                                        .shadow(color: rank.color.opacity(0.3), radius: 10, y: 5)
                                     
                                     if let urlString = avatarURL, let url = URL(string: urlString) {
                                         CachedAsyncImage(url: url) { image in
@@ -95,7 +94,6 @@ struct PublicProfileView: View {
                                         Image(systemName: "hexagon.fill")
                                             .font(.app(size: 38))
                                             .foregroundColor(rank.color)
-                                            .shadow(color: rank.color.opacity(0.4), radius: 4, y: 2)
                                         
                                         Image(systemName: "hexagon")
                                             .font(.app(size: 38))
@@ -112,11 +110,11 @@ struct PublicProfileView: View {
                             VStack(spacing: 4) {
                                 Text(userName)
                                     .font(.app(size: 24, weight: .bold))
-                                    .foregroundColor(.primary)
+                                    .foregroundColor(.white)
                                 
                                 HStack(spacing: 6) {
                                     Text("@\(userHandle)")
-                                        .foregroundColor(.secondary)
+                                        .foregroundColor(DesignSystem.Colors.secondaryText)
                                     Text("•")
                                         .foregroundColor(.secondary.opacity(0.5))
                                     Text(rank.rawValue.uppercased())
@@ -134,13 +132,13 @@ struct PublicProfileView: View {
                                         Text(r)
                                     }
                                     .font(.app(size: 14, weight: .medium))
-                                    .foregroundColor(.secondary)
+                                    .foregroundColor(DesignSystem.Colors.secondaryText)
                                     .padding(.top, 4)
                                 } else {
                                     // Default tagline
                                     Text("Exploring the peaks")
                                         .font(.app(size: 14, weight: .medium))
-                                        .foregroundColor(.secondary)
+                                        .foregroundColor(DesignSystem.Colors.secondaryText)
                                         .padding(.top, 4)
                                 }
                             }
@@ -184,7 +182,6 @@ struct PublicProfileView: View {
                                 .padding(.vertical, 14)
                                 .background(accent)
                                 .clipShape(Capsule())
-                                .shadow(color: accent.opacity(0.3), radius: 6, y: 3)
                             }
                             .padding(.horizontal, 24)
                             .padding(.top, 4)
@@ -193,7 +190,7 @@ struct PublicProfileView: View {
                         VStack(alignment: .leading, spacing: 14) {
                             HStack {
                                 Image(systemName: "trophy.fill").foregroundColor(gold)
-                                Text("Top Achievements").font(.app(size: 14, weight: .bold)).foregroundColor(.secondary).textCase(.uppercase)
+                                Text("Top Achievements").font(.app(size: 14, weight: .bold)).foregroundColor(DesignSystem.Colors.secondaryText).textCase(.uppercase)
                             }
                             .padding(.horizontal, 24)
                             
@@ -218,8 +215,8 @@ struct PublicProfileView: View {
                         // Equipment Section
                         VStack(alignment: .leading, spacing: 14) {
                             HStack {
-                                Image(systemName: "backpack.fill").foregroundColor(.secondary)
-                                Text("Equipment Locker").font(.app(size: 14, weight: .bold)).foregroundColor(.secondary).textCase(.uppercase)
+                                Image(systemName: "backpack.fill").foregroundColor(DesignSystem.Colors.secondaryText)
+                                Text("Equipment Locker").font(.app(size: 14, weight: .bold)).foregroundColor(DesignSystem.Colors.secondaryText).textCase(.uppercase)
                             }
                             .padding(.horizontal, 24)
                             
@@ -326,14 +323,13 @@ private struct PublicBadgeItem: View {
             }
             Text(title)
                 .font(.app(size: 11, weight: .bold))
-                .foregroundColor(.primary)
+                .foregroundColor(.white)
                 .lineLimit(1)
         }
         .frame(width: 90)
         .padding(.vertical, 12)
         .background(Color(UIColor.secondarySystemGroupedBackground))
         .clipShape(RoundedRectangle(cornerRadius: 16))
-        .shadow(color: .black.opacity(0.04), radius: 8, y: 4)
     }
 }
 
@@ -353,13 +349,12 @@ private struct StatPill: View {
                     .font(.app(size: 16, weight: .bold))
                 Text(title)
                     .font(.app(size: 10))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
             }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
         .background(Color(UIColor.secondarySystemGroupedBackground))
         .clipShape(Capsule())
-        .shadow(color: .black.opacity(0.04), radius: 5, y: 3)
     }
 }

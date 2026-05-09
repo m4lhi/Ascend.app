@@ -333,7 +333,7 @@ struct TrophyRoomView: View {
     
     private let gold = DesignSystem.Colors.accent
     private let cardBg = DesignSystem.Colors.surfaceElevated
-    private var bg: some View { DesignSystem.Colors.surfaceMuted }
+    private var bg: some View { DesignSystem.Colors.background }
 
 
     private var requiredXP: Int { appState.xpNeededForNextLevel }
@@ -400,7 +400,7 @@ struct TrophyRoomView: View {
                     HStack {
                         Text("Profile")
                             .font(.app(size: 28, weight: .bold))
-                            .foregroundColor(.primary)
+                            .foregroundColor(.white)
                         Spacer()
                         
                         Button(action: { showLayoutEditor = true }) {
@@ -477,7 +477,7 @@ struct TrophyRoomView: View {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(appState.userName)
                                     .font(.app(size: 22, weight: .bold))
-                                    .foregroundColor(.primary)
+                                    .foregroundColor(.white)
                                 
                                 HStack(spacing: 8) {
                                     Text("@\(appState.userHandle)")
@@ -605,7 +605,7 @@ struct TrophyRoomView: View {
                         .padding(.vertical, 14)
                         .background(
                             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                .fill(.ultraThinMaterial)
+                                .fill(DesignSystem.Colors.surface)
                                 .environment(\.colorScheme, .light)
                         )
                         .overlay(
@@ -614,14 +614,13 @@ struct TrophyRoomView: View {
                         )
                     }
                     .padding(20)
-                    .background(.ultraThinMaterial)
+                    .background(DesignSystem.Colors.surface)
                     .environment(\.colorScheme, .light)
                     .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
                     .overlay(
                         RoundedRectangle(cornerRadius: 24, style: .continuous)
                             .stroke(Color.white.opacity(0.5), lineWidth: 0.5)
                     )
-                    .shadow(color: .black.opacity(0.06), radius: 15, y: 6)
                     .padding(.horizontal, 20)
                     .opacity(animateIn ? 1 : 0)
                     .offset(y: animateIn ? 0 : 16)
@@ -661,7 +660,7 @@ struct TrophyRoomView: View {
         .sheet(item: $selectedAchievement) { achievement in
             AchievementDetailSheet(achievement: achievement)
                 .presentationDetents([.medium])
-                .preferredColorScheme(.light)
+                .preferredColorScheme(.dark)
         }
         .sheet(isPresented: $showAllAchievements) {
             AllAchievementsSheet(achievements: achievements, unlockedCount: unlockedCount)
@@ -671,7 +670,7 @@ struct TrophyRoomView: View {
                 setWidgetOrder(newOrder)
             }
             .presentationDetents([.medium, .large])
-            .preferredColorScheme(.light)
+            .preferredColorScheme(.dark)
         }
     }
 
@@ -733,14 +732,13 @@ struct TrophyRoomView: View {
                             Image(systemName: "chevron.right").font(.app(.caption)).foregroundColor(.gray)
                         }
                         .padding(20)
-                        .background(.ultraThinMaterial)
+                        .background(DesignSystem.Colors.surface)
                         .environment(\.colorScheme, .light)
                         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
                         .overlay(
                             RoundedRectangle(cornerRadius: 20, style: .continuous)
                                 .stroke(Color.white.opacity(0.5), lineWidth: 0.5)
                         )
-                        .shadow(color: .black.opacity(0.06), radius: 12, y: 6)
                     }
                     .buttonStyle(.plain)
                     .padding(.horizontal, 20)
@@ -755,7 +753,7 @@ struct TrophyRoomView: View {
                     .foregroundColor(.orange)
                 Text("Equipment")
                     .font(.app(size: 19, weight: .bold))
-                    .foregroundColor(.primary)
+                    .foregroundColor(.white)
 
                 Spacer()
 
@@ -870,7 +868,7 @@ struct TrophyRoomView: View {
                     Text("Achievements")
                         .font(.app(.headline))
                         .fontWeight(.bold)
-                        .foregroundColor(.primary)
+                        .foregroundColor(.white)
                     Text("\(unlockedCount) / \(achievements.count) Unlocked")
                         .font(.app(.caption))
                         .foregroundColor(.gray)
@@ -883,13 +881,12 @@ struct TrophyRoomView: View {
                     .foregroundColor(.gray)
             }
             .padding(DesignSystem.Spacing.md)
-            .background(Color(.secondarySystemBackground))
+            .background(DesignSystem.Colors.surface)
             .clipShape(RoundedRectangle(cornerRadius: DesignSystem.Radius.lg, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: DesignSystem.Radius.lg, style: .continuous)
                     .stroke(Color.black.opacity(0.04), lineWidth: 0.5)
             )
-            .shadow(color: .black.opacity(0.05), radius: 8, y: 2)
         }
         .buttonStyle(.plain)
         .padding(.horizontal, 20)
@@ -927,7 +924,7 @@ struct ProfileStatItem: View {
         VStack(spacing: 4) {
             Text(value)
                 .font(.app(size: 18, weight: .bold))
-                .foregroundColor(.primary)
+                .foregroundColor(.white)
             Text(label)
                 .font(.app(size: 10, weight: .semibold))
                 .foregroundColor(color.opacity(0.7))
@@ -1000,7 +997,6 @@ struct AchievementBadgeCard: View {
                         Image(systemName: achievement.icon)
                             .font(.app(size: 28))
                             .foregroundColor(achievement.category.color)
-                            .shadow(color: achievement.category.color.opacity(0.4), radius: 8)
                     } else {
                         ZStack {
                             Image(systemName: achievement.icon)
@@ -1061,7 +1057,7 @@ struct AchievementDetailSheet: View {
     
     var body: some View {
         ZStack {
-            Color(white: 0.98).ignoresSafeArea()
+            DesignSystem.Colors.background.ignoresSafeArea()
             
             VStack(spacing: 24) {
                 // Handle
@@ -1088,7 +1084,6 @@ struct AchievementDetailSheet: View {
                         Image(systemName: achievement.icon)
                             .font(.app(size: 44))
                             .foregroundColor(achievement.category.color)
-                            .shadow(color: achievement.category.color.opacity(0.5), radius: 12)
                     } else {
                         Image(systemName: achievement.icon)
                             .font(.app(size: 44))
@@ -1099,7 +1094,7 @@ struct AchievementDetailSheet: View {
                 VStack(spacing: 8) {
                     Text(achievement.title)
                         .font(.app(size: 22, weight: .bold))
-                        .foregroundColor(.primary)
+                        .foregroundColor(.white)
                     
                     Text(achievement.description)
                         .font(.app(size: 15))
@@ -1150,13 +1145,12 @@ struct AchievementDetailSheet: View {
                     .frame(height: 8)
                 }
                 .padding(DesignSystem.Spacing.lg)
-                .background(Color(.secondarySystemBackground))
+                .background(DesignSystem.Colors.surface)
                 .clipShape(RoundedRectangle(cornerRadius: DesignSystem.Radius.lg))
                 .overlay(
                     RoundedRectangle(cornerRadius: DesignSystem.Radius.lg)
                         .stroke(Color.black.opacity(0.04), lineWidth: 0.5)
                 )
-                .shadow(color: .black.opacity(0.05), radius: 8, y: 2)
                 .padding(.horizontal, DesignSystem.Spacing.md)
                 
                 Spacer()
@@ -1242,7 +1236,7 @@ struct EditAccountView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                Color(white: 0.98).ignoresSafeArea()
+                DesignSystem.Colors.background.ignoresSafeArea()
                 
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 24) {
@@ -1310,7 +1304,7 @@ struct EditAccountView: View {
                                 }
                                 TextField("username", text: $draftHandle)
                                     .font(.app(size: 15))
-                                    .foregroundColor(.primary)
+                                    .foregroundColor(.white)
                                     .textInputAutocapitalization(.never)
                                     .autocorrectionDisabled()
                                     .onChange(of: draftHandle) { _, newValue in
@@ -1337,7 +1331,7 @@ struct EditAccountView: View {
                                 }
                                 TextField("Region / State", text: $draftRegion)
                                     .font(.app(size: 15))
-                                    .foregroundColor(.primary)
+                                    .foregroundColor(.white)
                                 
                                 Button(action: { locationFetcher.fetchRegion() }) {
                                     if locationFetcher.isFetching {
@@ -1370,7 +1364,7 @@ struct EditAccountView: View {
                                 }
                                 TextField("instagram_handle", text: $draftInsta)
                                     .font(.app(size: 15))
-                                    .foregroundColor(.primary)
+                                    .foregroundColor(.white)
                                     .textInputAutocapitalization(.never)
                                     .autocorrectionDisabled()
                                     .onChange(of: draftInsta) { _, newValue in
@@ -1536,7 +1530,7 @@ struct EditAccountView: View {
             }
             .navigationTitle("Edit Profile")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarColorScheme(.light, for: .navigationBar)
+            .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Cancel") { dismiss() }
@@ -1579,7 +1573,7 @@ struct EditAccountView: View {
                 Text("This @handle is already in use by another Alpinist. Please choose a different one.")
             }
         }
-        .preferredColorScheme(.light)
+        .preferredColorScheme(.dark)
     }
     
     // Hobbies list merged with any custom selections the user already has
@@ -1701,10 +1695,10 @@ struct EditField: View {
             }
             TextField(placeholder, text: $text)
                 .font(.app(size: 15))
-                .foregroundColor(.primary)
+                .foregroundColor(.white)
         }
         .padding(12)
-        .background(Color.white)
+        .background(DesignSystem.Colors.surface)
         .cornerRadius(14)
         .overlay(
             RoundedRectangle(cornerRadius: 14)
@@ -1741,11 +1735,11 @@ struct SportButton: View {
                 Spacer()
             }
             .padding(12)
-            .background(isSelected ? color : Color.white)
+            .background(isSelected ? color : DesignSystem.Colors.surface)
             .cornerRadius(12)
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color.black.opacity(0.04), lineWidth: 1)
+                    .stroke(Color.white.opacity(0.07), lineWidth: 0.5)
             )
         }
     }
@@ -1780,7 +1774,6 @@ struct EquipmentLockerView: View {
             // Background environment using premium gradient and frost
             RoundedRectangle(cornerRadius: 24, style: .continuous)
                 .fill(LinearGradient(colors: [Color.white, Color(red: 0.98, green: 0.98, blue: 0.99)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                .shadow(color: .black.opacity(0.04), radius: 15, y: 6)
                 .overlay(
                     RoundedRectangle(cornerRadius: 24, style: .continuous)
                         .stroke(Color.white, lineWidth: 2)
@@ -1848,10 +1841,9 @@ struct EquipmentSlot: View {
             VStack(spacing: 6) {
                 ZStack {
                     Circle()
-                        .fill(Color.white)
+                        .fill(DesignSystem.Colors.surface)
                         .frame(width: 46, height: 46)
-                        .shadow(color: color.opacity(0.2), radius: 8, y: 4)
-                        .overlay(Circle().stroke(Color.black.opacity(0.05), lineWidth: 1))
+                        .overlay(Circle().stroke(Color.white.opacity(0.07), lineWidth: 0.5))
                     
                     Image(systemName: icon)
                         .font(.app(size: 18, weight: .bold))
@@ -1861,7 +1853,7 @@ struct EquipmentSlot: View {
                 VStack(spacing: 2) {
                     Text(value)
                         .font(.app(size: 11, weight: .bold))
-                        .foregroundColor(.primary)
+                        .foregroundColor(.white)
                         .lineLimit(1)
                         .frame(width: 80)
                     
@@ -1879,7 +1871,6 @@ struct EquipmentSlot: View {
                     .font(.app(size: 60))
                     .foregroundColor(color)
                     .padding(.top, 40)
-                    .shadow(color: color.opacity(0.3), radius: 10, y: 5)
                 
                 Text(label.uppercased())
                     .font(.app(size: 14, weight: .black))
@@ -1899,7 +1890,7 @@ struct EquipmentSlot: View {
                 Spacer()
             }
             .presentationDetents([.fraction(0.45)])
-            .preferredColorScheme(.light)
+            .preferredColorScheme(.dark)
         }
     }
 }
@@ -1917,7 +1908,7 @@ struct AllAchievementsSheet: View {
     var body: some View {
         NavigationView {
             ZStack {
-                DesignSystem.Colors.surfaceMuted.ignoresSafeArea()
+                DesignSystem.Colors.background.ignoresSafeArea()
                 
                 ScrollView {
                     VStack(spacing: 20) {
@@ -1964,7 +1955,7 @@ struct AllAchievementsSheet: View {
             .sheet(item: $selectedAchievement) { achievement in
                 AchievementDetailSheet(achievement: achievement)
                     .presentationDetents([.medium])
-                    .preferredColorScheme(.light)
+                    .preferredColorScheme(.dark)
             }
         }
     }
@@ -1983,7 +1974,7 @@ struct ProfileCollectionsList: View {
             HStack {
                 Text("My Curated Peaks")
                     .font(.app(.headline))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
                 Spacer()
                 Button(action: { showCreateSheet = true }) {
                     Image(systemName: "plus.circle.fill")
@@ -2000,15 +1991,15 @@ struct ProfileCollectionsList: View {
                         .foregroundColor(.gray.opacity(0.3))
                     Text("No collections yet")
                         .font(.app(.subheadline))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
                     Text("Create a collection to organize your favorite peaks and routes.")
                         .font(.app(.caption))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
                         .multilineTextAlignment(.center)
                 }
                 .padding(32)
                 .frame(maxWidth: .infinity)
-                .background(.ultraThinMaterial)
+                .background(DesignSystem.Colors.surface)
                 .clipShape(RoundedRectangle(cornerRadius: 16))
                 .padding(.horizontal, 20)
             } else {
@@ -2058,7 +2049,7 @@ struct ProfileLayoutEditor: View {
     var body: some View {
         NavigationView {
             ZStack {
-                Color(white: 0.97).ignoresSafeArea()
+                DesignSystem.Colors.background.ignoresSafeArea()
                 VStack(spacing: 0) {
                     Text("Long-press and drag a tile to rearrange your profile.")
                         .font(.app(size: 13))
@@ -2081,13 +2072,13 @@ struct ProfileLayoutEditor: View {
                                 }
                                 Text(widget.title)
                                     .font(.app(size: 16, weight: .semibold))
-                                    .foregroundColor(.primary)
+                                    .foregroundColor(.white)
                                 Spacer()
                                 Image(systemName: "line.3.horizontal")
                                     .foregroundColor(.gray)
                             }
                             .padding(.vertical, 6)
-                            .listRowBackground(Color.white)
+                            .listRowBackground(DesignSystem.Colors.surface)
                         }
                         .onMove { source, destination in
                             order.move(fromOffsets: source, toOffset: destination)
@@ -2124,7 +2115,7 @@ struct FilteredActivitiesView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                DesignSystem.Colors.surfaceMuted.ignoresSafeArea()
+                DesignSystem.Colors.background.ignoresSafeArea()
                 ScrollView {
                     LazyVStack(spacing: 12) {
                         ForEach(tours) { tour in

@@ -59,7 +59,7 @@ struct ObjectiveDetailView: View {
                     VStack(spacing: 6) {
                         Text(title)
                             .font(.app(size: 22, weight: .black))
-                            .foregroundColor(.primary)
+                            .foregroundColor(.white)
                             .multilineTextAlignment(.center)
                         Text("\(Int(progress * 100))%")
                             .font(.appMono(size: 42, weight: .black))
@@ -67,7 +67,7 @@ struct ObjectiveDetailView: View {
                             .contentTransition(.numericText())
                         Text("\(current) / \(target) \(unit)")
                             .font(.appMono(size: 13, weight: .semibold))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
                     }
                     .opacity(appeared ? 1 : 0)
                     .offset(y: appeared ? 0 : 16)
@@ -78,7 +78,7 @@ struct ObjectiveDetailView: View {
                         VStack(alignment: .leading, spacing: 10) {
                             Text("THIS WEEK")
                                 .font(.appMono(size: 10, weight: .bold))
-                                .foregroundColor(.secondary)
+                                .foregroundColor(DesignSystem.Colors.secondaryText)
                                 .tracking(1.4)
                                 .padding(.horizontal, 4)
                             ForEach(appState.weeklyTours) { tour in
@@ -88,7 +88,7 @@ struct ObjectiveDetailView: View {
                                             .font(.app(size: 14, weight: .semibold))
                                         Text(tour.date, style: .date)
                                             .font(.app(size: 12))
-                                            .foregroundColor(.secondary)
+                                            .foregroundColor(DesignSystem.Colors.secondaryText)
                                     }
                                     Spacer()
                                     Text("+\(tour.elevationGainMeters)m")
@@ -96,7 +96,7 @@ struct ObjectiveDetailView: View {
                                         .foregroundColor(accent)
                                 }
                                 .padding(14)
-                                .background(.ultraThinMaterial)
+                                .background(DesignSystem.Colors.surface)
                                 .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                             }
                         }

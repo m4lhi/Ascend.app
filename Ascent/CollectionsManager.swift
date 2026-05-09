@@ -413,7 +413,7 @@ struct CollectionCardView: View {
                     .foregroundColor(.white)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
-                    .background(.ultraThinMaterial.opacity(0.7))
+                    .background(DesignSystem.Colors.surface)
                     .clipShape(Capsule())
                     .padding(8)
 
@@ -433,7 +433,7 @@ struct CollectionCardView: View {
                                 .foregroundColor(.white)
                                 .padding(.horizontal, 7)
                                 .padding(.vertical, 4)
-                                .background(.ultraThinMaterial.opacity(0.7))
+                                .background(DesignSystem.Colors.surface)
                                 .clipShape(Capsule())
                                 .padding(8)
                             }
@@ -446,13 +446,13 @@ struct CollectionCardView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(collection.name)
                         .font(.app(size: 14, weight: .bold))
-                        .foregroundColor(.primary)
+                        .foregroundColor(.white)
                         .lineLimit(1)
 
                     if !collection.description.isEmpty {
                         Text(collection.description)
                             .font(.app(size: 11))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
                             .lineLimit(2)
                     }
 
@@ -471,7 +471,7 @@ struct CollectionCardView: View {
                             if collection.mountain_ids.count > 2 {
                                 Text("+\(collection.mountain_ids.count - 2)")
                                     .font(.app(size: 9, weight: .bold))
-                                    .foregroundColor(.secondary)
+                                    .foregroundColor(DesignSystem.Colors.secondaryText)
                             }
                         }
                     }
@@ -479,13 +479,12 @@ struct CollectionCardView: View {
                 .padding(.horizontal, 6)
                 .padding(.vertical, 10)
             }
-            .background(Color(.secondarySystemBackground))
+            .background(DesignSystem.Colors.surface)
             .clipShape(RoundedRectangle(cornerRadius: DesignSystem.Radius.lg, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: DesignSystem.Radius.lg, style: .continuous)
                     .stroke(Color.black.opacity(0.04), lineWidth: 0.5)
             )
-            .shadow(color: .black.opacity(0.05), radius: 8, y: 2)
         }
         .buttonStyle(.plain)
     }
@@ -572,7 +571,7 @@ struct CollectionsView: View {
                             .font(.app(size: 28, weight: .bold))
                         Text("\(collectionsManager.myCollections.count) collections \u{00B7} \(totalPeaks) peaks")
                             .font(.app(size: 13))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
                     }
                     Spacer()
                     Button(action: { showCreateSheet = true }) {
@@ -716,7 +715,7 @@ struct CollectionsView: View {
                 .fontWeight(.semibold)
             Text(subtitle)
                 .font(.app(.caption))
-                .foregroundColor(.secondary)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
                 .multilineTextAlignment(.center)
         }
         .padding(40)
@@ -857,7 +856,7 @@ struct SaveToCollectionSheet: View {
                             .font(.app(.headline))
                         Text("Create your first collection to save this peak.")
                             .font(.app(.subheadline))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal)
 
@@ -887,10 +886,10 @@ struct SaveToCollectionSheet: View {
                                     VStack(alignment: .leading, spacing: 4) {
                                         Text(collection.name)
                                             .font(.app(.headline))
-                                            .foregroundColor(.primary)
+                                            .foregroundColor(.white)
                                         Text("\(collection.mountain_ids.count) peaks")
                                             .font(.app(.caption))
-                                            .foregroundColor(.secondary)
+                                            .foregroundColor(DesignSystem.Colors.secondaryText)
                                     }
                                     Spacer()
                                     if collection.mountain_ids.contains(mountain.id) {
@@ -956,7 +955,7 @@ struct CollectionDetailSheet: View {
     var body: some View {
         NavigationView {
             ZStack {
-                DesignSystem.Colors.surfaceMuted.ignoresSafeArea()
+                DesignSystem.Colors.background.ignoresSafeArea()
 
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 0) {
@@ -1036,7 +1035,7 @@ struct CollectionDetailSheet: View {
                     }
                 }
                 .presentationDetents([.fraction(0.85), .large])
-                .preferredColorScheme(.light)
+                .preferredColorScheme(.dark)
             }
             .sheet(isPresented: $showShareSheet) {
                 ShareCollectionSheet(collection: collection, manager: manager)
@@ -1069,7 +1068,7 @@ struct CollectionDetailSheet: View {
                 Spacer()
                 Text("\(validMountains.count) peak\(validMountains.count == 1 ? "" : "s")")
                     .font(.app(size: 12, weight: .medium))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
             }
 
             Map(initialPosition: .region(region)) {
@@ -1101,13 +1100,12 @@ struct CollectionDetailSheet: View {
                                         .font(.app(size: 13, weight: .black))
                                         .foregroundColor(.white)
                                 }
-                                .shadow(color: .black.opacity(0.3), radius: 3, y: 2)
                                 Text(mountain.name)
                                     .font(.app(size: 10, weight: .bold))
-                                    .foregroundColor(.primary)
+                                    .foregroundColor(.white)
                                     .padding(.horizontal, 6)
                                     .padding(.vertical, 2)
-                                    .background(.ultraThinMaterial, in: Capsule())
+                                    .background(DesignSystem.Colors.surface, in: Capsule())
                             }
                         }
                         .buttonStyle(.plain)
@@ -1117,7 +1115,6 @@ struct CollectionDetailSheet: View {
             .mapStyle(.hybrid(elevation: .realistic))
             .frame(height: 220)
             .clipShape(RoundedRectangle(cornerRadius: 16))
-            .shadow(color: .black.opacity(0.06), radius: 8, y: 3)
         }
     }
 
@@ -1261,20 +1258,19 @@ struct CollectionDetailSheet: View {
             collectionStat(icon: "person.2.fill", value: "\(members.count + 1)", label: "Members")
         }
         .padding(.vertical, DesignSystem.Spacing.md)
-        .background(Color(.secondarySystemBackground))
+        .background(DesignSystem.Colors.surface)
         .clipShape(RoundedRectangle(cornerRadius: DesignSystem.Radius.lg))
         .overlay(
             RoundedRectangle(cornerRadius: DesignSystem.Radius.lg)
                 .stroke(Color.black.opacity(0.04), lineWidth: 0.5)
         )
-        .shadow(color: .black.opacity(0.05), radius: 8, y: 2)
     }
 
     func collectionStat(icon: String, value: String, label: String) -> some View {
         VStack(spacing: 4) {
             Image(systemName: icon).font(.app(size: 16)).foregroundColor(accent)
             Text(value).font(.app(size: 15, weight: .bold))
-            Text(label).font(.app(size: 10)).foregroundColor(.secondary)
+            Text(label).font(.app(size: 10)).foregroundColor(DesignSystem.Colors.secondaryText)
         }
         .frame(maxWidth: .infinity)
     }
@@ -1318,7 +1314,7 @@ struct CollectionDetailSheet: View {
                         Text("Share")
                     }
                     .font(.app(size: 13, weight: .bold))
-                    .foregroundColor(.primary)
+                    .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
                     .background(Color(.systemGray6))
@@ -1388,7 +1384,7 @@ struct CollectionDetailSheet: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(profile?.username ?? "Unknown")
                                 .font(.app(size: 15, weight: .bold))
-                                .foregroundColor(.primary)
+                                .foregroundColor(.white)
                             
                             HStack(spacing: 6) {
                                 Text("Lv. \(level)")
@@ -1401,15 +1397,14 @@ struct CollectionDetailSheet: View {
                                 
                                 Text(role.capitalized)
                                     .font(.app(size: 11, weight: .semibold))
-                                    .foregroundColor(.secondary)
+                                    .foregroundColor(DesignSystem.Colors.secondaryText)
                             }
                         }
                         Spacer()
                     }
                     .padding(10)
-                    .background(Color.white)
+                    .background(DesignSystem.Colors.surface)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .shadow(color: .black.opacity(0.03), radius: 4, y: 1)
                 }
             }
         }
@@ -1466,7 +1461,7 @@ struct CollectionDetailSheet: View {
                         .foregroundColor(.gray.opacity(0.25))
                     Text("No peaks in this collection yet")
                         .font(.app(.subheadline))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(28)
@@ -1500,7 +1495,7 @@ struct CollectionDetailSheet: View {
                                         HStack(spacing: 4) {
                                             Text(mountain.name)
                                                 .font(.app(size: 14, weight: .bold))
-                                                .foregroundColor(.primary)
+                                                .foregroundColor(.white)
                                                 .lineLimit(1)
                                             if mountain.isPrestigePeak {
                                                 Image(systemName: "crown.fill")
@@ -1510,7 +1505,7 @@ struct CollectionDetailSheet: View {
                                         }
                                         Text("\(mountain.elevation)m · \(mountain.region)")
                                             .font(.app(size: 11))
-                                            .foregroundColor(.secondary)
+                                            .foregroundColor(DesignSystem.Colors.secondaryText)
                                             .lineLimit(1)
                                             
                                         Text(mountain.difficulty.rawValue)
@@ -1529,12 +1524,12 @@ struct CollectionDetailSheet: View {
                                                       systemImage: "point.topleft.down.to.point.bottomright.curvepath")
                                                     .font(.app(size: 9, weight: .semibold))
                                                     .labelStyle(.titleAndIcon)
-                                                    .foregroundColor(.secondary)
+                                                    .foregroundColor(DesignSystem.Colors.secondaryText)
                                                 Label("+\(stats.gainM)m",
                                                       systemImage: "arrow.up.right")
                                                     .font(.app(size: 9, weight: .semibold))
                                                     .labelStyle(.titleAndIcon)
-                                                    .foregroundColor(.secondary)
+                                                    .foregroundColor(DesignSystem.Colors.secondaryText)
                                             }
                                             .padding(.top, 4)
                                         }
@@ -1542,9 +1537,8 @@ struct CollectionDetailSheet: View {
                                     .padding(12)
                                     .frame(width: 140, alignment: .leading)
                                 }
-                                .background(Color.white)
+                                .background(DesignSystem.Colors.surface)
                                 .clipShape(RoundedRectangle(cornerRadius: 16))
-                                .shadow(color: .black.opacity(0.04), radius: 6, y: 3)
                             }
                             .buttonStyle(.plain)
                             .contextMenu {
@@ -1686,7 +1680,7 @@ struct AddPeaksToCollectionSheet: View {
                             .foregroundColor(.gray.opacity(0.2))
                         Text("Search for peaks to add")
                             .font(.app(.subheadline))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
                         Text("Type a mountain name or region")
                             .font(.app(.caption))
                             .foregroundColor(.gray)
@@ -1700,7 +1694,7 @@ struct AddPeaksToCollectionSheet: View {
                     Spacer()
                     Text("No peaks found")
                         .font(.app(.subheadline))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
                         .padding(24)
                     Spacer()
                 } else {
@@ -1742,7 +1736,7 @@ struct AddPeaksToCollectionSheet: View {
                                             HStack(spacing: 5) {
                                                 Text(mountain.name)
                                                     .font(.app(size: 15, weight: .bold))
-                                                    .foregroundColor(.primary)
+                                                    .foregroundColor(.white)
                                                     .lineLimit(1)
                                                 if mountain.isPrestigePeak {
                                                     Image(systemName: "crown.fill")
@@ -1752,7 +1746,7 @@ struct AddPeaksToCollectionSheet: View {
                                             }
                                             Text("\(mountain.elevation)m · \(mountain.region)")
                                                 .font(.app(size: 12))
-                                                .foregroundColor(.secondary)
+                                                .foregroundColor(DesignSystem.Colors.secondaryText)
                                         }
 
                                         Spacer()
@@ -1772,9 +1766,8 @@ struct AddPeaksToCollectionSheet: View {
                                         }
                                     }
                                     .padding(12)
-                                    .background(Color.white)
+                                    .background(DesignSystem.Colors.surface)
                                     .clipShape(RoundedRectangle(cornerRadius: 14))
-                                    .shadow(color: .black.opacity(0.03), radius: 4, y: 1)
                                 }
                                 .buttonStyle(.plain)
                                 .disabled(isAlreadyInCollection)
@@ -1930,7 +1923,7 @@ struct ShareCollectionSheet: View {
                     } else if searchResults.isEmpty {
                         Text("No users found")
                             .font(.app(.subheadline))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
                             .padding(24)
                     } else {
                         List {
@@ -1948,7 +1941,7 @@ struct ShareCollectionSheet: View {
                                 VStack(alignment: .leading, spacing: 10) {
                                     Text("Invite Friends")
                                         .font(.app(size: 14, weight: .bold))
-                                        .foregroundColor(.secondary)
+                                        .foregroundColor(DesignSystem.Colors.secondaryText)
                                         .padding(.horizontal, 20)
                                     
                                     LazyVStack(spacing: 0) {
@@ -1967,7 +1960,7 @@ struct ShareCollectionSheet: View {
                                 VStack(alignment: .leading, spacing: 10) {
                                     Text("Members (\(currentMembers.count))")
                                         .font(.app(size: 14, weight: .bold))
-                                        .foregroundColor(.secondary)
+                                        .foregroundColor(DesignSystem.Colors.secondaryText)
                                         .padding(.horizontal, 20)
                                     
                                     LazyVStack(spacing: 0) {
@@ -2046,10 +2039,10 @@ struct ShareCollectionSheet: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(user.username)
                         .font(.app(.headline))
-                        .foregroundColor(.primary)
+                        .foregroundColor(.white)
                     Text("@\(user.handle)")
                         .font(.app(.caption))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
                 }
                 Spacer()
                 if alreadyMember {
@@ -2083,11 +2076,11 @@ struct ShareCollectionSheet: View {
                 if let handle = profile?.handle {
                     Text("@\(handle) · \(member.role.capitalized)")
                         .font(.app(size: 11))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
                 } else {
                     Text(member.role.capitalized)
                         .font(.app(size: 11))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
                 }
             }
             Spacer()

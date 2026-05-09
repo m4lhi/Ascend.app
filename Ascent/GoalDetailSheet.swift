@@ -28,7 +28,7 @@ struct GoalDetailSheet: View {
     var body: some View {
         NavigationView {
             ZStack {
-                DesignSystem.Colors.surfaceMuted.ignoresSafeArea()
+                DesignSystem.Colors.background.ignoresSafeArea()
 
                 ScrollView {
                     VStack(spacing: 16) {
@@ -63,7 +63,7 @@ struct GoalDetailSheet: View {
                 if let m = resolvedMountain {
                     MountainProAnalysisSheet(mountain: m)
                         .presentationDetents([.large])
-                        .preferredColorScheme(.light)
+                        .preferredColorScheme(.dark)
                 }
             }
         }
@@ -82,7 +82,6 @@ struct GoalDetailSheet: View {
                     Annotation(goal.mountainName, coordinate: coord) {
                         ZStack {
                             Circle().fill(accent).frame(width: 36, height: 36)
-                                .shadow(color: accent.opacity(0.5), radius: 4, y: 2)
                             Image(systemName: "mountain.2.fill")
                                 .foregroundColor(.white)
                                 .font(.system(size: 16, weight: .black))
@@ -108,13 +107,13 @@ struct GoalDetailSheet: View {
                         .font(.system(size: 22, weight: .bold, design: .rounded))
                     Text("\(goal.elevationM) m")
                         .font(.system(size: 14, design: .rounded))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
                 }
                 Spacer()
             }
             .padding(20)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color(.secondarySystemBackground))
+            .background(DesignSystem.Colors.surface)
             .clipShape(RoundedRectangle(cornerRadius: DesignSystem.Radius.lg))
         }
     }
@@ -143,7 +142,7 @@ struct GoalDetailSheet: View {
             }
         }
         .padding(.vertical, DesignSystem.Spacing.md)
-        .background(Color(.secondarySystemBackground))
+        .background(DesignSystem.Colors.surface)
         .clipShape(RoundedRectangle(cornerRadius: DesignSystem.Radius.lg))
         .overlay(
             RoundedRectangle(cornerRadius: DesignSystem.Radius.lg)
@@ -160,12 +159,12 @@ struct GoalDetailSheet: View {
                 if !unit.isEmpty {
                     Text(unit)
                         .font(.system(size: 11, weight: .heavy, design: .rounded))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
                 }
             }
             Text(label)
                 .font(.system(size: 10, weight: .semibold, design: .rounded))
-                .foregroundColor(.secondary)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
         }
         .frame(maxWidth: .infinity)
     }
@@ -174,14 +173,14 @@ struct GoalDetailSheet: View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: "note.text")
                 .font(.system(size: 14))
-                .foregroundColor(.secondary)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
             Text(goal.notes)
                 .font(.system(size: 13, design: .rounded))
-                .foregroundColor(.primary)
+                .foregroundColor(.white)
             Spacer()
         }
         .padding(DesignSystem.Spacing.md)
-        .background(Color(.secondarySystemBackground))
+        .background(DesignSystem.Colors.surface)
         .clipShape(RoundedRectangle(cornerRadius: DesignSystem.Radius.lg))
         .overlay(
             RoundedRectangle(cornerRadius: DesignSystem.Radius.lg)
@@ -208,7 +207,6 @@ struct GoalDetailSheet: View {
                     .padding(.vertical, 14)
                     .background(accent)
                     .clipShape(RoundedRectangle(cornerRadius: DesignSystem.Radius.lg))
-                    .shadow(color: accent.opacity(0.35), radius: 10, y: 4)
                 }
 
                 // Secondary — pro analysis
@@ -224,7 +222,7 @@ struct GoalDetailSheet: View {
                             Image(systemName: "triangle.fill")
                         }
                         .font(.system(size: 10))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
@@ -235,7 +233,7 @@ struct GoalDetailSheet: View {
                         RoundedRectangle(cornerRadius: DesignSystem.Radius.lg)
                             .stroke(accent.opacity(0.4), lineWidth: 1)
                     )
-                    .foregroundColor(.primary)
+                    .foregroundColor(.white)
                 }
             }
         }

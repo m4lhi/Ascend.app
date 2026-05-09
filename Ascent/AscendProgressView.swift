@@ -11,7 +11,7 @@ struct AscendProgressView: View {
     
     var body: some View {
         ZStack {
-            DesignSystem.Colors.surfaceMuted.ignoresSafeArea()
+            DesignSystem.Colors.background.ignoresSafeArea()
             
             VStack(spacing: 0) {
                 // Header Bar
@@ -19,14 +19,14 @@ struct AscendProgressView: View {
                     Button(action: { dismiss() }) {
                         Image(systemName: "chevron.down")
                             .font(.app(.title3))
-                            .foregroundColor(.primary)
+                            .foregroundColor(.white)
                             .padding()
                     }
                     Spacer()
                     Text("Ascend Rank")
                         .font(.app(.headline))
                         .fontWeight(.bold)
-                        .foregroundColor(.primary)
+                        .foregroundColor(.white)
                     Spacer()
                     // Balance space
                     Button(action: { }) {
@@ -46,7 +46,7 @@ struct AscendProgressView: View {
                                 Text("Your progress")
                                     .font(.app(.title2))
                                     .fontWeight(.bold)
-                                    .foregroundColor(.primary)
+                                    .foregroundColor(.white)
                                 
                                 Text("Unlock perks, rewards, and recognition as you level up your Ascend Rank.")
                                     .font(.app(.subheadline))
@@ -62,7 +62,7 @@ struct AscendProgressView: View {
                                 Text("Tier Progression")
                                     .font(.app(.title2))
                                     .fontWeight(.black)
-                                    .foregroundColor(.primary)
+                                    .foregroundColor(.white)
                                     .padding(.horizontal, 25)
                                 
                                 RankRoadmapView(currentLevel: profile.ascend_level)
@@ -146,7 +146,6 @@ struct AscendCard: View {
                 .padding(.vertical, 40)
             }
             .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-            .shadow(color: tierColor.opacity(0.1), radius: 20, y: 10)
             
             // Bottom Half: Details & Progress
             VStack(alignment: .leading, spacing: 15) {
@@ -189,7 +188,7 @@ struct AscendCard: View {
                     Text("View point history")
                         .font(.app(.subheadline))
                         .fontWeight(.semibold)
-                        .foregroundColor(.primary)
+                        .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
                         .background(Color.gray.opacity(0.1))
@@ -198,9 +197,8 @@ struct AscendCard: View {
                 .padding(.top, 10)
             }
             .padding(20)
-            .background(Color.white)
+            .background(DesignSystem.Colors.surface)
             .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-            .shadow(color: .black.opacity(0.04), radius: 10, y: 4)
             .offset(y: -20)
         }
         .onAppear {
@@ -444,10 +442,9 @@ struct RankTierNodeView: View {
                     Circle()
                         .fill(isUnlocked ? tier.color : Color.gray.opacity(0.1))
                         .frame(width: 20, height: 20)
-                        .shadow(color: isUnlocked ? tier.color.opacity(0.8) : .clear, radius: 8)
                         .overlay(
                             Circle()
-                                .stroke(Color(white: 0.98), lineWidth: 3)
+                                .stroke(DesignSystem.Colors.surface, lineWidth: 3)
                         )
                     
                     if isCurrentTier {
@@ -490,7 +487,6 @@ struct RankTierNodeView: View {
                     
                     GemView(isActive: isUnlocked, color: tier.color, isObsidian: tier.isObsidian)
                         .scaleEffect(0.6)
-                        .shadow(color: isUnlocked ? tier.color.opacity(0.5) : .clear, radius: 10 + (sin(phase) * 5))
                 }
                 
                 VStack(alignment: .leading, spacing: 4) {
@@ -534,7 +530,6 @@ struct RankTierNodeView: View {
             .padding(15)
             .background(isCurrentTier ? tier.color.opacity(0.05) : Color.white)
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .shadow(color: .black.opacity(0.04), radius: 8, y: 4)
             .overlay(
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .stroke(isCurrentTier ? tier.color.opacity(0.3) : Color.clear, lineWidth: 1)
@@ -566,7 +561,7 @@ struct RankGallerySheet: View {
     
     var body: some View {
         ZStack {
-            DesignSystem.Colors.surfaceMuted.ignoresSafeArea()
+            DesignSystem.Colors.background.ignoresSafeArea()
             
             // Subtle ambient background
             Circle()
@@ -587,7 +582,7 @@ struct RankGallerySheet: View {
                     Text("\(tier.name) Records")
                         .font(.app(.headline))
                         .fontWeight(.bold)
-                        .foregroundColor(.primary)
+                        .foregroundColor(.white)
                     Spacer()
                     Image(systemName: "xmark").foregroundColor(.clear).padding()
                 }
@@ -635,7 +630,6 @@ struct RankGallerySheet: View {
                                     Image(systemName: ach.icon)
                                         .font(.app(size: 28, weight: .light))
                                         .foregroundColor(isUnlocked ? tier.color : .gray.opacity(0.3))
-                                        .shadow(color: isUnlocked ? tier.color.opacity(0.6) : .clear, radius: 5)
                                 }
                                 
                                 // Text

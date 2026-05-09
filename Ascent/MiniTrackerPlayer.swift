@@ -111,13 +111,12 @@ struct MiniTrackerPlayer: View {
             .frame(maxWidth: .infinity)
             .background(
                 RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .fill(.ultraThinMaterial)
+                    .fill(DesignSystem.Colors.surface)
                     .overlay(
                         RoundedRectangle(cornerRadius: 22, style: .continuous)
                             .stroke(Color.black.opacity(0.06), lineWidth: 1)
                     )
             )
-            .shadow(color: .black.opacity(0.12), radius: 18, y: 8)
         }
         .buttonStyle(.plain)
     }

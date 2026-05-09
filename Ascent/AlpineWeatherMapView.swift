@@ -318,10 +318,9 @@ struct AlpineWeatherMapView: View {
             Button { dismiss() } label: {
                 Image(systemName: "xmark")
                     .font(.system(size: 14, weight: .bold))
-                    .foregroundColor(.primary)
+                    .foregroundColor(.white)
                     .frame(width: 36, height: 36)
-                    .background(Circle().fill(.ultraThinMaterial))
-                    .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
+                    .background(Circle().fill(DesignSystem.Colors.surface))
             }
 
             Spacer()
@@ -329,15 +328,14 @@ struct AlpineWeatherMapView: View {
             VStack(spacing: 1) {
                 Text("ALPINE SAFETY")
                     .font(.appMono(size: 8, weight: .bold))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
                     .tracking(1.0)
                 Text(appState.activeMountain?.name ?? "Target Region")
                     .font(.app(size: 13, weight: .bold))
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
-            .background(Capsule().fill(.ultraThinMaterial))
-            .shadow(color: .black.opacity(0.1), radius: 4, y: 2)
+            .background(Capsule().fill(DesignSystem.Colors.surface))
 
             Spacer()
 
@@ -361,9 +359,8 @@ struct AlpineWeatherMapView: View {
         .foregroundColor(safety.color)
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
-        .background(Capsule().fill(.ultraThinMaterial))
+        .background(Capsule().fill(DesignSystem.Colors.surface))
         .overlay(Capsule().stroke(safety.color.opacity(0.4), lineWidth: 1))
-        .shadow(color: .black.opacity(0.1), radius: 4, y: 2)
     }
 
     // MARK: - Bottom Panel
@@ -388,8 +385,7 @@ struct AlpineWeatherMapView: View {
         .padding(14)
         .background(
             RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(.ultraThinMaterial)
-                .shadow(color: .black.opacity(0.15), radius: 12, y: -4)
+                .fill(DesignSystem.Colors.surface)
         )
         .padding(.horizontal, 10)
         .padding(.bottom, 16)
@@ -409,7 +405,6 @@ struct AlpineWeatherMapView: View {
                             .font(.system(size: 19, weight: .black))
                             .foregroundColor(b.dangerLevel >= 4 ? .white : .black)
                     }
-                    .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
 
                     VStack(alignment: .leading, spacing: 2) {
                         HStack(spacing: 6) {
@@ -422,19 +417,19 @@ struct AlpineWeatherMapView: View {
                         }
                         Text(b.regionName)
                             .font(.app(size: 13, weight: .heavy))
-                            .foregroundColor(.primary)
+                            .foregroundColor(.white)
                             .lineLimit(1)
                         if !b.problems.isEmpty {
                             Text(b.problems.prefix(2).joined(separator: ", ").replacingOccurrences(of: "_", with: " "))
                                 .font(.app(size: 10))
-                                .foregroundColor(.secondary)
+                                .foregroundColor(DesignSystem.Colors.secondaryText)
                                 .lineLimit(1)
                         }
                     }
                     Spacer()
                     Image(systemName: "map.fill")
                         .font(.system(size: 13, weight: .heavy))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 10)
@@ -447,7 +442,7 @@ struct AlpineWeatherMapView: View {
                 ProgressView().scaleEffect(0.7)
                 Text("Loading avalanche bulletin…")
                     .font(.app(size: 11))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
                 Spacer()
             }
             .padding(.horizontal, 12)
@@ -461,7 +456,7 @@ struct AlpineWeatherMapView: View {
                     .foregroundColor(.green)
                 Text("No avalanche bulletin issued for this region.")
                     .font(.app(size: 11))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
                 Spacer()
             }
             .padding(.horizontal, 12)
@@ -568,7 +563,7 @@ struct AlpineWeatherMapView: View {
                 .foregroundColor(active ? tint : .primary)
             Text(label)
                 .font(.appMono(size: 7, weight: .bold))
-                .foregroundColor(.secondary)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
                 .tracking(0.5)
         }
         .frame(maxWidth: .infinity)
@@ -589,7 +584,7 @@ struct AlpineWeatherMapView: View {
                     }
                 }
                 .font(.appMono(size: 11, weight: .semibold))
-                .foregroundColor(.secondary)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 8)
             } else {
@@ -603,7 +598,7 @@ struct AlpineWeatherMapView: View {
                 HStack {
                     Text("Now")
                         .font(.appMono(size: 8, weight: .bold))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
                     Spacer()
                     if let h = selectedHour {
                         Text(timeLabel(h.hour))
@@ -613,7 +608,7 @@ struct AlpineWeatherMapView: View {
                     Spacer()
                     Text("+\(hourly.count)h")
                         .font(.appMono(size: 8, weight: .bold))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
                 }
             }
         }

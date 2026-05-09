@@ -448,7 +448,6 @@ struct LiveRecordView: View {
                         Image(systemName: "mountain.2.fill")
                             .font(.title)
                             .foregroundColor(gold)
-                            .shadow(color: .black.opacity(0.3), radius: 2, y: 1)
                     }
                     .allowOverlap(true)
                         
@@ -464,7 +463,6 @@ struct LiveRecordView: View {
                                 .background(gold)
                                 .clipShape(Circle())
                                 .overlay(Circle().stroke(Color.white, lineWidth: 2))
-                                .shadow(radius: 3)
                         }
                         .allowOverlap(true)
                     }
@@ -570,11 +568,10 @@ struct LiveRecordView: View {
                     Button(action: viewFullRoute) {
                         Image(systemName: "map")
                             .font(.app(size: 16))
-                            .foregroundColor(.primary)
+                            .foregroundColor(.white)
                             .frame(width: 40, height: 40)
-                            .background(.ultraThinMaterial, in: Circle())
+                            .background(DesignSystem.Colors.surface, in: Circle())
                             .overlay(Circle().stroke(Color.black.opacity(0.04), lineWidth: 1))
-                            .shadow(color: .black.opacity(0.1), radius: 6, y: 3)
                     }
                 }
 
@@ -584,9 +581,8 @@ struct LiveRecordView: View {
                             .font(.app(size: 16))
                             .foregroundColor(gold)
                             .frame(width: 40, height: 40)
-                            .background(.ultraThinMaterial, in: Circle())
+                            .background(DesignSystem.Colors.surface, in: Circle())
                             .overlay(Circle().stroke(Color.black.opacity(0.04), lineWidth: 1))
-                            .shadow(color: .black.opacity(0.1), radius: 6, y: 3)
                     }
                     .transition(.scale.combined(with: .opacity))
                 }
@@ -600,9 +596,8 @@ struct LiveRecordView: View {
                         .font(.app(size: 13, weight: .black))
                         .foregroundColor(is3DMode ? gold : .primary)
                         .frame(width: 40, height: 40)
-                        .background(.ultraThinMaterial, in: Circle())
+                        .background(DesignSystem.Colors.surface, in: Circle())
                         .overlay(Circle().stroke(is3DMode ? gold.opacity(0.35) : Color.black.opacity(0.04), lineWidth: 1.5))
-                        .shadow(color: .black.opacity(0.1), radius: 6, y: 3)
                 }
                 .animation(.spring(response: 0.3, dampingFraction: 0.7), value: is3DMode)
 
@@ -617,9 +612,8 @@ struct LiveRecordView: View {
                                 .font(.app(size: 8, weight: .bold))
                         }
                         .frame(width: 40, height: 40)
-                        .background(.ultraThinMaterial, in: Circle())
+                        .background(DesignSystem.Colors.surface, in: Circle())
                         .overlay(Circle().stroke(Color.black.opacity(0.04), lineWidth: 1))
-                        .shadow(color: .black.opacity(0.1), radius: 6, y: 3)
                     }
                 }
 
@@ -650,9 +644,8 @@ struct LiveRecordView: View {
                             .font(.app(size: 16))
                             .foregroundColor(.cyan)
                             .frame(width: 40, height: 40)
-                            .background(.ultraThinMaterial, in: Circle())
+                            .background(DesignSystem.Colors.surface, in: Circle())
                             .overlay(Circle().stroke(Color.black.opacity(0.04), lineWidth: 1))
-                            .shadow(color: .black.opacity(0.1), radius: 6, y: 3)
                     }
                     .transition(.scale.combined(with: .opacity))
                 }
@@ -697,14 +690,14 @@ struct LiveRecordView: View {
                             .foregroundColor(.white)
                     }
                     .padding()
-                    .background(.ultraThinMaterial)
+                    .background(DesignSystem.Colors.surface)
                     .cornerRadius(12)
                     .padding(.bottom, 220)
                 }
                 .transition(.opacity)
             }
         }
-        .preferredColorScheme(.light)
+        .preferredColorScheme(.dark)
         .onReceive(timer) { _ in
             blinkToggle.toggle()
             if isRunning && !gpsManager.isAutoPaused { 
@@ -1096,9 +1089,9 @@ struct LiveRecordView: View {
                 }) {
                     Image(systemName: "xmark")
                         .font(.app(size: 14, weight: .bold))
-                        .foregroundColor(.primary)
+                        .foregroundColor(.white)
                         .frame(width: 40, height: 40)
-                        .background(.ultraThinMaterial, in: Circle())
+                        .background(DesignSystem.Colors.surface, in: Circle())
                         .overlay(Circle().stroke(Color.black.opacity(0.04), lineWidth: 1))
                 }
                 .confirmationDialog("End this session?", isPresented: $showDiscardConfirm, titleVisibility: .visible) {
@@ -1139,10 +1132,10 @@ struct LiveRecordView: View {
                     }
                     Text(statusLabel)
                         .font(.app(size: 10, weight: .black))
-                        .foregroundColor(.primary).tracking(2)
+                        .foregroundColor(.white).tracking(2)
                 }
                 .padding(.horizontal, 14).padding(.vertical, 8)
-                .background(.ultraThinMaterial, in: Capsule())
+                .background(DesignSystem.Colors.surface, in: Capsule())
                 .overlay(Capsule().stroke(Color.black.opacity(0.04), lineWidth: 1))
 
                 Spacer()
@@ -1162,7 +1155,7 @@ struct LiveRecordView: View {
                     }
                 }
                 .frame(width: 40, height: 40)
-                .background(.ultraThinMaterial, in: Circle())
+                .background(DesignSystem.Colors.surface, in: Circle())
                 .overlay(Circle().stroke(Color.black.opacity(0.04), lineWidth: 1))
             }
 
@@ -1236,7 +1229,7 @@ struct LiveRecordView: View {
                         .foregroundColor(.primary.opacity(0.88))
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
-                        .background(.ultraThinMaterial, in: Capsule())
+                        .background(DesignSystem.Colors.surface, in: Capsule())
                         .overlay(Capsule().stroke(Color.black.opacity(0.05), lineWidth: 1))
                     }
                 }
@@ -1259,12 +1252,12 @@ struct LiveRecordView: View {
 
                         Text(timeString(from: timeElapsed))
                             .font(.app(size: 20, weight: .bold))
-                            .foregroundColor(.primary)
+                            .foregroundColor(.white)
 
                         HStack(alignment: .lastTextBaseline, spacing: 2) {
                             Text(String(format: "%.1f", gpsManager.distance / 1000))
                                 .font(.app(size: 20, weight: .bold))
-                                .foregroundColor(.primary)
+                                .foregroundColor(.white)
                             Text("km")
                                 .font(.app(size: 11, weight: .semibold))
                                 .foregroundColor(.primary.opacity(0.5))
@@ -1283,7 +1276,6 @@ struct LiveRecordView: View {
                             .frame(maxWidth: .infinity).frame(height: 56)
                             .background(gold)
                             .cornerRadius(28)
-                            .shadow(color: gold.opacity(0.4), radius: 16, y: 6)
                         }
                     } else {
                         HStack(spacing: 12) {
@@ -1292,7 +1284,7 @@ struct LiveRecordView: View {
                                     .font(.app(size: 20, weight: .bold))
                                     .foregroundColor(.white)
                                     .frame(width: 56, height: 56)
-                                    .background(.ultraThinMaterial, in: Circle())
+                                    .background(DesignSystem.Colors.surface, in: Circle())
                                     .overlay(Circle().stroke(Color.white.opacity(0.1), lineWidth: 1))
                             }
                             
@@ -1305,7 +1297,7 @@ struct LiveRecordView: View {
                                         .font(.app(size: 20, weight: .bold))
                                         .foregroundColor(.red)
                                         .frame(width: 56, height: 56)
-                                        .background(.ultraThinMaterial, in: Circle())
+                                        .background(DesignSystem.Colors.surface, in: Circle())
                                         .overlay(Circle().stroke(Color.black.opacity(0.04), lineWidth: 1))
                                 }
                             }
@@ -1338,7 +1330,7 @@ struct LiveRecordView: View {
                         VStack(spacing: 5) {
                             Text(timeString(from: timeElapsed))
                                 .font(.app(size: 32, weight: .bold))
-                                .foregroundColor(.primary)
+                                .foregroundColor(.white)
                             Text("DURATION")
                                 .font(.app(size: 8, weight: .black))
                                 .foregroundColor(.primary.opacity(0.35)).tracking(2)
@@ -1351,7 +1343,7 @@ struct LiveRecordView: View {
                             HStack(alignment: .lastTextBaseline, spacing: 3) {
                                 Text(String(format: "%.2f", gpsManager.distance / 1000))
                                     .font(.app(size: 32, weight: .bold))
-                                    .foregroundColor(.primary)
+                                    .foregroundColor(.white)
                                 Text("km")
                                     .font(.app(size: 13, weight: .semibold))
                                     .foregroundColor(.primary.opacity(0.5))
@@ -1381,16 +1373,15 @@ struct LiveRecordView: View {
                             .frame(maxWidth: .infinity).frame(height: 56)
                             .background(gold)
                             .cornerRadius(28)
-                            .shadow(color: gold.opacity(0.4), radius: 16, y: 6)
                         }
                     } else {
                         HStack(spacing: 12) {
                             Button(action: togglePause) {
                                 Image(systemName: isRunning ? "pause.fill" : "play.fill")
                                     .font(.app(size: 20, weight: .bold))
-                                    .foregroundColor(.primary)
+                                    .foregroundColor(.white)
                                     .frame(width: 56, height: 56)
-                                    .background(.ultraThinMaterial, in: Circle())
+                                    .background(DesignSystem.Colors.surface, in: Circle())
                                     .overlay(Circle().stroke(Color.black.opacity(0.04), lineWidth: 1))
                             }
 
@@ -1404,7 +1395,6 @@ struct LiveRecordView: View {
                                         .foregroundColor(.white)
                                         .frame(width: 56, height: 56)
                                         .background(.red.opacity(0.85), in: Circle())
-                                        .shadow(color: .red.opacity(0.4), radius: 8, y: 4)
                                 }
                             }
 
@@ -1418,7 +1408,7 @@ struct LiveRecordView: View {
                                         .font(.app(size: 16, weight: .bold))
                                         .foregroundColor(showElevationProfile ? gold : .primary)
                                         .frame(width: 56, height: 56)
-                                        .background(.ultraThinMaterial, in: Circle())
+                                        .background(DesignSystem.Colors.surface, in: Circle())
                                         .overlay(Circle().stroke(Color.black.opacity(0.04), lineWidth: 1))
                                 }
                             }
@@ -1435,12 +1425,11 @@ struct LiveRecordView: View {
         }
         .background(
             RoundedRectangle(cornerRadius: 36)
-                .fill(.ultraThinMaterial)
+                .fill(DesignSystem.Colors.surface)
                 .overlay(
                     RoundedRectangle(cornerRadius: 36)
                         .stroke(Color.black.opacity(0.06), lineWidth: 1)
                 )
-                .shadow(color: .black.opacity(0.04), radius: 30, y: -10)
         )
         .gesture(
             DragGesture(minimumDistance: 20)
@@ -1629,7 +1618,6 @@ struct TrackerSettingsSheet: View {
                                                 Circle()
                                                     .fill(option.color)
                                                     .frame(width: 36, height: 36)
-                                                    .shadow(color: option.color.opacity(0.4), radius: routeColorName == option.rawValue ? 6 : 0)
 
                                                 if routeColorName == option.rawValue {
                                                     Circle()
@@ -1664,8 +1652,8 @@ struct TrackerSettingsSheet: View {
             }
             .navigationTitle("Tracker Settings")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarColorScheme(.light, for: .navigationBar)
-            .toolbarBackground(Color(white: 0.98), for: .navigationBar)
+            .toolbarColorScheme(.dark, for: .navigationBar)
+            .toolbarBackground(DesignSystem.Colors.surface, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -1678,7 +1666,7 @@ struct TrackerSettingsSheet: View {
             }
         }
         .presentationDetents([.medium])
-        .preferredColorScheme(.light)
+        .preferredColorScheme(.dark)
     }
 }
 
@@ -1729,7 +1717,6 @@ struct SlideToFinishControl: View {
                         .foregroundColor(.red)
                 }
                 .offset(x: 4 + dragOffset)
-                .shadow(color: Color.red.opacity(0.3), radius: 10)
                 .gesture(
                     DragGesture()
                         .onChanged { value in
@@ -1961,7 +1948,7 @@ struct MissionSaveView: View {
                 )
             }
         }
-        .preferredColorScheme(.light)
+        .preferredColorScheme(.dark)
     }
 
     private func formatPauseDuration(_ interval: TimeInterval) -> String {

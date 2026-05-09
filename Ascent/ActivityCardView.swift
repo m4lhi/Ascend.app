@@ -116,12 +116,11 @@ struct ActivityCardView: View {
                 .strokeBorder(DesignSystem.Colors.cardBorder, lineWidth: 0.75)
         )
         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .shadow(color: .black.opacity(0.05), radius: 14, y: 5)
         .sheet(isPresented: $showComments) {
             CommentSheetView(tour: tour)
                 .presentationDetents([.medium, .large])
                 .adaptiveSheetBackground()
-                .preferredColorScheme(.light)
+                .preferredColorScheme(.dark)
         }
     }
 
@@ -155,7 +154,7 @@ struct ActivityCardView: View {
 
                     Text(tour.playerName)
                         .font(.app(size: 15, weight: .semibold))
-                        .foregroundColor(.primary)
+                        .foregroundColor(.white)
                 }
                 .contentShape(Rectangle())
             }
@@ -173,7 +172,7 @@ struct ActivityCardView: View {
                 } label: {
                     Image(systemName: "ellipsis")
                         .font(.app(size: 14))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
                         .padding(8)
                         .contentShape(Rectangle())
                 }
@@ -192,7 +191,7 @@ struct ActivityCardView: View {
                 xp: totalUserXP
             )
             .presentationDetents([.fraction(0.85), .large])
-            .preferredColorScheme(.light)
+            .preferredColorScheme(.dark)
             .environmentObject(appState)
         }
     }
@@ -209,10 +208,10 @@ struct ActivityCardView: View {
                     .font(.app(size: 12, weight: .semibold))
                     .foregroundColor(accent)
                 Text("·")
-                    .foregroundColor(.secondary)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
                 Text(formattedDate)
                     .font(.app(size: 12))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
             }
 
             // Summit name as main title
@@ -222,7 +221,7 @@ struct ActivityCardView: View {
                     .foregroundColor(.primary.opacity(0.7))
                 Text(tour.summitName)
                     .font(.app(size: 18, weight: .bold))
-                    .foregroundColor(.primary)
+                    .foregroundColor(.white)
             }
         }
     }
@@ -314,7 +313,7 @@ struct ActivityCardView: View {
             .frame(maxWidth: .infinity)
         }
         .padding(.vertical, 10)
-        .background(.thinMaterial)
+        .background(DesignSystem.Colors.surface)
         .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 
@@ -329,13 +328,13 @@ struct ActivityCardView: View {
                         .foregroundColor(accent)
                     Text("\(tour.fistBumpCount) fist bump\(tour.fistBumpCount == 1 ? "" : "s")")
                         .font(.app(size: 12))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
                     if tour.commentCount > 0 {
                         Text("·")
-                            .foregroundColor(.secondary)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
                         Text("\(tour.commentCount) comment\(tour.commentCount == 1 ? "" : "s")")
                             .font(.app(size: 12))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
                     }
                     Spacer()
                 }
@@ -405,7 +404,7 @@ struct ActivityCardView: View {
                 }) {
                     Image(systemName: "bubble.left")
                         .font(.app(size: 20))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
                         .scaleEffect(commentScale)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 8)
@@ -442,7 +441,7 @@ struct ActivityCardView: View {
                 ShareLink(item: "\(tour.playerName) conquered \(tour.summitName) — +\(tour.elevationGainMeters)m! Tracked with Ascent.") {
                     Image(systemName: "square.and.arrow.up")
                         .font(.app(size: 20))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
                         .scaleEffect(shareScale)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 8)
@@ -472,10 +471,10 @@ private struct StatCell: View {
         VStack(spacing: 2) {
             Text(value)
                 .font(.app(size: 15, weight: .bold))
-                .foregroundColor(.primary)
+                .foregroundColor(.white)
             Text(label)
                 .font(.app(size: 10, weight: .medium))
-                .foregroundColor(.secondary)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
         }
         .frame(maxWidth: .infinity)
     }
@@ -562,13 +561,13 @@ struct CommentSheetView: View {
                             .fontWeight(.bold)
                         Text("by \(tour.playerName)")
                             .font(.app(.caption))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
                     }
                     Spacer()
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 12)
-                .background(.thinMaterial)
+                .background(DesignSystem.Colors.surface)
 
                 // Comments list
                 if isLoading {
@@ -605,7 +604,7 @@ struct CommentSheetView: View {
                         .font(.app(.subheadline))
                         .padding(10)
                         .padding(.horizontal, 4)
-                        .background(.thinMaterial)
+                        .background(DesignSystem.Colors.surface)
                         .clipShape(Capsule())
 
                     Button(action: {
@@ -625,7 +624,7 @@ struct CommentSheetView: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
-                .background(.thinMaterial)
+                .background(DesignSystem.Colors.surface)
                 .overlay(alignment: .top) { Divider() }
             }
             .background(.clear)
@@ -680,7 +679,7 @@ struct CommentRow: View {
                         .fontWeight(.semibold)
                     Text(Self.fmt.localizedString(for: comment.date, relativeTo: Date()))
                         .font(.app(.caption2))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
                 }
                 Text(comment.body)
                     .font(.app(.subheadline))

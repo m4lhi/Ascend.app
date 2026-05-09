@@ -147,7 +147,6 @@ struct ElevationProfileView: View {
                                     .fill(DesignSystem.Colors.accent)
                                     .frame(width: 16, height: 16)
                                     .overlay(Circle().stroke(Color.white, lineWidth: 3))
-                                    .shadow(radius: 4)
                                     .animation(.none, value: sel)
                             }
                         }
@@ -188,7 +187,7 @@ struct ElevationProfileView: View {
                     } else {
                         Text("Touch and drag chart for details")
                             .font(.app(size: 11, weight: .medium))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
                     }
                     Spacer()
                 }
@@ -236,7 +235,7 @@ struct ElevationProfileView: View {
                                     .fixedSize(horizontal: true, vertical: false)
                                 Text(String(format: "%.0f%%", item.percentage))
                                     .font(.app(size: 11, weight: .bold))
-                                    .foregroundColor(.secondary)
+                                    .foregroundColor(DesignSystem.Colors.secondaryText)
                             }
                         }
                     }
@@ -244,7 +243,7 @@ struct ElevationProfileView: View {
             }
         }
         .padding(compact ? 12 : 16)
-        .background(.ultraThinMaterial)
+        .background(DesignSystem.Colors.surface)
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .onAppear {
             processRouteData()
@@ -343,7 +342,7 @@ struct ElevationProfileView: View {
                     if let ds = value.as(Double.self) {
                         Text(String(format: "%.0f km", ds))
                             .font(.app(size: 10))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
                     }
                 }
             }
@@ -355,7 +354,7 @@ struct ElevationProfileView: View {
                     if let alt = value.as(Double.self) {
                         Text("\(Int(alt)) m")
                             .font(.app(size: 10))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
                     }
                 }
             }
@@ -445,7 +444,7 @@ private struct StatPill: View {
                 .font(.app(size: 13, weight: .bold))
             Text(label)
                 .font(.app(size: 9))
-                .foregroundColor(.secondary)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 8)

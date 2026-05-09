@@ -44,7 +44,6 @@ struct ActivityDetailView: View {
                     .padding(.trailing, 20)
                     .padding(.top, 50)
             }
-            .shadow(radius: 4)
         }
         .preferredColorScheme(.dark) // Make the detail view dark mode for that premium feel
     }
@@ -69,7 +68,6 @@ struct ActivityDetailView: View {
                             .fill(accent)
                             .frame(width: 16, height: 16)
                             .overlay(Circle().stroke(Color.white, lineWidth: 3))
-                            .shadow(radius: 4)
                             .animation(.none, value: dist)
                     }
                 }
@@ -96,7 +94,6 @@ struct ActivityDetailView: View {
                         }) {
                             ZStack {
                                 Circle().fill(Color.white).frame(width: 44, height: 44)
-                                    .shadow(radius: 4)
                                 CachedAsyncImage(url: url) { image in
                                     image.resizable().scaledToFill()
                                 } placeholder: {
@@ -164,11 +161,10 @@ struct ActivityDetailView: View {
             .padding()
             .background(
                 RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .fill(.ultraThinMaterial)
+                    .fill(DesignSystem.Colors.surface)
             )
             .padding(.horizontal, 16)
             .padding(.bottom, 40)
-            .shadow(color: .black.opacity(0.3), radius: 20, y: 10)
         }
     }
     

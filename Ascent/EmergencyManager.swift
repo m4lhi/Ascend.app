@@ -299,7 +299,7 @@ struct EmergencySettingsView: View {
                             .fontWeight(.semibold)
                         Text("Add a contact to enable SOS features")
                             .font(.app(.caption))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
                     }
                 }
                 .padding(14)
@@ -319,7 +319,7 @@ struct EmergencySettingsView: View {
                                 .fontWeight(.semibold)
                             Text(contact.phone)
                                 .font(.app(.caption))
-                                .foregroundColor(.secondary)
+                                .foregroundColor(DesignSystem.Colors.secondaryText)
                         }
 
                         Spacer()
@@ -358,7 +358,7 @@ struct EmergencySettingsView: View {
                             showAddContact = false
                             newName = ""; newPhone = ""
                         }
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
                         Spacer()
                         Button("Add") {
                             emergencyManager.addContact(name: newName, phone: newPhone)

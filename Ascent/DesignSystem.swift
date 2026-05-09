@@ -2,9 +2,8 @@
 //  DesignSystem.swift
 //  Ascent
 //
-//  Zentrale Design-Bibliothek der App.
-//  Flat, premium, monochromatic blue. Light-mode primary, dark-mode adaptive.
-//  No gradient noise, no glass overload — confidence through restraint.
+//  Dark-first, pink accent, metric-specific atmosphere colors.
+//  Inspired by The Outsiders. No shadows. Ultra-thin borders. Flat surfaces.
 //
 
 import SwiftUI
@@ -17,92 +16,84 @@ enum DesignSystem {
     // =========================================
     enum Colors {
 
-        // --- BRAND BLUE (single source of truth) ---
-        static let accent       = Color(red: 0.15, green: 0.50, blue: 1.00) // #2680FF
-        static let accentLight  = Color(red: 0.37, green: 0.72, blue: 1.00) // #5FB8FF
-        static let accentDeep   = Color(red: 0.06, green: 0.33, blue: 0.80) // #0F54CC
-        static let accentSoft   = Color(red: 0.92, green: 0.95, blue: 1.00) // background tint (light)
-        static let accentTint   = Color(red: 0.96, green: 0.98, blue: 1.00) // ultra-light wash
+        // --- BRAND PINK / MAGENTA (Outsiders-inspired) ---
+        static let accent      = Color(red: 1.00, green: 0.18, blue: 0.33) // #FF2D55
+        static let accentLight = Color(red: 1.00, green: 0.42, blue: 0.55) // lighter for highlights
+        static let accentDeep  = Color(red: 0.75, green: 0.10, blue: 0.22) // darker for depth
+        static let accentSoft  = Color(red: 0.15, green: 0.05, blue: 0.08) // dark-mode pink tint
+        static let accentTint  = Color(red: 0.10, green: 0.03, blue: 0.05) // ultra-subtle wash
 
-        // Dark-mode adaptive sub-tone (subtle blue glow on cards in dark)
-        static let accentGlow = Color(UIColor { trait in
-            trait.userInterfaceStyle == .dark
-                ? UIColor(red: 0.30, green: 0.55, blue: 1.00, alpha: 1.0)
-                : UIColor(red: 0.15, green: 0.50, blue: 1.00, alpha: 1.0)
-        })
+        static let accentGlow  = Color(red: 1.00, green: 0.30, blue: 0.45)
 
-        // Prestige-Gold — für hohe Ränge und besondere Achievements
+        // Prestige-Gold
         static let prestige = Color(red: 0.95, green: 0.74, blue: 0.22)
 
-        // --- SURFACES (adaptive Light/Dark) ---
-        static let background        = Color(.systemBackground)
-        static let surface           = Color(UIColor { trait in
-            trait.userInterfaceStyle == .dark
-                ? UIColor(red: 0.08, green: 0.09, blue: 0.12, alpha: 1.0)
-                : UIColor.white
-        })
-        static let surfaceElevated   = Color(UIColor { trait in
-            trait.userInterfaceStyle == .dark
-                ? UIColor(red: 0.11, green: 0.12, blue: 0.16, alpha: 1.0)
-                : UIColor.white
-        })
-        static let surfaceMuted      = Color(UIColor { trait in
-            trait.userInterfaceStyle == .dark
-                ? UIColor(red: 0.06, green: 0.07, blue: 0.10, alpha: 1.0)
-                : UIColor(red: 0.97, green: 0.97, blue: 0.98, alpha: 1.0)
-        })
+        // --- METRIC ATMOSPHERE COLORS (Outsiders signature) ---
+        static let metricLoad      = Color(red: 0.00, green: 0.78, blue: 1.00) // Cyan — Training Load
+        static let metricDuration  = Color(red: 1.00, green: 0.84, blue: 0.04) // Gold — Duration
+        static let metricDistance  = Color(red: 0.19, green: 0.82, blue: 0.35) // Green — Distance
+        static let metricElevation = Color(red: 0.39, green: 0.82, blue: 0.69) // Teal — Elevation
+        static let metricEnergy    = Color(red: 1.00, green: 0.62, blue: 0.04) // Orange — Energy
+        static let metricHeart     = Color(red: 1.00, green: 0.27, blue: 0.27) // Red — Heart Rate
+        static let metricSleep     = Color(red: 0.55, green: 0.36, blue: 0.96) // Purple — Sleep
+        static let metricOxygen    = Color(red: 0.35, green: 0.68, blue: 1.00) // Blue — SpO2
+        static let metricHRV       = Color(red: 0.40, green: 0.85, blue: 0.55) // Mint — HRV
+        static let metricSteps     = Color(red: 0.98, green: 0.75, blue: 0.18) // Amber — Steps
+        static let metricReadiness = accent                                     // Pink — Readiness
 
-        // Card background — flat, adaptive
-        static let cardBackground = surfaceElevated
+        // --- SURFACES (true black dark-first) ---
+        static let background       = Color.black
+        static let surface          = Color(white: 0.08)  // #141414
+        static let surfaceElevated  = Color(white: 0.11)  // #1C1C1C
+        static let surfaceMuted     = Color(white: 0.04)  // #0A0A0A
+
+        static let cardBackground     = Color(white: 0.09)  // #171717
         static let elevatedBackground = surfaceElevated
 
-        // Subtle border for cards (very low contrast)
-        static let cardBorder = Color(UIColor { trait in
-            trait.userInterfaceStyle == .dark
-                ? UIColor.white.withAlphaComponent(0.08)
-                : UIColor.black.withAlphaComponent(0.06)
-        })
+        // Ultra-thin border
+        static let cardBorder = Color.white.opacity(0.07)
 
-        // Textfarben
-        static let primaryText   = Color(.label)
-        static let secondaryText = Color(.secondaryLabel)
-        static let tertiaryText  = Color(.tertiaryLabel)
+        // Text
+        static let primaryText   = Color.white
+        static let secondaryText = Color(white: 0.55)
+        static let tertiaryText  = Color(white: 0.35)
 
-        // Statusfarben
-        static let success = Color(.systemGreen)
-        static let warning = Color(.systemOrange)
-        static let error   = Color(.systemRed)
+        // Status
+        static let success = Color(red: 0.19, green: 0.82, blue: 0.35)
+        static let warning = Color(red: 1.00, green: 0.62, blue: 0.04)
+        static let error   = Color(red: 1.00, green: 0.27, blue: 0.27)
 
-        // --- LEGACY GRADIENT TOKENS (retained for back-compat, now FLAT) ---
-        // Replaced multi-stop gradients with subtle 2-stop tonal shifts.
-        // Visually reads as a solid blue with a hint of depth.
+        // Gradient tokens
         static let mountainGradient = LinearGradient(
             colors: [accent, accentDeep],
-            startPoint: .top,
-            endPoint: .bottom
+            startPoint: .top, endPoint: .bottom
         )
 
         static let logoGradient = LinearGradient(
             colors: [accent, accentDeep],
-            startPoint: .top,
-            endPoint: .bottom
+            startPoint: .top, endPoint: .bottom
         )
 
-        // Schwierigkeitsgrad-Farben
+        // Heart Rate Zones (5-zone model)
+        static let zone1 = Color(red: 0.35, green: 0.68, blue: 1.00) // Recovery
+        static let zone2 = Color(red: 0.19, green: 0.82, blue: 0.35) // Aerobic
+        static let zone3 = Color(red: 1.00, green: 0.84, blue: 0.04) // Tempo
+        static let zone4 = Color(red: 1.00, green: 0.52, blue: 0.04) // Threshold
+        static let zone5 = Color(red: 1.00, green: 0.22, blue: 0.22) // VO2max
+
         static func difficultyColor(_ difficulty: String) -> Color {
             switch difficulty {
-            case "Leicht":  return .systemGreen
-            case "Mittel":  return .systemOrange
+            case "Leicht":  return success
+            case "Mittel":  return warning
             case "Schwer":  return Color(red: 0.85, green: 0.2, blue: 0.2)
             case "Extrem":  return Color(red: 0.55, green: 0.0, blue: 0.55)
-            default:        return Color(.secondaryLabel)
+            default:        return secondaryText
             }
         }
     }
 
     // =========================================
     // === ABSTÄNDE ===
-    // 8pt-Raster, plus generous tokens for premium whitespace
     // =========================================
     enum Spacing {
         static let xs:   CGFloat = 4
@@ -113,7 +104,6 @@ enum DesignSystem {
         static let xxl:  CGFloat = 48
         static let xxxl: CGFloat = 64
 
-        // New "premium" tokens — use for hero sections and breathing room
         static let cardPadding: CGFloat = 20
         static let sectionGap:  CGFloat = 28
         static let screenInset: CGFloat = 20
@@ -126,20 +116,20 @@ enum DesignSystem {
         static let sm:   CGFloat = 10
         static let md:   CGFloat = 14
         static let lg:   CGFloat = 18
-        static let xl:   CGFloat = 22
-        static let xxl:  CGFloat = 28
-        static let card: CGFloat = 22
+        static let xl:   CGFloat = 20
+        static let xxl:  CGFloat = 24
+        static let card: CGFloat = 20
         static let full: CGFloat = 999
     }
 
     // =========================================
-    // === SCHATTEN — single soft shadow per element ===
+    // === SCHATTEN — eliminated for Outsiders style ===
     // =========================================
     enum Shadow {
-        static let card   = ShadowStyle(color: .black.opacity(0.06), radius: 16, x: 0, y: 6)
-        static let subtle = ShadowStyle(color: .black.opacity(0.04), radius: 8,  x: 0, y: 2)
-        static let accent = ShadowStyle(color: Colors.accent.opacity(0.22), radius: 18, x: 0, y: 8)
-        static let liquidGlow = ShadowStyle(color: Colors.accent.opacity(0.15), radius: 12, x: 0, y: 4)
+        static let card       = ShadowStyle(color: .clear, radius: 0, x: 0, y: 0)
+        static let subtle     = ShadowStyle(color: .clear, radius: 0, x: 0, y: 0)
+        static let accent     = ShadowStyle(color: .clear, radius: 0, x: 0, y: 0)
+        static let liquidGlow = ShadowStyle(color: .clear, radius: 0, x: 0, y: 0)
     }
 
     // =========================================
@@ -157,13 +147,16 @@ enum DesignSystem {
     // === TYPOGRAFIE ===
     // =========================================
     enum Typography {
-        static let heroTitle    = Font.app(size: 34, weight: .black)
-        static let title        = Font.app(size: 26, weight: .bold)
-        static let subtitle     = Font.app(size: 18, weight: .semibold)
-        static let body         = Font.app(size: 16, weight: .regular)
-        static let bodySecondary = Font.app(size: 15, weight: .regular)
-        static let caption      = Font.app(size: 13, weight: .medium)
-        static let micro        = Font.app(size: 11, weight: .semibold)
+        static let metricHero     = Font.app(size: 56, weight: .black)
+        static let metricLarge    = Font.app(size: 42, weight: .black)
+        static let heroTitle      = Font.app(size: 34, weight: .black)
+        static let title          = Font.app(size: 26, weight: .bold)
+        static let subtitle       = Font.app(size: 18, weight: .semibold)
+        static let body           = Font.app(size: 16, weight: .regular)
+        static let bodySecondary  = Font.app(size: 15, weight: .regular)
+        static let caption        = Font.app(size: 13, weight: .medium)
+        static let micro          = Font.app(size: 11, weight: .semibold)
+        static let sectionLabel   = Font.appMono(size: 11, weight: .bold)
     }
 }
 
@@ -177,8 +170,7 @@ struct ShadowStyle {
 
 // =========================================
 // === VIEW MODIFIER: ASCENT CARD ===
-// Flat, premium card. Solid surface, subtle border, single soft shadow.
-// Adaptive in light/dark. The card you reach for 90% of the time.
+// Flat dark surface. No shadow. Ultra-thin border. Outsiders style.
 // =========================================
 struct AscentCardModifier: ViewModifier {
     var cornerRadius: CGFloat = DesignSystem.Radius.card
@@ -186,35 +178,18 @@ struct AscentCardModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .background(
-                ZStack {
-                    // Solid surface
-                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .fill(DesignSystem.Colors.surfaceElevated)
-                    // Subtle top highlight — reads as "real surface lit from above"
-                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .fill(
-                            LinearGradient(
-                                colors: [Color.white.opacity(0.55), .clear],
-                                startPoint: .top,
-                                endPoint: UnitPoint(x: 0.5, y: 0.35)
-                            )
-                        )
-                        .blendMode(.plusLighter)
-                        .opacity(0.45)
-                }
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .fill(DesignSystem.Colors.cardBackground)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .strokeBorder(DesignSystem.Colors.cardBorder, lineWidth: 0.75)
+                    .strokeBorder(DesignSystem.Colors.cardBorder, lineWidth: 0.5)
             )
-            .shadow(color: .black.opacity(0.06), radius: 16, x: 0, y: 6)
-            .shadow(color: .black.opacity(0.03), radius: 3,  x: 0, y: 1)
     }
 }
 
 // =========================================
-// === VIEW MODIFIER: GLASS CARD (used over imagery) ===
-// Single material layer, subtle border. No specular layers.
+// === VIEW MODIFIER: GLASS CARD ===
 // =========================================
 struct GlassCardModifier: ViewModifier {
     var tint: Color = .white
@@ -228,29 +203,24 @@ struct GlassCardModifier: ViewModifier {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .strokeBorder(Color.white.opacity(0.18), lineWidth: 0.75)
+                    .strokeBorder(Color.white.opacity(0.10), lineWidth: 0.5)
             )
-            .shadow(color: .black.opacity(0.10), radius: 12, x: 0, y: 4)
     }
 }
 
 extension View {
-    /// Primary card — flat solid surface. Use for 90% of cards.
     func ascentCard(cornerRadius: CGFloat = DesignSystem.Radius.card) -> some View {
         modifier(AscentCardModifier(cornerRadius: cornerRadius))
     }
 
-    /// Glass card — only over images/photos. Otherwise use `ascentCard`.
     func glassCard(tint: Color = .white) -> some View {
         modifier(GlassCardModifier(tint: tint))
     }
 
-    /// Glass card with custom corner radius.
     func liquidGlass(tint: Color = .white, cornerRadius: CGFloat = DesignSystem.Radius.card) -> some View {
         modifier(GlassCardModifier(tint: tint, cornerRadius: cornerRadius))
     }
 
-    /// Section card — Apple-Health-style content surface.
     func sectionCard(
         padding: CGFloat = DesignSystem.Spacing.cardPadding,
         cornerRadius: CGFloat = DesignSystem.Radius.lg
@@ -259,17 +229,14 @@ extension View {
             .padding(padding)
             .background(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(DesignSystem.Colors.surfaceElevated)
+                    .fill(DesignSystem.Colors.cardBackground)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .strokeBorder(DesignSystem.Colors.cardBorder, lineWidth: 0.75)
+                    .strokeBorder(DesignSystem.Colors.cardBorder, lineWidth: 0.5)
             )
-            .shadow(color: .black.opacity(0.04), radius: 10, x: 0, y: 3)
     }
 
-    /// Subtle blue-tinted card for accent emphasis (premium hero in light mode,
-    /// soft glow in dark mode).
     func ascentAccentCard(cornerRadius: CGFloat = DesignSystem.Radius.card) -> some View {
         self
             .background(
@@ -278,13 +245,12 @@ extension View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .strokeBorder(DesignSystem.Colors.accent.opacity(0.18), lineWidth: 0.75)
+                    .strokeBorder(DesignSystem.Colors.accent.opacity(0.15), lineWidth: 0.5)
             )
-            .shadow(color: DesignSystem.Colors.accent.opacity(0.10), radius: 14, x: 0, y: 6)
     }
 }
 
-// MARK: - Section Header — Apple-style "Health" header
+// MARK: - Section Header
 struct SectionHeader<Trailing: View>: View {
     let title: String
     let subtitle: String?
@@ -301,11 +267,11 @@ struct SectionHeader<Trailing: View>: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.app(size: 22, weight: .bold))
-                    .foregroundColor(.primary)
+                    .foregroundColor(.white)
                 if let subtitle {
                     Text(subtitle)
                         .font(.app(size: 13, weight: .medium))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
                 }
             }
             Spacer()
@@ -314,9 +280,21 @@ struct SectionHeader<Trailing: View>: View {
     }
 }
 
+// MARK: - Outsiders-style Section Label (uppercase, small, gray)
+struct OutsidersSectionLabel: View {
+    let text: String
+    var body: some View {
+        Text(text.uppercased())
+            .font(.appMono(size: 11, weight: .bold))
+            .foregroundColor(DesignSystem.Colors.secondaryText)
+            .tracking(1.2)
+    }
+}
+
 // =========================================
-// === BUTTON STYLE: ASCENT BUTTON (subtle press) ===
+// === BUTTON STYLES ===
 // =========================================
+
 struct AscentButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -326,10 +304,6 @@ struct AscentButtonStyle: ButtonStyle {
     }
 }
 
-// =========================================
-// === BUTTON STYLE: PRIMARY BUTTON ===
-// Flat capsule. Solid blue. Single soft shadow. No gradient.
-// =========================================
 struct PrimaryButtonStyle: ButtonStyle {
     var fillColor: Color = DesignSystem.Colors.accent
     var cornerRadius: CGFloat = DesignSystem.Radius.full
@@ -345,31 +319,12 @@ struct PrimaryButtonStyle: ButtonStyle {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .fill(fillColor)
             )
-            .shadow(
-                color: fillColor.opacity(configuration.isPressed ? 0.12 : 0.28),
-                radius: configuration.isPressed ? 4 : 12,
-                x: 0,
-                y: configuration.isPressed ? 1 : 6
-            )
             .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
-            .brightness(configuration.isPressed ? -0.05 : 0)
+            .brightness(configuration.isPressed ? -0.08 : 0)
             .animation(DesignSystem.Animations.quick, value: configuration.isPressed)
     }
 }
 
-// =========================================
-// === EXTENSION: COLOR (System-Farben) ===
-// =========================================
-extension Color {
-    static let systemGreen  = Color(.systemGreen)
-    static let systemOrange = Color(.systemOrange)
-    static let systemRed    = Color(.systemRed)
-}
-
-// =========================================
-// === BUTTON STYLE: SECONDARY (Outline) ===
-// Flat secondary button — outlined, transparent fill.
-// =========================================
 struct SecondaryButtonStyle: ButtonStyle {
     var cornerRadius: CGFloat = DesignSystem.Radius.full
 
@@ -386,7 +341,7 @@ struct SecondaryButtonStyle: ButtonStyle {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .strokeBorder(DesignSystem.Colors.accent.opacity(0.20), lineWidth: 0.75)
+                    .strokeBorder(DesignSystem.Colors.accent.opacity(0.15), lineWidth: 0.5)
             )
             .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
             .opacity(configuration.isPressed ? 0.85 : 1.0)
@@ -394,10 +349,6 @@ struct SecondaryButtonStyle: ButtonStyle {
     }
 }
 
-// =========================================
-// === BUTTON STYLE: LIQUID GLASS BUTTON ===
-// Flat material chip — used for icon buttons, pills, secondary actions.
-// =========================================
 struct LiquidGlassButtonStyle: ButtonStyle {
     var tint: Color = .white
     var cornerRadius: CGFloat = DesignSystem.Radius.lg
@@ -406,13 +357,12 @@ struct LiquidGlassButtonStyle: ButtonStyle {
         configuration.label
             .background(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(.ultraThinMaterial)
+                    .fill(Color.white.opacity(0.06))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .strokeBorder(Color.white.opacity(0.18), lineWidth: 0.75)
+                    .strokeBorder(Color.white.opacity(0.10), lineWidth: 0.5)
             )
-            .shadow(color: .black.opacity(0.05), radius: 6, x: 0, y: 2)
             .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
             .opacity(configuration.isPressed ? 0.85 : 1.0)
             .animation(DesignSystem.Animations.quick, value: configuration.isPressed)
@@ -420,14 +370,19 @@ struct LiquidGlassButtonStyle: ButtonStyle {
 }
 
 // =========================================
-// === GLOBAL ROUNDED FONT MODIFIER (no-op) ===
-// Pass-through. Was overriding CabinetGrotesk/Satoshi — now disabled.
-// Kept for back-compat with existing call sites.
+// === SYSTEM COLOR EXTENSIONS ===
+// =========================================
+extension Color {
+    static let systemGreen  = Color(.systemGreen)
+    static let systemOrange = Color(.systemOrange)
+    static let systemRed    = Color(.systemRed)
+}
+
+// =========================================
+// === ROUNDED FONT MODIFIER (no-op) ===
 // =========================================
 struct RoundedFontDesignModifier: ViewModifier {
-    func body(content: Content) -> some View {
-        content
-    }
+    func body(content: Content) -> some View { content }
 }
 
 extension View {
@@ -436,29 +391,28 @@ extension View {
     }
 }
 
-// MARK: - Adaptive sheet glass background
+// MARK: - Sheet backgrounds
 extension View {
     @ViewBuilder
     func adaptiveSheetBackground() -> some View {
         if #available(iOS 26, *) {
             self
         } else {
-            self.presentationBackground(.ultraThinMaterial)
+            self.presentationBackground(DesignSystem.Colors.surface)
         }
     }
 
-    /// One-call sheet polish.
     @ViewBuilder
     func ascentSheet(detents: Set<PresentationDetent> = [.large]) -> some View {
         self
             .presentationDetents(detents)
-            .presentationCornerRadius(28)
+            .presentationCornerRadius(24)
             .adaptiveSheetBackground()
             .presentationBackgroundInteraction(.enabled(upThrough: .large))
     }
 }
 
-// MARK: - Polished sheet header
+// MARK: - Sheet header
 struct AscentSheetHeader: View {
     let title: String
     var subtitle: String?
@@ -469,19 +423,20 @@ struct AscentSheetHeader: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.app(size: 22, weight: .bold))
+                    .foregroundColor(.white)
                 if let subtitle {
                     Text(subtitle)
                         .font(.app(size: 13, weight: .medium))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
                 }
             }
             Spacer()
             Button(action: onClose) {
                 Image(systemName: "xmark")
                     .font(.system(size: 13, weight: .heavy))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
                     .frame(width: 30, height: 30)
-                    .background(Color(.tertiarySystemFill))
+                    .background(Color.white.opacity(0.08))
                     .clipShape(Circle())
             }
             .buttonStyle(.plain)
@@ -492,11 +447,281 @@ struct AscentSheetHeader: View {
     }
 }
 
-// MARK: - Polished section divider
+// MARK: - Divider
 struct AscentDivider: View {
     var body: some View {
         Rectangle()
-            .fill(DesignSystem.Colors.cardBorder)
+            .fill(Color.white.opacity(0.07))
             .frame(height: 0.5)
+    }
+}
+
+// MARK: - Pill Segmented Control (Outsiders-style)
+struct PillSegmentedControl<T: Hashable>: View {
+    let items: [(label: String, value: T)]
+    @Binding var selected: T
+    var accentColor: Color = DesignSystem.Colors.accent
+    @Namespace private var ns
+
+    var body: some View {
+        HStack(spacing: 6) {
+            ForEach(items.indices, id: \.self) { i in
+                let item = items[i]
+                let isActive = item.value == selected
+                Button {
+                    withAnimation(DesignSystem.Animations.quick) {
+                        selected = item.value
+                    }
+                } label: {
+                    Text(item.label)
+                        .font(.app(size: 14, weight: isActive ? .bold : .medium))
+                        .foregroundColor(isActive ? .white : DesignSystem.Colors.secondaryText)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background {
+                            if isActive {
+                                Capsule()
+                                    .fill(accentColor)
+                                    .matchedGeometryEffect(id: "pill", in: ns)
+                            }
+                        }
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(4)
+        .background(
+            Capsule().fill(Color.white.opacity(0.06))
+        )
+        .overlay(
+            Capsule().strokeBorder(Color.white.opacity(0.07), lineWidth: 0.5)
+        )
+    }
+}
+
+// MARK: - Metric Atmosphere Modifier
+struct MetricAtmosphereModifier: ViewModifier {
+    let color: Color
+    var intensity: CGFloat = 0.10
+
+    func body(content: Content) -> some View {
+        content.background(alignment: .top) {
+            ZStack {
+                Circle()
+                    .fill(color.opacity(intensity))
+                    .frame(width: 500, height: 500)
+                    .blur(radius: 100)
+                    .offset(y: -280)
+                Circle()
+                    .fill(color.opacity(intensity * 0.3))
+                    .frame(width: 300, height: 300)
+                    .blur(radius: 60)
+                    .offset(x: 100, y: -180)
+            }
+            .allowsHitTesting(false)
+        }
+    }
+}
+
+extension View {
+    func metricAtmosphere(_ color: Color, intensity: CGFloat = 0.10) -> some View {
+        modifier(MetricAtmosphereModifier(color: color, intensity: intensity))
+    }
+}
+
+// MARK: - Glow Card Modifier (premium depth for hero sections)
+struct GlowCardModifier: ViewModifier {
+    let glowColor: Color
+    var intensity: CGFloat = 0.08
+    var cornerRadius: CGFloat = DesignSystem.Radius.card
+
+    func body(content: Content) -> some View {
+        content
+            .background(
+                RoundedRectangle(cornerRadius: cornerRadius + 4, style: .continuous)
+                    .fill(glowColor.opacity(intensity))
+                    .blur(radius: 12)
+                    .offset(y: 4)
+            )
+    }
+}
+
+extension View {
+    func glowEffect(_ color: Color, intensity: CGFloat = 0.08) -> some View {
+        modifier(GlowCardModifier(glowColor: color, intensity: intensity))
+    }
+}
+
+extension View {
+    func shimmer(color: Color = .white) -> some View {
+        modifier(ShimmerModifier(color: color))
+    }
+}
+
+// MARK: - Pressable Button Style
+struct PressableButtonStyle: ButtonStyle {
+    var scale: CGFloat = 0.96
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? scale : 1.0)
+            .opacity(configuration.isPressed ? 0.88 : 1.0)
+            .animation(DesignSystem.Animations.quick, value: configuration.isPressed)
+    }
+}
+
+// MARK: - Outsiders Metric Card
+struct MetricCard: View {
+    let icon: String
+    let label: String
+    let value: String
+    let unit: String
+    var comparison: String? = nil
+    var previousValue: String? = nil
+    var metricColor: Color = DesignSystem.Colors.accent
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(metricColor)
+                Text(label)
+                    .font(.appMono(size: 10, weight: .bold))
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .tracking(0.8)
+            }
+
+            HStack(alignment: .firstTextBaseline, spacing: 2) {
+                if let cmp = comparison {
+                    Text(cmp)
+                        .font(.appMono(size: 13, weight: .bold))
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                }
+                Text(value)
+                    .font(.app(size: 28, weight: .black))
+                    .foregroundColor(.white)
+                    .contentTransition(.numericText())
+                Text(unit)
+                    .font(.appMono(size: 13, weight: .bold))
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+            }
+
+            if let prev = previousValue {
+                Text(prev)
+                    .font(.appMono(size: 11, weight: .medium))
+                    .foregroundColor(DesignSystem.Colors.tertiaryText)
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            ZStack {
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.card, style: .continuous)
+                    .fill(DesignSystem.Colors.cardBackground)
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.card, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [metricColor.opacity(0.04), .clear],
+                            startPoint: .topLeading, endPoint: .bottomTrailing
+                        )
+                    )
+            }
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.card, style: .continuous)
+                .strokeBorder(
+                    LinearGradient(
+                        colors: [metricColor.opacity(0.1), Color.white.opacity(0.05)],
+                        startPoint: .topLeading, endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 0.5
+                )
+        )
+    }
+}
+
+// MARK: - Body Data Tile (small rounded rect like Outsiders)
+struct BodyDataTile: View {
+    let icon: String
+    let label: String
+    let value: String?
+    var locked: Bool = false
+    var color: Color = DesignSystem.Colors.accent
+
+    private var hasValue: Bool { value != nil && !locked }
+
+    var body: some View {
+        VStack(spacing: 6) {
+            ZStack {
+                if hasValue {
+                    Circle()
+                        .fill(color.opacity(0.12))
+                        .frame(width: 28, height: 28)
+                }
+                Image(systemName: locked ? "lock.fill" : icon)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(locked ? DesignSystem.Colors.tertiaryText : color)
+            }
+            if let v = value, !locked {
+                Text(v)
+                    .font(.appMono(size: 14, weight: .bold))
+                    .foregroundColor(.white)
+            } else {
+                Text(locked ? "" : "–")
+                    .font(.appMono(size: 14, weight: .bold))
+                    .foregroundColor(DesignSystem.Colors.tertiaryText)
+            }
+            Text(label)
+                .font(.appMono(size: 8, weight: .bold))
+                .foregroundColor(DesignSystem.Colors.tertiaryText)
+                .tracking(0.6)
+                .lineLimit(1)
+        }
+        .frame(width: 64, height: 80)
+        .background(
+            ZStack {
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(DesignSystem.Colors.cardBackground)
+                if hasValue {
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: [color.opacity(0.04), .clear],
+                                startPoint: .top, endPoint: .bottom
+                            )
+                        )
+                }
+            }
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(
+                    hasValue
+                        ? LinearGradient(colors: [color.opacity(0.12), Color.white.opacity(0.04)], startPoint: .top, endPoint: .bottom)
+                        : LinearGradient(colors: [Color.white.opacity(0.06), Color.white.opacity(0.06)], startPoint: .top, endPoint: .bottom),
+                    lineWidth: 0.5
+                )
+        )
+    }
+}
+
+// MARK: - Readiness Ring (Outsiders-style progress ring)
+struct ReadinessRing: View {
+    let progress: Double
+    var lineWidth: CGFloat = 10
+    var size: CGFloat = 120
+    var color: Color = DesignSystem.Colors.accent
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .stroke(color.opacity(0.15), lineWidth: lineWidth)
+            Circle()
+                .trim(from: 0, to: progress)
+                .stroke(color, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+                .animation(.easeOut(duration: 1.0), value: progress)
+        }
+        .frame(width: size, height: size)
     }
 }

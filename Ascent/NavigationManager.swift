@@ -310,7 +310,7 @@ struct NavigationHUDView: View {
                         VStack(alignment: .leading, spacing: 1) {
                             Text(formatDistance(navManager.distanceToNext))
                                 .font(.app(size: 16, weight: .black))
-                                .foregroundColor(.primary)
+                                .foregroundColor(.white)
                             if navManager.isOffRoute {
                                 Text("OFF ROUTE")
                                     .font(.app(size: 8, weight: .black))
@@ -333,10 +333,9 @@ struct NavigationHUDView: View {
                     }
                     .padding(.horizontal, 14)
                     .padding(.vertical, 8)
-                    .background(.ultraThinMaterial)
+                    .background(DesignSystem.Colors.surface)
                     .clipShape(Capsule())
                     .overlay(Capsule().stroke(Color.black.opacity(0.06), lineWidth: 1))
-                    .shadow(color: .black.opacity(0.1), radius: 8, y: 4)
                 }
                 .buttonStyle(.plain)
                 .transition(.asymmetric(
@@ -383,7 +382,7 @@ struct NavigationHUDView: View {
                                 Label(formatTime(navManager.estimatedTimeRemaining), systemImage: "clock.fill")
                             }
                             .font(.app(.caption))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
                         }
 
                         Spacer()
@@ -409,9 +408,8 @@ struct NavigationHUDView: View {
                     }
                     .frame(height: 3)
                 }
-                .background(.ultraThinMaterial)
+                .background(DesignSystem.Colors.surface)
                 .clipShape(RoundedRectangle(cornerRadius: 16))
-                .shadow(color: .black.opacity(0.1), radius: 10, y: 5)
                 .transition(.asymmetric(
                     insertion: .scale(scale: 0.95).combined(with: .opacity),
                     removal: .scale(scale: 0.95).combined(with: .opacity)

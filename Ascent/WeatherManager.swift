@@ -227,7 +227,7 @@ struct WeatherCardView: View {
                         .font(.app(size: compact ? 22 : 28, weight: .bold))
                     Text("Feels like \(weather.feelsLikeFormatted)")
                         .font(.app(.caption))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
                 }
 
                 Spacer()
@@ -239,7 +239,7 @@ struct WeatherCardView: View {
                         Label("UV \(weather.uvIndex)", systemImage: "sun.max.fill")
                     }
                     .font(.app(.caption))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
                 }
             }
 
@@ -252,7 +252,7 @@ struct WeatherCardView: View {
                             VStack(spacing: 4) {
                                 Text(hourLabel(hour.hour))
                                     .font(.app(.caption2))
-                                    .foregroundColor(.secondary)
+                                    .foregroundColor(DesignSystem.Colors.secondaryText)
                                 Image(systemName: hour.conditionSymbol)
                                     .symbolRenderingMode(.multicolor)
                                     .font(.app(size: 18))
@@ -286,7 +286,7 @@ struct WeatherCardView: View {
             }
         }
         .padding(compact ? 12 : 16)
-        .background(.ultraThinMaterial)
+        .background(DesignSystem.Colors.surface)
         .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 
