@@ -33,7 +33,7 @@ struct RouteDetailSheet: View {
     var body: some View {
         NavigationView {
             ZStack {
-                DesignSystem.Colors.surfaceMuted.ignoresSafeArea()
+                DesignSystem.Colors.background.ignoresSafeArea()
 
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 0) {
@@ -152,7 +152,6 @@ struct RouteDetailSheet: View {
                                     .font(.app(size: 12, weight: .black))
                                     .foregroundColor(.white)
                             }
-                            .shadow(color: .black.opacity(0.3), radius: 4, y: 2)
                         }
                     }
                 }
@@ -173,7 +172,7 @@ struct RouteDetailSheet: View {
             .foregroundColor(.white)
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
-            .background(.ultraThinMaterial.opacity(0.6))
+            .background(DesignSystem.Colors.surface)
             .clipShape(Capsule())
             .padding(16)
 
@@ -216,7 +215,7 @@ struct RouteDetailSheet: View {
                     Text(route.visibility.label)
                         .font(.app(size: 12, weight: .semibold))
                 }
-                .foregroundColor(.secondary)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
 
                 Text(route.difficulty.uppercased())
                     .font(.app(size: 10, weight: .black))
@@ -228,7 +227,7 @@ struct RouteDetailSheet: View {
 
                 Text(route.createdAt, style: .date)
                     .font(.app(size: 12))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
             }
         }
     }
@@ -248,9 +247,8 @@ struct RouteDetailSheet: View {
                       value: "\(route.mountainIds.count)", label: "Peaks")
         }
         .padding(.vertical, 16)
-        .background(Color.white)
+        .background(DesignSystem.Colors.surface)
         .clipShape(RoundedRectangle(cornerRadius: 16))
-        .shadow(color: .black.opacity(0.05), radius: 8, y: 2)
     }
 
     func routeStat(icon: String, value: String, label: String) -> some View {
@@ -262,7 +260,7 @@ struct RouteDetailSheet: View {
                 .font(.app(size: 16, weight: .bold))
             Text(label)
                 .font(.app(size: 11))
-                .foregroundColor(.secondary)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
         }
         .frame(maxWidth: .infinity)
     }
@@ -294,13 +292,12 @@ struct RouteDetailSheet: View {
                     .foregroundColor(active ? .green : accent)
                 Text(label)
                     .font(.app(size: 11, weight: .semibold))
-                    .foregroundColor(.primary)
+                    .foregroundColor(.white)
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 14)
-            .background(Color.white)
+            .background(DesignSystem.Colors.surface)
             .clipShape(RoundedRectangle(cornerRadius: 14))
-            .shadow(color: .black.opacity(0.04), radius: 6, y: 2)
         }
         .buttonStyle(.plain)
     }
@@ -316,9 +313,8 @@ struct RouteDetailSheet: View {
             RouteElevationProfile(mountains: mountains, accentColor: accent)
                 .frame(height: 70)
                 .padding(12)
-                .background(Color.white)
+                .background(DesignSystem.Colors.surface)
                 .clipShape(RoundedRectangle(cornerRadius: 14))
-                .shadow(color: .black.opacity(0.04), radius: 6, y: 2)
         }
     }
 
@@ -345,9 +341,8 @@ struct RouteDetailSheet: View {
                 Spacer()
             }
             .padding(14)
-            .background(Color.white)
+            .background(DesignSystem.Colors.surface)
             .clipShape(RoundedRectangle(cornerRadius: 14))
-            .shadow(color: .black.opacity(0.04), radius: 6, y: 2)
         }
     }
 
@@ -394,10 +389,10 @@ struct RouteDetailSheet: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(mountain.name)
                                 .font(.app(size: 15, weight: .bold))
-                                .foregroundColor(.primary)
+                                .foregroundColor(.white)
                             Text("\(mountain.elevation)m \u{00B7} \(mountain.region)")
                                 .font(.app(size: 12))
-                                .foregroundColor(.secondary)
+                                .foregroundColor(DesignSystem.Colors.secondaryText)
                         }
 
                         Spacer()
@@ -415,9 +410,8 @@ struct RouteDetailSheet: View {
                             .foregroundColor(.gray)
                     }
                     .padding(14)
-                    .background(Color.white)
+                    .background(DesignSystem.Colors.surface)
                     .clipShape(RoundedRectangle(cornerRadius: 14))
-                    .shadow(color: .black.opacity(0.03), radius: 4, y: 1)
                 }
                 .buttonStyle(.plain)
             }
@@ -434,13 +428,12 @@ struct RouteDetailSheet: View {
 
             Text(route.description)
                 .font(.app(size: 14))
-                .foregroundColor(.secondary)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
                 .lineSpacing(4)
                 .padding(14)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.white)
+                .background(DesignSystem.Colors.surface)
                 .clipShape(RoundedRectangle(cornerRadius: 14))
-                .shadow(color: .black.opacity(0.04), radius: 6, y: 2)
         }
     }
 
@@ -706,7 +699,7 @@ struct SaveRouteToFolderSheet: View {
                             .font(.app(.headline))
                         Text("Create your first folder to organize routes.")
                             .font(.app(.subheadline))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
                             .multilineTextAlignment(.center)
                         Button { showCreateFolder = true } label: {
                             Text("Create Folder")
@@ -741,7 +734,7 @@ struct SaveRouteToFolderSheet: View {
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(folder.name)
                                             .font(.app(.headline))
-                                            .foregroundColor(.primary)
+                                            .foregroundColor(.white)
                                         HStack(spacing: 8) {
                                             if folder.isShared {
                                                 Image(systemName: "person.2.fill")
@@ -750,7 +743,7 @@ struct SaveRouteToFolderSheet: View {
                                             }
                                             Text(folder.description)
                                                 .font(.app(.caption))
-                                                .foregroundColor(.secondary)
+                                                .foregroundColor(DesignSystem.Colors.secondaryText)
                                                 .lineLimit(1)
                                         }
                                     }

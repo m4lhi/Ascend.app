@@ -63,7 +63,7 @@ struct MyRoutesView: View {
 
     var body: some View {
         ZStack {
-            DesignSystem.Colors.surfaceMuted.ignoresSafeArea()
+            DesignSystem.Colors.background.ignoresSafeArea()
 
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 0) {
@@ -96,12 +96,12 @@ struct MyRoutesView: View {
         .sheet(item: $selectedRoute) { route in
             RouteDetailSheet(route: route, routeManager: routeManager)
                 .presentationDetents([.large])
-                .preferredColorScheme(.light)
+                .preferredColorScheme(.dark)
         }
         .sheet(item: $selectedFolder) { folder in
             FolderDetailSheet(folder: folder, routeManager: routeManager)
                 .presentationDetents([.large])
-                .preferredColorScheme(.light)
+                .preferredColorScheme(.dark)
         }
         .sheet(isPresented: $showCreateFolder) {
             CreateFolderSheet(routeManager: routeManager)
@@ -119,7 +119,7 @@ struct MyRoutesView: View {
                 onCancel: { pendingGPX = nil }
             )
             .presentationDetents([.medium, .large])
-            .preferredColorScheme(.light)
+            .preferredColorScheme(.dark)
         }
         .alert("GPX Import Failed", isPresented: .constant(gpxImportError != nil)) {
             Button("OK") { gpxImportError = nil }
@@ -189,7 +189,6 @@ struct MyRoutesView: View {
                 .padding(.vertical, 7)
                 .background(accent)
                 .clipShape(Capsule())
-                .shadow(color: accent.opacity(0.3), radius: 6, y: 2)
             }
         }
         .padding(.horizontal, DesignSystem.Spacing.md)
@@ -208,13 +207,12 @@ struct MyRoutesView: View {
             miniStat(value: "\(routeManager.myRoutes.filter { $0.isCompleted }.count)", label: "Done", icon: "checkmark.seal.fill")
         }
         .padding(.vertical, DesignSystem.Spacing.md)
-        .background(Color(.secondarySystemBackground))
+        .background(DesignSystem.Colors.surface)
         .clipShape(RoundedRectangle(cornerRadius: DesignSystem.Radius.lg))
         .overlay(
             RoundedRectangle(cornerRadius: DesignSystem.Radius.lg)
                 .stroke(Color.black.opacity(0.04), lineWidth: 0.5)
         )
-        .shadow(color: .black.opacity(0.05), radius: 8, y: 2)
     }
 
     func miniStat(value: String, label: String, icon: String) -> some View {
@@ -226,7 +224,7 @@ struct MyRoutesView: View {
                 .font(.app(size: 16, weight: .bold))
             Text(label)
                 .font(.app(size: 10))
-                .foregroundColor(.secondary)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
         }
         .frame(maxWidth: .infinity)
     }
@@ -271,9 +269,8 @@ struct MyRoutesView: View {
                         .font(.app(size: 14))
                 }
                 .padding(10)
-                .background(Color.white)
+                .background(DesignSystem.Colors.surface)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
-                .shadow(color: .black.opacity(0.04), radius: 4, y: 1)
 
                 Menu {
                     ForEach(RouteSortMode.allCases, id: \.self) { mode in
@@ -289,11 +286,10 @@ struct MyRoutesView: View {
                 } label: {
                     Image(systemName: "arrow.up.arrow.down")
                         .font(.app(size: 14, weight: .semibold))
-                        .foregroundColor(.primary)
+                        .foregroundColor(.white)
                         .frame(width: 40, height: 40)
-                        .background(Color.white)
+                        .background(DesignSystem.Colors.surface)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .shadow(color: .black.opacity(0.04), radius: 4, y: 1)
                 }
             }
             .padding(.horizontal, 20)
@@ -341,7 +337,6 @@ struct MyRoutesView: View {
             .padding(.vertical, 8)
             .background(selectedSportFilter == sport ? accent : Color.white)
             .clipShape(Capsule())
-            .shadow(color: .black.opacity(0.04), radius: 3, y: 1)
         }
     }
 
@@ -354,7 +349,7 @@ struct MyRoutesView: View {
                 .font(.app(.headline))
             Text("Create a route in the Explore tab to get started.")
                 .font(.app(.subheadline))
-                .foregroundColor(.secondary)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
                 .multilineTextAlignment(.center)
         }
         .padding(40)
@@ -368,7 +363,7 @@ struct MyRoutesView: View {
             HStack {
                 Text("\(routeManager.myFolders.count) Folders")
                     .font(.app(size: 14, weight: .semibold))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
                 Spacer()
                 Button { showCreateFolder = true } label: {
                     HStack(spacing: 4) {
@@ -406,7 +401,7 @@ struct MyRoutesView: View {
                 .font(.app(.headline))
             Text("Create folders to organize and share your routes.")
                 .font(.app(.subheadline))
-                .foregroundColor(.secondary)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
                 .multilineTextAlignment(.center)
             Button { showCreateFolder = true } label: {
                 Text("Create Folder")
@@ -434,7 +429,7 @@ struct MyRoutesView: View {
                         .font(.app(.headline))
                     Text("When someone shares a route folder with you, it will appear here.")
                         .font(.app(.subheadline))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
                         .multilineTextAlignment(.center)
                 }
                 .padding(40)
@@ -474,7 +469,7 @@ struct EnhancedRouteCard: View {
                     HStack {
                         Text(route.name)
                             .font(.app(size: 16, weight: .bold))
-                            .foregroundColor(.primary)
+                            .foregroundColor(.white)
                             .lineLimit(1)
                         Spacer()
                         if route.isCompleted {
@@ -491,7 +486,7 @@ struct EnhancedRouteCard: View {
                             Text(route.sportType.label)
                                 .font(.app(size: 11, weight: .medium))
                         }
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
 
                         Text(route.difficulty.capitalized)
                             .font(.app(size: 10, weight: .bold))
@@ -521,9 +516,8 @@ struct EnhancedRouteCard: View {
                 }
                 .padding(14)
             }
-            .background(Color.white)
+            .background(DesignSystem.Colors.surface)
             .clipShape(RoundedRectangle(cornerRadius: 16))
-            .shadow(color: .black.opacity(0.06), radius: 8, y: 3)
         }
         .buttonStyle(.plain)
     }
@@ -568,7 +562,7 @@ struct EnhancedRouteCard: View {
                     .foregroundColor(.white)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
-                    .background(.ultraThinMaterial.opacity(0.8))
+                    .background(DesignSystem.Colors.surface)
                     .clipShape(Capsule())
                     .padding(8)
                 }
@@ -584,7 +578,7 @@ struct EnhancedRouteCard: View {
                 .foregroundColor(.gray)
             Text(value)
                 .font(.app(size: 11, weight: .semibold))
-                .foregroundColor(.secondary)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
         }
     }
 
@@ -633,7 +627,7 @@ struct FolderCard: View {
                                     .font(.app(size: 11))
                                     .foregroundColor(.white)
                                     .padding(6)
-                                    .background(.ultraThinMaterial.opacity(0.6))
+                                    .background(DesignSystem.Colors.surface)
                                     .clipShape(Circle())
                                     .padding(6)
                             }
@@ -645,13 +639,13 @@ struct FolderCard: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(folder.name)
                         .font(.app(size: 14, weight: .bold))
-                        .foregroundColor(.primary)
+                        .foregroundColor(.white)
                         .lineLimit(1)
 
                     if !folder.description.isEmpty {
                         Text(folder.description)
                             .font(.app(size: 11))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
                             .lineLimit(1)
                     }
                 }
@@ -681,7 +675,7 @@ struct FolderDetailSheet: View {
     var body: some View {
         NavigationView {
             ZStack {
-                DesignSystem.Colors.surfaceMuted.ignoresSafeArea()
+                DesignSystem.Colors.background.ignoresSafeArea()
 
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 0) {
@@ -758,7 +752,7 @@ struct FolderDetailSheet: View {
                                         Text("Edit")
                                     }
                                     .font(.app(size: 14, weight: .bold))
-                                    .foregroundColor(.primary)
+                                    .foregroundColor(.white)
                                     .frame(maxWidth: .infinity)
                                     .padding(.vertical, 12)
                                     .background(Color(.systemGray6))
@@ -792,7 +786,7 @@ struct FolderDetailSheet: View {
                                                     .overlay(
                                                         Text("+\(members.count - 8)")
                                                             .font(.app(size: 11, weight: .bold))
-                                                            .foregroundColor(.secondary)
+                                                            .foregroundColor(DesignSystem.Colors.secondaryText)
                                                     )
                                                     .overlay(Circle().stroke(Color.white, lineWidth: 2))
                                             }
@@ -815,7 +809,7 @@ struct FolderDetailSheet: View {
                                             .foregroundColor(.gray.opacity(0.3))
                                         Text("No routes in this folder yet")
                                             .font(.app(.subheadline))
-                                            .foregroundColor(.secondary)
+                                            .foregroundColor(DesignSystem.Colors.secondaryText)
                                     }
                                     .frame(maxWidth: .infinity)
                                     .padding(32)
@@ -960,7 +954,6 @@ struct CreateFolderSheet: View {
                                         .overlay(
                                             Circle()
                                                 .stroke(Color.white, lineWidth: selectedColor == color ? 3 : 0)
-                                                .shadow(color: .black.opacity(0.3), radius: 2)
                                         )
                                 }
                             }
@@ -1092,7 +1085,7 @@ struct ShareFolderSheet: View {
                     } else if searchResults.isEmpty {
                         Text("No users found")
                             .font(.app(.subheadline))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
                             .padding(20)
                     } else {
                         List {
@@ -1124,10 +1117,10 @@ struct ShareFolderSheet: View {
                                         VStack(alignment: .leading, spacing: 2) {
                                             Text(user.username)
                                                 .font(.app(.headline))
-                                                .foregroundColor(.primary)
+                                                .foregroundColor(.white)
                                             Text("@\(user.handle)")
                                                 .font(.app(.caption))
-                                                .foregroundColor(.secondary)
+                                                .foregroundColor(DesignSystem.Colors.secondaryText)
                                         }
                                         Spacer()
                                         Image(systemName: "person.badge.plus")
@@ -1145,7 +1138,7 @@ struct ShareFolderSheet: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Current Members (\(currentMembers.count))")
                             .font(.app(size: 14, weight: .bold))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
                             .padding(.horizontal, 20)
 
                         List {
@@ -1164,7 +1157,7 @@ struct ShareFolderSheet: View {
                                             .font(.app(.subheadline))
                                         Text(member.role.capitalized)
                                             .font(.app(.caption))
-                                            .foregroundColor(.secondary)
+                                            .foregroundColor(DesignSystem.Colors.secondaryText)
                                     }
                                     Spacer()
                                     Button {
@@ -1261,7 +1254,7 @@ struct GPXImportConfirmSheet: View {
                         importStat(value: "\(gpx.coordinates.count)", unit: "", label: "Points")
                     }
                     .padding(.vertical, 12)
-                    .background(Color.white)
+                    .background(DesignSystem.Colors.surface)
                     .clipShape(RoundedRectangle(cornerRadius: 14))
                     .padding(.horizontal, 20)
 
@@ -1269,7 +1262,7 @@ struct GPXImportConfirmSheet: View {
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Name")
                             .font(.app(size: 11, weight: .bold))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
                         Text(gpx.name)
                             .font(.app(size: 16, weight: .heavy))
                     }
@@ -1322,10 +1315,10 @@ struct GPXImportConfirmSheet: View {
             HStack(alignment: .firstTextBaseline, spacing: 2) {
                 Text(value).font(.app(size: 18, weight: .heavy))
                 if !unit.isEmpty {
-                    Text(unit).font(.app(size: 10, weight: .heavy)).foregroundColor(.secondary)
+                    Text(unit).font(.app(size: 10, weight: .heavy)).foregroundColor(DesignSystem.Colors.secondaryText)
                 }
             }
-            Text(label).font(.app(size: 10)).foregroundColor(.secondary)
+            Text(label).font(.app(size: 10)).foregroundColor(DesignSystem.Colors.secondaryText)
         }
         .frame(maxWidth: .infinity)
     }

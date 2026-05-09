@@ -191,10 +191,10 @@ struct ExportSheetView: View {
                                     Text(format.rawValue)
                                         .font(.app(.subheadline))
                                         .fontWeight(.semibold)
-                                        .foregroundColor(.primary)
+                                        .foregroundColor(.white)
                                     Text(format.description)
                                         .font(.app(.caption))
-                                        .foregroundColor(.secondary)
+                                        .foregroundColor(DesignSystem.Colors.secondaryText)
                                 }
 
                                 Spacer()
@@ -205,7 +205,7 @@ struct ExportSheetView: View {
                                 }
                             }
                             .padding(14)
-                            .background(.ultraThinMaterial)
+                            .background(DesignSystem.Colors.surface)
                             .clipShape(RoundedRectangle(cornerRadius: 14))
                         }
                     }
@@ -222,11 +222,11 @@ struct ExportSheetView: View {
                         Label(tourName, systemImage: "mountain.2.fill")
                         Spacer()
                         Text("\(routePoints.count) points")
-                            .foregroundColor(.secondary)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
                     }
                     .font(.app(.subheadline))
                     .padding(14)
-                    .background(.ultraThinMaterial)
+                    .background(DesignSystem.Colors.surface)
                     .clipShape(RoundedRectangle(cornerRadius: 14))
                 }
 

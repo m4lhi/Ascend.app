@@ -20,7 +20,7 @@ struct ReadinessQuestionnaireView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                DesignSystem.Colors.surfaceMuted.ignoresSafeArea()
+                DesignSystem.Colors.background.ignoresSafeArea()
                 
                 ScrollView {
                     VStack(spacing: 24) {
@@ -82,7 +82,7 @@ struct ReadinessQuestionnaireView: View {
                         
                         Text("This score will supplement your wearable data for the next 24 hours.")
                             .font(.app(size: 12))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 40)
                     }
@@ -110,7 +110,7 @@ struct ReadinessQuestionnaireView: View {
             
             Text("Wearables can't track everything. Tell us how you actually feel.")
                 .font(.app(size: 14))
-                .foregroundColor(.secondary)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 32)
         }
@@ -144,7 +144,7 @@ struct QuestionSlider: View {
                 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title).font(.app(size: 15, weight: .bold))
-                    Text(subtitle).font(.app(size: 12)).foregroundColor(.secondary)
+                    Text(subtitle).font(.app(size: 12)).foregroundColor(DesignSystem.Colors.secondaryText)
                 }
             }
             
@@ -152,9 +152,9 @@ struct QuestionSlider: View {
                 .tint(DesignSystem.Colors.accent)
             
             HStack {
-                Text(minLabel).font(.app(size: 10)).foregroundColor(.secondary)
+                Text(minLabel).font(.app(size: 10)).foregroundColor(DesignSystem.Colors.secondaryText)
                 Spacer()
-                Text(maxLabel).font(.app(size: 10)).foregroundColor(.secondary)
+                Text(maxLabel).font(.app(size: 10)).foregroundColor(DesignSystem.Colors.secondaryText)
             }
         }
         .sectionCard()
@@ -176,7 +176,7 @@ struct ToggleSection: View {
             
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.app(size: 15, weight: .bold))
-                Text(subtitle).font(.app(size: 12)).foregroundColor(.secondary)
+                Text(subtitle).font(.app(size: 12)).foregroundColor(DesignSystem.Colors.secondaryText)
             }
             
             Spacer()

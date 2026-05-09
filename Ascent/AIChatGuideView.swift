@@ -268,7 +268,7 @@ struct AIChatGuideView: View {
     
     // Theming Colors
     private let accentColor = DesignSystem.Colors.accent
-    private let botBgColor = DesignSystem.Colors.surfaceMuted
+    private let botBgColor = DesignSystem.Colors.background
     
     var body: some View {
         Group {
@@ -365,7 +365,7 @@ struct AIChatGuideView: View {
                     TextField("Ask the Ascent Guide...", text: $viewModel.inputText)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 12)
-                        .background(DesignSystem.Colors.surfaceMuted)
+                        .background(DesignSystem.Colors.background)
                         .clipShape(Capsule())
                         .font(.app(size: 16))
                         .submitLabel(.send)
@@ -429,7 +429,7 @@ struct ChatMessageCell: View {
                 BotAvatar()
                 Text(.init(message.text))
                     .font(.app(size: 16))
-                    .foregroundColor(.primary)
+                    .foregroundColor(.white)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
                     .background(botBgColor)

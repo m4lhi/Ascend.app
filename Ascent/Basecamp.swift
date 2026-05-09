@@ -69,20 +69,8 @@ struct BasecampView: View {
 
     var body: some View {
         ZStack {
-            // Solid surface background — premium, calm
-            DesignSystem.Colors.surfaceMuted
+            DesignSystem.Colors.background
                 .ignoresSafeArea()
-
-            // Single subtle accent halo behind hero — adds depth without noise
-            VStack(spacing: 0) {
-                Circle()
-                    .fill(DesignSystem.Colors.accent.opacity(0.08))
-                    .frame(width: 460, height: 460)
-                    .blur(radius: 90)
-                    .offset(y: -260)
-                    .allowsHitTesting(false)
-                Spacer()
-            }
 
             ScrollView(showsIndicators: false) {
                 ZStack(alignment: .top) {
@@ -356,15 +344,14 @@ struct BasecampView: View {
                     Image(systemName: "trophy.fill")
                         .font(.system(size: 19, weight: .black))
                         .foregroundColor(.white)
-                        .shadow(color: tierColorDeep.opacity(0.45), radius: 2, y: 1)
                 }
-                .shadow(color: tierColorDeep.opacity(0.40), radius: 8, y: 4)
+
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text(tierLabel.uppercased())
                         .font(.appMono(size: 10, weight: .bold))
                         .tracking(1.6)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
                     if let rank = globalRank {
                         Text("Global Rank #\(rank)")
                             .font(.app(size: 17, weight: .heavy))
@@ -489,8 +476,8 @@ struct BasecampView: View {
             RoundedRectangle(cornerRadius: 24, style: .continuous)
                 .strokeBorder(Color.white.opacity(0.14), lineWidth: 0.75)
         )
-        .shadow(color: DesignSystem.Colors.accent.opacity(0.40), radius: 24, y: 12)
-        .shadow(color: DesignSystem.Colors.accent.opacity(0.20), radius: 6,  y: 3)
+        
+        
         .padding(.horizontal, 16)
         .padding(.top, 2)
     }
@@ -563,7 +550,6 @@ struct BasecampView: View {
                             .font(.app(size: 84, weight: .black))
                             .foregroundColor(.white)
                             .contentTransition(.numericText())
-                            .shadow(color: .black.opacity(0.18), radius: 12, y: 6)
                         Text("%")
                             .font(.app(size: 36, weight: .black))
                             .foregroundColor(.white.opacity(0.85))
@@ -636,8 +622,6 @@ struct BasecampView: View {
                 RoundedRectangle(cornerRadius: DesignSystem.Radius.card, style: .continuous)
                     .strokeBorder(Color.white.opacity(0.10), lineWidth: 0.75)
             )
-            .shadow(color: readinessColor.opacity(0.45), radius: 28, y: 14)
-            .shadow(color: readinessColor.opacity(0.25), radius: 8, y: 4)
         }
         .buttonStyle(PressableButtonStyle())
     }
@@ -718,7 +702,7 @@ struct BasecampView: View {
                     }
                     Text("AI COACH")
                         .font(.appMono(size: 9, weight: .bold))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
                         .tracking(1.4)
                     Spacer()
                     Image(systemName: "arrow.up.right")
@@ -727,10 +711,10 @@ struct BasecampView: View {
                 }
                 Text(appState.readiness?.workloadScore ?? 0 > 80 ? "Push Today" : "Talk it out")
                     .font(.app(size: 18, weight: .black))
-                    .foregroundColor(.primary)
+                    .foregroundColor(.white)
                 Text("Training · Recovery · Nutrition")
                     .font(.app(size: 10))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
             }
             .padding(18)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -757,7 +741,7 @@ struct BasecampView: View {
                     }
                     Text("ALTITUDE")
                         .font(.appMono(size: 9, weight: .bold))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
                         .tracking(1.4)
                     Spacer()
                     Image(systemName: "chevron.right")
@@ -767,15 +751,15 @@ struct BasecampView: View {
                 HStack(alignment: .firstTextBaseline, spacing: 3) {
                     Text("\(appState.weeklyElevation)")
                         .font(.appMono(size: 30, weight: .black))
-                        .foregroundColor(.primary)
+                        .foregroundColor(.white)
                         .contentTransition(.numericText())
                     Text("m")
                         .font(.appMono(size: 14, weight: .bold))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
                 }
                 Text("This week")
                     .font(.app(size: 10))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
             }
             .padding(18)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -852,7 +836,7 @@ struct BasecampView: View {
                     }
                     Text("ACTIVITY")
                         .font(.appMono(size: 9, weight: .bold))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
                         .tracking(1.4)
                     Spacer()
                     Image(systemName: "chevron.right")
@@ -862,15 +846,15 @@ struct BasecampView: View {
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
                     Text("\(appState.recentTours.filter { $0.isCurrentUser }.count)")
                         .font(.appMono(size: 30, weight: .black))
-                        .foregroundColor(.primary)
+                        .foregroundColor(.white)
                         .contentTransition(.numericText())
                     Text("Sessions")
                         .font(.appMono(size: 13, weight: .bold))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
                 }
                 Text("Total missions")
                     .font(.app(size: 10))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
             }
             .padding(18)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -895,7 +879,7 @@ struct BasecampView: View {
                     VStack(alignment: .leading, spacing: 3) {
                         Text(appState.goals.isEmpty ? "GOALS" : "NEXT GOAL")
                             .font(.appMono(size: 9, weight: .bold))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
                             .tracking(1.4)
                         Text(primaryGoal?.mountainName ?? "Add Goal")
                             .font(.app(size: 16, weight: .black))
@@ -942,11 +926,11 @@ struct BasecampView: View {
                     if let goal = primaryGoal, let date = goal.targetDate {
                         Text(date, format: .dateTime.month(.abbreviated).year())
                             .font(.appMono(size: 10, weight: .semibold))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
                     } else if appState.goals.count > 1 {
                         Text("\(appState.goals.count) goals")
                             .font(.appMono(size: 10, weight: .semibold))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
                     }
                 }
             }
@@ -986,7 +970,7 @@ struct BasecampView: View {
                         VStack(alignment: .leading, spacing: 1) {
                             Text("ALPINE SAFETY")
                                 .font(.appMono(size: 9, weight: .bold))
-                                .foregroundColor(.secondary)
+                                .foregroundColor(DesignSystem.Colors.secondaryText)
                                 .tracking(1.4)
                             if let w = weather.currentWeather {
                                 Text(w.safetyLevel.label)
@@ -1034,10 +1018,10 @@ struct BasecampView: View {
                 HStack(spacing: 6) {
                     Image(systemName: "map.fill")
                         .font(.system(size: 10))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
                     Text("Open live weather map")
                         .font(.app(size: 12))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
                     Spacer()
                     Image(systemName: "chevron.right")
                         .font(.system(size: 10, weight: .bold))
@@ -1079,7 +1063,7 @@ struct BasecampView: View {
     private func sectionHeader(_ title: String, icon: String, iconColor: Color) -> some View {
         HStack(spacing: 8) {
             Image(systemName: icon).font(.app(size: 16, weight: .bold)).foregroundColor(iconColor)
-            Text(title.uppercased()).font(.app(size: 14, weight: .black)).foregroundColor(.secondary).tracking(1)
+            Text(title.uppercased()).font(.app(size: 14, weight: .black)).foregroundColor(DesignSystem.Colors.secondaryText).tracking(1)
             Spacer()
         }
         .padding(.horizontal, 16)
@@ -1112,7 +1096,7 @@ struct ReadinessMiniStat: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(label)
                 .font(.app(size: 10, weight: .bold))
-                .foregroundColor(.secondary)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
             
             ZStack(alignment: .leading) {
                 Capsule().fill(Color.gray.opacity(0.1)).frame(height: 4)
@@ -1138,14 +1122,14 @@ struct WeatherMetric: View {
         VStack(spacing: 4) {
             Image(systemName: icon)
                 .font(.system(size: 13, weight: .semibold))
-                .foregroundColor(.secondary)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
             Text(value)
                 .font(.appMono(size: 13, weight: .black))
-                .foregroundColor(.primary)
+                .foregroundColor(.white)
                 .contentTransition(.numericText())
             Text(label)
                 .font(.appMono(size: 8, weight: .bold))
-                .foregroundColor(.secondary)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
                 .tracking(0.5)
         }
         .frame(maxWidth: .infinity)
@@ -1196,18 +1180,18 @@ struct WeekPill: View {
                     .foregroundColor(color)
                 Text(title.uppercased())
                     .font(.app(size: 9, weight: .black))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
                     .tracking(0.5)
             }
 
             HStack(alignment: .lastTextBaseline, spacing: 3) {
                 Text(value)
                     .font(.app(size: 15, weight: .black))
-                    .foregroundColor(.primary)
+                    .foregroundColor(.white)
                 if let target {
                     Text(target)
                         .font(.app(size: 10))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
                 }
             }
 
@@ -1225,9 +1209,8 @@ struct WeekPill: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
         .frame(width: 118)
-        .background(.regularMaterial)
+        .background(DesignSystem.Colors.surface)
         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .shadow(color: color.opacity(0.08), radius: 8, y: 3)
     }
 }
 
@@ -1287,19 +1270,18 @@ struct RouteCard: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(mountain.name)
                         .font(.app(size: 14, weight: .bold))
-                        .foregroundColor(.primary)
+                        .foregroundColor(.white)
                         .lineLimit(1)
                     Text("\(mountain.elevation)m · \(mountain.region)")
                         .font(.app(size: 11))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
                         .lineLimit(1)
                 }
                 .padding(.horizontal, 12).padding(.vertical, 10)
             }
             .frame(width: 180)
-            .background(.regularMaterial)
+            .background(DesignSystem.Colors.surface)
             .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-            .shadow(color: .black.opacity(0.05), radius: 10, y: 4)
         }
         .buttonStyle(PlainButtonStyle())
     }
@@ -1332,7 +1314,7 @@ struct DiscoverCard: View {
                         .font(.app(size: 18)).foregroundColor(mountain.isPrestigePeak ? gold : .blue)
                 }
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(mountain.name).font(.app(size: 14, weight: .bold)).foregroundColor(.primary).lineLimit(1)
+                    Text(mountain.name).font(.app(size: 14, weight: .bold)).foregroundColor(.white).lineLimit(1)
                     Text("\(mountain.elevation)m · \(mountain.region)").font(.app(size: 11)).foregroundColor(.gray).lineLimit(1)
                 }
                 Spacer()
@@ -1345,9 +1327,8 @@ struct DiscoverCard: View {
             }
             .padding(14)
             .frame(width: 260)
-            .background(.regularMaterial)
+            .background(DesignSystem.Colors.surface)
             .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-            .shadow(color: .black.opacity(0.04), radius: 10, y: 4)
         }
         .buttonStyle(PlainButtonStyle())
     }
@@ -1387,11 +1368,11 @@ struct XPDetailView: View {
                     VStack(spacing: 6) {
                         Text("\(appState.currentXP)")
                             .font(.app(size: 54, weight: .black))
-                            .foregroundColor(.primary)
+                            .foregroundColor(.white)
                             .contentTransition(.numericText())
                         Text("XP")
                             .font(.appMono(size: 14, weight: .bold))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
                             .tracking(2)
                         let region = appState.userRegion
                         Text(region.isEmpty || region == "Unknown" ? "Keep climbing to rank up!" : "Alpinist in \(region)")
@@ -1440,11 +1421,11 @@ struct XPDetailView: View {
                 .foregroundColor(color)
             Text(value)
                 .font(.appMono(size: 22, weight: .black))
-                .foregroundColor(.primary)
+                .foregroundColor(.white)
                 .contentTransition(.numericText())
             Text(unit)
                 .font(.appMono(size: 10, weight: .bold))
-                .foregroundColor(.secondary)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
                 .tracking(0.5)
         }
         .frame(maxWidth: .infinity)
@@ -1464,18 +1445,6 @@ struct StatColumn: View {
             Text(unit).font(.app(.caption2)).foregroundColor(.gray)
         }
         .frame(maxWidth: .infinity)
-    }
-}
-
-// =========================================
-// MARK: - Micro-interaction Button Style
-// =========================================
-struct PressableButtonStyle: ButtonStyle {
-    var scale: CGFloat = 0.92
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? scale : 1.0)
-            .animation(.spring(response: 0.32, dampingFraction: 0.55), value: configuration.isPressed)
     }
 }
 
@@ -1506,7 +1475,7 @@ struct AllActivitiesView: View {
                     if !appState.hasMoreFeed && !appState.recentTours.isEmpty {
                         Text("You've seen it all!")
                             .font(.app(.caption))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
                             .padding(.top, 10)
                     }
                 }
@@ -1523,7 +1492,7 @@ struct AllActivitiesView: View {
                     Button(action: { dismiss() }) {
                         Image(systemName: "xmark.circle.fill")
                             .font(.app(size: 22))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
                     }
                 }
             }
@@ -1575,8 +1544,8 @@ struct BasecampMountainDetailSheet: View {
                 VStack(alignment: .leading, spacing: 16) {
                     HStack(alignment: .top) {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(mountain.name).font(.app(size: 24, weight: .bold)).foregroundColor(.primary)
-                            Text("\(mountain.region), \(mountain.country)").font(.app(size: 14)).foregroundColor(.secondary)
+                            Text(mountain.name).font(.app(size: 24, weight: .bold)).foregroundColor(.white)
+                            Text("\(mountain.region), \(mountain.country)").font(.app(size: 14)).foregroundColor(DesignSystem.Colors.secondaryText)
                         }
                         Spacer()
                         Text(mountain.difficulty.rawValue.uppercased())
@@ -1593,13 +1562,13 @@ struct BasecampMountainDetailSheet: View {
                         statItem(icon: "clock", value: estimatedDuration, label: "Est. Time")
                     }
                     .padding(.vertical, 14)
-                    .background(.regularMaterial)
+                    .background(DesignSystem.Colors.surface)
                     .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
                     
                     if !mountain.description.isEmpty {
                         Text(mountain.description)
                             .font(.app(size: 13))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
                             .lineLimit(4)
                     }
                     
@@ -1636,18 +1605,18 @@ struct BasecampMountainDetailSheet: View {
                                 Image(systemName: "triangle.fill")
                             }
                             .font(.app(size: 11))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
                         }
                         .padding(.horizontal, 16)
                         .padding(.vertical, 14)
                         .frame(maxWidth: .infinity)
-                        .background(.ultraThinMaterial)
+                        .background(DesignSystem.Colors.surface)
                         .clipShape(RoundedRectangle(cornerRadius: 14))
                         .overlay(
                             RoundedRectangle(cornerRadius: 14)
                                 .stroke(accent.opacity(0.4), lineWidth: 1.5)
                         )
-                        .foregroundColor(.primary)
+                        .foregroundColor(.white)
                     }
 
                     Button {
@@ -1663,7 +1632,6 @@ struct BasecampMountainDetailSheet: View {
                         .padding(.vertical, 16)
                         .background(gold)
                         .clipShape(RoundedRectangle(cornerRadius: 16))
-                        .shadow(color: gold.opacity(0.3), radius: 10, y: 5)
                     }
                     .padding(.bottom, 20)
                 }
@@ -1677,7 +1645,7 @@ struct BasecampMountainDetailSheet: View {
         .sheet(isPresented: $showProAnalysis) {
             MountainProAnalysisSheet(mountain: mountain)
                 .presentationDetents([.large])
-                .preferredColorScheme(.light)
+                .preferredColorScheme(.dark)
         }
     }
 
@@ -1689,9 +1657,9 @@ struct BasecampMountainDetailSheet: View {
     
     private func statItem(icon: String, value: String, label: String) -> some View {
         VStack(spacing: 6) {
-            Image(systemName: icon).font(.app(size: 16)).foregroundColor(.secondary)
-            Text(value).font(.app(size: 16, weight: .bold)).foregroundColor(.primary)
-            Text(label).font(.app(size: 11)).foregroundColor(.secondary)
+            Image(systemName: icon).font(.app(size: 16)).foregroundColor(DesignSystem.Colors.secondaryText)
+            Text(value).font(.app(size: 16, weight: .bold)).foregroundColor(.white)
+            Text(label).font(.app(size: 11)).foregroundColor(DesignSystem.Colors.secondaryText)
         }
         .frame(maxWidth: .infinity)
     }
@@ -1733,8 +1701,7 @@ struct WeeklyObjectiveCard: View {
             }.frame(height: 5)
         }
         .padding(16).frame(maxWidth: .infinity)
-        .background(Color.white).cornerRadius(16)
-        .shadow(color: color.opacity(0.1), radius: 8, y: 4)
+        .background(DesignSystem.Colors.surface).cornerRadius(16)
     }
 }
 

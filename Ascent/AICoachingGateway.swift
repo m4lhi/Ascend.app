@@ -652,7 +652,7 @@ struct AICoachingGatewayView: View {
                 }
             }
         }
-        .preferredColorScheme(.light)
+        .preferredColorScheme(.dark)
         .task {
             if vm.plan == nil {
                 await vm.prefillFromHealthKit()
@@ -731,7 +731,7 @@ struct AICoachingGatewayView: View {
             Button(action: { dismiss() }) {
                 Image(systemName: "xmark")
                     .font(.app(size: 14, weight: .bold))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
                     .frame(width: 34, height: 34)
                     .background(CT.Colors.surfaceRaised)
                     .clipShape(Circle())
@@ -754,7 +754,7 @@ struct AICoachingGatewayView: View {
             } else {
                 Text("Your Path")
                     .font(CT.Typo.label(13))
-                    .foregroundColor(.primary)
+                    .foregroundColor(.white)
             }
 
             Spacer()
@@ -763,7 +763,7 @@ struct AICoachingGatewayView: View {
                 Button(action: { vm.back() }) {
                     Image(systemName: "chevron.left")
                         .font(.app(size: 14, weight: .bold))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
                         .frame(width: 34, height: 34)
                         .background(CT.Colors.surfaceRaised)
                         .clipShape(Circle())
@@ -850,12 +850,12 @@ private struct ScreenScaffold<Content: View>: View {
 
                 Text(title)
                     .font(CT.Typo.display(28))
-                    .foregroundColor(.primary)
+                    .foregroundColor(.white)
                     .fixedSize(horizontal: false, vertical: true)
 
                 Text(subtitle)
                     .font(CT.Typo.body(14))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
                     .fixedSize(horizontal: false, vertical: true)
 
                 content()
@@ -874,7 +874,7 @@ private struct FieldCard<Content: View>: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(label.uppercased())
                 .font(CT.Typo.micro(10))
-                .foregroundColor(.secondary).tracking(0.8)
+                .foregroundColor(DesignSystem.Colors.secondaryText).tracking(0.8)
             content()
         }
         .padding(14)
@@ -941,7 +941,7 @@ private struct OnboardingFitness: View {
                                             .transition(.scale.combined(with: .opacity))
                                     }
                                 }
-                                .foregroundColor(.primary)
+                                .foregroundColor(.white)
                                 .padding(.vertical, 9)
                                 .padding(.horizontal, 4)
                             }
@@ -984,7 +984,7 @@ private struct OnboardingExperience: View {
                                         .foregroundColor(data.experience.contains(lvl) ? CT.Colors.accent : .gray)
                                     Text(lvl.rawValue)
                                         .font(.app(size: 15, weight: .semibold))
-                                        .foregroundColor(.primary)
+                                        .foregroundColor(.white)
                                     Spacer()
                                 }
                                 .padding(.vertical, 7)
@@ -1047,7 +1047,7 @@ private struct OnboardingGoal: View {
                         .foregroundColor(CT.Colors.accent)
                     Text("If the timeframe is unsafe, we'll extend it automatically.")
                         .font(CT.Typo.body(12))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
                 }
             }
         }
@@ -1074,7 +1074,7 @@ private struct OnboardingCapacity: View {
                         .foregroundColor(CT.Colors.accent)
                     Text("≈ \(data.sessionsPerWeek * data.minutesPerSession / 60) h / week training load")
                         .font(CT.Typo.label(12))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
                 }
                 .padding(12)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -1120,7 +1120,7 @@ private struct OnboardingSafety: View {
                             .foregroundColor(data.acceptedSafetyCommitment ? CT.Colors.accent : .gray)
                         Text("I commit to following a safe training path.")
                             .font(.app(size: 14, weight: .semibold))
-                            .foregroundColor(.primary)
+                            .foregroundColor(.white)
                             .multilineTextAlignment(.leading)
                         Spacer()
                     }
@@ -1236,7 +1236,7 @@ struct CoachingMapView: View {
                             }) {
                                 Text("Abandon & start new plan")
                                     .font(CT.Typo.label(13))
-                                    .foregroundColor(.secondary)
+                                    .foregroundColor(DesignSystem.Colors.secondaryText)
                             }
                             .padding(.bottom, 40)
                         }
@@ -1262,7 +1262,7 @@ struct CoachingMapView: View {
                 selectedStation = nil
             }
             .presentationDetents([.fraction(0.55), .large])
-            .preferredColorScheme(.light)
+            .preferredColorScheme(.dark)
         }
     }
 
@@ -1306,7 +1306,7 @@ struct CoachingMapView: View {
                 Image(systemName: "flag.checkered").foregroundColor(CT.Colors.accent)
                 Text("YOUR OBJECTIVE")
                     .font(CT.Typo.micro(10))
-                    .foregroundColor(.secondary).tracking(1)
+                    .foregroundColor(DesignSystem.Colors.secondaryText).tracking(1)
                 Spacer()
                 Text(plan.region.displayName.uppercased())
                     .font(CT.Typo.micro(10))
@@ -1319,7 +1319,7 @@ struct CoachingMapView: View {
                 .font(CT.Typo.display(28))
             Text("\(plan.goalElevation) m")
                 .font(CT.Typo.body(13))
-                .foregroundColor(.secondary)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
 
             Text(plan.headline)
                 .font(CT.Typo.body(13))
@@ -1332,7 +1332,7 @@ struct CoachingMapView: View {
                         .foregroundColor(.orange)
                     Text("Timeline adjusted to \(plan.safeTimelineMonths) months for safety (from \(plan.userRequestedMonths)).")
                         .font(CT.Typo.label(11))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 .padding(.top, 6)
@@ -1352,11 +1352,11 @@ struct CoachingMapView: View {
                 .frame(width: 3, height: 18)
             Text(phase.rawValue.uppercased())
                 .font(CT.Typo.micro(11))
-                .foregroundColor(.primary)
+                .foregroundColor(.white)
                 .tracking(1.2)
             Text("\(completedInPhase)/\(totalInPhase)")
                 .font(CT.Typo.micro(10))
-                .foregroundColor(.secondary)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
             Spacer()
         }
     }
@@ -1367,7 +1367,7 @@ struct CoachingMapView: View {
                 Image(systemName: "backpack.fill").foregroundColor(CT.Colors.accent)
                 Text("RECOMMENDED GEAR")
                     .font(CT.Typo.micro(10))
-                    .foregroundColor(.secondary).tracking(1)
+                    .foregroundColor(DesignSystem.Colors.secondaryText).tracking(1)
             }
             FlowLayout(spacing: 6) {
                 ForEach(plan.gearRecommendations, id: \.self) { g in
@@ -1452,7 +1452,6 @@ private struct StationRow: View {
                                 .foregroundColor(color)
                         )
                         .offset(y: 22)
-                        .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
 
                     if station.isRealTour {
                         Image(systemName: "sparkle")
@@ -1463,7 +1462,7 @@ private struct StationRow: View {
                 }
                 Text(station.title)
                     .font(CT.Typo.label(11))
-                    .foregroundColor(.primary)
+                    .foregroundColor(.white)
                     .lineLimit(1)
                     .frame(maxWidth: 130)
             }
@@ -1579,7 +1578,7 @@ private struct StationDetailSheet: View {
                     .clipShape(Capsule())
                 Text(station.kind.rawValue.uppercased())
                     .font(CT.Typo.micro(9)).tracking(1)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
             }
 
             Text(station.title)
@@ -1587,7 +1586,7 @@ private struct StationDetailSheet: View {
 
             Text(station.subtitle)
                 .font(CT.Typo.body(14))
-                .foregroundColor(.secondary)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
 
             if station.elevationGain > 0 {
                 HStack(spacing: 6) {

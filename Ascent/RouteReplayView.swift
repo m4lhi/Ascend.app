@@ -117,7 +117,6 @@ struct RouteReplayView: View {
                 Text(tourName)
                     .font(.app(size: 16, weight: .bold))
                     .foregroundColor(.white)
-                    .shadow(color: .black.opacity(0.5), radius: 4, y: 2)
                 HStack(spacing: 6) {
                     Image(systemName: "mountain.2.fill")
                         .font(.app(size: 9))
@@ -185,7 +184,6 @@ struct RouteReplayView: View {
                         Circle()
                             .fill(neonOrange)
                             .frame(width: 60, height: 60)
-                            .shadow(color: neonOrange.opacity(0.6), radius: 16, y: 4)
                         Image(systemName: isPlaying ? "pause.fill" : "play.fill")
                             .font(.app(size: 24, weight: .bold))
                             .foregroundColor(.white)
@@ -233,7 +231,6 @@ struct RouteReplayView: View {
                 Circle()
                     .fill(.white)
                     .frame(width: isDraggingScrubber ? 18 : 12, height: isDraggingScrubber ? 18 : 12)
-                    .shadow(color: neonOrange.opacity(0.5), radius: 6)
                     .offset(x: max(0, min(width - 12, width * progress - 6)))
                     .animation(.spring(response: 0.2), value: isDraggingScrubber)
             }
@@ -1039,7 +1036,6 @@ struct RouteReplayLauncher: View {
                 .background(
                     RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
                         .fill(DesignSystem.Colors.cardBackground)
-                        .shadow(color: Color(red: 1.0, green: 0.4, blue: 0.0).opacity(0.08), radius: 8, y: 4)
                 )
             }
             .buttonStyle(AscentButtonStyle())
@@ -1110,7 +1106,6 @@ struct CloudTourReplayLauncher: View {
                 .background(
                     RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
                         .fill(DesignSystem.Colors.cardBackground)
-                        .shadow(color: Color(red: 1.0, green: 0.4, blue: 0.0).opacity(0.08), radius: 8, y: 4)
                 )
             }
             .buttonStyle(AscentButtonStyle())

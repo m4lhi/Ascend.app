@@ -45,19 +45,18 @@ struct LoginView: View {
                             .scaledToFit()
                             .frame(width: 84, height: 84)
                             .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-                            .shadow(color: DesignSystem.Colors.accent.opacity(0.18), radius: 24, y: 12)
 
                         VStack(spacing: 6) {
                             Text("ASCENT")
                                 .font(.app(size: 30, weight: .black))
-                                .foregroundColor(.primary)
+                                .foregroundColor(.white)
                                 .tracking(4)
 
                             Text(isRegistering
                                  ? "Build your alpine identity."
                                  : "Welcome back. Your peaks await.")
                                 .font(.app(size: 15, weight: .regular))
-                                .foregroundColor(.secondary)
+                                .foregroundColor(DesignSystem.Colors.secondaryText)
                                 .multilineTextAlignment(.center)
                         }
                     }
@@ -127,7 +126,7 @@ struct LoginView: View {
                             .frame(height: 0.5)
                         Text("OR")
                             .font(.app(size: 11, weight: .semibold))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
                             .tracking(1.4)
                         Rectangle()
                             .fill(DesignSystem.Colors.cardBorder)
@@ -159,7 +158,7 @@ struct LoginView: View {
                     } label: {
                         HStack(spacing: 5) {
                             Text(isRegistering ? "Already a member?" : "New to Ascent?")
-                                .foregroundColor(.secondary)
+                                .foregroundColor(DesignSystem.Colors.secondaryText)
                             Text(isRegistering ? "Sign in" : "Create account")
                                 .foregroundColor(DesignSystem.Colors.accent)
                                 .fontWeight(.bold)
@@ -202,14 +201,14 @@ struct LoginView: View {
                 }
             }
             .font(.app(size: 16, weight: .regular))
-            .foregroundColor(.primary)
+            .foregroundColor(.white)
             .focused($focusedField, equals: field)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
         .background(
             RoundedRectangle(cornerRadius: DesignSystem.Radius.md, style: .continuous)
-                .fill(DesignSystem.Colors.surfaceMuted)
+                .fill(DesignSystem.Colors.background)
         )
         .overlay(
             RoundedRectangle(cornerRadius: DesignSystem.Radius.md, style: .continuous)

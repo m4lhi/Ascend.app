@@ -145,7 +145,7 @@ struct ArenaView: View {
                         Button(action: { showAddFriendAlert = true }) {
                             ZStack {
                                 Circle()
-                                    .fill(.ultraThinMaterial)
+                                    .fill(DesignSystem.Colors.surface)
                                     .environment(\.colorScheme, .light)
                                     .frame(width: 48, height: 48)
                                     .overlay(
@@ -220,7 +220,7 @@ struct ArenaView: View {
                                 }
                                 .background(
                                     RoundedRectangle(cornerRadius: 22, style: .continuous)
-                                        .fill(.ultraThinMaterial)
+                                        .fill(DesignSystem.Colors.surface)
                                         .environment(\.colorScheme, .light)
                                 )
                                 .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
@@ -228,7 +228,6 @@ struct ArenaView: View {
                                     RoundedRectangle(cornerRadius: 22, style: .continuous)
                                         .stroke(Color.white.opacity(0.5), lineWidth: 0.5)
                                 )
-                                .shadow(color: .black.opacity(0.06), radius: 15, y: 6)
                                 .padding(.horizontal, 20)
                             }
 
@@ -366,10 +365,9 @@ struct AnimatedScopeSelector: View {
             .padding(4)
             .background(
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(.ultraThinMaterial)
+                    .fill(DesignSystem.Colors.surface)
                     .environment(\.colorScheme, .light)
             )
-            .shadow(color: .black.opacity(0.05), radius: 10, y: 4)
             .overlay(
                 RoundedRectangle(cornerRadius: 16)
                     .stroke(Color.black.opacity(0.04), lineWidth: 1)
@@ -451,7 +449,7 @@ struct PremiumPodiumView: View {
                 xp: p.xp
             )
             .presentationDetents([.fraction(0.85), .large])
-            .preferredColorScheme(.light)
+            .preferredColorScheme(.dark)
             .environmentObject(appState)
         }
     }
@@ -533,7 +531,6 @@ struct PremiumPodiumView: View {
                     Circle()
                         .fill(color)
                         .frame(width: 24, height: 24)
-                        .shadow(color: color.opacity(0.5), radius: 6)
 
                     Text("\(rank)")
                         .font(.app(size: 12, weight: .black))
@@ -575,7 +572,7 @@ struct PremiumPodiumView: View {
 
             // Glassmorphic Pillar
             RoundedRectangle(cornerRadius: 14)
-                .fill(.ultraThinMaterial)
+                .fill(DesignSystem.Colors.surface)
                 .environment(\.colorScheme, .light)
                 .frame(height: pillarHeight)
                 .overlay(
@@ -591,7 +588,6 @@ struct PremiumPodiumView: View {
                     RoundedRectangle(cornerRadius: 14)
                         .stroke(color.opacity(0.3), lineWidth: 1)
                 )
-                .shadow(color: color.opacity(rank == 1 ? 0.2 : 0.1), radius: rank == 1 ? 12 : 6, y: 4)
             }
             .frame(maxWidth: .infinity)
         }
@@ -704,7 +700,7 @@ struct PremiumLeaderboardRow: View {
                 HStack(spacing: 6) {
                     Text(player.name)
                         .font(.app(size: 15, weight: player.isCurrentUser ? .bold : .semibold))
-                        .foregroundColor(.primary)
+                        .foregroundColor(.white)
                         .lineLimit(1)
 
                     if player.isCurrentUser {
@@ -782,7 +778,7 @@ struct PremiumLeaderboardRow: View {
                 xp: player.xp
             )
             .presentationDetents([.fraction(0.85), .large])
-            .preferredColorScheme(.light)
+            .preferredColorScheme(.dark)
             .environmentObject(appState)
         }
     }
@@ -866,7 +862,7 @@ struct MotivationalBanner: View {
         .padding(18)
         .background(
             RoundedRectangle(cornerRadius: 18)
-                .fill(.ultraThinMaterial)
+                .fill(DesignSystem.Colors.surface)
                 .environment(\.colorScheme, .dark)
         )
         .overlay(
@@ -940,7 +936,6 @@ struct EmptyFriendsView: View {
                 .padding(.vertical, 14)
                 .background(gold)
                 .clipShape(Capsule())
-                .shadow(color: gold.opacity(0.3), radius: 12, y: 4)
                 .scaleEffect(pulseScale)
             }
             .padding(.top, 4)

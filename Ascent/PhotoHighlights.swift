@@ -127,7 +127,7 @@ struct PhotoCaptureButton: View {
     private var captureButtonLabel: some View {
         ZStack {
             Circle()
-                .fill(.ultraThinMaterial)
+                .fill(DesignSystem.Colors.surface)
                 .frame(width: 40, height: 40)
             Image(systemName: "camera.fill")
                 .font(.app(size: 16, weight: .semibold))
@@ -199,7 +199,6 @@ struct PhotoHighlightMapContent: MapContent {
                     Circle()
                         .fill(.white)
                         .frame(width: 36, height: 36)
-                        .shadow(color: .black.opacity(0.2), radius: 4, y: 2)
 
                     if let data = highlight.localImageData, let uiImage = UIImage(data: data) {
                         Image(uiImage: uiImage)
@@ -236,7 +235,7 @@ struct PhotoHighlightsStrip: View {
                     Spacer()
                     Text("\(highlights.count)")
                         .font(.app(.caption))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
                 }
 
                 ScrollView(.horizontal, showsIndicators: false) {
@@ -248,7 +247,7 @@ struct PhotoHighlightsStrip: View {
                 }
             }
             .padding(12)
-            .background(.ultraThinMaterial)
+            .background(DesignSystem.Colors.surface)
             .clipShape(RoundedRectangle(cornerRadius: 14))
         }
     }
@@ -280,7 +279,6 @@ struct PhotoHighlightsStrip: View {
                         Image(systemName: "xmark.circle.fill")
                             .font(.app(size: 18))
                             .foregroundColor(.white)
-                            .shadow(radius: 2)
                     }
                     .offset(x: 4, y: -4)
                 }

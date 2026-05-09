@@ -168,7 +168,6 @@ struct AlpineGradeBadge: View {
         .overlay(
             Capsule().stroke(.white.opacity(0.3), lineWidth: 0.5)
         )
-        .shadow(color: grade.color.opacity(0.35), radius: 3, y: 1)
     }
 }
 

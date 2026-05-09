@@ -225,7 +225,7 @@ struct AvalancheHeatmapSheet: View {
                 if store.isLoading {
                     ProgressView("Loading bulletins…")
                         .padding(14)
-                        .background(.ultraThinMaterial, in: Capsule())
+                        .background(DesignSystem.Colors.surface, in: Capsule())
                         .padding(.bottom, 80)
                 }
 
@@ -258,12 +258,12 @@ struct AvalancheHeatmapSheet: View {
             Spacer()
             Text("EAWS")
                 .font(.system(size: 9, weight: .heavy, design: .rounded))
-                .foregroundColor(.secondary)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
                 .tracking(1)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
-        .background(.ultraThinMaterial)
+        .background(DesignSystem.Colors.surface)
         .clipShape(RoundedRectangle(cornerRadius: DesignSystem.Radius.md))
     }
 }

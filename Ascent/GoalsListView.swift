@@ -26,7 +26,7 @@ struct GoalsListView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                DesignSystem.Colors.surfaceMuted.ignoresSafeArea()
+                DesignSystem.Colors.background.ignoresSafeArea()
                 ScrollView {
                     LazyVStack(spacing: 12) {
                         if sortedGoals.isEmpty {
@@ -64,7 +64,7 @@ struct GoalsListView: View {
                 }
                 .environmentObject(appState)
                 .presentationDetents([.large])
-                .preferredColorScheme(.light)
+                .preferredColorScheme(.dark)
             }
             .sheet(item: $goalToEdit) { goal in
                 EditGoalSheet(
@@ -79,7 +79,7 @@ struct GoalsListView: View {
                     }
                 )
                 .presentationDetents([.medium, .large])
-                .preferredColorScheme(.light)
+                .preferredColorScheme(.dark)
             }
             .sheet(item: $goalToShow) { goal in
                 GoalDetailSheet(
@@ -101,7 +101,7 @@ struct GoalsListView: View {
                 )
                 .environmentObject(appState)
                 .presentationDetents([.large])
-                .preferredColorScheme(.light)
+                .preferredColorScheme(.dark)
             }
         }
     }
@@ -117,7 +117,7 @@ struct GoalsListView: View {
                 .font(.system(size: 22, weight: .bold, design: .rounded))
             Text("Add a peak you want to climb. Your readiness, training, and weather forecast will all reference your active goal.")
                 .font(.system(size: 14, design: .rounded))
-                .foregroundColor(.secondary)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 30)
             Button { showAddGoal = true } label: {
@@ -151,15 +151,15 @@ struct GoalsListView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(goal.mountainName)
                     .font(.system(size: 17, weight: .heavy, design: .rounded))
-                    .foregroundColor(.primary)
+                    .foregroundColor(.white)
                     .lineLimit(1)
                 HStack(spacing: 6) {
                     Text("\(goal.elevationM)m")
                         .font(.system(size: 12, weight: .semibold, design: .rounded))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
                     if let days = goal.daysUntilTarget {
                         Text("·")
-                            .foregroundColor(.secondary)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
                         if days < 0 {
                             Text("Past due")
                                 .font(.system(size: 12, weight: .semibold, design: .rounded))
@@ -178,7 +178,7 @@ struct GoalsListView: View {
                 if !goal.notes.isEmpty {
                     Text(goal.notes)
                         .font(.system(size: 13, design: .rounded))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
                         .lineLimit(2)
                         .padding(.top, 2)
                 }
@@ -191,7 +191,7 @@ struct GoalsListView: View {
                 .foregroundColor(Color(.tertiaryLabel))
         }
         .padding(DesignSystem.Spacing.md)
-        .background(Color(.secondarySystemBackground))
+        .background(DesignSystem.Colors.surface)
         .clipShape(RoundedRectangle(cornerRadius: DesignSystem.Radius.lg, style: .continuous))
     }
 }
@@ -233,11 +233,11 @@ struct AddGoalSheet: View {
                             Button { selectedMountain = mountain } label: {
                                 HStack {
                                     VStack(alignment: .leading, spacing: 2) {
-                                        Text(mountain.name).foregroundColor(.primary)
+                                        Text(mountain.name).foregroundColor(.white)
                                             .font(.system(size: 15, weight: .semibold, design: .rounded))
                                         Text("\(mountain.elevation)m · \(mountain.region)")
                                             .font(.system(size: 11, design: .rounded))
-                                            .foregroundColor(.secondary)
+                                            .foregroundColor(DesignSystem.Colors.secondaryText)
                                     }
                                     Spacer()
                                     if selectedMountain?.id == mountain.id {
@@ -344,7 +344,7 @@ struct EditGoalSheet: View {
                                 .font(.system(size: 17, weight: .heavy, design: .rounded))
                             Text("\(goal.elevationM)m")
                                 .font(.system(size: 12, design: .rounded))
-                                .foregroundColor(.secondary)
+                                .foregroundColor(DesignSystem.Colors.secondaryText)
                         }
                     }
                 }

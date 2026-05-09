@@ -32,16 +32,16 @@ struct SettingsView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                DesignSystem.Colors.surfaceMuted.ignoresSafeArea()
+                DesignSystem.Colors.background.ignoresSafeArea()
 
                 ScrollView(showsIndicators: false) {
-                    VStack(spacing: 20) {
+                    VStack(spacing: 24) {
 
                         SettingsSection(title: "ACCOUNT") {
                             Button(action: { showEditProfile = true }) {
                                 SettingsRowLabel(icon: "person.crop.circle", iconColor: accentBlue, text: "Edit Profile", showArrow: true)
                             }
-                            Divider().background(Color.black.opacity(0.1))
+                            AscentDivider()
                             Button(action: { showLogoutConfirm = true }) {
                                 SettingsRowLabel(icon: "rectangle.portrait.and.arrow.right", iconColor: .orange, text: "Logout")
                             }
@@ -49,15 +49,15 @@ struct SettingsView: View {
 
                         SettingsSection(title: "DATA") {
                             Button(action: { showExportAllTours = true }) {
-                                SettingsRowLabel(icon: "square.and.arrow.up", iconColor: .blue, text: "Export All Tours (GPX)", showArrow: true)
+                                SettingsRowLabel(icon: "square.and.arrow.up", iconColor: DesignSystem.Colors.metricDistance, text: "Export All Tours (GPX)", showArrow: true)
                             }
                         }
 
                         SettingsSection(title: "SAFETY & SHARING") {
                             Button(action: { showShareLocation = true }) {
-                                SettingsRowLabel(icon: "location.circle.fill", iconColor: .blue, text: "Share Current Location")
+                                SettingsRowLabel(icon: "location.circle.fill", iconColor: DesignSystem.Colors.metricDistance, text: "Share Current Location")
                             }
-                            Divider().background(Color.black.opacity(0.1))
+                            AscentDivider()
                             EmergencySettingsView(emergencyManager: emergencyManager)
                         }
 
@@ -65,21 +65,20 @@ struct SettingsView: View {
                             OfflineDownloadsView(offlineManager: offlineManager)
                         }
 
-                        // Health & Body section (loaded from AI Coach onboarding data)
                         if let hd = healthData {
                             SettingsSection(title: "HEALTH & BODY") {
                                 healthRow(icon: "ruler", label: "Height", value: "\(hd.heightCm) cm")
-                                Divider().background(Color.black.opacity(0.1))
+                                AscentDivider()
                                 healthRow(icon: "scalemass", label: "Weight", value: "\(hd.weightKg) kg")
-                                Divider().background(Color.black.opacity(0.1))
+                                AscentDivider()
                                 healthRow(icon: "calendar", label: "Age", value: "\(hd.age) yrs")
-                                Divider().background(Color.black.opacity(0.1))
+                                AscentDivider()
                                 healthRow(icon: "lungs", label: "VO₂max", value: hd.vo2max > 0 ? "\(hd.vo2max) ml/kg/min" : "Not set")
-                                Divider().background(Color.black.opacity(0.1))
+                                AscentDivider()
                                 healthRow(icon: "flame", label: "Active hours/week", value: "\(hd.weeklyActiveHours) h")
-                                Divider().background(Color.black.opacity(0.1))
+                                AscentDivider()
                                 healthRow(icon: "figure.run", label: "Endurance", value: hd.endurance.rawValue)
-                                Divider().background(Color.black.opacity(0.1))
+                                AscentDivider()
                                 Button(action: { showResetCoachConfirm = true }) {
                                     SettingsRowLabel(icon: "arrow.counterclockwise", iconColor: .orange, text: "Reset AI Coach")
                                 }
@@ -94,7 +93,7 @@ struct SettingsView: View {
                                     else { notificationsEnabled = false }
                                 }
                             )) {
-                                SettingsRowLabel(icon: "bell.badge.fill", iconColor: .red, text: "Push Notifications")
+                                SettingsRowLabel(icon: "bell.badge.fill", iconColor: DesignSystem.Colors.metricHeart, text: "Push Notifications")
                             }
                             .tint(accentBlue)
                         }
@@ -105,30 +104,33 @@ struct SettingsView: View {
                             }
                         }
 
-                        // Version info
                         versionInfo
                     }
-                    .padding(.horizontal, 20)
+                    .padding(.horizontal, DesignSystem.Spacing.screenInset)
                     .padding(.top, 12)
                     .padding(.bottom, 40)
                 }
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarColorScheme(.light, for: .navigationBar)
-            .toolbarBackground(Color(white: 0.98), for: .navigationBar)
+            .toolbarColorScheme(.dark, for: .navigationBar)
+            .toolbarBackground(DesignSystem.Colors.surface, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: { dismiss() }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(.gray)
-                            .font(.app(.title3))
+                        Image(systemName: "xmark")
+                            .font(.system(size: 13, weight: .heavy))
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
+                            .frame(width: 30, height: 30)
+                            .background(Color.white.opacity(0.08))
+                            .clipShape(Circle())
                     }
+                    .buttonStyle(.plain)
                 }
             }
         }
-        .preferredColorScheme(.light)
+        .preferredColorScheme(.dark)
         .sheet(isPresented: $showEditProfile) {
             EditAccountView()
         }
@@ -179,11 +181,11 @@ struct SettingsView: View {
     private var versionInfo: some View {
         VStack(spacing: 4) {
             Text("Ascent")
-                .font(.app(size: 14, weight: .bold))
-                .foregroundColor(.gray.opacity(0.5))
+                .font(.appMono(size: 12, weight: .bold))
+                .foregroundColor(DesignSystem.Colors.tertiaryText)
             Text("Version 1.1.0")
-                .font(.app(size: 11))
-                .foregroundColor(.gray.opacity(0.3))
+                .font(.appMono(size: 10, weight: .medium))
+                .foregroundColor(DesignSystem.Colors.tertiaryText.opacity(0.6))
         }
         .padding(.top, 16)
     }
@@ -191,23 +193,18 @@ struct SettingsView: View {
     // MARK: - Helpers
 
     private func healthRow(icon: String, label: String, value: String) -> some View {
-        HStack(spacing: 15) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(accentBlue.opacity(0.2))
-                    .frame(width: 32, height: 32)
-                Image(systemName: icon)
-                    .foregroundColor(accentBlue)
-                    .font(.app(size: 14, weight: .bold))
-            }
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(accentBlue)
+                .frame(width: 24)
             Text(label)
-                .font(.app(.subheadline))
-                .fontWeight(.semibold)
-                .foregroundColor(.primary)
+                .font(.app(size: 14, weight: .medium))
+                .foregroundColor(.white)
             Spacer()
             Text(value)
-                .font(.app(.subheadline))
-                .foregroundColor(.secondary)
+                .font(.appMono(size: 14, weight: .bold))
+                .foregroundColor(.white)
         }
     }
 
@@ -268,12 +265,14 @@ struct SettingsSection<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(title)
-                .font(.app(size: 11, weight: .black))
-                .foregroundColor(.secondary)
+                .font(.appMono(size: 11, weight: .bold))
+                .foregroundColor(DesignSystem.Colors.tertiaryText)
                 .tracking(2)
-                .padding(.leading, 10)
-            VStack(spacing: 15) { content }
-                .sectionCard()
+                .padding(.leading, 4)
+            VStack(spacing: 0) { content }
+                .padding(.horizontal, DesignSystem.Spacing.cardPadding)
+                .padding(.vertical, 12)
+                .ascentCard()
         }
     }
 }
@@ -314,7 +313,7 @@ struct ExportAllToursSheet: View {
 
                 Text("Export all your recorded tours as individual GPX files bundled in a single archive.")
                     .font(.app(.subheadline))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 30)
 
@@ -411,7 +410,7 @@ struct ShareLocationSheet: View {
 
                 Text(locationText)
                     .font(.app(.subheadline))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 30)
 
@@ -463,29 +462,25 @@ struct SettingsRowLabel: View {
     let icon: String
     let iconColor: Color
     let text: String
-    var textColor: Color = .primary
+    var textColor: Color = .white
     var showArrow: Bool = false
 
     var body: some View {
-        HStack(spacing: 15) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(iconColor.opacity(0.2))
-                    .frame(width: 32, height: 32)
-                Image(systemName: icon)
-                    .foregroundColor(iconColor)
-                    .font(.app(size: 14, weight: .bold))
-            }
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundColor(iconColor)
+                .frame(width: 24)
             Text(text)
-                .font(.app(.subheadline))
-                .fontWeight(.semibold)
+                .font(.app(size: 15, weight: .medium))
                 .foregroundColor(textColor)
             Spacer()
             if showArrow {
                 Image(systemName: "chevron.right")
-                    .font(.app(.caption))
-                    .foregroundColor(.gray)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(DesignSystem.Colors.tertiaryText)
             }
         }
+        .padding(.vertical, 6)
     }
 }

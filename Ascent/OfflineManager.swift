@@ -175,7 +175,7 @@ struct OfflineDownloadsView: View {
                     Spacer()
                     Text(offlineManager.storageUsedFormatted)
                         .font(.app(.caption))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
                 }
 
                 GeometryReader { geo in
@@ -208,7 +208,7 @@ struct OfflineDownloadsView: View {
                                 .fontWeight(.semibold)
                             Text("\(region.sizeFormatted) · Downloaded \(region.downloadDate.formatted(.relative(presentation: .named)))")
                                 .font(.app(.caption))
-                                .foregroundColor(.secondary)
+                                .foregroundColor(DesignSystem.Colors.secondaryText)
                         }
 
                         Spacer()
@@ -240,7 +240,7 @@ struct OfflineDownloadsView: View {
                                 .fontWeight(.semibold)
                             Text(route.routeName)
                                 .font(.app(.caption))
-                                .foregroundColor(.secondary)
+                                .foregroundColor(DesignSystem.Colors.secondaryText)
                         }
 
                         Spacer()
@@ -266,7 +266,7 @@ struct OfflineDownloadsView: View {
                             .fontWeight(.semibold)
                         Text("Download maps and routes from the Explore tab to use them without internet.")
                             .font(.app(.caption))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
                     }
                 }
                 .padding(14)

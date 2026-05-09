@@ -19,7 +19,7 @@ struct MountainProAnalysisSheet: View {
     var body: some View {
         NavigationView {
             ZStack {
-                DesignSystem.Colors.surfaceMuted.ignoresSafeArea()
+                DesignSystem.Colors.background.ignoresSafeArea()
 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
@@ -29,7 +29,7 @@ struct MountainProAnalysisSheet: View {
                                 .font(.app(size: 24, weight: .bold))
                             Text("\(mountain.elevation)m · \(mountain.region)")
                                 .font(.app(size: 13))
-                                .foregroundColor(.secondary)
+                                .foregroundColor(DesignSystem.Colors.secondaryText)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.horizontal, 20)
@@ -99,7 +99,7 @@ struct MountainProAnalysisSheet: View {
                 Spacer()
                 Text("Open-Meteo")
                     .font(.app(size: 9, weight: .bold))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
             }
 
             HStack(alignment: .top, spacing: 16) {
@@ -117,7 +117,7 @@ struct MountainProAnalysisSheet: View {
                     if let feels = f.feelsLikeCelsius {
                         Text("Feels \(Int(feels.rounded()))°C")
                             .font(.app(size: 11))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
                     }
                 }
                 Spacer()
@@ -146,7 +146,7 @@ struct MountainProAnalysisSheet: View {
                             VStack(spacing: 4) {
                                 Text(hourLabel(h.timeISO))
                                     .font(.app(size: 9, weight: .bold))
-                                    .foregroundColor(.secondary)
+                                    .foregroundColor(DesignSystem.Colors.secondaryText)
                                 Image(systemName: WeatherCodeInfo.from(h.weatherCode).symbol)
                                     .symbolRenderingMode(.multicolor)
                                     .font(.app(size: 16))
@@ -160,13 +160,12 @@ struct MountainProAnalysisSheet: View {
             }
         }
         .padding(DesignSystem.Spacing.md)
-        .background(Color(.secondarySystemBackground))
+        .background(DesignSystem.Colors.surface)
         .clipShape(RoundedRectangle(cornerRadius: DesignSystem.Radius.lg))
         .overlay(
             RoundedRectangle(cornerRadius: DesignSystem.Radius.lg)
                 .stroke(Color.black.opacity(0.04), lineWidth: 0.5)
         )
-        .shadow(color: .black.opacity(0.05), radius: 8, y: 2)
         .padding(.horizontal, DesignSystem.Spacing.md)
     }
 
@@ -180,7 +179,7 @@ struct MountainProAnalysisSheet: View {
                 Spacer()
                 Text(b.regionName)
                     .font(.app(size: 10, weight: .bold))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
                     .lineLimit(1)
             }
 
@@ -194,7 +193,6 @@ struct MountainProAnalysisSheet: View {
                         .font(.app(size: 28, weight: .black))
                         .foregroundColor(b.dangerLevel >= 4 ? .white : .black)
                 }
-                .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(b.dangerLabel.uppercased())
@@ -203,13 +201,13 @@ struct MountainProAnalysisSheet: View {
                     if !b.problems.isEmpty {
                         Text(b.problems.prefix(3).joined(separator: ", ").replacingOccurrences(of: "_", with: " "))
                             .font(.app(size: 11))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
                             .lineLimit(2)
                     }
                     if !b.validUntil.isEmpty {
                         Text("Valid until \(prettyDate(b.validUntil))")
                             .font(.app(size: 10))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
                     }
                 }
                 Spacer()
@@ -219,18 +217,17 @@ struct MountainProAnalysisSheet: View {
             if !summary.isEmpty {
                 Text(summary)
                     .font(.app(size: 12))
-                    .foregroundColor(.primary)
+                    .foregroundColor(.white)
                     .lineLimit(8)
             }
         }
         .padding(DesignSystem.Spacing.md)
-        .background(Color(.secondarySystemBackground))
+        .background(DesignSystem.Colors.surface)
         .clipShape(RoundedRectangle(cornerRadius: DesignSystem.Radius.lg))
         .overlay(
             RoundedRectangle(cornerRadius: DesignSystem.Radius.lg)
                 .stroke(Color.black.opacity(0.04), lineWidth: 0.5)
         )
-        .shadow(color: .black.opacity(0.05), radius: 8, y: 2)
         .padding(.horizontal, DesignSystem.Spacing.md)
     }
 
@@ -255,7 +252,7 @@ struct MountainProAnalysisSheet: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text("Distance per slope band")
                     .font(.app(size: 11, weight: .bold))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
                 GeometryReader { geo in
                     HStack(spacing: 1) {
                         ForEach(SlopeBand.allCases, id: \.rawValue) { band in
@@ -285,7 +282,7 @@ struct MountainProAnalysisSheet: View {
                             Spacer()
                             Text(String(format: "%.2f km", d / 1000))
                                 .font(.app(size: 11))
-                                .foregroundColor(.secondary)
+                                .foregroundColor(DesignSystem.Colors.secondaryText)
                                 .monospacedDigit()
                         }
                     }
@@ -293,13 +290,12 @@ struct MountainProAnalysisSheet: View {
             }
         }
         .padding(DesignSystem.Spacing.md)
-        .background(Color(.secondarySystemBackground))
+        .background(DesignSystem.Colors.surface)
         .clipShape(RoundedRectangle(cornerRadius: DesignSystem.Radius.lg))
         .overlay(
             RoundedRectangle(cornerRadius: DesignSystem.Radius.lg)
                 .stroke(Color.black.opacity(0.04), lineWidth: 0.5)
         )
-        .shadow(color: .black.opacity(0.05), radius: 8, y: 2)
         .padding(.horizontal, DesignSystem.Spacing.md)
     }
 
@@ -311,7 +307,7 @@ struct MountainProAnalysisSheet: View {
                 .foregroundColor(.gray)
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.app(size: 13, weight: .heavy))
-                Text(message).font(.app(size: 11)).foregroundColor(.secondary)
+                Text(message).font(.app(size: 11)).foregroundColor(DesignSystem.Colors.secondaryText)
             }
             Spacer()
         }
@@ -332,7 +328,7 @@ struct MountainProAnalysisSheet: View {
             Text(label)
                 .font(.app(size: 9, weight: .bold))
                 .tracking(0.6)
-                .foregroundColor(.secondary)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 10)
@@ -347,7 +343,7 @@ struct MountainProAnalysisSheet: View {
             Text(label)
                 .font(.app(size: 9, weight: .bold))
                 .tracking(0.6)
-                .foregroundColor(.secondary)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 10)

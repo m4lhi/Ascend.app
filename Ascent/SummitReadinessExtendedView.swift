@@ -220,12 +220,12 @@ struct SummitReadinessExtendedView: View {
                     VStack(alignment: .leading, spacing: 3) {
                         Text("SUMMIT READINESS")
                             .font(.appMono(size: 10, weight: .bold))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
                             .tracking(1.8)
                         if let lastDate = appState.extendedReadinessAnsweredAt {
                             Text("Updated \(relativeDateString(lastDate))")
                                 .font(.app(size: 12))
-                                .foregroundColor(.secondary)
+                                .foregroundColor(DesignSystem.Colors.secondaryText)
                         }
                     }
                     Spacer()
@@ -279,7 +279,6 @@ struct SummitReadinessExtendedView: View {
                                 Text(String(ch))
                                     .font(.appMono(size: 46, weight: .black))
                                     .foregroundColor(.white)
-                                    .shadow(color: .black.opacity(0.18), radius: 4, y: 2)
                                     .offset(y: i < charBounces.count ? charBounces[i] : 0)
                             }
                         }
@@ -300,7 +299,7 @@ struct SummitReadinessExtendedView: View {
                     if let readiness = appState.readiness {
                         Text("\(readiness.totalScore) / 100")
                             .font(.appMono(size: 10, weight: .semibold))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
                     }
                 }
                 .padding(.horizontal, 20)
@@ -310,7 +309,7 @@ struct SummitReadinessExtendedView: View {
                 if let readiness = appState.readiness {
                     Text(readiness.recommendation)
                         .font(.app(size: 13))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
                         .padding(.horizontal, 20)
                         .padding(.bottom, 20)
 
@@ -329,7 +328,7 @@ struct SummitReadinessExtendedView: View {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("LAST 90 DAYS")
                             .font(.appMono(size: 10, weight: .bold))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
                             .tracking(1.4)
                             .padding(.horizontal, 20)
                         ReadinessCalendarGrid(history: appState.readinessHistory)
@@ -353,7 +352,6 @@ struct SummitReadinessExtendedView: View {
                     .padding(.vertical, 16)
                     .background(accent)
                     .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                    .shadow(color: accent.opacity(0.30), radius: 12, y: 6)
                 }
                 .buttonStyle(PressableButtonStyle())
                 .padding(.horizontal, 20)
@@ -369,16 +367,16 @@ struct SummitReadinessExtendedView: View {
             Circle().fill(c).frame(width: 6, height: 6)
             Text(label)
                 .font(.appMono(size: 9, weight: .bold))
-                .foregroundColor(.secondary)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
                 .tracking(0.8)
             Spacer()
             Text("\(score)")
                 .font(.appMono(size: 12, weight: .black))
-                .foregroundColor(.primary)
+                .foregroundColor(.white)
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
-        .background(.ultraThinMaterial)
+        .background(DesignSystem.Colors.surface)
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
@@ -390,7 +388,7 @@ struct SummitReadinessExtendedView: View {
                 VStack(alignment: .leading, spacing: 5) {
                     Text("SUMMIT READINESS")
                         .font(.appMono(size: 10, weight: .bold))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
                         .tracking(1.6)
                     Text("20 Questions")
                         .font(.app(size: 26, weight: .black))
@@ -429,7 +427,7 @@ struct SummitReadinessExtendedView: View {
                     .frame(width: 5, height: 5)
                 Text("\(mandatoryAnsweredCount)/5 essential questions answered")
                     .font(.appMono(size: 10, weight: .semibold))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
             }
             .padding(.horizontal, 20)
             .padding(.top, 8)
@@ -489,7 +487,7 @@ struct SummitReadinessExtendedView: View {
             if showTipFor == item.id {
                 HStack(alignment: .top, spacing: 8) {
                     Image(systemName: "lightbulb.fill").font(.app(size: 11)).foregroundColor(.orange)
-                    Text(item.tip).font(.app(size: 12)).foregroundColor(.secondary)
+                    Text(item.tip).font(.app(size: 12)).foregroundColor(DesignSystem.Colors.secondaryText)
                 }
                 .padding(10)
                 .background(Color.orange.opacity(0.08))
@@ -501,7 +499,7 @@ struct SummitReadinessExtendedView: View {
             }
         }
         .padding(14)
-        .background(.ultraThinMaterial)
+        .background(DesignSystem.Colors.surface)
         .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 
@@ -523,7 +521,7 @@ struct SummitReadinessExtendedView: View {
                  ? "Answer all 5 essential questions to save"
                  : "Your answers feed into Time-to-Go and AI Coach.")
                 .font(.app(size: 11))
-                .foregroundColor(.secondary)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
                 .multilineTextAlignment(.center)
         }
         .padding(.horizontal, 16)
@@ -537,7 +535,7 @@ struct SummitReadinessExtendedView: View {
             Image(systemName: icon).font(.app(size: 13, weight: .bold)).foregroundColor(color)
             Text(title.uppercased())
                 .font(.appMono(size: 11, weight: .bold))
-                .foregroundColor(.secondary)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
                 .tracking(1.2)
             Spacer()
         }
@@ -562,7 +560,7 @@ struct SummitReadinessExtendedView: View {
                 Spacer()
                 Text("\(Int(value.wrappedValue))/5")
                     .font(.appMono(size: 12, weight: .bold))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
                 Button {
                     withAnimation { showTipFor = showTipFor == id ? nil : id }
                 } label: {
@@ -570,7 +568,7 @@ struct SummitReadinessExtendedView: View {
                 }
             }
             if showTipFor == id {
-                Text(tip).font(.app(size: 11)).foregroundColor(.secondary)
+                Text(tip).font(.app(size: 11)).foregroundColor(DesignSystem.Colors.secondaryText)
                     .padding(8)
                     .background(Color.orange.opacity(0.08))
                     .clipShape(RoundedRectangle(cornerRadius: 8))
@@ -580,13 +578,13 @@ struct SummitReadinessExtendedView: View {
             }
             .tint(accent)
             HStack {
-                Text(minLabel).font(.appMono(size: 9, weight: .semibold)).foregroundColor(.secondary)
+                Text(minLabel).font(.appMono(size: 9, weight: .semibold)).foregroundColor(DesignSystem.Colors.secondaryText)
                 Spacer()
-                Text(maxLabel).font(.appMono(size: 9, weight: .semibold)).foregroundColor(.secondary)
+                Text(maxLabel).font(.appMono(size: 9, weight: .semibold)).foregroundColor(DesignSystem.Colors.secondaryText)
             }
         }
         .padding(14)
-        .background(.ultraThinMaterial)
+        .background(DesignSystem.Colors.surface)
         .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 
@@ -725,7 +723,7 @@ struct ReadinessCalendarGrid: View {
                 ForEach(["M","T","W","T","F","S","S"].indices, id: \.self) { i in
                     Text(["M","T","W","T","F","S","S"][i])
                         .font(.appMono(size: 9, weight: .bold))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
                         .frame(maxWidth: .infinity)
                 }
             }
