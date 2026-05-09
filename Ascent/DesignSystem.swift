@@ -705,6 +705,68 @@ struct BodyDataTile: View {
     }
 }
 
+// MARK: - Corner Glow Background (Outsiders-style ambient page glow)
+struct CornerGlowModifier: ViewModifier {
+    let color: Color
+    let intensity: Double
+    let corner: UnitPoint
+
+    func body(content: Content) -> some View {
+        content.background(
+            ZStack {
+                DesignSystem.Colors.background.ignoresSafeArea()
+                RadialGradient(
+                    colors: [color.opacity(intensity), .clear],
+                    center: corner,
+                    startRadius: 0,
+                    endRadius: 400
+                )
+                .ignoresSafeArea()
+                .blur(radius: 60)
+            }
+        )
+    }
+}
+
+extension View {
+    func cornerGlow(_ color: Color, intensity: Double = 0.15, corner: UnitPoint = .topLeading) -> some View {
+        modifier(CornerGlowModifier(color: color, intensity: intensity, corner: corner))
+    }
+}
+
+// MARK: - Neon Sweep Animation
+struct NeonSweepModifier: ViewModifier {
+    let color: Color
+    @State private var sweep = false
+
+    func body(content: Content) -> some View {
+        content.overlay(
+            GeometryReader { geo in
+                LinearGradient(
+                    colors: [.clear, color.opacity(0.08), color.opacity(0.15), color.opacity(0.08), .clear],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+                .frame(width: geo.size.width * 0.4)
+                .offset(x: sweep ? geo.size.width * 1.2 : -geo.size.width * 0.5)
+                .animation(
+                    .easeInOut(duration: 3.0).repeatForever(autoreverses: false),
+                    value: sweep
+                )
+            }
+            .clipped()
+            .allowsHitTesting(false)
+            .onAppear { sweep = true }
+        )
+    }
+}
+
+extension View {
+    func neonSweep(_ color: Color = .white) -> some View {
+        modifier(NeonSweepModifier(color: color))
+    }
+}
+
 // MARK: - Readiness Ring (Outsiders-style progress ring)
 struct ReadinessRing: View {
     let progress: Double
