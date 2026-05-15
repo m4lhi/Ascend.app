@@ -14,6 +14,7 @@ struct BasecampView: View {
     @EnvironmentObject var profileVM: ProfileViewModel
     @EnvironmentObject var feedVM: FeedViewModel
     @EnvironmentObject var leaderboardVM: LeaderboardViewModel
+    @EnvironmentObject var discoveryVM: DiscoveryViewModel
     @State private var showXPDetails = false
     @State private var showTracker = false
     @State private var mountainToTrack: Mountain? = nil
@@ -116,7 +117,7 @@ struct BasecampView: View {
                         }
                         .padding(.horizontal, 16)
 
-                        if !appState.suggestedRoutes.isEmpty {
+                        if !discoveryVM.suggestedRoutes.isEmpty {
                             suggestedRoutesSection
                                 .padding(.top, 12)
                         }
@@ -132,7 +133,7 @@ struct BasecampView: View {
         }
         .onAppear {
             feedVM.fetchFeed()
-            appState.fetchRecommendedPeaks()
+            discoveryVM.fetchRecommendedPeaks()
             appState.refreshReadiness()
             let lat = appState.activeMountain?.latitude ?? 45.8326
             let lon = appState.activeMountain?.longitude ?? 6.8652
@@ -1052,7 +1053,7 @@ struct BasecampView: View {
             sectionHeader("Suggested Routes", icon: "signpost.right.fill", iconColor: .green)
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
-                    ForEach(appState.suggestedRoutes) { mountain in
+                    ForEach(discoveryVM.suggestedRoutes) { mountain in
                         RouteCard(mountain: mountain) {
                             mountainDetailToShow = mountain
                         }
