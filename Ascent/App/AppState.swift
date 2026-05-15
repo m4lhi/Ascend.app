@@ -224,6 +224,12 @@ class AppState: ObservableObject {
     // (uploadProfileToCloud) to trigger a leaderboard refresh.
     weak var leaderboardVM: LeaderboardViewModel?
 
+    // Weak reference to ReadinessViewModel (R3 step 6). Set by AscentApp.
+    // Used by fetchAscendProfile's inactivity-reset path to clear
+    // questionnaire / weekly / readiness state alongside AppState's own
+    // streak_days reset.
+    weak var readinessVM: ReadinessViewModel?
+
     init() {
         loadContextualPersistence()
     }
