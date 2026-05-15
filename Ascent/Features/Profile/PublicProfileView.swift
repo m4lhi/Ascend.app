@@ -34,7 +34,8 @@ struct PublicProfileView: View {
     
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var appState: AppState
-    
+    @EnvironmentObject var leaderboardVM: LeaderboardViewModel
+
     private let accent = DesignSystem.Colors.accent
     private let gold = Color(red: 0.85, green: 0.65, blue: 0.13)
     
@@ -160,7 +161,7 @@ struct PublicProfileView: View {
                             Button(action: {
                                 addingFriend = true
                                 Task {
-                                    appState.addFriend(handleToSearch: userHandle)
+                                    leaderboardVM.addFriend(handleToSearch: userHandle)
                                     await MainActor.run {
                                         // Assume it works locally for UI feedback
                                         isFriend = true
@@ -259,7 +260,7 @@ struct PublicProfileView: View {
         let myId = try? await supabase.auth.session.user.id
         let selfStatus = (myId == id)
         
-        var friendStatus = appState.friendsLeaderboard.contains { $0.id == id }
+        var friendStatus = leaderboardVM.friendsLeaderboard.contains { $0.id == id }
         if !friendStatus, let myId = myId {
             do {
                 let existingFriendships: [FriendshipRule] = try await supabase.from("friendships").select("friend_id").eq("user_id", value: myId).eq("friend_id", value: id).execute().value
