@@ -231,7 +231,7 @@ class AppState: ObservableObject {
     weak var readinessVM: ReadinessViewModel?
 
     init() {
-        loadContextualPersistence()
+        // ReadinessViewModel loads contextual persistence in its own init (R3 step 6).
     }
 
     // --- GLOBAL TRACKER STATE ---
@@ -262,9 +262,9 @@ class AppState: ObservableObject {
     // Ascend Progress
     @Published var ascendProfile: AscendProfile? = nil
     
-    // Readiness & Health
-    @Published var readiness: ReadinessBreakdown? = nil
-    @Published var healthProfile: HealthKitProfile? = nil
+    // Readiness + health state (readiness, healthProfile, timeToGoAnswers,
+    // extendedReadinessAnswers, weeklyGoScores, readinessHistory + helpers)
+    // lives in ReadinessViewModel (R3 step 6).
 
     
     // Feed state (recentTours, bookmarkedTours) lives in FeedViewModel (R3 step 3).
@@ -289,129 +289,8 @@ class AppState: ObservableObject {
     // flips `selectedTab`; nil'd back out after the switch is applied.
     @Published var pendingTab: Int? = nil
 
-    // Time-to-Go — answers to the contextual questionnaire, keyed by question id.
-    // Multi-select answers are stored as arrays of strings, boolean/scalar answers
-    // as a one-element array ("true" / "3" / etc.) so the storage stays uniform.
-    @Published var timeToGoAnswers: [String: [String]] = [:] {
-        didSet { saveTimeToGoAnswers() }
-    }
-    @Published var timeToGoAnsweredAt: Date? = nil
-
-    // Extended Summit Readiness — subjective answers beyond the 5 mandatory sliders.
-    @Published var extendedReadinessAnswers: [String: [String]] = [:] {
-        didSet { saveExtendedReadiness() }
-    }
-    @Published var extendedReadinessAnsweredAt: Date? = nil
-
-    // Weekly go-score log: one entry per ISO weekday (1 = Monday … 7 = Sunday).
-    // Each value is a 0–100 score used by the 5-stage tracker pill.
-    @Published var weeklyGoScores: [Int: Int] = [:] {
-        didSet { saveWeeklyGoScores() }
-    }
-
-    // Historical readiness log keyed by "yyyy-MM-dd" → score 0–100.
-    // Retained for 90 days; used by the Summit Readiness calendar view.
-    @Published var readinessHistory: [String: Int] = [:] {
-        didSet { saveReadinessHistory() }
-    }
-
-    private func saveTimeToGoAnswers() {
-        if let data = try? JSONEncoder().encode(timeToGoAnswers) {
-            UserDefaults.standard.set(data, forKey: "timeToGoAnswers")
-        }
-        if let at = timeToGoAnsweredAt {
-            UserDefaults.standard.set(at, forKey: "timeToGoAnsweredAt")
-        }
-    }
-    private func saveExtendedReadiness() {
-        if let data = try? JSONEncoder().encode(extendedReadinessAnswers) {
-            UserDefaults.standard.set(data, forKey: "extendedReadinessAnswers")
-        }
-        if let at = extendedReadinessAnsweredAt {
-            UserDefaults.standard.set(at, forKey: "extendedReadinessAnsweredAt")
-        }
-    }
-    private func saveWeeklyGoScores() {
-        let strKeyed = Dictionary(uniqueKeysWithValues: weeklyGoScores.map { (String($0.key), $0.value) })
-        if let data = try? JSONEncoder().encode(strKeyed) {
-            UserDefaults.standard.set(data, forKey: "weeklyGoScores")
-        }
-    }
-    private func saveReadinessHistory() {
-        if let data = try? JSONEncoder().encode(readinessHistory) {
-            UserDefaults.standard.set(data, forKey: "readinessHistory")
-        }
-    }
-
-    /// Records today's score in the persistent readiness history and trims entries older than 90 days.
-    func recordReadinessScore(_ score: Int) {
-        let key = isoDateKey(Date())
-        readinessHistory[key] = score
-        let cutoff = Calendar.current.date(byAdding: .day, value: -90, to: Date()) ?? Date()
-        let fmt = DateFormatter(); fmt.dateFormat = "yyyy-MM-dd"
-        readinessHistory = readinessHistory.filter {
-            guard let d = fmt.date(from: $0.key) else { return false }
-            return d >= cutoff
-        }
-    }
-
-    private func isoDateKey(_ date: Date) -> String {
-        let fmt = DateFormatter(); fmt.dateFormat = "yyyy-MM-dd"
-        return fmt.string(from: date)
-    }
-
-    func loadContextualPersistence() {
-        if let data = UserDefaults.standard.data(forKey: "timeToGoAnswers"),
-           let decoded = try? JSONDecoder().decode([String: [String]].self, from: data) {
-            timeToGoAnswers = decoded
-        }
-        timeToGoAnsweredAt = UserDefaults.standard.object(forKey: "timeToGoAnsweredAt") as? Date
-        if let data = UserDefaults.standard.data(forKey: "extendedReadinessAnswers"),
-           let decoded = try? JSONDecoder().decode([String: [String]].self, from: data) {
-            extendedReadinessAnswers = decoded
-        }
-        extendedReadinessAnsweredAt = UserDefaults.standard.object(forKey: "extendedReadinessAnsweredAt") as? Date
-        if let data = UserDefaults.standard.data(forKey: "weeklyGoScores"),
-           let decoded = try? JSONDecoder().decode([String: Int].self, from: data) {
-            weeklyGoScores = Dictionary(uniqueKeysWithValues: decoded.compactMap {
-                guard let k = Int($0.key) else { return nil }
-                return (k, $0.value)
-            })
-        }
-        if let data = UserDefaults.standard.data(forKey: "readinessHistory"),
-           let decoded = try? JSONDecoder().decode([String: Int].self, from: data) {
-            readinessHistory = decoded
-        }
-    }
-
-    /// Time-to-Go composite score (0–100). Combines readiness, recent workload
-    /// and the subjective answers from `timeToGoAnswers`. Conservative by design:
-    /// missing data pulls the score down rather than up.
-    var timeToGoScore: Int {
-        let readinessPart = Double(readiness?.totalScore ?? 50)
-        // Subjective component: every answered question contributes +3, capped at 30.
-        let answered = timeToGoAnswers.values.filter { !$0.isEmpty && $0 != [""] }.count
-        let subjectiveBonus = min(Double(answered) * 3.0, 30.0)
-        // Mandatory questions penalty: if fewer than 6 mandatory answers, scale down.
-        let mandatoryAnswered = ["sleep", "nutrition", "weather", "gear", "partners", "motivation"]
-            .filter { !(timeToGoAnswers[$0]?.isEmpty ?? true) }
-            .count
-        let mandatoryFactor = Double(mandatoryAnswered) / 6.0
-        let raw = (readinessPart * 0.55 + subjectiveBonus * 1.5) * max(0.4, mandatoryFactor)
-        return min(100, max(0, Int(raw)))
-    }
-
-    /// Map a 0–100 score onto 5 stages for the Time-to-Go tracker pills.
-    /// Stages: 0 = deep-red (do not go), 4 = deep-green (prime).
-    func goStage(for score: Int) -> Int {
-        switch score {
-        case ..<25: return 0
-        case ..<45: return 1
-        case ..<65: return 2
-        case ..<82: return 3
-        default:    return 4
-        }
-    }
+    // Questionnaire + persistence + score helpers live in ReadinessViewModel
+    // (R3 step 6). loadContextualPersistence dropped — VM loads from its init.
 
     // Feed pagination state (isLoadingMoreFeed, hasMoreFeed, feedPage,
     // feedPageSize, feedMaxItems) lives in FeedViewModel (R3 step 3).
@@ -532,63 +411,23 @@ class AppState: ObservableObject {
         }
     }
     
-    /// Resets streak and clears weekly scores if the user has been inactive for more than 7 days.
-    /// Also clears the weekly go-score grid so stale pills don't mislead.
+    /// Reset streak after >7 days of inactivity. Delegates the readiness-
+    /// surface reset (weeklyGoScores, extendedReadiness*, readiness) to
+    /// ReadinessViewModel. streak_days stays here until R5 moves it to
+    /// ProgressViewModel alongside ascendProfile.
     private func applyInactivityReset() {
         guard let profile = ascendProfile,
               let lastActive = profile.last_activity_date else { return }
         let daysSinceActive = Calendar.current.dateComponents([.day], from: lastActive, to: Date()).day ?? 0
         guard daysSinceActive > 7 else { return }
 
-        // Reset streak locally; the next tour logged will rebuild it via Supabase
         ascendProfile?.streak_days = 0
-        // Clear the current-week pill grid so the user sees blank history, not stale data
-        weeklyGoScores = [:]
-        // Clear readiness assessment so they start fresh after a long break
-        extendedReadinessAnswers = [:]
-        extendedReadinessAnsweredAt = nil
-        readiness = nil
-        UserDefaults.standard.removeObject(forKey: "extendedReadinessAnswers")
-        UserDefaults.standard.removeObject(forKey: "extendedReadinessAnsweredAt")
+        readinessVM?.applyInactivityReset()
     }
 
-    // --- READINESS FUNKTIONEN ---
+    // Readiness refresh + composite scores live in ReadinessViewModel
+    // (R3 step 6). Views call readinessVM.refresh() directly.
 
-    func refreshReadiness() {
-        Task {
-            // Resolve target mountain (Supabase lookup) from coaching plan, if any.
-            // Stays here until R3 moves this into ReadinessViewModel / MountainService.
-            var targetMt: Mountain? = nil
-            if let goalData = UserDefaults.standard.data(forKey: "coaching_plan_data"),
-               let plan = try? JSONDecoder().decode(CoachingPlan.self, from: goalData) {
-                let results: [Mountain]? = try? await supabase
-                    .from("mountains")
-                    .select("id,name,elevation,difficulty,region,country,image_url,latitude,longitude,isPrestigePeak")
-                    .ilike("name", value: "%\(plan.goalName)%")
-                    .limit(1)
-                    .execute()
-                    .value
-                targetMt = results?.first
-            }
-
-            // Fetch current weather for the resolved target, if coordinates available.
-            var weather: MountainWeather? = nil
-            if let targetMt, let lat = targetMt.latitude, let lon = targetMt.longitude {
-                await WeatherManager.shared.fetchWeather(latitude: lat, longitude: lon)
-                weather = WeatherManager.shared.currentWeather
-            }
-
-            // Delegate to HealthCoordinator: it fetches the HealthKit profile,
-            // runs ReadinessManager.calculate, and writes back into
-            // self.healthProfile / self.readiness (mirror until R3).
-            await HealthCoordinator.shared.refreshReadiness(
-                tours: feedVM?.recentTours ?? [],
-                targetMountain: targetMt,
-                targetWeather: weather
-            )
-        }
-    }
-    
     // Feed fetch / pagination / bookmarks live in FeedViewModel (R3 step 3).
 
     func addCompletedTour(summit: String, comment: String, elevation: Int, duration: TimeInterval, distance: Double, xp: Int, pauses: [PauseEntry] = [], photoData: Data? = nil, rawRoute: [CLLocation] = []) {
