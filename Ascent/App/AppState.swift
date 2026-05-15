@@ -98,9 +98,7 @@ struct PauseEntry: Codable, Identifiable {
     }
 }
 
-struct FriendshipRule: Codable {
-    let friend_id: UUID
-}
+// FriendshipRule lives in Core/Models/FriendshipRule.swift (R3 step 4).
 
 // Tour / CloudFistBump / CloudComment / CloudBookmark / CommentDisplay
 // live in Core/Models/Tour.swift (R3 step 3).
