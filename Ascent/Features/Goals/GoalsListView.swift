@@ -201,6 +201,7 @@ struct GoalsListView: View {
 struct AddGoalSheet: View {
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var appState: AppState
+    @EnvironmentObject var discoveryVM: DiscoveryViewModel
     let onSave: (Goal) -> Void
 
     @State private var search: String = ""
@@ -214,7 +215,7 @@ struct AddGoalSheet: View {
     private let accent = DesignSystem.Colors.accent
 
     private var filteredPeaks: [Mountain] {
-        let candidates = appState.recommendedPeaks + appState.suggestedRoutes
+        let candidates = discoveryVM.recommendedPeaks + discoveryVM.suggestedRoutes
         let unique = Array(Set(candidates))
         if search.isEmpty {
             return Array(unique.prefix(20))

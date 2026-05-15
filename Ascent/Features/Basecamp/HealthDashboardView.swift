@@ -5,6 +5,7 @@ struct HealthDashboardView: View {
     @EnvironmentObject var profileVM: ProfileViewModel
     @EnvironmentObject var feedVM: FeedViewModel
     @EnvironmentObject var leaderboardVM: LeaderboardViewModel
+    @EnvironmentObject var discoveryVM: DiscoveryViewModel
     @StateObject private var healthData = HealthDataProvider.shared
     @ObservedObject private var weather = WeatherManager.shared
     @State private var showSettings = false
@@ -89,7 +90,7 @@ struct HealthDashboardView: View {
                     trophyAccessCard
                         .padding(.horizontal, DesignSystem.Spacing.screenInset)
 
-                    if !appState.suggestedRoutes.isEmpty {
+                    if !discoveryVM.suggestedRoutes.isEmpty {
                         suggestedRoutesSection
                     }
 
@@ -102,7 +103,7 @@ struct HealthDashboardView: View {
         .task {
             await healthData.fetchAll()
             feedVM.fetchFeed()
-            appState.fetchRecommendedPeaks()
+            discoveryVM.fetchRecommendedPeaks()
             appState.refreshReadiness()
             let lat = appState.activeMountain?.latitude ?? 45.8326
             let lon = appState.activeMountain?.longitude ?? 6.8652
@@ -731,7 +732,7 @@ struct HealthDashboardView: View {
                 .padding(.horizontal, DesignSystem.Spacing.screenInset)
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
-                    ForEach(appState.suggestedRoutes) { mountain in
+                    ForEach(discoveryVM.suggestedRoutes) { mountain in
                         RouteCard(mountain: mountain) {}
                     }
                 }

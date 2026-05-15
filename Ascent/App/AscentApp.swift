@@ -11,6 +11,7 @@ struct AscentApp: App {
     @StateObject private var profileVM = ProfileViewModel()
     @StateObject private var feedVM = FeedViewModel()
     @StateObject private var leaderboardVM = LeaderboardViewModel()
+    @StateObject private var discoveryVM = DiscoveryViewModel()
     @AppStorage("isLoggedIn") private var isLoggedIn = false
     @AppStorage("fitnessOnboardingCompleted") private var fitnessOnboardingCompleted = false
     @State private var showFitnessOnboarding = false
@@ -24,6 +25,7 @@ struct AscentApp: App {
                         .environmentObject(profileVM)
                         .environmentObject(feedVM)
                         .environmentObject(leaderboardVM)
+                        .environmentObject(discoveryVM)
                         .roundedFontDesign()
                         .onAppear {
                             // ProfileVM owns the profile fetch (R3).
@@ -73,6 +75,7 @@ struct AscentApp: App {
                         .environmentObject(profileVM)
                         .environmentObject(feedVM)
                         .environmentObject(leaderboardVM)
+                        .environmentObject(discoveryVM)
                         .roundedFontDesign()
                 }
             }

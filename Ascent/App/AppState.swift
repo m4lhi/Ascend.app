@@ -103,16 +103,7 @@ struct PauseEntry: Codable, Identifiable {
 // Tour / CloudFistBump / CloudComment / CloudBookmark / CommentDisplay
 // live in Core/Models/Tour.swift (R3 step 3).
 
-// --- HERO BANNER MODEL ---
-
-struct HeroBannerItem: Identifiable {
-    let id = UUID()
-    let title: String
-    let subtitle: String
-    let imageURL: String?
-    let badge: String?       // e.g. "PRESTIGE PEAK", "TRENDING", "COMMUNITY"
-    let mountain: Mountain?  // nil for community highlights
-}
+// HeroBannerItem lives in Core/Models/HeroBannerItem.swift (R3 step 5).
 
 // --- EQUIPMENT MODEL ---
 
@@ -275,10 +266,8 @@ class AppState: ObservableObject {
     // Leaderboard state (friendsLeaderboard, globalLeaderboard, localLeaderboard)
     // lives in LeaderboardViewModel (R3 step 4).
 
-    // Discovery
-    @Published var recommendedPeaks: [Mountain] = []
-    @Published var heroBannerItems: [HeroBannerItem] = []
-    @Published var suggestedRoutes: [Mountain] = []
+    // Discovery state (recommendedPeaks, heroBannerItems, suggestedRoutes)
+    // lives in DiscoveryViewModel (R3 step 5).
 
     // Collections (shared across all pages)
     @Published var myCollections: [TourCollection] = []
@@ -729,63 +718,7 @@ class AppState: ObservableObject {
 
     // Leaderboard fetch + addFriend live in LeaderboardViewModel (R3 step 4).
 
-    // --- DISCOVERY ---
-
-    func fetchRecommendedPeaks() {
-        guard recommendedPeaks.isEmpty else { return }
-
-        Task {
-            do {
-                // 1. Lade Berge mit Bildern. Da url oft image_url heißt, laden wir etwas mehr und filtern lokal.
-                let rawPeaks: [Mountain] = try await supabase
-                    .from("mountains")
-                    .select("*, routes:mountain_routes(*)")
-                    .not("image_url", operator: .is, value: "null")
-                    .neq("image_url", value: "")
-                    .limit(200)
-                    .execute()
-                    .value
-                    
-                let allPeaks = rawPeaks.filter { ($0.effectiveImageUrl ?? "").count > 5 }
-
-                // 2. Sortiere und wähle zufällige Berge für die Anzeige LOKAL aus
-                let displayPeaks = Array(allPeaks.shuffled().prefix(10))
-                let routeSuggestions = Array(allPeaks.shuffled().prefix(8))
-
-                // 3. Baue die Elemente für das Hero Banner zusammen
-                var bannerItems: [HeroBannerItem] = []
-                for peak in allPeaks.filter({ $0.isPrestigePeak }).shuffled().prefix(3) {
-                    bannerItems.append(HeroBannerItem(
-                        title: peak.name,
-                        subtitle: "\(peak.elevation)m · \(peak.region)",
-                        imageURL: (peak.effectiveImageUrl?.isEmpty == false) ? peak.effectiveImageUrl : nil,
-                        badge: "PRESTIGE PEAK",
-                        mountain: peak
-                    ))
-                }
-                for peak in allPeaks.filter({ !$0.isPrestigePeak }).shuffled().prefix(3) {
-                    bannerItems.append(HeroBannerItem(
-                        title: peak.name,
-                        subtitle: "\(peak.elevation)m · \(peak.region)",
-                        imageURL: (peak.effectiveImageUrl?.isEmpty == false) ? peak.effectiveImageUrl : nil,
-                        badge: "RECOMMENDED",
-                        mountain: peak
-                    ))
-                }
-                let finalBanner = Array(bannerItems.shuffled().prefix(5))
-
-                // 4. Update der UI auf dem Main-Thread
-                self.recommendedPeaks = displayPeaks
-                self.suggestedRoutes = routeSuggestions
-                self.heroBannerItems = finalBanner
-                print("✅ Erfolgreich \(allPeaks.count) Berge von Supabase geladen!")
-            } catch {
-                // 5. Falls es weiterhin fehlschlägt, loggen wir den exakten Grund in die Konsole
-                print("❌ Fehler beim Laden der Peaks von Supabase: \(error)")
-                print("💡 Tipp: Wenn dies passiert, weichen die Spalten in Supabase wahrscheinlich vom 'Mountain' Modell ab (z.B. imageUrl vs image_url oder falscher Datentyp).")
-            }
-        }
-    }
+    // Discovery fetch lives in DiscoveryViewModel (R3 step 5).
 
     // --- COLLECTIONS ---
 
