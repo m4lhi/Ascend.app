@@ -9,6 +9,7 @@ import MapKit
 struct ActivityCardView: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var feedVM: FeedViewModel
+    @EnvironmentObject var leaderboardVM: LeaderboardViewModel
     let tour: Tour
 
     @State private var showComments = false
@@ -180,8 +181,8 @@ struct ActivityCardView: View {
             }
         }
         .sheet(isPresented: $showPublicProfile) {
-            let totalUserXP = appState.friendsLeaderboard.first(where: { $0.id == tour.userId })?.xp ??
-                              appState.globalLeaderboard.first(where: { $0.id == tour.userId })?.xp ??
+            let totalUserXP = leaderboardVM.friendsLeaderboard.first(where: { $0.id == tour.userId })?.xp ??
+                              leaderboardVM.globalLeaderboard.first(where: { $0.id == tour.userId })?.xp ??
                               0
             
             PublicProfileView(
