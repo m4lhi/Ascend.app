@@ -21,8 +21,11 @@ struct AscentApp: App {
                         .roundedFontDesign()
                         .onAppear {
                             appState.fetchProfileFromCloud()
-                            // Start background Health analysis (runs every 6 hours)
-                            HealthAnalysisEngine.shared.start(appState: appState)
+                            // Route through HealthCoordinator (R2). Coordinator
+                            // owns the 6h background analysis loop and is the
+                            // sole writer into AppState.healthProfile/readiness.
+                            HealthCoordinator.shared.attach(appState)
+                            HealthCoordinator.shared.startBackgroundAnalysis()
                             if !fitnessOnboardingCompleted {
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
                                     showFitnessOnboarding = true
