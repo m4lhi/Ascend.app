@@ -186,55 +186,96 @@ struct HealthDashboardView: View {
     // MARK: - Header
 
     private var header: some View {
-        HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top) {
                 Text("\(weekdayLabel), \(dateLabel)")
-                    .font(.appMono(size: 12, weight: .medium))
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                Text("Heute")
-                    .font(.app(size: 30, weight: .black))
-                    .foregroundColor(.white)
+                    .font(DesignSystem.Typography.kickerInter)
+                    .tracking(0.5)
+                    .foregroundStyle(DesignSystem.Colors.inkFaintWarm)
+                Spacer()
+                profileButton
             }
-            Spacer()
-            Button { showSettings = true } label: {
-                ZStack {
+            Text(editorialTitle)
+                .font(DesignSystem.Typography.title1Inter)
+                .foregroundStyle(DesignSystem.Colors.inkWarm)
+                .fixedSize(horizontal: false, vertical: true)
+                .lineSpacing(2)
+            Text(narrativeBody)
+                .font(DesignSystem.Typography.bodyInter)
+                .foregroundStyle(DesignSystem.Colors.inkWarm.opacity(0.72))
+                .fixedSize(horizontal: false, vertical: true)
+                .lineSpacing(3)
+        }
+    }
+
+    /// Editorial title — narrative, English, mood-driven from the
+    /// current readiness score. Replaces the generic "Heute" header.
+    private var editorialTitle: String {
+        guard let score = readinessVM.readiness?.totalScore else {
+            return "Take the day slow."
+        }
+        if score > 70 { return "You're ready for the mountain today." }
+        if score > 45 { return "A measured day in the mountains." }
+        return "Stay low today — your body asks for rest."
+    }
+
+    /// Narrative body — one or two sentences that explain the score in
+    /// human terms. Uses the readiness recommendation (already English
+    /// from ReadinessManager.calculate) plus an optional weather line.
+    private var narrativeBody: String {
+        guard let r = readinessVM.readiness else {
+            return "Your numbers are still warming up. Give it a moment."
+        }
+        let weatherSnippet: String = {
+            if let w = weather.currentWeather {
+                let temp = Int(w.temperature.rounded())
+                return " Today's window opens around \(temp)°."
+            }
+            return ""
+        }()
+        return r.recommendation + weatherSnippet
+    }
+
+    private var profileButton: some View {
+        Button { showSettings = true } label: {
+            ZStack {
+                Circle()
+                    .stroke(DesignSystem.Colors.inkWarm.opacity(0.12), lineWidth: 2)
+                    .frame(width: 42, height: 42)
+                Circle()
+                    .trim(from: 0, to: phase ? Double(appState.currentLevelProgressXP) / Double(max(appState.xpNeededForNextLevel, 1)) : 0)
+                    .stroke(DesignSystem.Colors.glacierDeep, style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                    .frame(width: 42, height: 42)
+                    .rotationEffect(.degrees(-90))
+                    .animation(.easeOut(duration: 1.1).delay(0.35), value: phase)
+                if let urlString = profileVM.avatarURL, let url = URL(string: urlString) {
+                    CachedAsyncImage(url: url) { img in img.resizable().scaledToFill() }
+                        placeholder: { Circle().fill(DesignSystem.Colors.inkWarm.opacity(0.10)) }
+                        .frame(width: 34, height: 34)
+                        .clipShape(Circle())
+                } else {
                     Circle()
-                        .stroke(Color.white.opacity(0.15), lineWidth: 2)
-                        .frame(width: 42, height: 42)
-                    Circle()
-                        .trim(from: 0, to: phase ? Double(appState.currentLevelProgressXP) / Double(max(appState.xpNeededForNextLevel, 1)) : 0)
-                        .stroke(accent, style: StrokeStyle(lineWidth: 2, lineCap: .round))
-                        .frame(width: 42, height: 42)
-                        .rotationEffect(.degrees(-90))
-                        .animation(.easeOut(duration: 1.1).delay(0.35), value: phase)
-                    if let urlString = profileVM.avatarURL, let url = URL(string: urlString) {
-                        CachedAsyncImage(url: url) { img in img.resizable().scaledToFill() }
-                            placeholder: { Circle().fill(Color.white.opacity(0.12)) }
-                            .frame(width: 34, height: 34)
-                            .clipShape(Circle())
-                    } else {
-                        Circle()
-                            .fill(Color.white.opacity(0.12))
-                            .frame(width: 34, height: 34)
-                            .overlay(
-                                Image(systemName: "person.fill")
-                                    .font(.system(size: 14))
-                                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                            )
-                    }
+                        .fill(DesignSystem.Colors.glacierDeep.opacity(0.18))
+                        .frame(width: 34, height: 34)
+                        .overlay(
+                            Image(systemName: "person.fill")
+                                .font(.system(size: 14))
+                                .foregroundStyle(DesignSystem.Colors.glacierDeep)
+                        )
                 }
             }
-            .buttonStyle(.plain)
         }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Readiness Hero Card (full-width, top of page)
 
     private var readinessHeroCard: some View {
         let score = readinessVM.readiness?.totalScore ?? 0
-        let label = readinessVM.readiness?.status ?? "Keine Daten"
+        let label = readinessVM.readiness?.status ?? "No data yet"
         let ratio = min(1.0, Double(score) / 100.0)
         let barColor = readinessColorFor(score)
+        let ink = DesignSystem.Colors.inkOnSage
 
         return Button {
             HapticManager.shared.light()
@@ -245,27 +286,23 @@ struct HealthDashboardView: View {
                     VStack(alignment: .leading, spacing: 6) {
                         HStack(spacing: 6) {
                             Image(systemName: "mountain.2.fill")
-                                .font(.system(size: 11, weight: .bold))
-                                .foregroundColor(barColor.opacity(0.8))
-                            Text("SUMMIT READINESS")
-                                .font(.appMono(size: 9, weight: .bold))
-                                .foregroundColor(DesignSystem.Colors.secondaryText)
-                                .tracking(1.4)
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(barColor.opacity(0.85))
+                            Text("Summit readiness")
+                                .font(DesignSystem.Typography.kickerInter)
+                                .tracking(0.5)
+                                .foregroundStyle(ink.opacity(0.62))
                         }
 
                         HStack(alignment: .firstTextBaseline, spacing: 4) {
                             Text("\(score)")
                                 .font(.system(size: 64, weight: .black, design: .rounded))
-                                .foregroundStyle(
-                                    LinearGradient(
-                                        colors: [.white, .white.opacity(0.65)],
-                                        startPoint: .top, endPoint: .bottom
-                                    )
-                                )
+                                .foregroundStyle(ink)
                                 .contentTransition(.numericText())
+                                .monospacedDigit()
                             Text("%")
-                                .font(.appMono(size: 24, weight: .bold))
-                                .foregroundColor(DesignSystem.Colors.secondaryText)
+                                .font(.system(size: 24, weight: .semibold, design: .rounded))
+                                .foregroundStyle(ink.opacity(0.55))
                         }
                     }
 
@@ -274,11 +311,11 @@ struct HealthDashboardView: View {
                     VStack(alignment: .trailing, spacing: 6) {
                         Image(systemName: "info.circle")
                             .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(DesignSystem.Colors.tertiaryText)
+                            .foregroundStyle(ink.opacity(0.45))
                         Spacer()
                         Text(label)
-                            .font(.app(size: 18, weight: .black))
-                            .foregroundColor(barColor)
+                            .font(DesignSystem.Typography.title3Inter)
+                            .foregroundStyle(ink)
                     }
                 }
                 .padding(.bottom, 16)
@@ -286,37 +323,15 @@ struct HealthDashboardView: View {
                 GeometryReader { geo in
                     let barWidth = phase ? geo.size.width * ratio : 0
                     ZStack(alignment: .leading) {
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.white.opacity(0.06))
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(
-                                LinearGradient(
-                                    colors: [barColor, barColor.opacity(0.6)],
-                                    startPoint: .leading, endPoint: .trailing
-                                )
-                            )
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(ink.opacity(0.10))
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(barColor)
                             .frame(width: barWidth)
-                            .neonSweep(barColor)
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
-                            .overlay(alignment: .trailing) {
-                                if phase && score > 0 {
-                                    Circle()
-                                        .fill(.white)
-                                        .frame(width: 8, height: 8)
-                                        .shadow(color: barColor.opacity(0.9), radius: 8)
-                                        .padding(.trailing, 6)
-                                }
-                            }
                             .animation(.spring(response: 1.2, dampingFraction: 0.7), value: phase)
                     }
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(barColor.opacity(phase ? 0.2 : 0))
-                        .frame(width: barWidth)
-                        .blur(radius: 10)
-                        .offset(y: 3)
-                        .animation(.spring(response: 1.2, dampingFraction: 0.7), value: phase)
                 }
-                .frame(height: 16)
+                .frame(height: 10)
 
                 if let readiness = readinessVM.readiness {
                     HStack(spacing: 8) {
@@ -330,69 +345,41 @@ struct HealthDashboardView: View {
                         Image(systemName: "hand.tap.fill")
                             .font(.system(size: 12))
                         Text("Tap to assess your summit readiness")
-                            .font(.app(size: 13, weight: .medium))
+                            .font(DesignSystem.Typography.bodyInter)
                     }
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .foregroundStyle(ink.opacity(0.55))
                     .padding(.top, 14)
                 }
             }
-            .padding(DesignSystem.Spacing.cardPadding)
-            .padding(.vertical, 6)
+            .padding(20)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
             .background(
-                ZStack {
-                    RoundedRectangle(cornerRadius: DesignSystem.Radius.xl, style: .continuous)
-                        .fill(DesignSystem.Colors.cardBackground)
-                    RoundedRectangle(cornerRadius: DesignSystem.Radius.xl, style: .continuous)
-                        .fill(
-                            RadialGradient(
-                                colors: [barColor.opacity(0.08), .clear],
-                                center: .topLeading,
-                                startRadius: 0,
-                                endRadius: 350
-                            )
-                        )
-                    RoundedRectangle(cornerRadius: DesignSystem.Radius.xl, style: .continuous)
-                        .fill(
-                            RadialGradient(
-                                colors: [barColor.opacity(0.04), .clear],
-                                center: .bottomTrailing,
-                                startRadius: 0,
-                                endRadius: 250
-                            )
-                        )
-                }
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: DesignSystem.Radius.xl, style: .continuous)
-                    .strokeBorder(
-                        LinearGradient(
-                            colors: [barColor.opacity(0.2), Color.white.opacity(0.05), barColor.opacity(0.08)],
-                            startPoint: .topLeading, endPoint: .bottomTrailing
-                        ),
-                        lineWidth: 0.5
-                    )
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.cardSoft, style: .continuous)
+                    .fill(DesignSystem.Colors.sageCard)
             )
         }
-        .buttonStyle(PressableButtonStyle())
+        .buttonStyle(.plain)
     }
 
     private func readinessSubPill(label: String, score: Int) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text(label.uppercased())
-                .font(.appMono(size: 7, weight: .bold))
-                .foregroundColor(DesignSystem.Colors.tertiaryText)
-                .tracking(0.8)
+        let ink = DesignSystem.Colors.inkOnSage
+        return VStack(alignment: .leading, spacing: 4) {
+            Text(label)
+                .font(DesignSystem.Typography.kickerInter)
+                .tracking(0.5)
+                .foregroundStyle(ink.opacity(0.55))
             Text("\(score)")
-                .font(.appMono(size: 16, weight: .black))
-                .foregroundColor(.white)
+                .font(DesignSystem.Typography.title3Inter)
+                .foregroundStyle(ink)
                 .contentTransition(.numericText())
+                .monospacedDigit()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
         .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.white.opacity(0.06))
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(ink.opacity(0.08))
         )
     }
 
@@ -728,9 +715,13 @@ struct HealthDashboardView: View {
     // MARK: - Suggested Routes
 
     private var suggestedRoutesSection: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            OutsidersSectionLabel(text: "Vorgeschlagene Routen")
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Recommended routes")
+                .font(DesignSystem.Typography.kickerInter)
+                .tracking(0.5)
+                .foregroundStyle(DesignSystem.Colors.inkFaintWarm)
                 .padding(.horizontal, DesignSystem.Spacing.screenInset)
+
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
                     ForEach(discoveryVM.suggestedRoutes) { mountain in
@@ -740,6 +731,7 @@ struct HealthDashboardView: View {
                 .padding(.horizontal, DesignSystem.Spacing.screenInset)
             }
         }
+        .padding(.top, 8)
     }
 }
 
