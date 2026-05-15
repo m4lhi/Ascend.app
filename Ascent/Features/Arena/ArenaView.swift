@@ -21,6 +21,7 @@ struct Player: Identifiable {
 struct ArenaView: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var profileVM: ProfileViewModel
+    @EnvironmentObject var leaderboardVM: LeaderboardViewModel
     @State private var selectedScope = 0
     @State private var showAddFriendAlert = false
     @State private var friendHandleInput = ""
@@ -42,9 +43,9 @@ struct ArenaView: View {
     var leaderboard: [Player] {
         let sourceArray: [CloudProfile]
         switch selectedScope {
-        case 0: sourceArray = appState.globalLeaderboard
-        case 1: sourceArray = appState.localLeaderboard
-        default: sourceArray = appState.friendsLeaderboard
+        case 0: sourceArray = leaderboardVM.globalLeaderboard
+        case 1: sourceArray = leaderboardVM.localLeaderboard
+        default: sourceArray = leaderboardVM.friendsLeaderboard
         }
         return sourceArray.map { p in
             Player(id: p.id, name: p.username, handle: p.handle, xp: p.xp,
@@ -254,7 +255,7 @@ struct ArenaView: View {
             }
         }
         .onAppear {
-            appState.fetchLeaderboard()
+            leaderboardVM.fetchLeaderboard()
             withAnimation(.spring(response: 0.7, dampingFraction: 0.85).delay(0.1)) {
                 animateIn = true
             }
@@ -281,7 +282,7 @@ struct ArenaView: View {
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
             Button("Add") {
-                appState.addFriend(handleToSearch: friendHandleInput)
+                leaderboardVM.addFriend(handleToSearch: friendHandleInput)
                 friendHandleInput = ""
             }
             Button("Cancel", role: .cancel) { friendHandleInput = "" }
