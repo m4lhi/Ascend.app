@@ -412,65 +412,73 @@ struct HealthDashboardView: View {
             showArena = true
         } label: {
             HStack(spacing: 14) {
+                // Neutral pastel disc, no tier color — tier moves to corner badge.
                 ZStack {
                     Circle()
-                        .fill(
-                            LinearGradient(
-                                colors: [tierColor, tierColorDeep],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
+                        .fill(DesignSystem.Colors.inkOnSand.opacity(0.08))
                         .frame(width: 46, height: 46)
-                    Circle()
-                        .fill(
-                            RadialGradient(
-                                colors: [Color.white.opacity(0.45), .clear],
-                                center: UnitPoint(x: 0.30, y: 0.20),
-                                startRadius: 0,
-                                endRadius: 20
-                            )
-                        )
-                        .frame(width: 46, height: 46)
-                        .blendMode(.plusLighter)
                     RankGlyph()
                         .frame(width: 22, height: 22)
                         .foregroundStyle(DesignSystem.Colors.inkOnSand)
                 }
 
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(tierLabel.uppercased())
-                        .font(.appMono(size: 9, weight: .bold))
-                        .tracking(1.6)
-                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                    Text("Your rank")
+                        .font(DesignSystem.Typography.kickerInter)
+                        .tracking(0.5)
+                        .foregroundStyle(DesignSystem.Colors.inkOnSand.opacity(0.62))
                     if let rank = globalRank {
-                        Text("Global Rank #\(rank)")
-                            .font(.app(size: 16, weight: .heavy))
-                            .foregroundColor(.white)
+                        Text("Global #\(rank)")
+                            .font(DesignSystem.Typography.title3Inter)
+                            .foregroundStyle(DesignSystem.Colors.inkOnSand)
+                            .monospacedDigit()
                     } else {
                         Text("\(appState.currentXP) XP · Lvl \(appState.currentLevel)")
-                            .font(.app(size: 16, weight: .heavy))
-                            .foregroundColor(.white)
+                            .font(DesignSystem.Typography.title3Inter)
+                            .foregroundStyle(DesignSystem.Colors.inkOnSand)
+                            .monospacedDigit()
                     }
                 }
                 Spacer()
 
                 HStack(spacing: 6) {
-                    Text("ARENA")
-                        .font(.appMono(size: 9, weight: .bold))
-                        .tracking(1.4)
-                        .foregroundColor(accent)
+                    Text("Arena")
+                        .font(DesignSystem.Typography.kickerInter)
+                        .tracking(0.5)
+                        .foregroundStyle(DesignSystem.Colors.alpenglow)
                     Image(systemName: "chevron.right")
-                        .font(.system(size: 11, weight: .heavy))
-                        .foregroundColor(accent)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(DesignSystem.Colors.alpenglow)
                 }
             }
             .padding(.horizontal, DesignSystem.Spacing.md)
             .padding(.vertical, 14)
             .frame(maxWidth: .infinity)
             .pastelCard(.sand, applyForeground: false)
+            .overlay(alignment: .topTrailing) {
+                // Tier badge — small color dot + tier name, paperWarm
+                // pill with subtle hairline. Sits inside the card edge.
+                HStack(spacing: 4) {
+                    Circle()
+                        .fill(tierColor)
+                        .frame(width: 6, height: 6)
+                    Text(tierLabel)
+                        .font(DesignSystem.Typography.kickerInter)
+                        .tracking(0.5)
+                        .foregroundStyle(DesignSystem.Colors.inkOnSand)
+                }
+                .padding(.vertical, 5)
+                .padding(.horizontal, 9)
+                .background(
+                    Capsule().fill(DesignSystem.Colors.paperWarm)
+                )
+                .overlay(
+                    Capsule().stroke(DesignSystem.Colors.inkOnSand.opacity(0.12), lineWidth: 0.5)
+                )
+                .padding(10)
+            }
         }
-        .buttonStyle(PressableButtonStyle())
+        .buttonStyle(.plain)
     }
 
     // MARK: - Dashboard Grid
