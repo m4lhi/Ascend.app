@@ -299,6 +299,7 @@ enum ProfileWidget: String, CaseIterable, Identifiable, Codable {
 
 struct TrophyRoomView: View {
     @EnvironmentObject var appState: AppState
+    @EnvironmentObject var profileVM: ProfileViewModel
 
     @State private var showEditProfile = false
     @State private var progressAnimated = false
@@ -444,7 +445,7 @@ struct TrophyRoomView: View {
                                     .frame(width: 82, height: 82)
                                     .rotationEffect(.degrees(-90))
                                 
-                                if let urlString = appState.avatarURL, let url = URL(string: urlString) {
+                                if let urlString = profileVM.avatarURL, let url = URL(string: urlString) {
                                     CachedAsyncImage(url: url) { image in
                                         image.resizable().scaledToFill()
                                     } placeholder: {
@@ -475,21 +476,21 @@ struct TrophyRoomView: View {
                             }
                             
                             VStack(alignment: .leading, spacing: 4) {
-                                Text(appState.userName)
+                                Text(profileVM.userName)
                                     .font(.app(size: 22, weight: .bold))
                                     .foregroundColor(.white)
                                 
                                 HStack(spacing: 8) {
-                                    Text("@\(appState.userHandle)")
+                                    Text("@\(profileVM.userHandle)")
                                         .font(.app(size: 14))
                                         .foregroundColor(.gray)
                                     
-                                    if !appState.instaHandle.isEmpty {
-                                        Button(action: { openInstagram(appState.instaHandle) }) {
+                                    if !profileVM.instaHandle.isEmpty {
+                                        Button(action: { openInstagram(profileVM.instaHandle) }) {
                                             HStack(spacing: 3) {
                                                 Image(systemName: "camera.circle.fill")
                                                     .font(.app(size: 11))
-                                                Text("@\(appState.instaHandle)")
+                                                Text("@\(profileVM.instaHandle)")
                                                     .font(.app(size: 11, weight: .semibold))
                                             }
                                             .padding(.horizontal, 8)
@@ -504,11 +505,11 @@ struct TrophyRoomView: View {
                                     }
                                 }
                                 
-                                if !appState.userRegion.isEmpty && appState.userRegion != "Unknown" {
+                                if !profileVM.userRegion.isEmpty && profileVM.userRegion != "Unknown" {
                                     HStack(spacing: 4) {
                                         Image(systemName: "location.fill")
                                             .font(.app(size: 9))
-                                        Text(appState.userRegion)
+                                        Text(profileVM.userRegion)
                                             .font(.app(size: 12, weight: .medium))
                                     }
                                     .foregroundColor(gold)
@@ -521,10 +522,10 @@ struct TrophyRoomView: View {
                         
                         // Sport tags & Hobbies
                         VStack(alignment: .leading, spacing: 8) {
-                            if !appState.selectedSports.isEmpty {
+                            if !profileVM.selectedSports.isEmpty {
                                 ScrollView(.horizontal, showsIndicators: false) {
                                     HStack(spacing: 8) {
-                                        ForEach(appState.selectedSports, id: \.self) { sport in
+                                        ForEach(profileVM.selectedSports, id: \.self) { sport in
                                             Text(sport)
                                                 .font(.app(size: 11, weight: .semibold))
                                                 .foregroundColor(.black.opacity(0.7))
@@ -537,10 +538,10 @@ struct TrophyRoomView: View {
                                 }
                             }
                             
-                            if !appState.mountaineeringSpecialties.isEmpty {
+                            if !profileVM.mountaineeringSpecialties.isEmpty {
                                 ScrollView(.horizontal, showsIndicators: false) {
                                     HStack(spacing: 8) {
-                                        ForEach(appState.mountaineeringSpecialties, id: \.self) { specialty in
+                                        ForEach(profileVM.mountaineeringSpecialties, id: \.self) { specialty in
                                             HStack(spacing: 4) {
                                                 Image(systemName: "mountain.2.fill")
                                                     .font(.app(size: 9))
@@ -557,10 +558,10 @@ struct TrophyRoomView: View {
                                 }
                             }
                             
-                            if !appState.otherHobbies.isEmpty {
+                            if !profileVM.otherHobbies.isEmpty {
                                 ScrollView(.horizontal, showsIndicators: false) {
                                     HStack(spacing: 8) {
-                                        ForEach(appState.otherHobbies, id: \.self) { hobby in
+                                        ForEach(profileVM.otherHobbies, id: \.self) { hobby in
                                             Text(hobby)
                                                 .font(.app(size: 11, weight: .semibold))
                                                 .foregroundColor(.black.opacity(0.7))
@@ -773,7 +774,7 @@ struct TrophyRoomView: View {
             }
             .padding(.horizontal, 20)
 
-            EquipmentLockerView(equipment: appState.equipment)
+            EquipmentLockerView(equipment: profileVM.equipment)
         }
     }
 
@@ -1165,6 +1166,7 @@ struct AchievementDetailSheet: View {
 
 struct EditAccountView: View {
     @EnvironmentObject var appState: AppState
+    @EnvironmentObject var profileVM: ProfileViewModel
     @Environment(\.dismiss) var dismiss
     
     @StateObject private var locationFetcher = LocationFetcher()
@@ -1250,7 +1252,7 @@ struct EditAccountView: View {
                                         .frame(width: 100, height: 100)
                                         .clipShape(Circle())
                                         .overlay(Circle().stroke(gold.opacity(0.3), lineWidth: 2))
-                                } else if let urlString = appState.avatarURL, let url = URL(string: urlString) {
+                                } else if let urlString = profileVM.avatarURL, let url = URL(string: urlString) {
                                     CachedAsyncImage(url: url) { image in
                                         image.resizable().scaledToFill()
                                     } placeholder: {
@@ -1548,14 +1550,14 @@ struct EditAccountView: View {
                 }
             }
             .onAppear {
-                draftName = appState.userName
-                draftHandle = appState.userHandle
-                draftRegion = appState.userRegion == "Unknown" ? "" : appState.userRegion
-                draftInsta = appState.instaHandle
-                draftSports = appState.selectedSports
-                draftSpecialties = appState.mountaineeringSpecialties
-                draftHobbies = appState.otherHobbies
-                draftImageData = appState.profileImage
+                draftName = profileVM.userName
+                draftHandle = profileVM.userHandle
+                draftRegion = profileVM.userRegion == "Unknown" ? "" : profileVM.userRegion
+                draftInsta = profileVM.instaHandle
+                draftSports = profileVM.selectedSports
+                draftSpecialties = profileVM.mountaineeringSpecialties
+                draftHobbies = profileVM.otherHobbies
+                draftImageData = profileVM.profileImage
             }
             .onChange(of: locationFetcher.detectedRegion) { _, newRegion in
                 if let new = newRegion { draftRegion = new }
@@ -1656,8 +1658,8 @@ struct EditAccountView: View {
             )
             
             if isSuccess {
-                if let newData = draftImageData, newData != appState.profileImage {
-                    appState.profileImage = newData
+                if let newData = draftImageData, newData != profileVM.profileImage {
+                    profileVM.profileImage = newData
                     appState.uploadProfilePicture(data: newData)
                 }
                 await MainActor.run {
