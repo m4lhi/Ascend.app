@@ -202,6 +202,7 @@ struct AddGoalSheet: View {
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var discoveryVM: DiscoveryViewModel
+    @EnvironmentObject var readinessVM: ReadinessViewModel
     let onSave: (Goal) -> Void
 
     @State private var search: String = ""
@@ -291,7 +292,7 @@ struct AddGoalSheet: View {
 
     private func saveGoal() {
         let date = hasDeadline ? targetDate : nil
-        let snapshot = appState.readiness.map { Int($0.totalScore) }
+        let snapshot = readinessVM.readiness.map { Int($0.totalScore) }
         let goal: Goal
         if let m = selectedMountain {
             goal = Goal(from: m, targetDate: date, notes: notes, readinessSnapshot: snapshot)
