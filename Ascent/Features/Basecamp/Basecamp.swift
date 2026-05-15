@@ -1344,6 +1344,7 @@ struct XPDetailView: View {
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var profileVM: ProfileViewModel
+    @EnvironmentObject var feedVM: FeedViewModel
     @State private var appeared = false
     private let accent = DesignSystem.Colors.accent
 
