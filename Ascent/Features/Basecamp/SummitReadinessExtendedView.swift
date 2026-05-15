@@ -8,6 +8,7 @@ import SwiftUI
 struct SummitReadinessExtendedView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var appState: AppState
+    @EnvironmentObject var readinessVM: ReadinessViewModel
 
     // Mandatory (1–5)
     @State private var sleepQuality: Double = 3
@@ -29,7 +30,7 @@ struct SummitReadinessExtendedView: View {
 
     private let accent = DesignSystem.Colors.accent
 
-    private var readinessScore: Int { appState.timeToGoScore }
+    private var readinessScore: Int { readinessVM.timeToGoScore }
 
     private var barColor: Color {
         switch readinessScore {
@@ -138,10 +139,10 @@ struct SummitReadinessExtendedView: View {
                 Text("Skipping means no subjective readiness factors feed into your Time-to-Go score. We strongly recommend answering the 5 essential questions — they take under 60 seconds.")
             }
             .onAppear {
-                if appState.readinessHistory.isEmpty && appState.extendedReadinessAnsweredAt == nil {
+                if readinessVM.readinessHistory.isEmpty && readinessVM.extendedReadinessAnsweredAt == nil {
                     showAssessment = true
                 }
-                answers = appState.extendedReadinessAnswers
+                answers = readinessVM.extendedReadinessAnswers
                 for (id, defaultVal) in [("sleep", sleepQuality), ("soreness", muscleSoreness),
                                           ("joints", jointPain), ("motivation", mentalMotivation),
                                           ("hr", perceivedHR)] {
@@ -158,7 +159,7 @@ struct SummitReadinessExtendedView: View {
     // MARK: - Bar animation
 
     private func runBarAnimation() {
-        guard appState.readiness != nil else { return }
+        guard readinessVM.readiness != nil else { return }
 
         // Reset state without animation — otherwise SwiftUI animates the bar shrinking to 0,
         // which creates the "thin bar that pops in late" delay the user reported.
@@ -222,7 +223,7 @@ struct SummitReadinessExtendedView: View {
                             .font(.appMono(size: 10, weight: .bold))
                             .foregroundColor(DesignSystem.Colors.secondaryText)
                             .tracking(1.8)
-                        if let lastDate = appState.extendedReadinessAnsweredAt {
+                        if let lastDate = readinessVM.extendedReadinessAnsweredAt {
                             Text("Updated \(relativeDateString(lastDate))")
                                 .font(.app(size: 12))
                                 .foregroundColor(DesignSystem.Colors.secondaryText)
@@ -296,7 +297,7 @@ struct SummitReadinessExtendedView: View {
                         .tracking(1.4)
                         .animation(.easeOut(duration: 0.3), value: statusLabel)
                     Spacer()
-                    if let readiness = appState.readiness {
+                    if let readiness = readinessVM.readiness {
                         Text("\(readiness.totalScore) / 100")
                             .font(.appMono(size: 10, weight: .semibold))
                             .foregroundColor(DesignSystem.Colors.secondaryText)
@@ -306,7 +307,7 @@ struct SummitReadinessExtendedView: View {
                 .padding(.top, 10)
                 .padding(.bottom, 6)
 
-                if let readiness = appState.readiness {
+                if let readiness = readinessVM.readiness {
                     Text(readiness.recommendation)
                         .font(.app(size: 13))
                         .foregroundColor(DesignSystem.Colors.secondaryText)
@@ -324,14 +325,14 @@ struct SummitReadinessExtendedView: View {
                 }
 
                 // Calendar
-                if !appState.readinessHistory.isEmpty {
+                if !readinessVM.readinessHistory.isEmpty {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("LAST 90 DAYS")
                             .font(.appMono(size: 10, weight: .bold))
                             .foregroundColor(DesignSystem.Colors.secondaryText)
                             .tracking(1.4)
                             .padding(.horizontal, 20)
-                        ReadinessCalendarGrid(history: appState.readinessHistory)
+                        ReadinessCalendarGrid(history: readinessVM.readinessHistory)
                             .padding(.horizontal, 16)
                     }
                     .padding(.bottom, 28)
@@ -344,7 +345,7 @@ struct SummitReadinessExtendedView: View {
                     HStack(spacing: 10) {
                         Image(systemName: "checkmark.shield.fill")
                             .font(.app(size: 16, weight: .bold))
-                        Text(appState.readiness == nil ? "Start Assessment" : "Reassess Today")
+                        Text(readinessVM.readiness == nil ? "Start Assessment" : "Reassess Today")
                             .font(.app(size: 16, weight: .black))
                     }
                     .foregroundColor(.white)
@@ -603,25 +604,25 @@ struct SummitReadinessExtendedView: View {
     }
 
     private func save() {
-        appState.extendedReadinessAnswers = answers
-        appState.extendedReadinessAnsweredAt = Date()
-        appState.refreshReadiness()
+        readinessVM.extendedReadinessAnswers = answers
+        readinessVM.extendedReadinessAnsweredAt = Date()
+        readinessVM.refresh()
         logTodayGoStage()
-        appState.recordReadinessScore(appState.timeToGoScore)
+        readinessVM.recordReadinessScore(readinessVM.timeToGoScore)
         withAnimation(.spring(response: 0.38, dampingFraction: 0.82)) {
             showAssessment = false
         }
     }
 
     private func saveSkipped() {
-        appState.extendedReadinessAnswers = [:]
-        appState.extendedReadinessAnsweredAt = Date()
+        readinessVM.extendedReadinessAnswers = [:]
+        readinessVM.extendedReadinessAnsweredAt = Date()
         dismiss()
     }
 
     private func logTodayGoStage() {
         let iso = Calendar.current.component(.weekday, from: Date()).mapISO
-        appState.weeklyGoScores[iso] = appState.timeToGoScore
+        readinessVM.weeklyGoScores[iso] = readinessVM.timeToGoScore
     }
 }
 
