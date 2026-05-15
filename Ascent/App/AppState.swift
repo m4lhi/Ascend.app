@@ -272,10 +272,8 @@ class AppState: ObservableObject {
     
     // Feed state (recentTours, bookmarkedTours) lives in FeedViewModel (R3 step 3).
 
-    // Leaderboards
-    @Published var friendsLeaderboard: [CloudProfile] = []
-    @Published var globalLeaderboard: [CloudProfile] = []
-    @Published var localLeaderboard: [CloudProfile] = []
+    // Leaderboard state (friendsLeaderboard, globalLeaderboard, localLeaderboard)
+    // lives in LeaderboardViewModel (R3 step 4).
 
     // Discovery
     @Published var recommendedPeaks: [Mountain] = []
@@ -468,7 +466,7 @@ class AppState: ObservableObject {
     // profile via ProfileViewModel.fetchProfile(). Profile fetch and its
     // write-path live in ProfileViewModel (R3).
     func fetchInitialDataChain() {
-        fetchLeaderboard()
+        leaderboardVM?.fetchLeaderboard()
         feedVM?.fetchFeed()
         fetchAscendProfile()
         fetchCollections()
@@ -497,7 +495,7 @@ class AppState: ObservableObject {
                     hobbies: vm.otherHobbies
                 )
                 try await ProfileService.shared.upsertProfile(updated)
-                if refreshLeaderboard { fetchLeaderboard() }
+                if refreshLeaderboard { leaderboardVM?.fetchLeaderboard() }
             } catch { print("❌ uploadProfileToCloud error: \(error)") }
         }
     }
@@ -729,107 +727,7 @@ class AppState: ObservableObject {
     // Social interactions (toggleFistBump / postComment / fetchComments /
     // toggleBookmark) live in FeedViewModel (R3 step 3).
 
-    // Fügt einen Freund anhand des Handles hinzu
-    func addFriend(handleToSearch: String) {
-        Task {
-            do {
-                let myId = try await supabase.auth.session.user.id
-                let friendProfiles: [CloudProfile] = try await supabase.from("profiles").select().ilike("handle", pattern: handleToSearch).execute().value
-                
-                guard let friend = friendProfiles.first, friend.id != myId else { return }
-                
-                // First verify client-side if already a friend
-                let alreadyFriends = self.friendsLeaderboard.contains { $0.id == friend.id }
-                if alreadyFriends { return }
-                
-                struct NewFriendship: Codable { let user_id: UUID; let friend_id: UUID }
-                do {
-                    try await supabase.from("friendships").insert(NewFriendship(user_id: myId, friend_id: friend.id)).execute()
-                } catch {
-                    // Suppress unique constraint violations
-                    let errStr = String(describing: error)
-                    if !errStr.contains("23505") {
-                        print("❌ Fehler beim Einfügen: \(error)")
-                    } else {
-                        print("ℹ️ Friendship already exists in DB.")
-                    }
-                }
-                
-                fetchLeaderboard()
-                feedVM?.fetchFeed(forceRefresh: true)
-            } catch { print("❌ Fehler in addFriend: \(error)") }
-        }
-    }
-    
-    // Holt die drei Leaderboard-Listen parallel, aber fehlertolerant
-    func fetchLeaderboard() {
-        Task {
-            let myId: UUID
-            do {
-                myId = try await supabase.auth.session.user.id
-            } catch {
-                print("❌ Fetch Leaderboard failed: no active session.")
-                return
-            }
-            
-            let myProfile = CloudProfile(
-                id: myId,
-                username: profileVM?.userName ?? "",
-                handle: profileVM?.userHandle ?? "",
-                xp: self.currentXP,
-                level: self.currentLevel,
-                avatar_url: profileVM?.avatarURL,
-                region: profileVM?.userRegion ?? ""
-            )
-            let region = profileVM?.userRegion ?? ""
-
-            // 1. Fetch Friendships
-            var friendIds: [UUID] = []
-            do {
-                let myFriendships: [FriendshipRule] = try await supabase.from("friendships").select("friend_id").eq("user_id", value: myId).execute().value
-                friendIds = myFriendships.map { $0.friend_id }
-            } catch {
-                print("⚠️ Warning: Fetching friendships failed: \(error)")
-            }
-
-            // 2. Load Global
-            do {
-                let globalData: [CloudProfile] = try await supabase.from("profiles").select().order("xp", ascending: false).limit(50).execute().value
-                await MainActor.run { self.globalLeaderboard = globalData }
-            } catch {
-                print("⚠️ Warning: Loading global leaderboard failed: \(error)")
-            }
-
-            // 3. Load Local
-            if !region.isEmpty {
-                do {
-                    let localData: [CloudProfile] = try await supabase.from("profiles").select().eq("region", value: region).order("xp", ascending: false).limit(50).execute().value
-                    await MainActor.run { self.localLeaderboard = localData }
-                } catch {
-                    print("⚠️ Warning: Loading local leaderboard failed: \(error)")
-                }
-            } else {
-                await MainActor.run { self.localLeaderboard = [] }
-            }
-
-            // 4. Load Friends
-            if !friendIds.isEmpty {
-                do {
-                    let friendsData: [CloudProfile] = try await supabase.from("profiles").select().in("id", values: friendIds).execute().value
-                    var friendsPlayers = [myProfile]
-                    friendsPlayers.append(contentsOf: friendsData)
-                    friendsPlayers.sort { $0.xp > $1.xp }
-                    await MainActor.run { self.friendsLeaderboard = friendsPlayers }
-                } catch {
-                    print("⚠️ Warning: Loading friends leaderboard failed: \(error)")
-                    // Keep just ourselves if it fails
-                    await MainActor.run { self.friendsLeaderboard = [myProfile] }
-                }
-            } else {
-                await MainActor.run { self.friendsLeaderboard = [myProfile] }
-            }
-        }
-    }
+    // Leaderboard fetch + addFriend live in LeaderboardViewModel (R3 step 4).
 
     // --- DISCOVERY ---
 
