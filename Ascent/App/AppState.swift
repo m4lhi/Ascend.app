@@ -558,6 +558,33 @@ class AppState: ObservableObject {
         fetchCollections()
         fetchBookmarkedTours()
     }
+
+    // Internal XP/Level push back to the profile row. Used after
+    // addCompletedTour / deleteTour where currentXP and currentLevel
+    // change. Will move to ProgressViewModel in R5.
+    private func uploadProfileToCloud(refreshLeaderboard: Bool = false) {
+        guard let vm = profileVM else { return }
+        Task {
+            do {
+                let session = try await supabase.auth.session
+                let updated = CloudProfile(
+                    id: session.user.id,
+                    username: vm.userName,
+                    handle: vm.userHandle,
+                    xp: self.currentXP,
+                    level: self.currentLevel,
+                    avatar_url: vm.avatarURL,
+                    region: vm.userRegion,
+                    insta_handle: vm.instaHandle,
+                    disciplines: vm.selectedSports,
+                    specialties: vm.mountaineeringSpecialties,
+                    hobbies: vm.otherHobbies
+                )
+                try await ProfileService.shared.upsertProfile(updated)
+                if refreshLeaderboard { fetchLeaderboard() }
+            } catch { print("❌ uploadProfileToCloud error: \(error)") }
+        }
+    }
     
     // Lädt das Ascend Profil (Level, Tier, XP)
     func fetchAscendProfile() {
