@@ -59,7 +59,11 @@ final class HealthCoordinator: ObservableObject {
 
     // MARK: - Public API
 
-    func refreshReadiness() async {
+    func refreshReadiness(
+        tours: [Tour],
+        targetMountain: Mountain?,
+        targetWeather: MountainWeather?
+    ) async {
         guard let appState = appState else { return }
         isSyncing = true
         defer { isSyncing = false }
@@ -68,19 +72,11 @@ final class HealthCoordinator: ObservableObject {
         self.profile = fetched
         appState.healthProfile = fetched
 
-        let targetMt = await resolveTargetMountain()
-
-        var weather: MountainWeather? = nil
-        if let targetMt, let lat = targetMt.latitude, let lon = targetMt.longitude {
-            await WeatherManager.shared.fetchWeather(latitude: lat, longitude: lon)
-            weather = WeatherManager.shared.currentWeather
-        }
-
         let result = readinessManager.calculate(
             profile: fetched,
-            tours: appState.recentTours,
-            targetMountain: targetMt,
-            targetWeather: weather
+            tours: tours,
+            targetMountain: targetMountain,
+            targetWeather: targetWeather
         )
 
         self.readiness = result
@@ -113,21 +109,5 @@ final class HealthCoordinator: ObservableObject {
         await analysisEngine.runAnalysis(appState: appState)
         self.analysis = analysisEngine.result
         self.profile = appState.healthProfile
-    }
-
-    private func resolveTargetMountain() async -> Mountain? {
-        guard
-            let goalData = UserDefaults.standard.data(forKey: "coaching_plan_data"),
-            let plan = try? JSONDecoder().decode(CoachingPlan.self, from: goalData)
-        else { return nil }
-
-        let results: [Mountain]? = try? await supabase
-            .from("mountains")
-            .select("id,name,elevation,difficulty,region,country,image_url,latitude,longitude,isPrestigePeak")
-            .ilike("name", value: "%\(plan.goalName)%")
-            .limit(1)
-            .execute()
-            .value
-        return results?.first
     }
 }
