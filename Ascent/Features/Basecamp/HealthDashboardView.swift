@@ -186,7 +186,7 @@ struct HealthDashboardView: View {
     // MARK: - Header
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .top) {
                 Text("\(weekdayLabel), \(dateLabel)")
                     .font(DesignSystem.Typography.kickerInter)
@@ -195,6 +195,9 @@ struct HealthDashboardView: View {
                 Spacer()
                 profileButton
             }
+            Text("Hi \(greetingFirstName),")
+                .font(DesignSystem.Typography.bodyInter)
+                .foregroundStyle(DesignSystem.Colors.inkWarm.opacity(0.62))
             Text(editorialTitle)
                 .font(DesignSystem.Typography.title1Inter)
                 .foregroundStyle(DesignSystem.Colors.inkWarm)
@@ -205,7 +208,17 @@ struct HealthDashboardView: View {
                 .foregroundStyle(DesignSystem.Colors.inkWarm.opacity(0.72))
                 .fixedSize(horizontal: false, vertical: true)
                 .lineSpacing(3)
+                .padding(.top, 4)
         }
+    }
+
+    /// First name (or full name if no space) for the Gentler-Streak
+    /// 'Hi X,' greeting. Falls back to a friendly default when the
+    /// profile hasn't loaded yet.
+    private var greetingFirstName: String {
+        let full = profileVM.userName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !full.isEmpty else { return "friend" }
+        return full.split(separator: " ").first.map(String.init) ?? full
     }
 
     /// Editorial title — narrative, English, mood-driven from the
