@@ -181,7 +181,7 @@ final class CoachingViewModel: ObservableObject {
 
     // MARK: Real-tour matching
     // Marks stations as completed (and isRealTour=true) when a real tracked tour
-    // from appState.recentTours matches the station's elevation-gain threshold.
+    // from feedVM.recentTours matches the station's elevation-gain threshold.
     func applyRealTourMatching(_ tours: [Tour]) {
         guard var p = plan else { return }
         let myTours = tours.filter { $0.isCurrentUser }
@@ -610,6 +610,7 @@ final class CoachingViewModel: ObservableObject {
 struct AICoachingGatewayView: View {
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var appState: AppState
+    @EnvironmentObject var feedVM: FeedViewModel
     @StateObject private var vm = CoachingViewModel()
     @AppStorage("animationProfile") private var animationProfileRaw: String = AnimationProfile.alpine.rawValue
 
@@ -657,15 +658,15 @@ struct AICoachingGatewayView: View {
             if vm.plan == nil {
                 await vm.prefillFromHealthKit()
             } else {
-                vm.applyRealTourMatching(appState.recentTours)
+                vm.applyRealTourMatching(feedVM.recentTours)
             }
         }
-        .onChange(of: appState.recentTours.count) { _, _ in
-            vm.applyRealTourMatching(appState.recentTours)
+        .onChange(of: feedVM.recentTours.count) { _, _ in
+            vm.applyRealTourMatching(feedVM.recentTours)
         }
         .onChange(of: vm.plan?.stations.count ?? 0) { _, newValue in
             if newValue > 0 {
-                vm.applyRealTourMatching(appState.recentTours)
+                vm.applyRealTourMatching(feedVM.recentTours)
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("OpenMountainInExplore"))) { notif in

@@ -3,6 +3,7 @@ import SwiftUI
 struct HealthDashboardView: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var profileVM: ProfileViewModel
+    @EnvironmentObject var feedVM: FeedViewModel
     @StateObject private var healthData = HealthDataProvider.shared
     @ObservedObject private var weather = WeatherManager.shared
     @State private var showSettings = false
@@ -99,7 +100,7 @@ struct HealthDashboardView: View {
         .cornerGlow(.blue.opacity(0.5), intensity: 0.06, corner: .bottomTrailing)
         .task {
             await healthData.fetchAll()
-            appState.fetchFeed()
+            feedVM.fetchFeed()
             appState.fetchRecommendedPeaks()
             appState.refreshReadiness()
             let lat = appState.activeMountain?.latitude ?? 45.8326
@@ -516,7 +517,7 @@ struct HealthDashboardView: View {
                                 .foregroundColor(DesignSystem.Colors.tertiaryText)
                         }
                         HStack(alignment: .firstTextBaseline, spacing: 3) {
-                            Text("\(appState.recentTours.filter { $0.isCurrentUser }.count)")
+                            Text("\(feedVM.recentTours.filter { $0.isCurrentUser }.count)")
                                 .font(.appMono(size: 24, weight: .black))
                                 .foregroundColor(.white)
                                 .contentTransition(.numericText())

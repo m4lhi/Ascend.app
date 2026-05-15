@@ -295,6 +295,7 @@ enum RouteColorOption: String, CaseIterable {
 struct ExportAllToursSheet: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var profileVM: ProfileViewModel
+    @EnvironmentObject var feedVM: FeedViewModel
     @Environment(\.dismiss) var dismiss
     @State private var isExporting = false
     @State private var shareURL: URL?
@@ -318,7 +319,7 @@ struct ExportAllToursSheet: View {
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 30)
 
-                Text("\(appState.recentTours.filter { $0.isCurrentUser }.count) tours available")
+                Text("\(feedVM.recentTours.filter { $0.isCurrentUser }.count) tours available")
                     .font(.app(.caption))
                     .foregroundColor(.gray)
 
@@ -355,7 +356,7 @@ struct ExportAllToursSheet: View {
 
     private func exportAllTours() {
         isExporting = true
-        let myTours = appState.recentTours.filter { $0.isCurrentUser }
+        let myTours = feedVM.recentTours.filter { $0.isCurrentUser }
         guard !myTours.isEmpty else { isExporting = false; return }
 
         // Create a combined GPX with all tours as separate tracks

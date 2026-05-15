@@ -26,45 +26,7 @@ struct AscendProfile: Codable {
 
 
 
-struct CloudTour: Codable {
-    let id: UUID?
-    let user_id: UUID
-    let name: String
-    let elevation: Int
-    let date: Date
-    let difficulty: String
-    let notes: String
-    let duration_seconds: Int?
-    let distance_km: Double?
-    let pauses: String?
-    let photo_url: String?
-    let route_polyline: String?  // Encoded route coordinates for map display
-
-    // Custom decoder: gracefully handle missing route_polyline column in DB
-    init(from decoder: Decoder) throws {
-        let c = try decoder.container(keyedBy: CodingKeys.self)
-        id = try c.decodeIfPresent(UUID.self, forKey: .id)
-        user_id = try c.decode(UUID.self, forKey: .user_id)
-        name = try c.decode(String.self, forKey: .name)
-        elevation = try c.decode(Int.self, forKey: .elevation)
-        date = try c.decode(Date.self, forKey: .date)
-        difficulty = try c.decode(String.self, forKey: .difficulty)
-        notes = try c.decode(String.self, forKey: .notes)
-        duration_seconds = try c.decodeIfPresent(Int.self, forKey: .duration_seconds)
-        distance_km = try c.decodeIfPresent(Double.self, forKey: .distance_km)
-        pauses = try c.decodeIfPresent(String.self, forKey: .pauses)
-        photo_url = try c.decodeIfPresent(String.self, forKey: .photo_url)
-        route_polyline = try c.decodeIfPresent(String.self, forKey: .route_polyline)
-    }
-
-    // Keep regular init for creating new tours
-    init(id: UUID?, user_id: UUID, name: String, elevation: Int, date: Date, difficulty: String, notes: String, duration_seconds: Int?, distance_km: Double?, pauses: String?, photo_url: String?, route_polyline: String?) {
-        self.id = id; self.user_id = user_id; self.name = name; self.elevation = elevation
-        self.date = date; self.difficulty = difficulty; self.notes = notes
-        self.duration_seconds = duration_seconds; self.distance_km = distance_km
-        self.pauses = pauses; self.photo_url = photo_url; self.route_polyline = route_polyline
-    }
-}
+// CloudTour lives in Core/Models/Tour.swift (R3 step 3).
 
 /// Lightweight encoded polyline helpers for storing route data
 struct RouteEncoder {
@@ -140,62 +102,8 @@ struct FriendshipRule: Codable {
     let friend_id: UUID
 }
 
-struct Tour: Identifiable {
-    let id = UUID()
-    let cloudId: UUID?
-    var userId: UUID?
-    var playerName: String
-    var playerHandle: String
-    var playerAvatarURL: String?
-    let date: Date
-    let summitName: String
-    let storyComment: String
-    let elevationGainMeters: Int
-    let durationSeconds: TimeInterval
-    let distanceKilometers: Double
-    let xpGained: Int
-    let isCurrentUser: Bool
-    var photoURL: String? = nil
-    var pauseCount: Int = 0
-    var totalPauseDuration: TimeInterval = 0
-    var fistBumpCount: Int = 0
-    var isFistBumped: Bool = false
-    var commentCount: Int = 0
-    var isBookmarked: Bool = false
-    var routeCoordinates: [CLLocationCoordinate2D] = []  // Decoded route for map display
-    var routeLocations: [CLLocation] = [] // Decoded route with altitude for elevation profile
-}
-
-// --- SOCIAL MODELS ---
-
-struct CloudFistBump: Codable {
-    let tour_id: UUID
-    let user_id: UUID
-}
-
-struct CloudComment: Codable, Identifiable {
-    let id: UUID?
-    let tour_id: UUID
-    let user_id: UUID
-    let body: String
-    let created_at: Date?
-}
-
-struct CloudBookmark: Codable {
-    let tour_id: UUID
-    let user_id: UUID
-    let mountain_name: String
-}
-
-struct CommentDisplay: Identifiable {
-    let id: UUID
-    let userName: String
-    let userHandle: String
-    let avatarURL: String?
-    let body: String
-    let date: Date
-    let isCurrentUser: Bool
-}
+// Tour / CloudFistBump / CloudComment / CloudBookmark / CommentDisplay
+// live in Core/Models/Tour.swift (R3 step 3).
 
 // --- HERO BANNER MODEL ---
 
@@ -316,6 +224,12 @@ class AppState: ObservableObject {
     // pattern.
     weak var profileVM: ProfileViewModel?
 
+    // Weak reference to FeedViewModel (R3 step 3). Set by AscentApp.
+    // Used by methods that still need to read/mutate the feed cache
+    // (refreshReadiness, weeklyGoScores, addCompletedTour, deleteTour)
+    // until further VMs / R4 take over.
+    weak var feedVM: FeedViewModel?
+
     init() {
         loadContextualPersistence()
     }
@@ -353,9 +267,9 @@ class AppState: ObservableObject {
     @Published var healthProfile: HealthKitProfile? = nil
 
     
-    // Feeds & Leaderboards
-    @Published var recentTours: [Tour] = []
-    @Published var bookmarkedTours: [Tour] = []
+    // Feed state (recentTours, bookmarkedTours) lives in FeedViewModel (R3 step 3).
+
+    // Leaderboards
     @Published var friendsLeaderboard: [CloudProfile] = []
     @Published var globalLeaderboard: [CloudProfile] = []
     @Published var localLeaderboard: [CloudProfile] = []
@@ -503,12 +417,8 @@ class AppState: ObservableObject {
         }
     }
 
-    // Pagination
-    @Published var isLoadingMoreFeed: Bool = false
-    @Published var hasMoreFeed: Bool = true
-    private var feedPage: Int = 0
-    private let feedPageSize: Int = 10
-    private let feedMaxItems: Int = 50
+    // Feed pagination state (isLoadingMoreFeed, hasMoreFeed, feedPage,
+    // feedPageSize, feedMaxItems) lives in FeedViewModel (R3 step 3).
 
     var currentLevelProgressXP: Int { currentXP % 1000 }
     var xpNeededForNextLevel: Int { 1000 }
@@ -516,7 +426,10 @@ class AppState: ObservableObject {
     // Weekly objectives helpers
     var weeklyTours: [Tour] {
         guard let weekInterval = Calendar.current.dateInterval(of: .weekOfYear, for: Date()) else { return [] }
-        return recentTours.filter { $0.isCurrentUser && weekInterval.contains($0.date) }
+        // Safe nil fallback: during app start the feedVM weak ref may not be
+        // set yet — empty result is fine, the view will recompute when
+        // feedVM publishes its first page.
+        return (feedVM?.recentTours ?? []).filter { $0.isCurrentUser && weekInterval.contains($0.date) }
     }
     var weeklyElevation: Int { weeklyTours.reduce(0) { $0 + $1.elevationGainMeters } }
     var weeklyTourCount: Int { weeklyTours.count }
@@ -553,10 +466,10 @@ class AppState: ObservableObject {
     // write-path live in ProfileViewModel (R3).
     func fetchInitialDataChain() {
         fetchLeaderboard()
-        fetchFeed()
+        feedVM?.fetchFeed()
         fetchAscendProfile()
         fetchCollections()
-        fetchBookmarkedTours()
+        feedVM?.fetchBookmarkedTours()
     }
 
     // Internal XP/Level push back to the profile row. Used after
@@ -673,259 +586,15 @@ class AppState: ObservableObject {
             // runs ReadinessManager.calculate, and writes back into
             // self.healthProfile / self.readiness (mirror until R3).
             await HealthCoordinator.shared.refreshReadiness(
-                tours: self.recentTours,
+                tours: feedVM?.recentTours ?? [],
                 targetMountain: targetMt,
                 targetWeather: weather
             )
         }
     }
     
-    // --- TOUR FUNKTIONEN ---
-    
-    // Holt die erste Seite des Feeds (Reset)
-    func fetchFeed(forceRefresh: Bool = false) {
-        if !forceRefresh && !recentTours.isEmpty { return }
+    // Feed fetch / pagination / bookmarks live in FeedViewModel (R3 step 3).
 
-        feedPage = 0
-        hasMoreFeed = true
-        recentTours = []
-        loadFeedPage()
-    }
-
-    // Lädt die nächste Seite für Infinite Scroll (max 50 items)
-    func loadMoreFeed() {
-        guard !isLoadingMoreFeed && hasMoreFeed && recentTours.count < feedMaxItems else { return }
-        loadFeedPage()
-    }
-
-    // Interne Pagination-Logik
-    private func loadFeedPage() {
-        guard !isLoadingMoreFeed else { return }
-        isLoadingMoreFeed = true
-
-        Task {
-            do {
-                let myId = try await supabase.auth.session.user.id
-                let myFriendships: [FriendshipRule] = try await supabase.from("friendships").select("friend_id").eq("user_id", value: myId).execute().value
-
-                var relevantIds = myFriendships.map { $0.friend_id }
-                relevantIds.append(myId)
-
-                let profiles: [CloudProfile] = try await supabase.from("profiles").select("id,username,handle,avatar_url,xp,level,region").in("id", values: relevantIds).execute().value
-
-                let rangeStart = feedPage * feedPageSize
-                let rangeEnd = rangeStart + feedPageSize - 1
-
-                let cloudTours: [CloudTour] = try await supabase.from("tours")
-                    .select()
-                    .in("user_id", values: relevantIds)
-                    .order("date", ascending: false)
-                    .range(from: rangeStart, to: rangeEnd)
-                    .execute()
-                    .value
-
-                // Alle tour IDs sammeln für Social-Queries
-                let tourIds = cloudTours.compactMap { $0.id }
-
-                // Fist bumps, comments, bookmarks TRULY in parallel laden
-                var allBumps: [CloudFistBump] = []
-                var allCommentCounts: [UUID: Int] = [:]
-                var myBookmarks: Set<UUID> = []
-
-                var bumpsByTour: [UUID: [CloudFistBump]] = [:]
-
-                if !tourIds.isEmpty {
-                    struct CommentRow: Codable { let tour_id: UUID }
-                    struct BookmarkRow: Codable { let tour_id: UUID }
-
-                    async let bumpsTask: [CloudFistBump] = (try? supabase.from("fist_bumps").select().in("tour_id", values: tourIds).execute().value) ?? []
-                    async let commentsTask: [CommentRow] = (try? supabase.from("comments").select("tour_id").in("tour_id", values: tourIds).execute().value) ?? []
-                    async let bookmarksTask: [BookmarkRow] = (try? supabase.from("bookmarked_routes").select("tour_id").eq("user_id", value: myId).in("tour_id", values: tourIds).execute().value) ?? []
-
-                    allBumps = await bumpsTask
-                    // Build Dictionary for O(1) lookup per tour instead of O(n) filter
-                    for bump in allBumps {
-                        bumpsByTour[bump.tour_id, default: []].append(bump)
-                    }
-                    let commentRows = await commentsTask
-                    for row in commentRows {
-                        allCommentCounts[row.tour_id, default: 0] += 1
-                    }
-                    myBookmarks = Set((await bookmarksTask).map { $0.tour_id })
-                }
-
-                // Reuse single decoder instance instead of creating one per tour
-                let pauseDecoder = JSONDecoder()
-                pauseDecoder.dateDecodingStrategy = .iso8601
-                // Build profile lookup dict to avoid O(n²) .first(where:) per tour
-                let profileLookup = Dictionary(uniqueKeysWithValues: profiles.map { ($0.id, $0) })
-
-                var pageTours: [Tour] = []
-                for tour in cloudTours {
-                    if let player = profileLookup[tour.user_id] {
-                        var parsedPauseCount = 0
-                        var parsedPauseDuration: TimeInterval = 0
-                        if let json = tour.pauses, let data = json.data(using: .utf8) {
-                            if let entries = try? pauseDecoder.decode([PauseEntry].self, from: data) {
-                                parsedPauseCount = entries.count
-                                parsedPauseDuration = entries.reduce(0) { $0 + $1.duration }
-                            }
-                        }
-
-                        let tourBumps = tour.id.flatMap { bumpsByTour[$0] } ?? []
-
-                        // Decode route polyline if available
-                        let routeCoords = tour.route_polyline.flatMap { RouteEncoder.decode($0) } ?? []
-                        let routeLocs = tour.route_polyline.flatMap { RouteEncoder.decodeWithAltitude($0) } ?? []
-
-                        let feedTour = Tour(
-                            cloudId: tour.id,
-                            userId: player.id,
-                            playerName: player.username,
-                            playerHandle: player.handle,
-                            playerAvatarURL: player.avatar_url,
-                            date: tour.date,
-                            summitName: tour.name,
-                            storyComment: tour.notes,
-                            elevationGainMeters: tour.elevation,
-                            durationSeconds: TimeInterval(tour.duration_seconds ?? 0),
-                            distanceKilometers: tour.distance_km ?? 0.0,
-                            xpGained: XPCalculator.xp(elevation: tour.elevation, difficulty: Difficulty(rawValue: tour.difficulty) ?? .medium, isPrestigePeak: false),
-                            isCurrentUser: player.id == myId,
-                            photoURL: tour.photo_url,
-                            pauseCount: parsedPauseCount,
-                            totalPauseDuration: parsedPauseDuration,
-                            fistBumpCount: tourBumps.count,
-                            isFistBumped: tourBumps.contains { $0.user_id == myId },
-                            commentCount: tour.id != nil ? allCommentCounts[tour.id!] ?? 0 : 0,
-                            isBookmarked: tour.id != nil ? myBookmarks.contains(tour.id!) : false,
-                            routeCoordinates: routeCoords,
-                            routeLocations: routeLocs
-                        )
-                        pageTours.append(feedTour)
-                    }
-                }
-
-                print("📡 Feed loaded: \(cloudTours.count) cloud tours → \(pageTours.count) display tours (profiles matched: \(profiles.count))")
-                self.recentTours.append(contentsOf: pageTours)
-                self.feedPage += 1
-                self.hasMoreFeed = cloudTours.count == self.feedPageSize
-                self.isLoadingMoreFeed = false
-            } catch {
-                print("❌ Fehler beim Feed laden: \(error)")
-                self.isLoadingMoreFeed = false
-            }
-        }
-    }
-
-    // Lädt die Touren, die der Benutzer gespeichert (gebookmarkt) hat
-    func fetchBookmarkedTours() {
-        Task {
-            do {
-                let myId = try await supabase.auth.session.user.id
-                
-                // 1. Hole referenzierte Tour-IDs aus der Bookmark-Tabelle
-                struct BookmarkRow: Codable { let tour_id: UUID }
-                let bookmarks: [BookmarkRow] = try await supabase
-                    .from("bookmarked_routes")
-                    .select("tour_id")
-                    .eq("user_id", value: myId)
-                    .execute()
-                    .value
-                    
-                let tourIds = bookmarks.map { $0.tour_id }
-                if tourIds.isEmpty {
-                    await MainActor.run { self.bookmarkedTours = [] }
-                    return
-                }
-
-                // 2. Hole die echten Tour-Daten
-                let cloudTours: [CloudTour] = try await supabase
-                    .from("tours")
-                    .select()
-                    .in("id", values: tourIds)
-                    .order("date", ascending: false)
-                    .execute()
-                    .value
-                    
-                // 3. Hole Profile für diese Touren
-                let userIds = Array(Set(cloudTours.map { $0.user_id }))
-                let profiles: [CloudProfile] = try await supabase
-                    .from("profiles")
-                    .select("id,username,handle,avatar_url,xp,level,region")
-                    .in("id", values: userIds)
-                    .execute()
-                    .value
-                let profileLookup = Dictionary(uniqueKeysWithValues: profiles.map { ($0.id, $0) })
-                
-                // 4. Hole social interactions analog zum Feed
-                var allBumps: [CloudFistBump] = []
-                var allCommentCounts: [UUID: Int] = [:]
-                var bumpsByTour: [UUID: [CloudFistBump]] = [:]
-
-                struct CommentRow: Codable { let tour_id: UUID }
-                async let bumpsTask: [CloudFistBump] = (try? supabase.from("fist_bumps").select().in("tour_id", values: tourIds).execute().value) ?? []
-                async let commentsTask: [CommentRow] = (try? supabase.from("comments").select("tour_id").in("tour_id", values: tourIds).execute().value) ?? []
-
-                allBumps = await bumpsTask
-                for bump in allBumps { bumpsByTour[bump.tour_id, default: []].append(bump) }
-                for row in await commentsTask { allCommentCounts[row.tour_id, default: 0] += 1 }
-
-                let pauseDecoder = JSONDecoder()
-                pauseDecoder.dateDecodingStrategy = .iso8601
-                
-                // 5. Baue Touren
-                var builtTours: [Tour] = []
-                for tour in cloudTours {
-                    if let player = profileLookup[tour.user_id] {
-                        var parsedPauseCount = 0
-                        var parsedPauseDuration: TimeInterval = 0
-                        if let json = tour.pauses, let data = json.data(using: .utf8) {
-                            if let entries = try? pauseDecoder.decode([PauseEntry].self, from: data) {
-                                parsedPauseCount = entries.count
-                                parsedPauseDuration = entries.reduce(0) { $0 + $1.duration }
-                            }
-                        }
-
-                        let tourBumps = tour.id.flatMap { bumpsByTour[$0] } ?? []
-                        let routeCoords = tour.route_polyline.flatMap { RouteEncoder.decode($0) } ?? []
-                        let routeLocs = tour.route_polyline.flatMap { RouteEncoder.decodeWithAltitude($0) } ?? []
-
-                        builtTours.append(Tour(
-                            cloudId: tour.id,
-                            userId: player.id,
-                            playerName: player.username,
-                            playerHandle: player.handle,
-                            playerAvatarURL: player.avatar_url,
-                            date: tour.date,
-                            summitName: tour.name,
-                            storyComment: tour.notes,
-                            elevationGainMeters: tour.elevation,
-                            durationSeconds: TimeInterval(tour.duration_seconds ?? 0),
-                            distanceKilometers: tour.distance_km ?? 0.0,
-                            xpGained: XPCalculator.xp(elevation: tour.elevation, difficulty: Difficulty(rawValue: tour.difficulty) ?? .medium, isPrestigePeak: false),
-                            isCurrentUser: player.id == myId,
-                            photoURL: tour.photo_url,
-                            pauseCount: parsedPauseCount,
-                            totalPauseDuration: parsedPauseDuration,
-                            fistBumpCount: tourBumps.count,
-                            isFistBumped: tourBumps.contains { $0.user_id == myId },
-                            commentCount: tour.id != nil ? allCommentCounts[tour.id!] ?? 0 : 0,
-                            isBookmarked: true, // It is explicitly bookmarked since we fetched it from bookmarked_routes
-                            routeCoordinates: routeCoords,
-                            routeLocations: routeLocs
-                        ))
-                    }
-                }
-                
-                await MainActor.run {
-                    self.bookmarkedTours = builtTours
-                }
-            } catch {
-                print("❌ Fehler beim Laden der markierten Touren: \(error)")
-            }
-        }
-    }
     func addCompletedTour(summit: String, comment: String, elevation: Int, duration: TimeInterval, distance: Double, xp: Int, pauses: [PauseEntry] = [], photoData: Data? = nil, rawRoute: [CLLocation] = []) {
         self.currentXP += xp
         self.currentLevel = (self.currentXP / 1000) + 1
@@ -1021,7 +690,7 @@ class AppState: ObservableObject {
                     try await supabase.from("tours").insert(newCloudTour).execute()
                     print("✅ Tour erfolgreich hochgeladen: \(summit) (attempt \(attempt))")
                     try? await Task.sleep(nanoseconds: 500_000_000)
-                    fetchFeed()
+                    feedVM?.fetchFeed(forceRefresh: true)
                     return
                 } catch {
                     print("⚠️ Tour insert attempt \(attempt) failed: \(error.localizedDescription)")
@@ -1039,7 +708,7 @@ class AppState: ObservableObject {
     func deleteTour(tour: Tour) {
         self.currentXP = max(0, self.currentXP - tour.xpGained)
         self.currentLevel = max(1, (self.currentXP / 1000) + 1)
-        self.recentTours.removeAll { $0.id == tour.id }
+        feedVM?.removeTour(id: tour.id)
         uploadProfileToCloud(refreshLeaderboard: true)
 
         Task {
@@ -1054,104 +723,8 @@ class AppState: ObservableObject {
         }
     }
 
-    // --- SOCIAL FUNKTIONEN ---
-
-    // Fist Bump (Like) toggeln
-    func toggleFistBump(tour: Tour) {
-        guard let tourId = tour.cloudId else { return }
-        let wasBumped = tour.isFistBumped
-        
-        // Optimistic UI Update -> Verhindert, dass der Feed neu lädt und springt
-        if let idx = recentTours.firstIndex(where: { $0.id == tour.id }) {
-            recentTours[idx].isFistBumped.toggle()
-            recentTours[idx].fistBumpCount += wasBumped ? -1 : 1
-        }
-        
-        Task {
-            do {
-                let myId = try await supabase.auth.session.user.id
-                if wasBumped {
-                    try await supabase.from("fist_bumps").delete().eq("tour_id", value: tourId).eq("user_id", value: myId).execute()
-                } else {
-                    try await supabase.from("fist_bumps").insert(CloudFistBump(tour_id: tourId, user_id: myId)).execute()
-                }
-                // fetchFeed() wird hier NICHT mehr gerufen, um Scroll-Jumping zu verhindern
-            } catch { print("❌ Fehler beim Fist Bump: \(error)") }
-        }
-    }
-
-    // Kommentar posten
-    func postComment(tour: Tour, body: String) {
-        guard let tourId = tour.cloudId, !body.isEmpty else { return }
-        
-        // Optimistic Update für den Comment-Zähler
-        if let idx = recentTours.firstIndex(where: { $0.id == tour.id }) {
-            recentTours[idx].commentCount += 1
-        }
-        
-        Task {
-            do {
-                let myId = try await supabase.auth.session.user.id
-                let comment = CloudComment(id: nil, tour_id: tourId, user_id: myId, body: body, created_at: nil)
-                try await supabase.from("comments").insert(comment).execute()
-                // fetchFeed() wird hier absichtlich weggelassen
-            } catch { print("❌ Fehler beim Kommentieren: \(error)") }
-        }
-    }
-
-    // Kommentare für eine Tour laden
-    func fetchComments(tour: Tour) async -> [CommentDisplay] {
-        guard let tourId = tour.cloudId else { return [] }
-        do {
-            let myId = try await supabase.auth.session.user.id
-            struct FullComment: Codable {
-                let id: UUID; let tour_id: UUID; let user_id: UUID; let body: String; let created_at: Date
-            }
-            let rows: [FullComment] = try await supabase.from("comments").select().eq("tour_id", value: tourId).order("created_at", ascending: true).execute().value
-            let userIds = Array(Set(rows.map { $0.user_id }))
-            let profiles: [CloudProfile] = try await supabase.from("profiles").select("id,username,handle,avatar_url,xp,level,region").in("id", values: userIds).execute().value
-            let profileLookup = Dictionary(uniqueKeysWithValues: profiles.map { ($0.id, $0) })
-
-            return rows.map { row in
-                let profile = profileLookup[row.user_id]
-                return CommentDisplay(
-                    id: row.id,
-                    userName: profile?.username ?? "Unknown",
-                    userHandle: profile?.handle ?? "user",
-                    avatarURL: profile?.avatar_url,
-                    body: row.body,
-                    date: row.created_at,
-                    isCurrentUser: row.user_id == myId
-                )
-            }
-        } catch {
-            print("❌ Fehler beim Laden der Kommentare: \(error)")
-            return []
-        }
-    }
-
-    // Bookmark toggeln
-    func toggleBookmark(tour: Tour) {
-        guard let tourId = tour.cloudId else { return }
-        let wasBookmarked = tour.isBookmarked
-        
-        // Optimistic Update
-        if let idx = recentTours.firstIndex(where: { $0.id == tour.id }) {
-            recentTours[idx].isBookmarked.toggle()
-        }
-        
-        Task {
-            do {
-                let myId = try await supabase.auth.session.user.id
-                if wasBookmarked {
-                    try await supabase.from("bookmarked_routes").delete().eq("tour_id", value: tourId).eq("user_id", value: myId).execute()
-                } else {
-                    try await supabase.from("bookmarked_routes").insert(CloudBookmark(tour_id: tourId, user_id: myId, mountain_name: tour.summitName)).execute()
-                }
-                fetchBookmarkedTours()
-            } catch { print("❌ Fehler beim Bookmark: \(error)") }
-        }
-    }
+    // Social interactions (toggleFistBump / postComment / fetchComments /
+    // toggleBookmark) live in FeedViewModel (R3 step 3).
 
     // Fügt einen Freund anhand des Handles hinzu
     func addFriend(handleToSearch: String) {
@@ -1180,7 +753,7 @@ class AppState: ObservableObject {
                 }
                 
                 fetchLeaderboard()
-                fetchFeed()
+                feedVM?.fetchFeed(forceRefresh: true)
             } catch { print("❌ Fehler in addFriend: \(error)") }
         }
     }

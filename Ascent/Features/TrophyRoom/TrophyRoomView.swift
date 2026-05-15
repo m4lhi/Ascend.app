@@ -55,9 +55,9 @@ struct Achievement: Identifiable {
 // Computed achievements from real AppState data
 struct AchievementEngine {
     
-    static func compute(from appState: AppState) -> [Achievement] {
-        let tourCount = appState.recentTours.filter { $0.isCurrentUser }.count
-        let totalElevation = appState.recentTours.filter { $0.isCurrentUser }.reduce(0) { $0 + $1.elevationGainMeters }
+    static func compute(from appState: AppState, feedVM: FeedViewModel) -> [Achievement] {
+        let tourCount = feedVM.recentTours.filter { $0.isCurrentUser }.count
+        let totalElevation = feedVM.recentTours.filter { $0.isCurrentUser }.reduce(0) { $0 + $1.elevationGainMeters }
         let friendCount = appState.friendsLeaderboard.count - 1 // minus self
         let currentLevel = appState.currentLevel
         let weeklyElev = appState.weeklyElevation
@@ -302,6 +302,7 @@ enum ProfileWidget: String, CaseIterable, Identifiable, Codable {
 struct TrophyRoomView: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var profileVM: ProfileViewModel
+    @EnvironmentObject var feedVM: FeedViewModel
 
     @State private var showEditProfile = false
     @State private var progressAnimated = false
@@ -346,7 +347,7 @@ struct TrophyRoomView: View {
     }
     
     private var achievements: [Achievement] {
-        AchievementEngine.compute(from: appState)
+        AchievementEngine.compute(from: appState, feedVM: feedVM)
     }
     
     private var filteredAchievements: [Achievement] {
@@ -373,11 +374,11 @@ struct TrophyRoomView: View {
     }
     
     private var totalTours: Int {
-        appState.recentTours.filter { $0.isCurrentUser }.count
+        feedVM.recentTours.filter { $0.isCurrentUser }.count
     }
     
     private var totalElevation: Int {
-        appState.recentTours.filter { $0.isCurrentUser }.reduce(0) { $0 + $1.elevationGainMeters }
+        feedVM.recentTours.filter { $0.isCurrentUser }.reduce(0) { $0 + $1.elevationGainMeters }
     }
 
     var body: some View {
@@ -793,7 +794,7 @@ struct TrophyRoomView: View {
 
             switch selectedProfileTab {
             case .missions:
-                let myTours = appState.recentTours.filter { $0.isCurrentUser }
+                let myTours = feedVM.recentTours.filter { $0.isCurrentUser }
                 if myTours.isEmpty {
                     Text("No missions completed yet.")
                         .font(.app(.subheadline))
@@ -821,7 +822,7 @@ struct TrophyRoomView: View {
                     }
                 }
             case .saved:
-                if appState.bookmarkedTours.isEmpty {
+                if feedVM.bookmarkedTours.isEmpty {
                     Text("No saved tours from the community yet.")
                         .font(.app(.subheadline))
                         .foregroundColor(.gray)
@@ -829,13 +830,13 @@ struct TrophyRoomView: View {
                         .padding(.vertical, 10)
                 } else {
                     VStack(spacing: 16) {
-                        ForEach(appState.bookmarkedTours.prefix(3)) { tour in
+                        ForEach(feedVM.bookmarkedTours.prefix(3)) { tour in
                             ActivityCardView(tour: tour)
                                 .padding(.horizontal, 16)
                         }
-                        if appState.bookmarkedTours.count > 3 {
+                        if feedVM.bookmarkedTours.count > 3 {
                             Button(action: { showAllSavedTours = true }) {
-                                Text("See All (\(appState.bookmarkedTours.count))")
+                                Text("See All (\(feedVM.bookmarkedTours.count))")
                                     .font(.app(.headline))
                                     .foregroundColor(.cyan)
                                     .frame(maxWidth: .infinity)
@@ -1169,6 +1170,7 @@ struct AchievementDetailSheet: View {
 struct EditAccountView: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var profileVM: ProfileViewModel
+    @EnvironmentObject var feedVM: FeedViewModel
     @Environment(\.dismiss) var dismiss
     
     @StateObject private var locationFetcher = LocationFetcher()
@@ -1664,15 +1666,15 @@ struct EditAccountView: View {
             if isSuccess {
                 // Cross-VM side effects: mirror profile changes onto the
                 // user's own tours in the local feed cache, and refresh the
-                // local leaderboard (region may have changed). These move
-                // into FeedViewModel / LeaderboardViewModel in their R3
-                // steps; for now they live inline at the caller.
+                // local leaderboard (region may have changed). Leaderboard
+                // refresh moves into LeaderboardViewModel in R3 step 4.
                 if let session = try? await supabase.auth.session {
-                    for i in appState.recentTours.indices where appState.recentTours[i].userId == session.user.id {
-                        appState.recentTours[i].playerName = draftName
-                        appState.recentTours[i].playerHandle = draftHandle
-                        appState.recentTours[i].playerAvatarURL = profileVM.avatarURL
-                    }
+                    feedVM.applyProfileUpdate(
+                        userId: session.user.id,
+                        name: draftName,
+                        handle: draftHandle,
+                        avatarURL: profileVM.avatarURL
+                    )
                 }
                 appState.fetchLeaderboard()
 
