@@ -11,6 +11,7 @@ struct GoalDetailSheet: View {
     let onDelete: () -> Void
 
     @EnvironmentObject var appState: AppState
+    @EnvironmentObject var discoveryVM: DiscoveryViewModel
     @Environment(\.dismiss) var dismiss
     @State private var showProAnalysis = false
 
@@ -21,7 +22,7 @@ struct GoalDetailSheet: View {
     /// edited and deleted, just not used to launch a recording session.
     private var resolvedMountain: Mountain? {
         guard let id = goal.mountainId else { return nil }
-        let pool = appState.recommendedPeaks + appState.suggestedRoutes
+        let pool = discoveryVM.recommendedPeaks + discoveryVM.suggestedRoutes
         return pool.first(where: { $0.id == id })
     }
 
