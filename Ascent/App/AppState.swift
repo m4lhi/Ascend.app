@@ -11,41 +11,7 @@ import CoreLocation
 
 // --- DATENMODELLE ---
 
-struct CloudProfile: Codable, Identifiable {
-    let id: UUID
-    var username: String
-    var handle: String
-    var xp: Int
-    var level: Int
-    var avatar_url: String?
-    var region: String?
-    var insta_handle: String?
-    var disciplines: [String]?
-    var specialties: [String]?
-    var hobbies: [String]?
-
-    // Custom decoder for robust parsing in case DB rows have nulls
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        id = try container.decode(UUID.self, forKey: .id)
-        username = try container.decodeIfPresent(String.self, forKey: .username) ?? "Alpinist"
-        handle = try container.decodeIfPresent(String.self, forKey: .handle) ?? "climber"
-        xp = try container.decodeIfPresent(Int.self, forKey: .xp) ?? 0
-        level = try container.decodeIfPresent(Int.self, forKey: .level) ?? 1
-        avatar_url = try container.decodeIfPresent(String.self, forKey: .avatar_url)
-        region = try container.decodeIfPresent(String.self, forKey: .region)
-        insta_handle = try container.decodeIfPresent(String.self, forKey: .insta_handle)
-        disciplines = try container.decodeIfPresent([String].self, forKey: .disciplines)
-        specialties = try container.decodeIfPresent([String].self, forKey: .specialties)
-        hobbies = try container.decodeIfPresent([String].self, forKey: .hobbies)
-    }
-
-    // Standard initializer to manually create profiles
-    init(id: UUID, username: String, handle: String, xp: Int, level: Int, avatar_url: String?, region: String?, insta_handle: String? = nil, disciplines: [String]? = nil, specialties: [String]? = nil, hobbies: [String]? = nil) {
-        self.id = id; self.username = username; self.handle = handle; self.xp = xp; self.level = level; self.avatar_url = avatar_url; self.region = region
-        self.insta_handle = insta_handle; self.disciplines = disciplines; self.specialties = specialties; self.hobbies = hobbies
-    }
-}
+// CloudProfile lives in Core/Models/CloudProfile.swift (R3).
 
 struct AscendProfile: Codable {
     let user_id: UUID
@@ -343,6 +309,13 @@ struct EquipmentCatalog {
 @MainActor
 class AppState: ObservableObject {
 
+    // Weak reference to ProfileViewModel (R3). Set by AscentApp once the
+    // VM is constructed. Used by methods that still need to compose a
+    // CloudProfile snapshot (fetchLeaderboard) until LeaderboardViewModel
+    // takes over in R3 step 4. Symmetric to HealthCoordinator's attach
+    // pattern.
+    weak var profileVM: ProfileViewModel?
+
     init() {
         loadContextualPersistence()
     }
@@ -366,19 +339,8 @@ class AppState: ObservableObject {
     }
 
 
-    // Lokale User-Daten
-    @Published var userName: String = "New Alpinist"
-    @Published var userHandle: String = "climber"
-    @Published var selectedSports: [String] = []
-    @Published var profileImage: Data? = nil
-    @Published var avatarURL: String? = nil
-    @Published var userRegion: String = "" // Standardmäßig leer
-    // Neue Profile-Eigenschaften (Mock für UI)
-    @Published var instaHandle: String = "alpinist_life"
-    @Published var mountaineeringSpecialties: [String] = ["Ice Climbing", "Scrambling"]
-    @Published var otherHobbies: [String] = ["Boxing", "Soccer"]
-    @Published var equipment: Equipment = Equipment()
-    
+    // User profile state lives in ProfileViewModel (R3).
+
     // Fortschritt
     @Published var currentXP: Int = 0
     @Published var currentLevel: Int = 1
@@ -584,51 +546,43 @@ class AppState: ObservableObject {
         }
     }
     
-    // --- PROFIL FUNKTIONEN ---
-    
-    // Lädt dein Profil beim Start
-    func fetchProfileFromCloud() {
-        Task {
-            do {
-                let session = try await supabase.auth.session
-                let userId = session.user.id
-                
-                let profile: CloudProfile = try await supabase.from("profiles").select().eq("id", value: userId).single().execute().value
-                
-                self.userName = profile.username
-                self.userHandle = profile.handle
-                self.currentXP = profile.xp
-                self.currentLevel = profile.level
-                self.avatarURL = profile.avatar_url
-                self.userRegion = profile.region ?? ""
-                self.instaHandle = profile.insta_handle ?? ""
-                self.selectedSports = profile.disciplines ?? []
-                self.mountaineeringSpecialties = profile.specialties ?? []
-                self.otherHobbies = profile.hobbies ?? []
+    // --- INIT CHAIN ---
 
-                fetchLeaderboard()
-                fetchFeed()
-                fetchAscendProfile()
-                fetchCollections()
-                fetchBookmarkedTours()
-            } catch {
-                if self.userHandle == "climber" {
-                    self.userHandle = "climber_\(Int.random(in: 1000...9999))"
-                }
-                uploadProfileToCloud()
-            }
-        }
+    // Kicks off the post-profile init chain after AscentApp resolves the
+    // profile via ProfileViewModel.fetchProfile(). Profile fetch and its
+    // write-path live in ProfileViewModel (R3).
+    func fetchInitialDataChain() {
+        fetchLeaderboard()
+        fetchFeed()
+        fetchAscendProfile()
+        fetchCollections()
+        fetchBookmarkedTours()
     }
-    
-    // Speichert einfache Änderungen wie XP
-    func uploadProfileToCloud(refreshLeaderboard: Bool = false) {
+
+    // Internal XP/Level push back to the profile row. Used after
+    // addCompletedTour / deleteTour where currentXP and currentLevel
+    // change. Will move to ProgressViewModel in R5.
+    private func uploadProfileToCloud(refreshLeaderboard: Bool = false) {
+        guard let vm = profileVM else { return }
         Task {
             do {
                 let session = try await supabase.auth.session
-                let updatedProfile = CloudProfile(id: session.user.id, username: self.userName, handle: self.userHandle, xp: self.currentXP, level: self.currentLevel, avatar_url: self.avatarURL, region: self.userRegion, insta_handle: self.instaHandle, disciplines: self.selectedSports, specialties: self.mountaineeringSpecialties, hobbies: self.otherHobbies)
-                try await supabase.from("profiles").upsert(updatedProfile).execute()
+                let updated = CloudProfile(
+                    id: session.user.id,
+                    username: vm.userName,
+                    handle: vm.userHandle,
+                    xp: self.currentXP,
+                    level: self.currentLevel,
+                    avatar_url: vm.avatarURL,
+                    region: vm.userRegion,
+                    insta_handle: vm.instaHandle,
+                    disciplines: vm.selectedSports,
+                    specialties: vm.mountaineeringSpecialties,
+                    hobbies: vm.otherHobbies
+                )
+                try await ProfileService.shared.upsertProfile(updated)
                 if refreshLeaderboard { fetchLeaderboard() }
-            } catch { print("❌ Fehler beim Speichern: \(error)") }
+            } catch { print("❌ uploadProfileToCloud error: \(error)") }
         }
     }
     
@@ -726,55 +680,6 @@ class AppState: ObservableObject {
         }
     }
     
-    // Speichert Profil-Einstellungen aus dem Edit-Fenster
-    func updateProfileSettings(newName: String, newHandle: String, newRegion: String, newSports: [String], newInsta: String, newHobbies: [String], newSpecialties: [String]) async -> Bool {
-        do {
-            let session = try await supabase.auth.session
-            let updatedProfile = CloudProfile(id: session.user.id, username: newName, handle: newHandle, xp: self.currentXP, level: self.currentLevel, avatar_url: self.avatarURL, region: newRegion, insta_handle: newInsta, disciplines: newSports, specialties: newSpecialties, hobbies: newHobbies)
-            try await supabase.from("profiles").upsert(updatedProfile).execute()
-
-            // Register each custom-ish hobby into shared dictionary (fire-and-forget)
-            for hobby in newHobbies {
-                Task.detached { try? await HobbiesRepository.shared.register(name: hobby) }
-            }
-
-            self.userName = newName; self.userHandle = newHandle; self.userRegion = newRegion; self.selectedSports = newSports
-            self.instaHandle = newInsta; self.otherHobbies = newHobbies; self.mountaineeringSpecialties = newSpecialties
-            
-            // Reactively update Feed
-            for i in self.recentTours.indices where self.recentTours[i].userId == session.user.id {
-                self.recentTours[i].playerName = newName
-                self.recentTours[i].playerHandle = newHandle
-                self.recentTours[i].playerAvatarURL = self.avatarURL
-            }
-            
-            fetchLeaderboard()  // Region may change → local leaderboard must refresh
-            return true
-        } catch {
-            print("❌ updateProfileSettings error: \(error)")
-            return false
-        }
-    }
-    
-    // Lädt ein neues Profilbild hoch und aktualisiert die URL
-    func uploadProfilePicture(data: Data) {
-        Task {
-            do {
-                let userId = try await supabase.auth.session.user.id
-                let path = "\(userId).jpg"
-                try await supabase.storage.from("avatars").upload(path, data: data, options: FileOptions(contentType: "image/jpeg", upsert: true))
-                let publicURL = try supabase.storage.from("avatars").getPublicURL(path: path)
-                
-                let cacheBusterURL = publicURL.absoluteString + "?v=\(Int(Date().timeIntervalSince1970))"
-                await MainActor.run { self.avatarURL = cacheBusterURL }
-                
-                let updatedProfile = CloudProfile(id: userId, username: self.userName, handle: self.userHandle, xp: self.currentXP, level: self.currentLevel, avatar_url: cacheBusterURL, region: self.userRegion, insta_handle: self.instaHandle, disciplines: self.selectedSports, specialties: self.mountaineeringSpecialties, hobbies: self.otherHobbies)
-                try await supabase.from("profiles").upsert(updatedProfile).execute()
-                // No leaderboard/feed refresh needed — only avatar URL changed
-            } catch { print("❌ Fehler beim Bild-Upload: \(error)") }
-        }
-    }
-
     // --- TOUR FUNKTIONEN ---
     
     // Holt die erste Seite des Feeds (Reset)
@@ -1291,8 +1196,16 @@ class AppState: ObservableObject {
                 return
             }
             
-            let myProfile = CloudProfile(id: myId, username: self.userName, handle: self.userHandle, xp: self.currentXP, level: self.currentLevel, avatar_url: self.avatarURL, region: self.userRegion)
-            let region = self.userRegion
+            let myProfile = CloudProfile(
+                id: myId,
+                username: profileVM?.userName ?? "",
+                handle: profileVM?.userHandle ?? "",
+                xp: self.currentXP,
+                level: self.currentLevel,
+                avatar_url: profileVM?.avatarURL,
+                region: profileVM?.userRegion ?? ""
+            )
+            let region = profileVM?.userRegion ?? ""
 
             // 1. Fetch Friendships
             var friendIds: [UUID] = []

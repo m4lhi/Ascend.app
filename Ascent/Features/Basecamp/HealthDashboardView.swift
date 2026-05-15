@@ -2,6 +2,7 @@ import SwiftUI
 
 struct HealthDashboardView: View {
     @EnvironmentObject var appState: AppState
+    @EnvironmentObject var profileVM: ProfileViewModel
     @StateObject private var healthData = HealthDataProvider.shared
     @ObservedObject private var weather = WeatherManager.shared
     @State private var showSettings = false
@@ -54,7 +55,7 @@ struct HealthDashboardView: View {
     }
 
     private var globalRank: Int? {
-        let me = appState.userHandle.lowercased()
+        let me = profileVM.userHandle.lowercased()
         guard !me.isEmpty else { return nil }
         guard let idx = appState.globalLeaderboard.firstIndex(where: { $0.handle.lowercased() == me }) else { return nil }
         return idx + 1
@@ -202,7 +203,7 @@ struct HealthDashboardView: View {
                         .frame(width: 42, height: 42)
                         .rotationEffect(.degrees(-90))
                         .animation(.easeOut(duration: 1.1).delay(0.35), value: phase)
-                    if let urlString = appState.avatarURL, let url = URL(string: urlString) {
+                    if let urlString = profileVM.avatarURL, let url = URL(string: urlString) {
                         CachedAsyncImage(url: url) { img in img.resizable().scaledToFill() }
                             placeholder: { Circle().fill(Color.white.opacity(0.12)) }
                             .frame(width: 34, height: 34)

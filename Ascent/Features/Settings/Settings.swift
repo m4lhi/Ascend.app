@@ -294,6 +294,7 @@ enum RouteColorOption: String, CaseIterable {
 // MARK: - Export All Tours Sheet
 struct ExportAllToursSheet: View {
     @EnvironmentObject var appState: AppState
+    @EnvironmentObject var profileVM: ProfileViewModel
     @Environment(\.dismiss) var dismiss
     @State private var isExporting = false
     @State private var shareURL: URL?
@@ -363,7 +364,7 @@ struct ExportAllToursSheet: View {
         <gpx version="1.1" creator="Ascent App"
              xmlns="http://www.topografix.com/GPX/1/1">
           <metadata>
-            <name>All Tours - \(appState.userName)</name>
+            <name>All Tours - \(profileVM.userName)</name>
             <time>\(ISO8601DateFormatter().string(from: Date()))</time>
           </metadata>
         """

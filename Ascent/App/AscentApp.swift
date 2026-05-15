@@ -8,6 +8,7 @@ import SwiftUI
 @main
 struct AscentApp: App {
     @StateObject private var appState = AppState()
+    @StateObject private var profileVM = ProfileViewModel()
     @AppStorage("isLoggedIn") private var isLoggedIn = false
     @AppStorage("fitnessOnboardingCompleted") private var fitnessOnboardingCompleted = false
     @State private var showFitnessOnboarding = false
@@ -18,9 +19,22 @@ struct AscentApp: App {
                 if isLoggedIn {
                     ContentView()
                         .environmentObject(appState)
+                        .environmentObject(profileVM)
                         .roundedFontDesign()
                         .onAppear {
-                            appState.fetchProfileFromCloud()
+                            // ProfileVM owns the profile fetch (R3).
+                            // After it resolves, apply XP/level onto AppState
+                            // (transitional until R5/ProgressVM owns those)
+                            // and kick off the post-profile init chain.
+                            appState.profileVM = profileVM
+                            Task {
+                                await profileVM.fetchProfile()
+                                if let p = profileVM.lastFetchedProfile {
+                                    appState.currentXP = p.xp
+                                    appState.currentLevel = p.level
+                                }
+                                appState.fetchInitialDataChain()
+                            }
                             // Route through HealthCoordinator (R2). Coordinator
                             // owns the 6h background analysis loop and is the
                             // sole writer into AppState.healthProfile/readiness.
@@ -41,6 +55,7 @@ struct AscentApp: App {
                 } else {
                     LoginView()
                         .environmentObject(appState)
+                        .environmentObject(profileVM)
                         .roundedFontDesign()
                 }
             }

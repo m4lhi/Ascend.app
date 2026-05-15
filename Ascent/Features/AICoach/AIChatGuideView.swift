@@ -92,7 +92,7 @@ class AIChatViewModel: ObservableObject {
         messagesLeftToday = max(0, maxMessagesPerDay - used)
     }
     
-    func sendMessage(appState: AppState) {
+    func sendMessage(appState: AppState, profileVM: ProfileViewModel) {
         let trimmed = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
         
@@ -145,10 +145,10 @@ class AIChatViewModel: ObservableObject {
         // Baue den Kontext aus dem Profil des Users zusammen
         let userContext = """
         User Profile:
-        - Name: \(appState.userName)
+        - Name: \(profileVM.userName)
         - Level: \(appState.currentLevel) (\(appState.ascendProfile?.ascend_tier ?? "Bronze"))
         - Completed Tours: \(appState.recentTours.filter { $0.isCurrentUser }.count)
-        - Region: \(appState.userRegion)
+        - Region: \(profileVM.userRegion)
         
         \(extendedContext)
         You are an elite expert mountain guide & AI Coach.
@@ -261,6 +261,7 @@ class AIChatViewModel: ObservableObject {
 // MARK: - Main Presentational View
 struct AIChatGuideView: View {
     @EnvironmentObject var appState: AppState
+    @EnvironmentObject var profileVM: ProfileViewModel
     @StateObject private var viewModel = AIChatViewModel.shared
     @Environment(\.dismiss) var dismiss
     
@@ -370,12 +371,12 @@ struct AIChatGuideView: View {
                         .font(.app(size: 16))
                         .submitLabel(.send)
                         .onSubmit {
-                            viewModel.sendMessage(appState: appState)
+                            viewModel.sendMessage(appState: appState, profileVM: profileVM)
                         }
                         .disabled(viewModel.messagesLeftToday <= 0)
                     
                     Button(action: {
-                        viewModel.sendMessage(appState: appState)
+                        viewModel.sendMessage(appState: appState, profileVM: profileVM)
                     }) {
                         Image(systemName: "paperplane.fill")
                             .font(.app(size: 20))
@@ -399,7 +400,7 @@ struct AIChatGuideView: View {
                 viewModel.inputText = "Can you give me a detailed workout/training plan for the '\(title)' stage in my roadmap?"
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                     if viewModel.messagesLeftToday > 0 {
-                        viewModel.sendMessage(appState: appState)
+                        viewModel.sendMessage(appState: appState, profileVM: profileVM)
                     }
                 }
             }
