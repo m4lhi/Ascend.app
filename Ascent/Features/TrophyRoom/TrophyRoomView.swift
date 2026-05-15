@@ -1647,20 +1647,40 @@ struct EditAccountView: View {
     private func save() {
         isSaving = true
         Task {
-            let isSuccess = await appState.updateProfileSettings(
+            let isSuccess = await profileVM.updateProfile(
                 newName: draftName,
                 newHandle: draftHandle,
                 newRegion: draftRegion,
                 newSports: draftSports,
                 newInsta: draftInsta,
                 newHobbies: draftHobbies,
-                newSpecialties: draftSpecialties
+                newSpecialties: draftSpecialties,
+                currentXP: appState.currentXP,
+                currentLevel: appState.currentLevel
             )
-            
+
             if isSuccess {
+                // Cross-VM side effects: mirror profile changes onto the
+                // user's own tours in the local feed cache, and refresh the
+                // local leaderboard (region may have changed). These move
+                // into FeedViewModel / LeaderboardViewModel in their R3
+                // steps; for now they live inline at the caller.
+                if let session = try? await supabase.auth.session {
+                    for i in appState.recentTours.indices where appState.recentTours[i].userId == session.user.id {
+                        appState.recentTours[i].playerName = draftName
+                        appState.recentTours[i].playerHandle = draftHandle
+                        appState.recentTours[i].playerAvatarURL = profileVM.avatarURL
+                    }
+                }
+                appState.fetchLeaderboard()
+
                 if let newData = draftImageData, newData != profileVM.profileImage {
                     profileVM.profileImage = newData
-                    appState.uploadProfilePicture(data: newData)
+                    await profileVM.uploadAvatar(
+                        data: newData,
+                        currentXP: appState.currentXP,
+                        currentLevel: appState.currentLevel
+                    )
                 }
                 await MainActor.run {
                     isSaving = false

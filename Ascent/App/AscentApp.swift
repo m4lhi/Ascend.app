@@ -22,12 +22,19 @@ struct AscentApp: App {
                         .environmentObject(profileVM)
                         .roundedFontDesign()
                         .onAppear {
-                            // ProfileVM fetch runs in parallel with the
-                            // existing AppState.fetchProfileFromCloud() — this
-                            // is a temporary duplicate fetch, removed when the
-                            // AppState wrapper is dropped in the cleanup commit.
-                            Task { await profileVM.fetchProfile() }
-                            appState.fetchProfileFromCloud()
+                            // ProfileVM owns the profile fetch (R3).
+                            // After it resolves, apply XP/level onto AppState
+                            // (transitional until R5/ProgressVM owns those)
+                            // and kick off the post-profile init chain.
+                            appState.profileVM = profileVM
+                            Task {
+                                await profileVM.fetchProfile()
+                                if let p = profileVM.lastFetchedProfile {
+                                    appState.currentXP = p.xp
+                                    appState.currentLevel = p.level
+                                }
+                                appState.fetchInitialDataChain()
+                            }
                             // Route through HealthCoordinator (R2). Coordinator
                             // owns the 6h background analysis loop and is the
                             // sole writer into AppState.healthProfile/readiness.
