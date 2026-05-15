@@ -11,6 +11,7 @@ import MapKit
 
 struct BasecampView: View {
     @EnvironmentObject var appState: AppState
+    @EnvironmentObject var profileVM: ProfileViewModel
     @State private var showXPDetails = false
     @State private var showTracker = false
     @State private var mountainToTrack: Mountain? = nil
@@ -287,7 +288,7 @@ struct BasecampView: View {
     // MARK: - Rank Card (opens Arena sheet on tap)
 
     private var globalRank: Int? {
-        let me = appState.userHandle.lowercased()
+        let me = profileVM.userHandle.lowercased()
         guard !me.isEmpty else { return nil }
         let board = appState.globalLeaderboard
         guard let idx = board.firstIndex(where: { $0.handle.lowercased() == me }) else { return nil }
@@ -389,7 +390,7 @@ struct BasecampView: View {
                         .font(.appMono(size: 9, weight: .bold))
                         .foregroundColor(.white.opacity(0.58))
                         .tracking(1.8)
-                    Text(appState.userName)
+                    Text(profileVM.userName)
                         .font(.app(size: 26, weight: .black))
                         .foregroundColor(.white)
                         .lineLimit(1)
@@ -414,7 +415,7 @@ struct BasecampView: View {
                             .frame(width: 52, height: 52)
                             .rotationEffect(.degrees(-90))
                             .animation(.easeOut(duration: 1.1).delay(0.35), value: phase)
-                        if let urlString = appState.avatarURL, let url = URL(string: urlString) {
+                        if let urlString = profileVM.avatarURL, let url = URL(string: urlString) {
                             CachedAsyncImage(url: url) { image in
                                 image.resizable().scaledToFill()
                             } placeholder: {
@@ -1341,6 +1342,7 @@ struct DiscoverCard: View {
 struct XPDetailView: View {
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var appState: AppState
+    @EnvironmentObject var profileVM: ProfileViewModel
     @State private var appeared = false
     private let accent = DesignSystem.Colors.accent
 
@@ -1374,7 +1376,7 @@ struct XPDetailView: View {
                             .font(.appMono(size: 14, weight: .bold))
                             .foregroundColor(DesignSystem.Colors.secondaryText)
                             .tracking(2)
-                        let region = appState.userRegion
+                        let region = profileVM.userRegion
                         Text(region.isEmpty || region == "Unknown" ? "Keep climbing to rank up!" : "Alpinist in \(region)")
                             .font(.app(size: 14))
                             .foregroundColor(.green)
