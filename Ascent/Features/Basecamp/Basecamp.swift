@@ -13,6 +13,7 @@ struct BasecampView: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var profileVM: ProfileViewModel
     @EnvironmentObject var feedVM: FeedViewModel
+    @EnvironmentObject var leaderboardVM: LeaderboardViewModel
     @State private var showXPDetails = false
     @State private var showTracker = false
     @State private var mountainToTrack: Mountain? = nil
@@ -291,7 +292,7 @@ struct BasecampView: View {
     private var globalRank: Int? {
         let me = profileVM.userHandle.lowercased()
         guard !me.isEmpty else { return nil }
-        let board = appState.globalLeaderboard
+        let board = leaderboardVM.globalLeaderboard
         guard let idx = board.firstIndex(where: { $0.handle.lowercased() == me }) else { return nil }
         return idx + 1
     }
