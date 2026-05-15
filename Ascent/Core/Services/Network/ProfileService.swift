@@ -29,6 +29,17 @@ final class ProfileService {
             .value
     }
 
+    /// Fetch profile rows whose handle matches the given pattern (ILIKE).
+    /// Returns an array — handle isn't database-unique, caller picks first.
+    func fetchProfilesByHandle(_ pattern: String) async throws -> [CloudProfile] {
+        try await supabase
+            .from("profiles")
+            .select()
+            .ilike("handle", pattern: pattern)
+            .execute()
+            .value
+    }
+
     /// Upsert (create-or-update) the given profile row.
     func upsertProfile(_ profile: CloudProfile) async throws {
         try await supabase
