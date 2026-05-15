@@ -16,7 +16,11 @@ import HealthKit
 //   • Fitness trend over 30 / 90 days
 //   • Recovery quality indicators
 //
-// Attach to AppState via HealthAnalysisEngine.shared.start(appState:)
+// NOTE (R2): Direct access deprecated for new callers — use
+// HealthCoordinator. Existing View-Direct-Access (TrainingAnalyticsView)
+// will be migrated in R3. The Coordinator orchestrates the periodic
+// loop via startBackgroundAnalysis() and is the sole writer into
+// AppState.healthProfile / .readiness.
 
 // MARK: - Analysis Result Models
 
@@ -91,7 +95,8 @@ final class HealthAnalysisEngine: ObservableObject {
     private let analysisIntervalHours: Double = 6
     private var analysisTask: Task<Void, Never>? = nil
 
-    // Start periodic background analysis and attach result to AppState
+    // Start periodic background analysis and attach result to AppState.
+    @available(*, deprecated, message: "Use HealthCoordinator.shared.attach(appState) + .startBackgroundAnalysis() instead. Will be made internal once Views (R3) and AICoachingGateway/FitnessOnboardingView Single-Shot calls are migrated.")
     func start(appState: AppState) {
         guard analysisTask == nil else { return }
         analysisTask = Task { [weak self] in

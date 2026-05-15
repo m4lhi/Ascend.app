@@ -5,6 +5,11 @@
 //  Time-series HealthKit queries for charts and dashboards.
 //  Returns arrays of (date, value) for sparklines, trend charts, and zone bars.
 //
+//  NOTE (R2): Direct access deprecated for new callers — use HealthCoordinator.
+//  Existing View-Direct-Access (HealthDashboardView, BodyMetricsView,
+//  SleepAnalysisView, TrainingAnalyticsView) will be migrated to a
+//  Coordinator-owned data path in R3 (View-ViewModel split).
+//
 
 import Foundation
 import SwiftUI

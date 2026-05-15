@@ -693,15 +693,11 @@ class AppState: ObservableObject {
 
     func refreshReadiness() {
         Task {
-            let profile = await HealthKitBridge.shared.requestAndFetch()
-            self.healthProfile = profile
-            
-            // Try to find a target mountain for environmental evaluation
+            // Resolve target mountain (Supabase lookup) from coaching plan, if any.
+            // Stays here until R3 moves this into ReadinessViewModel / MountainService.
             var targetMt: Mountain? = nil
-            // If the user has a coaching plan, we use that as target
             if let goalData = UserDefaults.standard.data(forKey: "coaching_plan_data"),
                let plan = try? JSONDecoder().decode(CoachingPlan.self, from: goalData) {
-                // Find mountain by name if possible
                 let results: [Mountain]? = try? await supabase
                     .from("mountains")
                     .select("id,name,elevation,difficulty,region,country,image_url,latitude,longitude,isPrestigePeak")
@@ -711,23 +707,22 @@ class AppState: ObservableObject {
                     .value
                 targetMt = results?.first
             }
-            
+
+            // Fetch current weather for the resolved target, if coordinates available.
             var weather: MountainWeather? = nil
             if let targetMt, let lat = targetMt.latitude, let lon = targetMt.longitude {
                 await WeatherManager.shared.fetchWeather(latitude: lat, longitude: lon)
                 weather = WeatherManager.shared.currentWeather
             }
-            
-            let result = ReadinessManager.shared.calculate(
-                profile: profile,
+
+            // Delegate to HealthCoordinator: it fetches the HealthKit profile,
+            // runs ReadinessManager.calculate, and writes back into
+            // self.healthProfile / self.readiness (mirror until R3).
+            await HealthCoordinator.shared.refreshReadiness(
                 tours: self.recentTours,
                 targetMountain: targetMt,
                 targetWeather: weather
             )
-            
-            withAnimation(.spring()) {
-                self.readiness = result
-            }
         }
     }
     
