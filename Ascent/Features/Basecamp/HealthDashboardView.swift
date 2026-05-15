@@ -67,7 +67,7 @@ struct HealthDashboardView: View {
 
     var body: some View {
         ZStack {
-            DesignSystem.Colors.background.ignoresSafeArea()
+            DesignSystem.Colors.paperWarm.ignoresSafeArea()
 
             ScrollView(showsIndicators: false) {
                 LazyVStack(spacing: 20) {
@@ -468,7 +468,7 @@ struct HealthDashboardView: View {
             .padding(.horizontal, DesignSystem.Spacing.md)
             .padding(.vertical, 14)
             .frame(maxWidth: .infinity)
-            .ascentCard(cornerRadius: DesignSystem.Radius.xl)
+            .pastelCard(.sand, applyForeground: false)
         }
         .buttonStyle(PressableButtonStyle())
     }
@@ -501,7 +501,7 @@ struct HealthDashboardView: View {
                     }
                     .padding(16)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                    .ascentCard()
+                    .pastelCard(.sage, applyForeground: false)
                 }
                 .buttonStyle(PressableButtonStyle())
 
@@ -531,7 +531,7 @@ struct HealthDashboardView: View {
                     }
                     .padding(16)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                    .ascentCard()
+                    .pastelCard(.ice, applyForeground: false)
                 }
                 .buttonStyle(PressableButtonStyle())
             }
@@ -563,7 +563,7 @@ struct HealthDashboardView: View {
                     }
                     .padding(16)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                    .ascentCard()
+                    .pastelCard(.sand, applyForeground: false)
                 }
                 .buttonStyle(PressableButtonStyle())
 
@@ -597,7 +597,7 @@ struct HealthDashboardView: View {
                     }
                     .padding(16)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                    .ascentCard()
+                    .pastelCard(.ice, applyForeground: false)
                 }
                 .buttonStyle(PressableButtonStyle())
             }
@@ -690,7 +690,7 @@ struct HealthDashboardView: View {
             }
             .padding(DesignSystem.Spacing.cardPadding)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .ascentCard()
+            .pastelCard(.ice, applyForeground: false)
         }
         .buttonStyle(PressableButtonStyle())
     }
@@ -720,7 +720,7 @@ struct HealthDashboardView: View {
                     .foregroundColor(DesignSystem.Colors.tertiaryText)
             }
             .padding(DesignSystem.Spacing.cardPadding)
-            .ascentCard()
+            .pastelCard(.sand, applyForeground: false)
         }
         .buttonStyle(PressableButtonStyle())
     }
