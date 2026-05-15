@@ -465,19 +465,21 @@ private struct FadedTopo: Shape {
 // =========================================
 
 #if DEBUG
-@MainActor
-private func makePreview(scheme: ColorScheme) -> some View {
-    let profile = ProfileViewModel()
-    profile.userName = "Harwin"
-    let readiness = ReadinessViewModel()
-    let discovery = DiscoveryViewModel()
-    return BasecampScreen()
-        .environmentObject(profile)
-        .environmentObject(readiness)
-        .environmentObject(discovery)
-        .preferredColorScheme(scheme)
+private enum BasecampScreenPreviews {
+    @MainActor
+    static func make(scheme: ColorScheme) -> some View {
+        let profile = ProfileViewModel()
+        profile.userName = "Harwin"
+        let readiness = ReadinessViewModel()
+        let discovery = DiscoveryViewModel()
+        return BasecampScreen()
+            .environmentObject(profile)
+            .environmentObject(readiness)
+            .environmentObject(discovery)
+            .preferredColorScheme(scheme)
+    }
 }
 
-#Preview("Light · Ready") { makePreview(scheme: .light) }
-#Preview("Dark · Ready")  { makePreview(scheme: .dark) }
+#Preview("Light · Ready") { BasecampScreenPreviews.make(scheme: .light) }
+#Preview("Dark · Ready")  { BasecampScreenPreviews.make(scheme: .dark) }
 #endif
