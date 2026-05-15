@@ -118,3 +118,60 @@ extension DesignSystem.Radius {
     /// the default elsewhere.
     static let cardSoft: CGFloat = 28
 }
+
+// MARK: - Pastel Card Modifier
+//
+// Gentler-Streak-flavoured card wrapper. Picks a pastel background +
+// matching ink color from the new tokens. Drop-in replacement for the
+// legacy `.ascentCard(...)` modifier on a per-widget basis.
+
+enum PastelFamily {
+    case sage
+    case ice
+    case sand
+
+    var background: Color {
+        switch self {
+        case .sage: return DesignSystem.Colors.sageCard
+        case .ice:  return DesignSystem.Colors.iceGlacierCard
+        case .sand: return DesignSystem.Colors.sandCard
+        }
+    }
+
+    var ink: Color {
+        switch self {
+        case .sage: return DesignSystem.Colors.inkOnSage
+        case .ice:  return DesignSystem.Colors.inkOnIce
+        case .sand: return DesignSystem.Colors.inkOnSand
+        }
+    }
+}
+
+extension View {
+    /// Pastel pillow-soft card. 28pt radius, no border, no shadow.
+    /// `applyForeground` (default true) sets the matching ink color
+    /// on descendants — turn it off if a widget needs to mix multiple
+    /// text colors itself.
+    func pastelCard(_ family: PastelFamily,
+                    padding: CGFloat = 16,
+                    applyForeground: Bool = true) -> some View {
+        Group {
+            if applyForeground {
+                self
+                    .foregroundStyle(family.ink)
+                    .padding(padding)
+                    .background(
+                        RoundedRectangle(cornerRadius: DesignSystem.Radius.cardSoft, style: .continuous)
+                            .fill(family.background)
+                    )
+            } else {
+                self
+                    .padding(padding)
+                    .background(
+                        RoundedRectangle(cornerRadius: DesignSystem.Radius.cardSoft, style: .continuous)
+                            .fill(family.background)
+                    )
+            }
+        }
+    }
+}

@@ -74,7 +74,7 @@ struct BasecampView: View {
 
     var body: some View {
         ZStack {
-            DesignSystem.Colors.background
+            DesignSystem.Colors.paperWarm
                 .ignoresSafeArea()
 
             ScrollView(showsIndicators: false) {
@@ -309,80 +309,59 @@ struct BasecampView: View {
             showArena = true
         } label: {
             HStack(spacing: 14) {
-                // Tier Disc — 3D dimensional gem
+                // Tier Disc — flat sand-tone with 1.5pt tier-color ring (accent only)
                 ZStack {
-                    // Base sphere
                     Circle()
-                        .fill(
-                            LinearGradient(
-                                colors: [tierColor, tierColorDeep],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .frame(width: 50, height: 50)
+                        .fill(DesignSystem.Colors.inkOnSand.opacity(0.08))
+                        .frame(width: 48, height: 48)
 
-                    // Top specular highlight (3D lit-from-above)
                     Circle()
-                        .fill(
-                            RadialGradient(
-                                colors: [Color.white.opacity(0.55), .clear],
-                                center: UnitPoint(x: 0.30, y: 0.20),
-                                startRadius: 0,
-                                endRadius: 22
-                            )
-                        )
-                        .frame(width: 50, height: 50)
-                        .blendMode(.plusLighter)
-
-                    // Inner darken bottom-right (depth shadow)
-                    Circle()
-                        .stroke(
-                            LinearGradient(
-                                colors: [.clear, tierColorDeep.opacity(0.55)],
-                                startPoint: .topLeading, endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 1
-                        )
-                        .frame(width: 50, height: 50)
+                        .stroke(tierColor, lineWidth: 1.5)
+                        .frame(width: 52, height: 52)
 
                     Image(systemName: "trophy.fill")
-                        .font(.system(size: 19, weight: .black))
-                        .foregroundColor(.white)
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(DesignSystem.Colors.inkOnSand.opacity(0.85))
                 }
 
 
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(tierLabel.uppercased())
-                        .font(.appMono(size: 10, weight: .bold))
-                        .tracking(1.6)
-                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                    Text(tierLabel)
+                        .font(DesignSystem.Typography.kickerInter)
+                        .tracking(0.5)
+                        .foregroundStyle(DesignSystem.Colors.inkOnSand.opacity(0.62))
                     if let rank = globalRank {
                         Text("Global Rank #\(rank)")
-                            .font(.app(size: 17, weight: .heavy))
+                            .font(DesignSystem.Typography.title3Inter)
+                            .foregroundStyle(DesignSystem.Colors.inkOnSand)
                     } else {
                         Text("\(appState.currentXP) XP · Lvl \(appState.currentLevel)")
-                            .font(.app(size: 17, weight: .heavy))
+                            .font(DesignSystem.Typography.title3Inter)
+                            .foregroundStyle(DesignSystem.Colors.inkOnSand)
+                            .monospacedDigit()
                     }
                 }
                 Spacer()
 
                 HStack(spacing: 6) {
-                    Text("ARENA")
-                        .font(.appMono(size: 10, weight: .bold))
-                        .tracking(1.4)
-                        .foregroundColor(DesignSystem.Colors.accent)
+                    Text("Arena")
+                        .font(DesignSystem.Typography.kickerInter)
+                        .tracking(0.5)
+                        .foregroundStyle(DesignSystem.Colors.alpenglow)
                     Image(systemName: "chevron.right")
-                        .font(.system(size: 12, weight: .heavy))
-                        .foregroundColor(DesignSystem.Colors.accent)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(DesignSystem.Colors.alpenglow)
                 }
             }
-            .padding(.horizontal, DesignSystem.Spacing.md)
-            .padding(.vertical, 14)
+            .padding(.horizontal, 18)
+            .padding(.vertical, 16)
             .frame(maxWidth: .infinity)
-            .ascentCard(cornerRadius: DesignSystem.Radius.xl)
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.cardSoft, style: .continuous)
+                    .fill(DesignSystem.Colors.sandCard)
+            )
         }
-        .buttonStyle(AscentButtonStyle())
+        .buttonStyle(.plain)
     }
 
     private var topBar: some View {
@@ -723,7 +702,7 @@ struct BasecampView: View {
             }
             .padding(18)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .ascentCard()
+            .pastelCard(.ice, applyForeground: false)
         }
         .buttonStyle(PressableButtonStyle())
     }
@@ -768,7 +747,7 @@ struct BasecampView: View {
             }
             .padding(18)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .ascentCard()
+            .pastelCard(.sage, applyForeground: false)
         }
         .buttonStyle(PressableButtonStyle())
     }
@@ -863,7 +842,7 @@ struct BasecampView: View {
             }
             .padding(18)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .ascentCard()
+            .pastelCard(.sand, applyForeground: false)
         }
         .buttonStyle(PressableButtonStyle())
     }
@@ -941,7 +920,7 @@ struct BasecampView: View {
             }
             .padding(18)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .ascentCard()
+            .pastelCard(.ice, applyForeground: false)
         }
         .buttonStyle(PressableButtonStyle())
     }
@@ -1035,7 +1014,7 @@ struct BasecampView: View {
             }
             .padding(18)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .ascentCard()
+            .pastelCard(.ice, applyForeground: false)
         }
         .buttonStyle(PressableButtonStyle())
     }
