@@ -228,6 +228,11 @@ class AppState: ObservableObject {
     // until further VMs / R4 take over.
     weak var feedVM: FeedViewModel?
 
+    // Weak reference to LeaderboardViewModel (R3 step 4). Set by AscentApp.
+    // Used by fetchInitialDataChain and the tour-XP-push path
+    // (uploadProfileToCloud) to trigger a leaderboard refresh.
+    weak var leaderboardVM: LeaderboardViewModel?
+
     init() {
         loadContextualPersistence()
     }

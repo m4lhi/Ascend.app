@@ -10,6 +10,7 @@ struct AscentApp: App {
     @StateObject private var appState = AppState()
     @StateObject private var profileVM = ProfileViewModel()
     @StateObject private var feedVM = FeedViewModel()
+    @StateObject private var leaderboardVM = LeaderboardViewModel()
     @AppStorage("isLoggedIn") private var isLoggedIn = false
     @AppStorage("fitnessOnboardingCompleted") private var fitnessOnboardingCompleted = false
     @State private var showFitnessOnboarding = false
@@ -22,17 +23,25 @@ struct AscentApp: App {
                         .environmentObject(appState)
                         .environmentObject(profileVM)
                         .environmentObject(feedVM)
+                        .environmentObject(leaderboardVM)
                         .roundedFontDesign()
                         .onAppear {
                             // ProfileVM owns the profile fetch (R3).
                             // After it resolves, apply XP/level onto AppState
                             // (transitional until R5/ProgressVM owns those)
                             // and kick off the post-profile init chain.
-                            // FeedVM is wired alongside; AppState retains a
-                            // weak ref so its still-owned tour-lifecycle
-                            // methods can mutate the feed cache.
+                            // FeedVM/LeaderboardVM are wired alongside;
+                            // AppState retains weak refs so its still-owned
+                            // tour-lifecycle + init chain can route through
+                            // them. LeaderboardVM also holds weak refs to
+                            // profileVM/feedVM/appState for its myProfile
+                            // build and addFriend's chained refresh.
                             appState.profileVM = profileVM
                             appState.feedVM = feedVM
+                            appState.leaderboardVM = leaderboardVM
+                            leaderboardVM.profileVM = profileVM
+                            leaderboardVM.feedVM = feedVM
+                            leaderboardVM.appState = appState
                             Task {
                                 await profileVM.fetchProfile()
                                 if let p = profileVM.lastFetchedProfile {
@@ -63,6 +72,7 @@ struct AscentApp: App {
                         .environmentObject(appState)
                         .environmentObject(profileVM)
                         .environmentObject(feedVM)
+                        .environmentObject(leaderboardVM)
                         .roundedFontDesign()
                 }
             }
