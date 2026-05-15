@@ -1865,6 +1865,7 @@ struct ShareCollectionSheet: View {
     @ObservedObject var manager: CollectionsManager
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var appState: AppState
+    @EnvironmentObject var leaderboardVM: LeaderboardViewModel
 
     @State private var searchText = ""
     @State private var searchResults: [ShareableUser] = []
@@ -1937,7 +1938,7 @@ struct ShareCollectionSheet: View {
                     // Friends & Current Members
                     ScrollView {
                         VStack(spacing: 24) {
-                            if !appState.friendsLeaderboard.isEmpty {
+                            if !leaderboardVM.friendsLeaderboard.isEmpty {
                                 VStack(alignment: .leading, spacing: 10) {
                                     Text("Invite Friends")
                                         .font(.app(size: 14, weight: .bold))
@@ -1945,7 +1946,7 @@ struct ShareCollectionSheet: View {
                                         .padding(.horizontal, 20)
                                     
                                     LazyVStack(spacing: 0) {
-                                        ForEach(appState.friendsLeaderboard) { friend in
+                                        ForEach(leaderboardVM.friendsLeaderboard) { friend in
                                             let friendUser = ShareableUser(id: friend.id, username: friend.username, handle: friend.handle, avatar_url: friend.avatar_url)
                                             userRow(user: friendUser)
                                                 .padding(.horizontal, 20)
@@ -1971,7 +1972,7 @@ struct ShareCollectionSheet: View {
                                         }
                                     }
                                 }
-                                .padding(.top, appState.friendsLeaderboard.isEmpty ? 16 : 0)
+                                .padding(.top, leaderboardVM.friendsLeaderboard.isEmpty ? 16 : 0)
                             }
                         }
                     }

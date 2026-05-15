@@ -55,10 +55,10 @@ struct Achievement: Identifiable {
 // Computed achievements from real AppState data
 struct AchievementEngine {
     
-    static func compute(from appState: AppState, feedVM: FeedViewModel) -> [Achievement] {
+    static func compute(from appState: AppState, feedVM: FeedViewModel, leaderboardVM: LeaderboardViewModel) -> [Achievement] {
         let tourCount = feedVM.recentTours.filter { $0.isCurrentUser }.count
         let totalElevation = feedVM.recentTours.filter { $0.isCurrentUser }.reduce(0) { $0 + $1.elevationGainMeters }
-        let friendCount = appState.friendsLeaderboard.count - 1 // minus self
+        let friendCount = leaderboardVM.friendsLeaderboard.count - 1 // minus self
         let currentLevel = appState.currentLevel
         let weeklyElev = appState.weeklyElevation
         let weeklyTours = appState.weeklyTourCount
@@ -303,6 +303,7 @@ struct TrophyRoomView: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var profileVM: ProfileViewModel
     @EnvironmentObject var feedVM: FeedViewModel
+    @EnvironmentObject var leaderboardVM: LeaderboardViewModel
 
     @State private var showEditProfile = false
     @State private var progressAnimated = false
@@ -347,7 +348,7 @@ struct TrophyRoomView: View {
     }
     
     private var achievements: [Achievement] {
-        AchievementEngine.compute(from: appState, feedVM: feedVM)
+        AchievementEngine.compute(from: appState, feedVM: feedVM, leaderboardVM: leaderboardVM)
     }
     
     private var filteredAchievements: [Achievement] {
@@ -1171,6 +1172,7 @@ struct EditAccountView: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var profileVM: ProfileViewModel
     @EnvironmentObject var feedVM: FeedViewModel
+    @EnvironmentObject var leaderboardVM: LeaderboardViewModel
     @Environment(\.dismiss) var dismiss
     
     @StateObject private var locationFetcher = LocationFetcher()
@@ -1676,7 +1678,7 @@ struct EditAccountView: View {
                         avatarURL: profileVM.avatarURL
                     )
                 }
-                appState.fetchLeaderboard()
+                leaderboardVM.fetchLeaderboard()
 
                 if let newData = draftImageData, newData != profileVM.profileImage {
                     profileVM.profileImage = newData

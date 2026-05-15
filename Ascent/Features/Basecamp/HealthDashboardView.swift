@@ -4,6 +4,7 @@ struct HealthDashboardView: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var profileVM: ProfileViewModel
     @EnvironmentObject var feedVM: FeedViewModel
+    @EnvironmentObject var leaderboardVM: LeaderboardViewModel
     @StateObject private var healthData = HealthDataProvider.shared
     @ObservedObject private var weather = WeatherManager.shared
     @State private var showSettings = false
@@ -58,7 +59,7 @@ struct HealthDashboardView: View {
     private var globalRank: Int? {
         let me = profileVM.userHandle.lowercased()
         guard !me.isEmpty else { return nil }
-        guard let idx = appState.globalLeaderboard.firstIndex(where: { $0.handle.lowercased() == me }) else { return nil }
+        guard let idx = leaderboardVM.globalLeaderboard.firstIndex(where: { $0.handle.lowercased() == me }) else { return nil }
         return idx + 1
     }
 
