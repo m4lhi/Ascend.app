@@ -1212,23 +1212,24 @@ struct RouteCard: View {
     var body: some View {
         Button(action: onTap) {
             VStack(alignment: .leading, spacing: 0) {
+                // Image — full-bleed across the card width (Option A,
+                // magazine-style). No own horizontal padding; bleeds
+                // into the cardSoft rounding left and right symmetrically.
                 ZStack(alignment: .topTrailing) {
-                    Color.clear
-                        .frame(width: 180, height: 100)
-                        .overlay(
-                            Group {
-                                if let urlString = mountain.effectiveImageUrl, !urlString.isEmpty, let url = URL(string: urlString) {
-                                    CachedAsyncImage(url: url) { image in
-                                        image.resizable().scaledToFill()
-                                    } placeholder: {
-                                        routePlaceholder
-                                    }
-                                } else {
-                                    routePlaceholder
-                                }
+                    Group {
+                        if let urlString = mountain.effectiveImageUrl, !urlString.isEmpty, let url = URL(string: urlString) {
+                            CachedAsyncImage(url: url) { image in
+                                image.resizable().scaledToFill()
+                            } placeholder: {
+                                routePlaceholder
                             }
-                        )
-                        .clipped()
+                        } else {
+                            routePlaceholder
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 110)
+                    .clipped()
 
                     if let credit = mountain.image_credit, !credit.isEmpty {
                         VStack {
@@ -1238,8 +1239,8 @@ struct RouteCard: View {
                                 Text("Photo: \(credit)")
                                     .font(DesignSystem.Typography.footnoteInter)
                                     .foregroundStyle(Color.white.opacity(0.55))
-                                    .padding(.trailing, 6)
-                                    .padding(.bottom, 4)
+                                    .padding(.trailing, 8)
+                                    .padding(.bottom, 6)
                             }
                         }
                     }
