@@ -612,7 +612,7 @@ struct CommentSheetView: View {
                     Button(action: {
                         let text = newCommentText
                         newCommentText = ""
-                        appState.postComment(tour: tour, body: text)
+                        feedVM.postComment(tour: tour, body: text)
                         Task {
                             try? await Task.sleep(nanoseconds: 500_000_000)
                             comments = await feedVM.fetchComments(tour: tour)

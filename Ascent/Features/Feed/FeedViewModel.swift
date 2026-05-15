@@ -100,7 +100,7 @@ final class FeedViewModel: ObservableObject {
     }
 
     /// Optimistic comment-count bump + background cloud insert.
-    func addComment(tour: Tour, body: String) {
+    func postComment(tour: Tour, body: String) {
         guard let tourId = tour.cloudId else { return }
         if let idx = recentTours.firstIndex(where: { $0.id == tour.id }) {
             recentTours[idx].commentCount += 1
@@ -110,7 +110,7 @@ final class FeedViewModel: ObservableObject {
                 let myId = try await supabase.auth.session.user.id
                 try await service.insertComment(tourId: tourId, userId: myId, body: body)
             } catch {
-                print("❌ FeedViewModel.addComment error: \(error)")
+                print("❌ FeedViewModel.postComment error: \(error)")
             }
         }
     }
