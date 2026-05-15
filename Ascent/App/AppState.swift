@@ -224,6 +224,12 @@ class AppState: ObservableObject {
     // pattern.
     weak var profileVM: ProfileViewModel?
 
+    // Weak reference to FeedViewModel (R3 step 3). Set by AscentApp.
+    // Used by methods that still need to read/mutate the feed cache
+    // (refreshReadiness, weeklyGoScores, addCompletedTour, deleteTour)
+    // until further VMs / R4 take over.
+    weak var feedVM: FeedViewModel?
+
     init() {
         loadContextualPersistence()
     }
