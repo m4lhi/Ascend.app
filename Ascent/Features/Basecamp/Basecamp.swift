@@ -12,6 +12,7 @@ import MapKit
 struct BasecampView: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var profileVM: ProfileViewModel
+    @EnvironmentObject var feedVM: FeedViewModel
     @State private var showXPDetails = false
     @State private var showTracker = false
     @State private var mountainToTrack: Mountain? = nil
@@ -125,11 +126,11 @@ struct BasecampView: View {
             }
             .coordinateSpace(name: "bcScroll")
             .refreshable {
-                appState.fetchFeed(forceRefresh: true)
+                feedVM.fetchFeed(forceRefresh: true)
             }
         }
         .onAppear {
-            appState.fetchFeed()
+            feedVM.fetchFeed()
             appState.fetchRecommendedPeaks()
             appState.refreshReadiness()
             let lat = appState.activeMountain?.latitude ?? 45.8326
@@ -845,7 +846,7 @@ struct BasecampView: View {
                         .foregroundColor(.secondary.opacity(0.5))
                 }
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
-                    Text("\(appState.recentTours.filter { $0.isCurrentUser }.count)")
+                    Text("\(feedVM.recentTours.filter { $0.isCurrentUser }.count)")
                         .font(.appMono(size: 30, weight: .black))
                         .foregroundColor(.white)
                         .contentTransition(.numericText())
@@ -1389,13 +1390,13 @@ struct XPDetailView: View {
                     HStack(spacing: 12) {
                         glassStatCard(
                             icon: "arrow.up.right",
-                            value: "\(appState.recentTours.filter{$0.isCurrentUser}.reduce(0){$0+$1.elevationGainMeters})",
+                            value: "\(feedVM.recentTours.filter{$0.isCurrentUser}.reduce(0){$0+$1.elevationGainMeters})",
                             unit: "m gained",
                             color: .green
                         )
                         glassStatCard(
                             icon: "figure.hiking",
-                            value: "\(appState.recentTours.filter{$0.isCurrentUser}.count)",
+                            value: "\(feedVM.recentTours.filter{$0.isCurrentUser}.count)",
                             unit: "missions",
                             color: .orange
                         )
@@ -1456,25 +1457,26 @@ struct StatColumn: View {
 
 struct AllActivitiesView: View {
     @EnvironmentObject var appState: AppState
+    @EnvironmentObject var feedVM: FeedViewModel
     @Environment(\.dismiss) var dismiss
 
     var body: some View {
         NavigationView {
             ScrollView(showsIndicators: false) {
                 LazyVStack(spacing: 12) {
-                    ForEach(appState.recentTours) { tour in
+                    ForEach(feedVM.recentTours) { tour in
                         ActivityCardView(tour: tour)
                             .padding(.horizontal, 16)
                             .onAppear {
-                                if tour.id == appState.recentTours.last?.id {
-                                    appState.loadMoreFeed()
+                                if tour.id == feedVM.recentTours.last?.id {
+                                    feedVM.loadNextFeedPage()
                                 }
                             }
                     }
-                    if appState.isLoadingMoreFeed {
+                    if feedVM.isLoadingMoreFeed {
                         ProgressView().tint(.gray).padding()
                     }
-                    if !appState.hasMoreFeed && !appState.recentTours.isEmpty {
+                    if !feedVM.hasMoreFeed && !feedVM.recentTours.isEmpty {
                         Text("You've seen it all!")
                             .font(.app(.caption))
                             .foregroundColor(DesignSystem.Colors.secondaryText)
