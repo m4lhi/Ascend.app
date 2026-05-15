@@ -20,6 +20,7 @@ struct Player: Identifiable {
 
 struct ArenaView: View {
     @EnvironmentObject var appState: AppState
+    @EnvironmentObject var profileVM: ProfileViewModel
     @State private var selectedScope = 0
     @State private var showAddFriendAlert = false
     @State private var friendHandleInput = ""
@@ -47,7 +48,7 @@ struct ArenaView: View {
         }
         return sourceArray.map { p in
             Player(id: p.id, name: p.username, handle: p.handle, xp: p.xp,
-                   isCurrentUser: p.handle == appState.userHandle,
+                   isCurrentUser: p.handle == profileVM.userHandle,
                    avatarURL: p.avatar_url)
         }
     }
