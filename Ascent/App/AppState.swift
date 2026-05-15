@@ -103,16 +103,7 @@ struct PauseEntry: Codable, Identifiable {
 // Tour / CloudFistBump / CloudComment / CloudBookmark / CommentDisplay
 // live in Core/Models/Tour.swift (R3 step 3).
 
-// --- HERO BANNER MODEL ---
-
-struct HeroBannerItem: Identifiable {
-    let id = UUID()
-    let title: String
-    let subtitle: String
-    let imageURL: String?
-    let badge: String?       // e.g. "PRESTIGE PEAK", "TRENDING", "COMMUNITY"
-    let mountain: Mountain?  // nil for community highlights
-}
+// HeroBannerItem lives in Core/Models/HeroBannerItem.swift (R3 step 5).
 
 // --- EQUIPMENT MODEL ---
 
