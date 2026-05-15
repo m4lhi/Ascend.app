@@ -1,0 +1,60 @@
+name: Build Ascent
+
+on:
+  push:
+    branches:
+      - 'refactor/*'
+
+jobs:
+  build:
+    name: xcodebuild (iOS Simulator)
+    runs-on: macos-latest
+
+    env:
+      SCHEME: Ascent
+      PROJECT: Ascent.xcodeproj
+      DERIVED_DATA: ${{ github.workspace }}/DerivedData
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: Cache Swift Package Manager
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Caches/org.swift.swiftpm
+            ~/Library/Developer/Xcode/DerivedData/**/SourcePackages
+          key: ${{ runner.os }}-spm-${{ hashFiles('**/Package.resolved') }}
+          restore-keys: |
+            ${{ runner.os }}-spm-
+
+      - name: Cache DerivedData
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.DERIVED_DATA }}
+          key: ${{ runner.os }}-deriveddata-${{ env.SCHEME }}-${{ hashFiles('**/*.swift', '**/project.pbxproj', '**/Package.resolved') }}
+          restore-keys: |
+            ${{ runner.os }}-deriveddata-${{ env.SCHEME }}-
+
+      - name: Resolve packages
+        run: xcodebuild -resolvePackageDependencies -project "$PROJECT" -scheme "$SCHEME"
+
+      - name: Build for iOS Simulator
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project "$PROJECT" \
+            -scheme "$SCHEME" \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$DERIVED_DATA" \
+            -skipPackagePluginValidation \
+            CODE_SIGNING_ALLOWED=NO \
+            build
