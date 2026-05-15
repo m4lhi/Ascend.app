@@ -753,7 +753,7 @@ class AppState: ObservableObject {
                 }
                 
                 fetchLeaderboard()
-                fetchFeed()
+                feedVM?.fetchFeed(forceRefresh: true)
             } catch { print("❌ Fehler in addFriend: \(error)") }
         }
     }
