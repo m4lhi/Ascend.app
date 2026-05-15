@@ -40,6 +40,18 @@ final class ProfileService {
             .value
     }
 
+    /// Fetch profile rows for the given user IDs. Returns the rows in
+    /// whatever order Supabase resolves them — caller can build a lookup
+    /// dictionary if order matters.
+    func fetchProfiles(userIds: [UUID]) async throws -> [CloudProfile] {
+        try await supabase
+            .from("profiles")
+            .select()
+            .in("id", values: userIds)
+            .execute()
+            .value
+    }
+
     /// Upsert (create-or-update) the given profile row.
     func upsertProfile(_ profile: CloudProfile) async throws {
         try await supabase
