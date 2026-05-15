@@ -4,6 +4,8 @@ import CoreLocation
 import Combine
 import SafariServices
 import MapKit
+import Supabase
+import Auth
 
 // =========================================
 // === DATEI: TrophyRoomView.swift ===
