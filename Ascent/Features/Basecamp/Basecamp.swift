@@ -15,6 +15,7 @@ struct BasecampView: View {
     @EnvironmentObject var feedVM: FeedViewModel
     @EnvironmentObject var leaderboardVM: LeaderboardViewModel
     @EnvironmentObject var discoveryVM: DiscoveryViewModel
+    @EnvironmentObject var readinessVM: ReadinessViewModel
     @State private var showXPDetails = false
     @State private var showTracker = false
     @State private var mountainToTrack: Mountain? = nil
@@ -134,7 +135,7 @@ struct BasecampView: View {
         .onAppear {
             feedVM.fetchFeed()
             discoveryVM.fetchRecommendedPeaks()
-            appState.refreshReadiness()
+            readinessVM.refresh()
             let lat = appState.activeMountain?.latitude ?? 45.8326
             let lon = appState.activeMountain?.longitude ?? 6.8652
             Task { await weather.fetchWeather(latitude: lat, longitude: lon) }
@@ -545,7 +546,7 @@ struct BasecampView: View {
                         .foregroundColor(.white.opacity(0.75))
                 }
 
-                if let readiness = appState.readiness {
+                if let readiness = readinessVM.readiness {
                     Spacer().frame(height: 22)
 
                     // — HERO score: huge percentage —
@@ -713,7 +714,7 @@ struct BasecampView: View {
                         .font(.system(size: 10, weight: .bold))
                         .foregroundColor(accent.opacity(0.6))
                 }
-                Text(appState.readiness?.workloadScore ?? 0 > 80 ? "Push Today" : "Talk it out")
+                Text(readinessVM.readiness?.workloadScore ?? 0 > 80 ? "Push Today" : "Talk it out")
                     .font(.app(size: 18, weight: .black))
                     .foregroundColor(.white)
                 Text("Training · Recovery · Nutrition")
@@ -773,8 +774,8 @@ struct BasecampView: View {
     }
 
     private func weekdayPill(weekday: Int) -> some View {
-        let score = appState.weeklyGoScores[weekday]
-        let stage = score.map { appState.goStage(for: $0) }
+        let score = readinessVM.weeklyGoScores[weekday]
+        let stage = score.map { readinessVM.goStage(for: $0) }
         let isToday = Calendar.current.component(.weekday, from: Date()).mapISO == weekday
         return VStack(spacing: 4) {
             RoundedRectangle(cornerRadius: 4, style: .continuous)
@@ -806,7 +807,7 @@ struct BasecampView: View {
     }
 
     private var goVerdict: String {
-        switch appState.goStage(for: appState.timeToGoScore) {
+        switch readinessVM.goStage(for: readinessVM.timeToGoScore) {
         case 0: return "Stand Down"
         case 1: return "High Risk"
         case 2: return "Proceed Cautiously"
@@ -902,7 +903,7 @@ struct BasecampView: View {
                 }
 
                 let readinessPct: Double = {
-                    if let r = appState.readiness { return min(max(Double(r.totalScore) / 100.0, 0), 1) }
+                    if let r = readinessVM.readiness { return min(max(Double(r.totalScore) / 100.0, 0), 1) }
                     return 0
                 }()
                 GeometryReader { geo in
@@ -917,7 +918,7 @@ struct BasecampView: View {
                 .frame(height: 5)
 
                 HStack {
-                    if appState.readiness != nil {
+                    if readinessVM.readiness != nil {
                         Text("\(Int(readinessPct * 100))% ready")
                             .font(.appMono(size: 10, weight: .bold))
                             .foregroundColor(accent)
@@ -1040,7 +1041,7 @@ struct BasecampView: View {
     }
 
     private var readinessColor: Color {
-        let score = appState.readiness?.totalScore ?? 0
+        let score = readinessVM.readiness?.totalScore ?? 0
         if score > 80 { return Color(red: 0.08, green: 0.66, blue: 0.44) }
         if score > 60 { return Color(red: 0.10, green: 0.64, blue: 0.60) }
         if score > 35 { return Color(red: 0.92, green: 0.62, blue: 0.12) }

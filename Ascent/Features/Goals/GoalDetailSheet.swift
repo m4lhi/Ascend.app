@@ -12,6 +12,7 @@ struct GoalDetailSheet: View {
 
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var discoveryVM: DiscoveryViewModel
+    @EnvironmentObject var readinessVM: ReadinessViewModel
     @Environment(\.dismiss) var dismiss
     @State private var showProAnalysis = false
 
@@ -136,7 +137,7 @@ struct GoalDetailSheet: View {
             Divider().frame(height: 30)
             if let snap = goal.readinessSnapshot {
                 stat(value: "\(snap)", unit: "%", label: "Was ready")
-            } else if let r = appState.readiness {
+            } else if let r = readinessVM.readiness {
                 stat(value: "\(Int(r.totalScore))", unit: "%", label: "Ready now", tint: accent)
             } else {
                 stat(value: "—", unit: "", label: "Readiness")

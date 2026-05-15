@@ -64,13 +64,12 @@ final class HealthCoordinator: ObservableObject {
         targetMountain: Mountain?,
         targetWeather: MountainWeather?
     ) async {
-        guard let appState = appState else { return }
+        guard appState != nil else { return }
         isSyncing = true
         defer { isSyncing = false }
 
         let fetched = await bridge.requestAndFetch()
         self.profile = fetched
-        appState.healthProfile = fetched
 
         let result = readinessManager.calculate(
             profile: fetched,
@@ -79,10 +78,11 @@ final class HealthCoordinator: ObservableObject {
             targetWeather: targetWeather
         )
 
+        // (R3 step 6) appState.healthProfile / .readiness mirror writes
+        // removed — ReadinessViewModel subscribes to self.$profile and
+        // self.$readiness directly via Combine sinks. AppState no longer
+        // exposes those properties.
         self.readiness = result
-        withAnimation(.spring()) {
-            appState.readiness = result
-        }
     }
 
     func startBackgroundAnalysis() {
@@ -108,6 +108,8 @@ final class HealthCoordinator: ObservableObject {
     private func runAnalysisPass(appState: AppState) async {
         await analysisEngine.runAnalysis(appState: appState)
         self.analysis = analysisEngine.result
-        self.profile = appState.healthProfile
+        // Read profile from the engine's result struct instead of the
+        // dropped appState.healthProfile mirror (R3 step 6).
+        self.profile = analysisEngine.result?.profile
     }
 }

@@ -6,6 +6,7 @@ struct HealthDashboardView: View {
     @EnvironmentObject var feedVM: FeedViewModel
     @EnvironmentObject var leaderboardVM: LeaderboardViewModel
     @EnvironmentObject var discoveryVM: DiscoveryViewModel
+    @EnvironmentObject var readinessVM: ReadinessViewModel
     @StateObject private var healthData = HealthDataProvider.shared
     @ObservedObject private var weather = WeatherManager.shared
     @State private var showSettings = false
@@ -104,7 +105,7 @@ struct HealthDashboardView: View {
             await healthData.fetchAll()
             feedVM.fetchFeed()
             discoveryVM.fetchRecommendedPeaks()
-            appState.refreshReadiness()
+            readinessVM.refresh()
             let lat = appState.activeMountain?.latitude ?? 45.8326
             let lon = appState.activeMountain?.longitude ?? 6.8652
             Task { await weather.fetchWeather(latitude: lat, longitude: lon) }
@@ -178,7 +179,7 @@ struct HealthDashboardView: View {
     }
 
     private var readinessGlowColor: Color {
-        let score = appState.readiness?.totalScore ?? 0
+        let score = readinessVM.readiness?.totalScore ?? 0
         return readinessColorFor(score)
     }
 
@@ -230,8 +231,8 @@ struct HealthDashboardView: View {
     // MARK: - Readiness Hero Card (full-width, top of page)
 
     private var readinessHeroCard: some View {
-        let score = appState.readiness?.totalScore ?? 0
-        let label = appState.readiness?.status ?? "Keine Daten"
+        let score = readinessVM.readiness?.totalScore ?? 0
+        let label = readinessVM.readiness?.status ?? "Keine Daten"
         let ratio = min(1.0, Double(score) / 100.0)
         let barColor = readinessColorFor(score)
 
@@ -317,7 +318,7 @@ struct HealthDashboardView: View {
                 }
                 .frame(height: 16)
 
-                if let readiness = appState.readiness {
+                if let readiness = readinessVM.readiness {
                     HStack(spacing: 8) {
                         readinessSubPill(label: "Physio", score: readiness.physiologicalScore)
                         readinessSubPill(label: "Load", score: readiness.workloadScore)
@@ -584,7 +585,7 @@ struct HealthDashboardView: View {
                             .font(.app(size: 15, weight: .black))
                             .foregroundColor(.white)
                             .lineLimit(2)
-                        if let r = appState.readiness {
+                        if let r = readinessVM.readiness {
                             Text("\(r.totalScore)% ready")
                                 .font(.appMono(size: 10, weight: .bold))
                                 .foregroundColor(accent)

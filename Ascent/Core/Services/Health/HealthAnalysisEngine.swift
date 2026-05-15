@@ -120,7 +120,9 @@ final class HealthAnalysisEngine: ObservableObject {
         defer { isAnalysing = false }
 
         let profile = await HealthKitBridge.shared.requestAndFetch()
-        appState.healthProfile = profile
+        // (R3 step 6) appState.healthProfile mirror write removed.
+        // The profile is carried in the published HealthAnalysisResult below;
+        // HealthCoordinator reads it from result and publishes via $profile.
 
         #if canImport(HealthKit)
         guard HKHealthStore.isHealthDataAvailable() else { return }

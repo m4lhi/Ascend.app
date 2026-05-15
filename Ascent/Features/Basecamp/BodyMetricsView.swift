@@ -10,6 +10,7 @@ import SwiftUI
 
 struct BodyMetricsView: View {
     @EnvironmentObject var appState: AppState
+    @EnvironmentObject var readinessVM: ReadinessViewModel
     @StateObject private var healthData = HealthDataProvider.shared
     @Environment(\.dismiss) private var dismiss
     @State private var selectedMetric: MetricCategory = .heartRate
@@ -89,31 +90,31 @@ struct BodyMetricsView: View {
             switch selectedMetric {
             case .heartRate:
                 metricHero(
-                    value: appState.healthProfile?.restingHeartRate.map { "\($0)" } ?? "–",
+                    value: readinessVM.healthProfile?.restingHeartRate.map { "\($0)" } ?? "–",
                     unit: "bpm",
                     label: "Ruheherzfrequenz"
                 )
             case .hrv:
                 metricHero(
-                    value: appState.healthProfile?.heartRateVariability.map { String(format: "%.0f", $0) } ?? "–",
+                    value: readinessVM.healthProfile?.heartRateVariability.map { String(format: "%.0f", $0) } ?? "–",
                     unit: "ms",
                     label: "Herzfrequenzvariabilität"
                 )
             case .oxygen:
                 metricHero(
-                    value: appState.healthProfile?.bloodOxygenSaturation.map { String(format: "%.0f", $0) } ?? "–",
+                    value: readinessVM.healthProfile?.bloodOxygenSaturation.map { String(format: "%.0f", $0) } ?? "–",
                     unit: "%",
                     label: "Blutsauerstoff"
                 )
             case .temp:
                 metricHero(
-                    value: appState.healthProfile?.bodyTemperatureCelsius.map { String(format: "%.1f", $0) } ?? "–",
+                    value: readinessVM.healthProfile?.bodyTemperatureCelsius.map { String(format: "%.1f", $0) } ?? "–",
                     unit: "°C",
                     label: "Körpertemperatur"
                 )
             case .resp:
                 metricHero(
-                    value: appState.healthProfile?.respiratoryRate.map { String(format: "%.0f", $0) } ?? "–",
+                    value: readinessVM.healthProfile?.respiratoryRate.map { String(format: "%.0f", $0) } ?? "–",
                     unit: "/min",
                     label: "Atemfrequenz"
                 )
@@ -191,27 +192,27 @@ struct BodyMetricsView: View {
 
             VStack(spacing: 0) {
                 summaryRow(icon: "heart.fill", label: "Ruheherzfrequenz",
-                          value: appState.healthProfile?.restingHeartRate.map { "\($0) bpm" } ?? "–",
+                          value: readinessVM.healthProfile?.restingHeartRate.map { "\($0) bpm" } ?? "–",
                           color: DesignSystem.Colors.metricHeart)
                 AscentDivider()
                 summaryRow(icon: "waveform.path.ecg", label: "HRV",
-                          value: appState.healthProfile?.heartRateVariability.map { String(format: "%.0f ms", $0) } ?? "–",
+                          value: readinessVM.healthProfile?.heartRateVariability.map { String(format: "%.0f ms", $0) } ?? "–",
                           color: DesignSystem.Colors.metricHRV)
                 AscentDivider()
                 summaryRow(icon: "drop.fill", label: "SpO2",
-                          value: appState.healthProfile?.bloodOxygenSaturation.map { String(format: "%.0f%%", $0) } ?? "–",
+                          value: readinessVM.healthProfile?.bloodOxygenSaturation.map { String(format: "%.0f%%", $0) } ?? "–",
                           color: DesignSystem.Colors.metricOxygen)
                 AscentDivider()
                 summaryRow(icon: "thermometer.medium", label: "Körpertemperatur",
-                          value: appState.healthProfile?.bodyTemperatureCelsius.map { String(format: "%.1f°C", $0) } ?? "–",
+                          value: readinessVM.healthProfile?.bodyTemperatureCelsius.map { String(format: "%.1f°C", $0) } ?? "–",
                           color: DesignSystem.Colors.metricEnergy)
                 AscentDivider()
                 summaryRow(icon: "wind", label: "Atemfrequenz",
-                          value: appState.healthProfile?.respiratoryRate.map { String(format: "%.0f /min", $0) } ?? "–",
+                          value: readinessVM.healthProfile?.respiratoryRate.map { String(format: "%.0f /min", $0) } ?? "–",
                           color: DesignSystem.Colors.metricDistance)
                 AscentDivider()
                 summaryRow(icon: "figure.walk", label: "Geh-Herzfrequenz",
-                          value: appState.healthProfile?.walkingHeartRateAvg.map { "\($0) bpm" } ?? "–",
+                          value: readinessVM.healthProfile?.walkingHeartRateAvg.map { "\($0) bpm" } ?? "–",
                           color: DesignSystem.Colors.metricHeart.opacity(0.7))
             }
             .padding(.vertical, 4)

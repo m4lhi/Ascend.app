@@ -8,7 +8,8 @@ import SwiftUI
 struct ReadinessQuestionnaireView: View {
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var appState: AppState
-    
+    @EnvironmentObject var readinessVM: ReadinessViewModel
+
     @State private var sleepQuality: Double = 3
     @State private var mentalMotivation: Double = 3
     @State private var muscleFatigue: Double = 3
@@ -120,7 +121,7 @@ struct ReadinessQuestionnaireView: View {
     private func saveAndCalculate() {
         // Here we would push the subjective factors into the ReadinessManager
         // For now, we trigger a refresh in AppState
-        appState.refreshReadiness()
+        readinessVM.refresh()
         dismiss()
     }
 }
