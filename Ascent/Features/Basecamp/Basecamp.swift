@@ -1207,6 +1207,8 @@ struct RouteCard: View {
     let mountain: Mountain
     var onTap: () -> Void
 
+    private var ink: Color { DesignSystem.Colors.inkOnSand }
+
     var body: some View {
         Button(action: onTap) {
             VStack(alignment: .leading, spacing: 0) {
@@ -1227,53 +1229,81 @@ struct RouteCard: View {
                             }
                         )
                         .clipped()
-                        
+
                     if let credit = mountain.image_credit, !credit.isEmpty {
                         VStack {
                             Spacer()
                             HStack {
                                 Spacer()
-                                Text("Foto: \(credit)")
-                                    .font(.app(size: 6, weight: .medium))
-                                    .foregroundColor(.white.opacity(0.4))
+                                Text("Photo: \(credit)")
+                                    .font(DesignSystem.Typography.footnoteInter)
+                                    .foregroundStyle(Color.white.opacity(0.55))
                                     .padding(.trailing, 6)
                                     .padding(.bottom, 4)
                             }
                         }
                     }
 
-                    Text(mountain.difficulty.rawValue.uppercased())
-                        .font(.app(size: 8, weight: .black))
-                        .foregroundColor(.black)
-                        .padding(.horizontal, 6).padding(.vertical, 3)
-                        .background(mountain.difficulty.color)
-                        .cornerRadius(4)
-                        .padding(8)
+                    Text(mountain.difficulty.rawValue.capitalized)
+                        .font(DesignSystem.Typography.kickerInter)
+                        .tracking(0.5)
+                        .foregroundStyle(ink)
+                        .padding(.horizontal, 8).padding(.vertical, 4)
+                        .background(
+                            Capsule().fill(DesignSystem.Colors.sandCard.opacity(0.92))
+                        )
+                        .padding(10)
                 }
 
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(mountain.name)
-                        .font(.app(size: 14, weight: .bold))
-                        .foregroundColor(.white)
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 6) {
+                        RouteGlyph()
+                            .foregroundStyle(ink.opacity(0.55))
+                            .frame(width: 14, height: 14)
+                        Text(mountain.name)
+                            .font(DesignSystem.Typography.title3Inter)
+                            .foregroundStyle(ink)
+                            .lineLimit(1)
+                    }
+                    Text("\(mountain.elevation) m · \(mountain.region)")
+                        .font(DesignSystem.Typography.subheadInter)
+                        .foregroundStyle(ink.opacity(0.65))
                         .lineLimit(1)
-                    Text("\(mountain.elevation)m · \(mountain.region)")
-                        .font(.app(size: 11))
-                        .foregroundColor(DesignSystem.Colors.secondaryText)
-                        .lineLimit(1)
+                        .monospacedDigit()
+
+                    HStack(spacing: 6) {
+                        Text("Start tour")
+                            .font(DesignSystem.Typography.kickerInter)
+                            .foregroundStyle(Color.white)
+                        Text("→")
+                            .font(DesignSystem.Typography.kickerInter)
+                            .foregroundStyle(Color.white)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 7)
+                    .background(
+                        Capsule().fill(DesignSystem.Colors.alpenglow)
+                    )
+                    .padding(.top, 4)
                 }
-                .padding(.horizontal, 12).padding(.vertical, 10)
+                .padding(.horizontal, 14).padding(.vertical, 12)
             }
-            .frame(width: 180)
-            .background(DesignSystem.Colors.surface)
-            .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .frame(width: 200)
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.cardSoft, style: .continuous)
+                    .fill(DesignSystem.Colors.sandCard)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: DesignSystem.Radius.cardSoft, style: .continuous))
         }
-        .buttonStyle(PlainButtonStyle())
+        .buttonStyle(.plain)
     }
 
     private var routePlaceholder: some View {
         ZStack {
-            LinearGradient(colors: [Color.blue.opacity(0.12), Color.purple.opacity(0.06)], startPoint: .topLeading, endPoint: .bottomTrailing)
-            Image(systemName: "mountain.2.fill").font(.app(size: 28)).foregroundColor(.white.opacity(0.12))
+            DesignSystem.Colors.sandCard
+            RouteGlyph()
+                .foregroundStyle(DesignSystem.Colors.inkOnSand.opacity(0.20))
+                .frame(width: 40, height: 40)
         }
     }
 }

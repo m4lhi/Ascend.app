@@ -716,11 +716,15 @@ struct HealthDashboardView: View {
 
     private var suggestedRoutesSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Recommended routes")
-                .font(DesignSystem.Typography.kickerInter)
-                .tracking(0.5)
-                .foregroundStyle(DesignSystem.Colors.inkFaintWarm)
-                .padding(.horizontal, DesignSystem.Spacing.screenInset)
+            HStack(spacing: 8) {
+                RouteGlyph()
+                    .foregroundStyle(DesignSystem.Colors.inkWarm.opacity(0.62))
+                    .frame(width: 18, height: 18)
+                Text("Recommended routes")
+                    .font(DesignSystem.Typography.title2Inter)
+                    .foregroundStyle(DesignSystem.Colors.inkWarm)
+            }
+            .padding(.horizontal, DesignSystem.Spacing.screenInset)
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
