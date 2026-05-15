@@ -8,6 +8,7 @@ import MapKit
 
 struct ActivityCardView: View {
     @EnvironmentObject var appState: AppState
+    @EnvironmentObject var feedVM: FeedViewModel
     let tour: Tour
 
     @State private var showComments = false
@@ -348,7 +349,7 @@ struct ActivityCardView: View {
                 Button(action: {
                     HapticManager.shared.light()
                     let wasBumped = tour.isFistBumped
-                    appState.toggleFistBump(tour: tour)
+                    feedVM.toggleFistBump(tour: tour)
                     fistBumpTrigger += 1
                     // Pop scale
                     withAnimation(.spring(response: 0.22, dampingFraction: 0.4)) {
@@ -415,7 +416,7 @@ struct ActivityCardView: View {
                 // Bookmark — overshoot bounce
                 Button(action: {
                     HapticManager.shared.light()
-                    appState.toggleBookmark(tour: tour)
+                    feedVM.toggleBookmark(tour: tour)
                     bookmarkTrigger += 1
                     withAnimation(.spring(response: 0.22, dampingFraction: 0.38)) {
                         bookmarkScale = 1.4
@@ -539,6 +540,7 @@ struct RouteMapPreview: View {
 
 struct CommentSheetView: View {
     @EnvironmentObject var appState: AppState
+    @EnvironmentObject var feedVM: FeedViewModel
     @Environment(\.dismiss) var dismiss
     let tour: Tour
 
@@ -613,7 +615,7 @@ struct CommentSheetView: View {
                         appState.postComment(tour: tour, body: text)
                         Task {
                             try? await Task.sleep(nanoseconds: 500_000_000)
-                            comments = await appState.fetchComments(tour: tour)
+                            comments = await feedVM.fetchComments(tour: tour)
                         }
                     }) {
                         Image(systemName: "paperplane.fill")
@@ -639,7 +641,7 @@ struct CommentSheetView: View {
             }
         }
         .task {
-            comments = await appState.fetchComments(tour: tour)
+            comments = await feedVM.fetchComments(tour: tour)
             isLoading = false
         }
     }
