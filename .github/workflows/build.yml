@@ -48,6 +48,17 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-deriveddata-${{ env.SCHEME }}-
 
+      # Drop SDK-fingerprint-dependent caches. Restored ModuleCache/.pcm files
+      # are pinned to the SDK header mtime of when they were built. If the
+      # runner image picks up a slightly different SDK snapshot, Clang refuses
+      # to reuse them and the whole build cascades into "could not build module"
+      # errors. Both caches rebuild in seconds; the real DerivedData win sits
+      # in Build/ (Swift modules, object files), which we keep.
+      - name: Clear stale SDK-dependent caches
+        run: |
+          rm -rf "$DERIVED_DATA/ModuleCache.noindex" || true
+          rm -rf "$DERIVED_DATA/SDKStatCaches.noindex" || true
+
       - name: Resolve packages
         run: xcodebuild -resolvePackageDependencies -project "$PROJECT" -scheme "$SCHEME"
 
