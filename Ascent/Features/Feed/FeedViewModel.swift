@@ -182,6 +182,18 @@ final class FeedViewModel: ObservableObject {
         recentTours.removeAll { $0.id == id }
     }
 
+    /// Mirror profile changes onto the owner's tours in the feed cache.
+    /// Called from EditAccountView.save() after ProfileViewModel updates
+    /// the cloud row. Moves into a feed-event subscription in R3 step 4
+    /// (LeaderboardViewModel) or later.
+    func applyProfileUpdate(userId: UUID, name: String, handle: String, avatarURL: String?) {
+        for i in recentTours.indices where recentTours[i].userId == userId {
+            recentTours[i].playerName = name
+            recentTours[i].playerHandle = handle
+            recentTours[i].playerAvatarURL = avatarURL
+        }
+    }
+
     // MARK: - Private
 
     private func loadFeedPage() {
