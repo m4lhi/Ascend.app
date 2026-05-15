@@ -285,8 +285,8 @@ struct HealthDashboardView: View {
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 6) {
                         HStack(spacing: 6) {
-                            Image(systemName: "mountain.2.fill")
-                                .font(.system(size: 11, weight: .semibold))
+                            ReadinessGlyph()
+                                .frame(width: 14, height: 14)
                                 .foregroundStyle(barColor.opacity(0.85))
                             Text("Summit readiness")
                                 .font(DesignSystem.Typography.kickerInter)
@@ -420,9 +420,9 @@ struct HealthDashboardView: View {
                         )
                         .frame(width: 46, height: 46)
                         .blendMode(.plusLighter)
-                    Image(systemName: "trophy.fill")
-                        .font(.system(size: 17, weight: .black))
-                        .foregroundColor(.white)
+                    RankGlyph()
+                        .frame(width: 22, height: 22)
+                        .foregroundStyle(DesignSystem.Colors.inkOnSand)
                 }
 
                 VStack(alignment: .leading, spacing: 3) {
@@ -471,13 +471,13 @@ struct HealthDashboardView: View {
                 } label: {
                     VStack(alignment: .leading, spacing: 10) {
                         HStack {
-                            Image(systemName: "sparkles")
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundColor(accent)
+                            CoachGlyph()
+                                .frame(width: 20, height: 20)
+                                .foregroundStyle(DesignSystem.Colors.inkOnIce)
                             Spacer()
                             Image(systemName: "arrow.up.right")
-                                .font(.system(size: 10, weight: .bold))
-                                .foregroundColor(accent.opacity(0.6))
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundStyle(DesignSystem.Colors.inkOnIce.opacity(0.55))
                         }
                         Text("AI Coach")
                             .font(.app(size: 15, weight: .black))
@@ -498,13 +498,13 @@ struct HealthDashboardView: View {
                 } label: {
                     VStack(alignment: .leading, spacing: 10) {
                         HStack {
-                            Image(systemName: "figure.hiking")
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundColor(.orange)
+                            ActivityGlyph()
+                                .frame(width: 20, height: 20)
+                                .foregroundStyle(DesignSystem.Colors.inkOnSand)
                             Spacer()
                             Image(systemName: "chevron.right")
-                                .font(.system(size: 10, weight: .bold))
-                                .foregroundColor(DesignSystem.Colors.tertiaryText)
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundStyle(DesignSystem.Colors.inkOnSand.opacity(0.45))
                         }
                         HStack(alignment: .firstTextBaseline, spacing: 3) {
                             Text("\(feedVM.recentTours.filter { $0.isCurrentUser }.count)")
@@ -530,9 +530,9 @@ struct HealthDashboardView: View {
                 } label: {
                     VStack(alignment: .leading, spacing: 10) {
                         HStack {
-                            Image(systemName: "mountain.2.fill")
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundColor(DesignSystem.Colors.metricElevation)
+                            ElevationGlyph()
+                                .frame(width: 20, height: 20)
+                                .foregroundStyle(DesignSystem.Colors.inkOnSage)
                             Spacer()
                         }
                         HStack(alignment: .firstTextBaseline, spacing: 3) {
@@ -560,15 +560,15 @@ struct HealthDashboardView: View {
                 } label: {
                     VStack(alignment: .leading, spacing: 10) {
                         HStack {
-                            Image(systemName: appState.goals.isEmpty ? "plus" : "flag.2.crossed.fill")
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundColor(accent)
+                            GoalGlyph()
+                                .frame(width: 20, height: 20)
+                                .foregroundStyle(DesignSystem.Colors.inkOnIce)
                             Spacer()
                             Image(systemName: "chevron.right")
-                                .font(.system(size: 10, weight: .bold))
-                                .foregroundColor(DesignSystem.Colors.tertiaryText)
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundStyle(DesignSystem.Colors.inkOnIce.opacity(0.45))
                         }
-                        Text(appState.goals.first?.mountainName ?? "Ziel setzen")
+                        Text(appState.goals.first?.mountainName ?? "Set a goal")
                             .font(.app(size: 15, weight: .black))
                             .foregroundColor(.white)
                             .lineLimit(2)
@@ -611,13 +611,14 @@ struct HealthDashboardView: View {
             VStack(alignment: .leading, spacing: 14) {
                 HStack {
                     HStack(spacing: 8) {
-                        Image(systemName: "cloud.sun.fill")
-                            .font(.system(size: 16, weight: .semibold))
-                            .symbolRenderingMode(.multicolor)
+                        WeatherGlyph()
+                            .frame(width: 22, height: 22)
+                            .foregroundStyle(DesignSystem.Colors.inkOnIce)
                         VStack(alignment: .leading, spacing: 1) {
-                            Text("ALPINE SAFETY")
-                                .font(.appMono(size: 9, weight: .bold))
-                                .foregroundColor(DesignSystem.Colors.secondaryText)
+                            Text("Alpine safety")
+                                .font(DesignSystem.Typography.kickerInter)
+                                .tracking(0.5)
+                                .foregroundStyle(DesignSystem.Colors.inkOnIce.opacity(0.62))
                                 .tracking(1.4)
                             if let w = weather.currentWeather {
                                 Text(w.safetyLevel.label)
