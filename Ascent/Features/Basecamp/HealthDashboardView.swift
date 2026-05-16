@@ -198,6 +198,8 @@ struct HealthDashboardView: View {
             HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
                 BasecampMountainHero(mood: mountainMood)
                     .frame(width: 110, height: 130)
+                    .id(mountainMood)
+                    .animation(.easeInOut(duration: 0.4), value: mountainMood)
 
                 VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
                     Text("\(weekdayLabel), \(dateLabel)")
@@ -232,15 +234,55 @@ struct HealthDashboardView: View {
         }
     }
 
-    /// Maps the current readiness score to the BasecampMountainHero mood
-    /// family (drives the sun colour). Defaults to .ready when no score
-    /// yet — same bands the legacy ReadinessHero used.
+    /// Hero mood. Subjective check-in answer wins when present —
+    /// ReadinessManager doesn't fold the daily check-in into the
+    /// totalScore, so without this override the character would never
+    /// react to what the user actually picked. Falls back to the
+    /// score-band mapping when no check-in answer for today exists.
     private var mountainMood: BasecampMountainHero.Mood {
+        if let overall = readinessVM.extendedReadinessAnswers["overall"]?.first {
+            switch overall {
+            case "Strong":  return .ready
+            case "Okay":    return .moderate
+            case "Tired":   return .rest
+            case "Drained": return .caution
+            default: break
+            }
+        }
+        if let detail = aggregatedDetailMood {
+            return detail
+        }
         guard let score = readinessVM.readiness?.totalScore else { return .ready }
         if score > 70 { return .ready }
         if score > 45 { return .moderate }
         if score >= 25 { return .rest }
         return .caution
+    }
+
+    /// Aggregate the five detail-variant answers (Sleep / Energy /
+    /// Legs / Focus / HR) to a single mood. Each word maps to 1–4 on
+    /// a sleep-is-good → barely-slept scale; the average picks the
+    /// band. Returns nil if no detail answers exist.
+    private var aggregatedDetailMood: BasecampMountainHero.Mood? {
+        let detailKeys = ["sleep", "energy", "legs", "focus", "hr"]
+        let words = detailKeys.compactMap { readinessVM.extendedReadinessAnswers[$0]?.first }
+        guard !words.isEmpty else { return nil }
+        let scored = words.map { word -> Int in
+            switch word {
+            case "Restored", "Strong", "Fresh", "Sharp", "Calm":          return 4
+            case "Okay", "Normal":                                        return 3
+            case "Light", "Low", "Sore", "Foggy", "Elevated":             return 2
+            case "Barely slept", "Drained", "Heavy", "Scattered":         return 1
+            default:                                                      return 3
+            }
+        }
+        let avg = Double(scored.reduce(0, +)) / Double(scored.count)
+        switch avg {
+        case 3.5...:  return .ready
+        case 2.5..<3.5: return .moderate
+        case 1.5..<2.5: return .rest
+        default:        return .caution
+        }
     }
 
     /// First name (or full name if no space) for the Gentler-Streak
