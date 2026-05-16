@@ -10,11 +10,20 @@ import SwiftUI
 // here — they'll move to a separate tour-planning flow later. The
 // old view stays in the repo untouched until the caller is switched.
 
+enum CheckInVariant {
+    case quick
+    case detailed
+}
+
 struct SummitReadinessScreen: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var readinessVM: ReadinessViewModel
     @EnvironmentObject var feedVM: FeedViewModel
+
+    @State private var userOverrideVariant: CheckInVariant? = nil
+    @State private var selectedMood: String? = nil
+    @State private var detailAnswers: [String: String] = [:]
 
     var body: some View {
         ZStack {
@@ -38,10 +47,10 @@ struct SummitReadinessScreen: View {
                     }
                     .padding(.horizontal, DesignSystem.Spacing.lg)
 
-                    // Section 3 — How do you feel?
+                    // Section 3 — Daily check-in (adaptive quick/detailed)
                     VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
                         sectionTitle("How do you feel?")
-                        Color.clear.frame(height: 220)
+                        checkInSection
                     }
                     .padding(.horizontal, DesignSystem.Spacing.lg)
 
@@ -59,6 +68,21 @@ struct SummitReadinessScreen: View {
         .overlay(alignment: .topLeading) {
             closeButton
         }
+        .onAppear(perform: restoreCheckInState)
+    }
+
+    /// Hydrate the section-3 selection from the persisted answers so the
+    /// user sees their previous picks highlighted on reopen.
+    private func restoreCheckInState() {
+        let saved = readinessVM.extendedReadinessAnswers
+        if let overall = saved["overall"]?.first {
+            selectedMood = overall
+        }
+        detailAnswers = saved
+            .filter { $0.key != "overall" }
+            .reduce(into: [:]) { acc, pair in
+                if let first = pair.value.first { acc[pair.key] = first }
+            }
     }
 
     // MARK: - Reusable bits
@@ -274,6 +298,155 @@ struct SummitReadinessScreen: View {
         if days == 0 { return ("Last >2000m: today", true) }
         if days == 1 { return ("Last >2000m: yesterday", true) }
         return ("Last >2000m: \(days) days ago", true)
+    }
+
+    // MARK: - Section 3: Daily check-in
+
+    private var activeVariant: CheckInVariant {
+        userOverrideVariant ?? detectedVariant
+    }
+
+    /// HRV + Sleep + RHR coverage from the HealthKit profile. ≥2
+    /// signals available → the quick variant covers it. Otherwise
+    /// fall back to the 5-question detailed flow.
+    private var detectedVariant: CheckInVariant {
+        let p = readinessVM.healthProfile
+        let hasHRV = p?.heartRateVariability != nil
+        let hasSleep = (p?.sleepMinutesLastNight ?? 0) > 0
+        let hasRHR = p?.restingHeartRate != nil
+        let coverage = [hasHRV, hasSleep, hasRHR].filter { $0 }.count
+        return coverage >= 2 ? .quick : .detailed
+    }
+
+    @ViewBuilder
+    private var checkInSection: some View {
+        switch activeVariant {
+        case .quick:    quickCheckIn
+        case .detailed: detailedCheckIn
+        }
+    }
+
+    private var quickCheckIn: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+            let moods = ["Strong", "Okay", "Tired", "Drained"]
+            LazyVGrid(
+                columns: [GridItem(.flexible(), spacing: DesignSystem.Spacing.sm),
+                          GridItem(.flexible(), spacing: DesignSystem.Spacing.sm)],
+                spacing: DesignSystem.Spacing.sm
+            ) {
+                ForEach(moods, id: \.self) { mood in
+                    CheckInCard(
+                        title: mood,
+                        isSelected: selectedMood == mood,
+                        onTap: { pickMood(mood) }
+                    )
+                }
+            }
+
+            variantToggle(to: .detailed, label: "Switch to detailed check ↓")
+        }
+    }
+
+    private var detailedCheckIn: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
+            detailQuestion(id: "sleep",  prompt: "Sleep",        options: ["Restored", "Okay", "Light", "Barely slept"])
+            detailQuestion(id: "energy", prompt: "Energy",       options: ["Strong", "Okay", "Low", "Drained"])
+            detailQuestion(id: "legs",   prompt: "Legs",         options: ["Fresh", "Okay", "Sore", "Heavy"])
+            detailQuestion(id: "focus",  prompt: "Mental focus", options: ["Sharp", "Okay", "Foggy", "Scattered"])
+            detailQuestion(id: "hr",     prompt: "Resting HR feel", options: ["Calm", "Normal", "Elevated"])
+
+            variantToggle(to: .quick, label: "Switch to quick check ↑")
+        }
+    }
+
+    private func detailQuestion(id: String, prompt: String, options: [String]) -> some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+            Text(prompt)
+                .font(DesignSystem.Typography.bodyEmphasisInter)
+                .foregroundStyle(DesignSystem.Colors.inkWarm)
+
+            // Wrap options in a HStack — narrow enough on phone for 4
+            // cards in a row; the 3-card "hr" row stays the same.
+            HStack(spacing: DesignSystem.Spacing.sm) {
+                ForEach(options, id: \.self) { option in
+                    CheckInCard(
+                        title: option,
+                        isSelected: detailAnswers[id] == option,
+                        onTap: { pickDetail(id: id, option: option) }
+                    )
+                }
+            }
+        }
+    }
+
+    private func variantToggle(to target: CheckInVariant, label: String) -> some View {
+        Button {
+            withAnimation(DesignSystem.Animations.standard) {
+                userOverrideVariant = target
+            }
+        } label: {
+            Text(label)
+                .font(DesignSystem.Typography.footnoteInter)
+                .foregroundStyle(DesignSystem.Colors.glacierDeep)
+        }
+        .buttonStyle(.plain)
+        .padding(.top, DesignSystem.Spacing.xs)
+    }
+
+    private func pickMood(_ mood: String) {
+        selectedMood = mood
+        readinessVM.extendedReadinessAnswers = ["overall": [mood]]
+        finishCheckIn()
+    }
+
+    private func pickDetail(id: String, option: String) {
+        detailAnswers[id] = option
+        readinessVM.extendedReadinessAnswers = detailAnswers.mapValues { [$0] }
+        finishCheckIn()
+    }
+
+    /// Mark answered, recompute the readiness score from HealthKit +
+    /// tours, and append today's composite score to the 90-day history.
+    /// Same call sequence as the old assessment view's save() so the
+    /// downstream state stays consistent.
+    private func finishCheckIn() {
+        readinessVM.extendedReadinessAnsweredAt = Date()
+        readinessVM.refresh()
+        readinessVM.recordReadinessScore(readinessVM.timeToGoScore)
+    }
+}
+
+// MARK: - CheckInCard (mood option button)
+
+fileprivate struct CheckInCard: View {
+    let title: String
+    let isSelected: Bool
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            Text(title)
+                .font(DesignSystem.Typography.bodyEmphasisInter)
+                .foregroundStyle(isSelected
+                                 ? DesignSystem.Colors.inkWarm
+                                 : DesignSystem.Colors.inkWarm.opacity(0.62))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, DesignSystem.Spacing.md)
+                .padding(.horizontal, DesignSystem.Spacing.sm)
+                .background(
+                    RoundedRectangle(cornerRadius: DesignSystem.Radius.cardSoft, style: .continuous)
+                        .fill(isSelected ? DesignSystem.Colors.sageCard : DesignSystem.Colors.paperWarm)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: DesignSystem.Radius.cardSoft, style: .continuous)
+                        .stroke(
+                            isSelected ? DesignSystem.Colors.glacierDeep : DesignSystem.Colors.borderSubtle,
+                            lineWidth: isSelected ? 1.5 : 0.5
+                        )
+                )
+                .animation(DesignSystem.Animations.quick, value: isSelected)
+        }
+        .buttonStyle(.plain)
     }
 }
 
