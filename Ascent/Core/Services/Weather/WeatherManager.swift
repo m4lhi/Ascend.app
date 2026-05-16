@@ -68,6 +68,42 @@ struct MountainWeather: Identifiable {
             case .danger:  return "Dangerous"
             }
         }
+
+        // MARK: - Pastel helpers (iteration 19)
+
+        /// Pastel accent for sentence-case badges + dot indicators.
+        /// Replaces the legacy traffic-light .color in any new view.
+        var pastelColor: Color {
+            switch self {
+            case .good:    return DesignSystem.Colors.meadow
+            case .caution: return DesignSystem.Colors.alpenglow
+            case .warning: return DesignSystem.Colors.alpenglow
+            case .danger:  return DesignSystem.Colors.ember
+            }
+        }
+
+        /// Translucent companion for pastelColor — capsule fills,
+        /// soft tints, container backgrounds.
+        var pastelSoftColor: Color {
+            switch self {
+            case .good:    return DesignSystem.Colors.meadowSoft
+            case .caution: return DesignSystem.Colors.alpenglowSoft
+            case .warning: return DesignSystem.Colors.alpenglowSoft
+            case .danger:  return DesignSystem.Colors.ember.opacity(0.15)
+            }
+        }
+
+        /// Sentence-case label for the new vocabulary
+        /// (the legacy .label is kept for backward compatibility
+        /// with LiveRecordView and any other consumer).
+        var sentenceLabel: String {
+            switch self {
+            case .good:    return "Good conditions"
+            case .caution: return "Caution"
+            case .warning: return "Warning"
+            case .danger:  return "Danger"
+            }
+        }
     }
 }
 

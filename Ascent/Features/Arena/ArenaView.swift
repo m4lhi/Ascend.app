@@ -2,955 +2,863 @@ import SwiftUI
 
 // =========================================
 // === DATEI: ArenaView.swift ===
-// === Leaderboard — Emotionally Intelligent ===
+// === Top Alpinists — pastel leaderboard ===
 // =========================================
-
-struct Player: Identifiable {
-    let id: UUID
-    let name: String
-    let handle: String
-    let xp: Int
-    let isCurrentUser: Bool
-    let avatarURL: String?
-}
-
-// =========================================
-// MARK: - Main Arena View
-// =========================================
+//
+// In-place refactor of the old "Arena" leaderboard. Same call
+// site (TabBar) and the same LeaderboardViewModel data sources;
+// the visual layer is now pastel, sentence-case, custom-glyph
+// based. Per Iteration 14:
+//
+//   - "Top Alpinists" title, "Worldwide / In your region / Your
+//     friends" subtitle.
+//   - World / Region / Friends scope selector with custom glyphs.
+//   - Time filter (Week / Month / All time), client-side fallback.
+//   - Pastel podium for the top 3, AlpinistRow for ranks 4+.
+//   - MotivationalBanner with gap-progress (not absolute %).
+//   - Friends + Region empty states.
+//   - Add-Friend sheet with the user's own handle on top for
+//     easy sharing.
+//
+// Phase 2 (separate iteration) adds the Mountain tab, real
+// backend time queries, and the regional system.
 
 struct ArenaView: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var profileVM: ProfileViewModel
     @EnvironmentObject var leaderboardVM: LeaderboardViewModel
-    @State private var selectedScope = 0
-    @State private var showAddFriendAlert = false
-    @State private var friendHandleInput = ""
-    @State private var animateIn = false
-    @State private var podiumRevealed = false
-    @State private var rowsRevealed = false
-    @State private var headerGlow = false
 
-    private let gold = DesignSystem.Colors.accent // Light Blue Accent
-    private let bg = LinearGradient(
-        colors: [
-            Color(red: 0.96, green: 0.98, blue: 1.00),
-            Color(red: 0.90, green: 0.94, blue: 1.00)
-        ],
-        startPoint: .top, endPoint: .bottom
-    )
-    private let cardBg = Color.white
+    @State private var selectedScope: LeaderboardScope = .global
+    @State private var selectedTime: LeaderboardTime = .allTime
+    @State private var showingAddFriendSheet = false
+    @State private var selectedProfile: CloudProfile?
 
-    var leaderboard: [Player] {
-        let sourceArray: [CloudProfile]
-        switch selectedScope {
-        case 0: sourceArray = leaderboardVM.globalLeaderboard
-        case 1: sourceArray = leaderboardVM.localLeaderboard
-        default: sourceArray = leaderboardVM.friendsLeaderboard
-        }
-        return sourceArray.map { p in
-            Player(id: p.id, name: p.username, handle: p.handle, xp: p.xp,
-                   isCurrentUser: p.handle == profileVM.userHandle,
-                   avatarURL: p.avatar_url)
-        }
-    }
-
-    // Motivational message based on ranking
-    private var motivationalMessage: (String, String) {
-        guard let myIndex = leaderboard.firstIndex(where: { $0.isCurrentUser }) else {
-            return ("Welcome to the Arena", "Start climbing to earn your rank")
-        }
-        let rank = myIndex + 1
-        switch rank {
-        case 1:
-            return ("You're at the summit", "The view from the top is earned, not given")
-        case 2...3:
-            return ("Almost there", "The summit is within reach — keep pushing")
-        case 4...10:
-            return ("Gaining altitude", "You're climbing strong — \(rank - 1) alpinists ahead")
-        default:
-            return ("Every ascent starts here", "One step at a time — you've got this")
-        }
-    }
-
-    private var scopeSubtitle: String {
-        switch selectedScope {
-        case 0: return "\(leaderboard.count) alpinists worldwide"
-        case 1: return leaderboard.isEmpty ? "Set your region in settings" : "\(leaderboard.count) in your region"
-        default: return "\(leaderboard.count) friend\(leaderboard.count == 1 ? "" : "s")"
-        }
-    }
+    // MARK: - Body
 
     var body: some View {
         ZStack {
-            bg.ignoresSafeArea()
-            // Logo glow
-            Circle()
-                .fill(DesignSystem.Colors.accent.opacity(0.12))
-                .frame(width: 360, height: 360)
-                .blur(radius: 80)
-                .offset(x: -120, y: -260)
-                .allowsHitTesting(false)
-
-            // Ambient color blobs (GPU-optimized)
-            Circle()
-                .fill(RadialGradient(colors: [gold.opacity(0.08), Color.clear], center: .center, startRadius: 0, endRadius: 140))
-                .frame(width: 280, height: 280)
-                .offset(x: 100, y: -150)
-            Circle()
-                .fill(RadialGradient(colors: [Color.cyan.opacity(0.07), Color.clear], center: .center, startRadius: 0, endRadius: 110))
-                .frame(width: 220, height: 220)
-                .offset(x: -120, y: 200)
-
-            // Subtle mountain silhouette background
-            VStack {
-                MountainSilhouette()
-                    .fill(
-                        LinearGradient(
-                            colors: [gold.opacity(0.03), Color.clear],
-                            startPoint: .top, endPoint: .bottom
-                        )
-                    )
-                    .frame(height: 220)
-                    .offset(y: -20)
-                Spacer()
-            }
-            .ignoresSafeArea()
+            DesignSystem.Colors.paperWarm
+                .ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // ============================================
-                // MARK: - HEADER
-                // ============================================
-                VStack(spacing: 16) {
-                    HStack(alignment: .top) {
-                        VStack(alignment: .leading, spacing: 6) {
-                            // Motivational greeting
-                            Text(motivationalMessage.0.uppercased())
-                                .font(.app(size: 11, weight: .black))
-                                .foregroundColor(gold.opacity(0.7))
-                                .tracking(2.5)
+                topBar
+                ScopeSelector(selectedScope: $selectedScope)
+                    .padding(.top, DesignSystem.Spacing.md)
+                TimeFilter(selectedTime: $selectedTime)
 
-                            Text("The Arena")
-                                .font(.app(size: 32, weight: .black))
-                                .foregroundStyle(.black)
-
-                            Text(motivationalMessage.1)
-                                .font(.app(size: 13, weight: .medium))
-                                .foregroundColor(.gray)
-                                .lineLimit(2)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                        .opacity(animateIn ? 1 : 0)
-                        .offset(y: animateIn ? 0 : 12)
-
-                        Spacer()
-
-                        Button(action: { showAddFriendAlert = true }) {
-                            ZStack {
-                                Circle()
-                                    .fill(DesignSystem.Colors.surface)
-                                    .environment(\.colorScheme, .light)
-                                    .frame(width: 48, height: 48)
-                                    .overlay(
-                                        Circle().stroke(gold.opacity(0.2), lineWidth: 1)
-                                    )
-
-                                Image(systemName: "person.badge.plus")
-                                    .font(.app(size: 17, weight: .semibold))
-                                    .foregroundColor(gold)
-                            }
-                        }
-                        .opacity(animateIn ? 1 : 0)
-                        .scaleEffect(animateIn ? 1 : 0.8)
-                    }
-
-                    // Animated Scope Selector
-                    AnimatedScopeSelector(
-                        selectedScope: $selectedScope,
-                        subtitle: scopeSubtitle,
-                        gold: gold
-                    )
-                    .opacity(animateIn ? 1 : 0)
-                    .offset(y: animateIn ? 0 : 8)
-                }
-                .padding(.horizontal, 20)
-                .padding(.top, 12)
-                .padding(.bottom, 12)
-
-                // ============================================
-                // MARK: - CONTENT
-                // ============================================
                 ScrollView(showsIndicators: false) {
-                    VStack(spacing: 0) {
-                        if selectedScope == 2 && leaderboard.count <= 1 {
-                            EmptyFriendsView(gold: gold, onAdd: { showAddFriendAlert = true })
-                                .transition(.opacity.combined(with: .scale(scale: 0.95)))
-                        } else {
-                            // === PODIUM (TOP 3) ===
-                            let topThree = Array(leaderboard.prefix(3))
-
-                            if !topThree.isEmpty {
-                                PremiumPodiumView(
-                                    players: topThree,
-                                    isRevealed: podiumRevealed
-                                )
-                                .padding(.top, 16)
-                                .padding(.bottom, 28)
-                            }
-
-                            // === REST OF LEADERBOARD ===
-                            let remaining = Array(leaderboard.dropFirst(3))
-                            if !remaining.isEmpty {
-                                VStack(spacing: 0) {
-                                    ForEach(Array(remaining.enumerated()), id: \.element.id) { index, player in
-                                        PremiumLeaderboardRow(
-                                            rank: index + 4,
-                                            player: player,
-                                            gold: gold,
-                                            isRevealed: rowsRevealed,
-                                            delay: Double(index) * 0.05,
-                                            isFirst: index == 0,
-                                            isLast: index == remaining.count - 1
-                                        )
-
-                                        if index < remaining.count - 1 {
-                                            Rectangle()
-                                                .fill(Color.white.opacity(0.04))
-                                                .frame(height: 0.5)
-                                                .padding(.leading, 72)
-                                        }
-                                    }
-                                }
-                                .background(
-                                    RoundedRectangle(cornerRadius: 22, style: .continuous)
-                                        .fill(DesignSystem.Colors.surface)
-                                        .environment(\.colorScheme, .light)
-                                )
-                                .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 22, style: .continuous)
-                                        .stroke(Color.white.opacity(0.5), lineWidth: 0.5)
-                                )
-                                .padding(.horizontal, 20)
-                            }
-
-                            // === MOTIVATIONAL CATCH-UP BANNER ===
-                            if let myIndex = leaderboard.firstIndex(where: { $0.isCurrentUser }), myIndex >= 3 {
-                                MotivationalBanner(
-                                    rank: myIndex + 1,
-                                    xp: leaderboard[myIndex].xp,
-                                    nextPlayer: myIndex > 0 ? leaderboard[myIndex - 1] : nil,
-                                    gold: gold
-                                )
-                                .padding(.horizontal, 20)
-                                .padding(.top, 20)
-                                .opacity(rowsRevealed ? 1 : 0)
-                                .offset(y: rowsRevealed ? 0 : 16)
-                                .animation(.spring(response: 0.6, dampingFraction: 0.8).delay(0.4), value: rowsRevealed)
-                            }
-
-                            Spacer().frame(height: 130)
-                        }
+                    VStack(spacing: DesignSystem.Spacing.lg) {
+                        content
                     }
+                    .padding(.top, DesignSystem.Spacing.md)
+                    .padding(.bottom, DesignSystem.Spacing.xxl)
                 }
             }
         }
         .onAppear {
             leaderboardVM.fetchLeaderboard()
-            withAnimation(.spring(response: 0.7, dampingFraction: 0.85).delay(0.1)) {
-                animateIn = true
-            }
-            withAnimation(.spring(response: 0.8, dampingFraction: 0.78).delay(0.35)) {
-                podiumRevealed = true
-            }
-            withAnimation(.spring(response: 0.6, dampingFraction: 0.82).delay(0.55)) {
-                rowsRevealed = true
-            }
         }
-        .onChange(of: selectedScope) { _, _ in
-            // Re-trigger animations on scope change
-            podiumRevealed = false
-            rowsRevealed = false
-            withAnimation(.spring(response: 0.6, dampingFraction: 0.8).delay(0.1)) {
-                podiumRevealed = true
-            }
-            withAnimation(.spring(response: 0.5, dampingFraction: 0.82).delay(0.25)) {
-                rowsRevealed = true
-            }
-        }
-        .alert("Add Alpinist", isPresented: $showAddFriendAlert) {
-            TextField("Enter @handle", text: $friendHandleInput)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-            Button("Add") {
-                leaderboardVM.addFriend(handleToSearch: friendHandleInput)
-                friendHandleInput = ""
-            }
-            Button("Cancel", role: .cancel) { friendHandleInput = "" }
-        } message: {
-            Text("Enter the exact handle of your friend to add them to your live leaderboard.")
-        }
-    }
-}
-
-// =========================================
-// MARK: - Mountain Silhouette Shape
-// =========================================
-
-struct MountainSilhouette: Shape {
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        let w = rect.width
-        let h = rect.height
-        path.move(to: CGPoint(x: 0, y: h))
-        path.addLine(to: CGPoint(x: w * 0.15, y: h * 0.55))
-        path.addLine(to: CGPoint(x: w * 0.25, y: h * 0.65))
-        path.addLine(to: CGPoint(x: w * 0.4, y: h * 0.2))
-        path.addLine(to: CGPoint(x: w * 0.5, y: h * 0.35))
-        path.addLine(to: CGPoint(x: w * 0.65, y: h * 0.1))
-        path.addLine(to: CGPoint(x: w * 0.78, y: h * 0.45))
-        path.addLine(to: CGPoint(x: w * 0.88, y: h * 0.3))
-        path.addLine(to: CGPoint(x: w, y: h * 0.6))
-        path.addLine(to: CGPoint(x: w, y: h))
-        path.closeSubpath()
-        return path
-    }
-}
-
-// =========================================
-// MARK: - Animated Scope Selector
-// =========================================
-
-struct AnimatedScopeSelector: View {
-    @Binding var selectedScope: Int
-    let subtitle: String
-    let gold: Color
-
-    @Namespace private var scopeAnimation
-
-    private let scopes: [(String, String)] = [
-        ("Globe", "globe"),
-        ("Local", "location.fill"),
-        ("Friends", "person.2.fill")
-    ]
-
-    var body: some View {
-        VStack(spacing: 8) {
-            HStack(spacing: 0) {
-                ForEach(0..<3, id: \.self) { index in
-                    Button {
-                        withAnimation(.spring(response: 0.4, dampingFraction: 0.78)) {
-                            selectedScope = index
-                        }
-                    } label: {
-                        HStack(spacing: 5) {
-                            Image(systemName: scopes[index].1)
-                                .font(.app(size: 10, weight: .bold))
-                            Text(scopes[index].0)
-                                .font(.app(size: 13, weight: .bold))
-                        }
-                        .foregroundColor(selectedScope == index ? .black : .gray)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 11)
-                        .background(
-                            ZStack {
-                                if selectedScope == index {
-                                    Capsule()
-                                        .fill(gold)
-                                        .matchedGeometryEffect(id: "scope_bg", in: scopeAnimation)
-                                }
-                            }
-                        )
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(4)
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(DesignSystem.Colors.surface)
-                    .environment(\.colorScheme, .light)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(Color.black.opacity(0.04), lineWidth: 1)
-            )
-
-            // Contextual subtitle
-            Text(subtitle)
-                .font(.app(size: 11, weight: .medium))
-                .foregroundColor(.gray.opacity(0.6))
-                .animation(.easeInOut(duration: 0.3), value: selectedScope)
-        }
-    }
-}
-
-// =========================================
-// MARK: - Premium Podium View
-// =========================================
-
-struct PremiumPodiumView: View {
-    let players: [Player]
-    var isRevealed: Bool = true
-    
-    @EnvironmentObject var appState: AppState
-
-    private let gold = DesignSystem.Colors.accent
-    private let silver = Color(red: 0.6, green: 0.65, blue: 0.75)
-    private let bronze = Color(red: 0.82, green: 0.52, blue: 0.22)
-
-    private func rankColor(_ rank: Int) -> Color {
-        switch rank { case 1: return gold; case 2: return silver; case 3: return bronze; default: return .gray }
-    }
-
-    @State private var selectedProfile: Player?
-
-    var body: some View {
-        Group {
-            if players.count >= 3 {
-                HStack(alignment: .bottom, spacing: 6) {
-                    // 2nd place — appears first in choreography
-                    podiumColumn(player: players[1], rank: 2, avatarSize: 60, pillarHeight: 72)
-                        .opacity(isRevealed ? 1 : 0)
-                        .offset(y: isRevealed ? 0 : 30)
-                        .animation(.spring(response: 0.7, dampingFraction: 0.75).delay(0.0), value: isRevealed)
-
-                    // 1st place — the star, appears second
-                    podiumColumn(player: players[0], rank: 1, avatarSize: 78, pillarHeight: 105)
-                        .opacity(isRevealed ? 1 : 0)
-                        .offset(y: isRevealed ? 0 : 40)
-                        .animation(.spring(response: 0.7, dampingFraction: 0.75).delay(0.12), value: isRevealed)
-
-                    // 3rd place — appears third
-                    podiumColumn(player: players[2], rank: 3, avatarSize: 54, pillarHeight: 56)
-                        .opacity(isRevealed ? 1 : 0)
-                        .offset(y: isRevealed ? 0 : 25)
-                        .animation(.spring(response: 0.7, dampingFraction: 0.75).delay(0.06), value: isRevealed)
-                }
-                .padding(.horizontal, 14)
-            } else if players.count == 2 {
-                HStack(alignment: .bottom, spacing: 12) {
-                    podiumColumn(player: players[0], rank: 1, avatarSize: 78, pillarHeight: 105)
-                    podiumColumn(player: players[1], rank: 2, avatarSize: 60, pillarHeight: 72)
-                }
-                .padding(.horizontal, 40)
-                .opacity(isRevealed ? 1 : 0)
-                .offset(y: isRevealed ? 0 : 30)
-            } else if players.count == 1 {
-                podiumColumn(player: players[0], rank: 1, avatarSize: 78, pillarHeight: 105)
-                    .padding(.horizontal, 80)
-                    .opacity(isRevealed ? 1 : 0)
-                    .offset(y: isRevealed ? 0 : 30)
-            }
+        .sheet(isPresented: $showingAddFriendSheet) {
+            AddFriendSheet()
+                .environmentObject(appState)
+                .environmentObject(profileVM)
+                .environmentObject(leaderboardVM)
+                .presentationDetents([.medium, .large])
+                .presentationCornerRadius(36)
         }
         .sheet(item: $selectedProfile) { p in
             PublicProfileView(
                 userId: p.id,
-                userName: p.name,
+                userName: p.username,
                 userHandle: p.handle,
-                avatarURL: p.avatarURL,
+                avatarURL: p.avatar_url,
                 xp: p.xp
             )
             .presentationDetents([.fraction(0.85), .large])
-            .preferredColorScheme(.dark)
             .environmentObject(appState)
+        }
+    }
+
+    // MARK: - Top bar
+
+    private var topBar: some View {
+        HStack(alignment: .center) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Top Alpinists")
+                    .font(DesignSystem.Typography.title2Inter)
+                    .foregroundStyle(DesignSystem.Colors.inkWarm)
+
+                Text(subtitleForCurrentScope)
+                    .font(DesignSystem.Typography.subheadInter)
+                    .foregroundStyle(DesignSystem.Colors.inkWarm.opacity(0.62))
+            }
+
+            Spacer()
+
+            Button { showingAddFriendSheet = true } label: {
+                ZStack {
+                    Circle()
+                        .fill(DesignSystem.Colors.glacierSoft)
+                        .frame(width: 38, height: 38)
+                    ZStack {
+                        Rectangle()
+                            .fill(DesignSystem.Colors.glacierDeep)
+                            .frame(width: 12, height: 1.5)
+                        Rectangle()
+                            .fill(DesignSystem.Colors.glacierDeep)
+                            .frame(width: 1.5, height: 12)
+                    }
+                }
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, DesignSystem.Spacing.lg)
+        .padding(.top, DesignSystem.Spacing.lg)
+        .padding(.bottom, DesignSystem.Spacing.md)
+    }
+
+    private var subtitleForCurrentScope: String {
+        switch selectedScope {
+        case .global:   return "Worldwide"
+        case .regional: return "In your region"
+        case .friends:  return "Your friends"
+        }
+    }
+
+    // MARK: - Content
+
+    @ViewBuilder
+    private var content: some View {
+        switch selectedScope {
+        case .regional:
+            RegionEmptyState()
+                .padding(.horizontal, DesignSystem.Spacing.lg)
+        case .friends:
+            if filteredEntries.count <= 1 {
+                FriendsEmptyState(onAddFriend: { showingAddFriendSheet = true })
+                    .padding(.horizontal, DesignSystem.Spacing.lg)
+            } else {
+                podiumAndRows
+            }
+        case .global:
+            if filteredEntries.isEmpty {
+                emptyTimeRange
+                    .padding(.horizontal, DesignSystem.Spacing.lg)
+            } else {
+                podiumAndRows
+            }
         }
     }
 
     @ViewBuilder
-    private func podiumColumn(player: Player, rank: Int, avatarSize: CGFloat, pillarHeight: CGFloat) -> some View {
-        let color = rankColor(rank)
+    private var podiumAndRows: some View {
+        let entries = filteredEntries
+        let topThree = Array(entries.prefix(3))
+        let rest = Array(entries.dropFirst(3))
 
-        Button(action: {
-            selectedProfile = player
-        }) {
-            VStack(spacing: 0) {
-            // Crown for #1 with glow
-            if rank == 1 {
-                ZStack {
-                    Image(systemName: "crown.fill")
-                        .font(.app(size: 24))
-                        .foregroundColor(gold.opacity(0.3))
-                        .blur(radius: 8)
-
-                    Image(systemName: "crown.fill")
-                        .font(.app(size: 22))
-                        .foregroundColor(gold)
-                }
-                .padding(.bottom, 6)
-            }
-
-            // Avatar with progress ring
-            ZStack(alignment: .center) {
-                // Glow behind avatar for #1
-                if rank == 1 {
-                    Circle()
-                        .fill(gold.opacity(0.15))
-                        .frame(width: avatarSize + 20, height: avatarSize + 20)
-                        .blur(radius: 12)
-                }
-
-                // Avatar ring
-                Circle()
-                    .stroke(color.opacity(0.2), lineWidth: rank == 1 ? 3.5 : 2.5)
-                    .frame(width: avatarSize + 6, height: avatarSize + 6)
-
-                Circle()
-                    .trim(from: 0, to: 0.75)
-                    .stroke(
-                        color,
-                        style: StrokeStyle(lineWidth: rank == 1 ? 3.5 : 2.5, lineCap: .round)
-                    )
-                    .frame(width: avatarSize + 6, height: avatarSize + 6)
-                    .rotationEffect(.degrees(-90))
-
-                // Avatar image
-                if let urlString = player.avatarURL, let url = URL(string: urlString) {
-                    CachedAsyncImage(url: url) { image in
-                        image.resizable().scaledToFill()
-                    } placeholder: {
-                        Circle().fill(Color.white.opacity(0.06))
-                    }
-                    .frame(width: avatarSize, height: avatarSize)
-                    .clipShape(Circle())
-                } else {
-                    Circle()
-                        .fill(
-                            LinearGradient(
-                                colors: [color.opacity(0.2), color.opacity(0.05)],
-                                startPoint: .topLeading, endPoint: .bottomTrailing
-                            )
-                        )
-                        .frame(width: avatarSize, height: avatarSize)
-                        .overlay(
-                            Text(String(player.name.prefix(1)).uppercased())
-                                .font(.app(size: avatarSize * 0.35, weight: .bold))
-                                .foregroundColor(color)
-                        )
-                }
-
-                // Rank badge
-                ZStack {
-                    Circle()
-                        .fill(color)
-                        .frame(width: 24, height: 24)
-
-                    Text("\(rank)")
-                        .font(.app(size: 12, weight: .black))
-                        .foregroundColor(.white)
-                }
-                .offset(y: (avatarSize / 2) + 2) // Badge exakt an den unteren Rand setzen
-            }
-            .padding(.bottom, 18)
-
-            // Name with shimmer for #1
-            if rank == 1 {
-                Text(player.name)
-                    .font(.app(size: 16, weight: .bold))
-                    .foregroundColor(.black)
-                    .lineLimit(1)
-                    .modifier(ShimmerModifier(color: gold))
-            } else {
-                Text(player.name)
-                    .font(.app(size: rank == 2 ? 14 : 13, weight: .bold))
-                    .foregroundColor(.black)
-                    .lineLimit(1)
-            }
-
-            Text("@\(player.handle)")
-                .font(.app(size: 10))
-                .foregroundColor(.gray)
-                .lineLimit(1)
-                .padding(.bottom, 8)
-
-            // XP with animated feel
-            Text(formatXP(player.xp))
-                .font(.app(size: rank == 1 ? 24 : 18, weight: .black))
-                .foregroundColor(color)
-            Text("XP")
-                .font(.app(size: 9, weight: .bold))
-                .foregroundColor(color.opacity(0.5))
-                .tracking(1)
-                .padding(.bottom, 10)
-
-            // Glassmorphic Pillar
-            RoundedRectangle(cornerRadius: 14)
-                .fill(DesignSystem.Colors.surface)
-                .environment(\.colorScheme, .light)
-                .frame(height: pillarHeight)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14)
-                        .fill(
-                            LinearGradient(
-                                colors: [color.opacity(0.2), color.opacity(0.02)],
-                                startPoint: .top, endPoint: .bottom
-                            )
-                        )
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14)
-                        .stroke(color.opacity(0.3), lineWidth: 1)
-                )
-            }
-            .frame(maxWidth: .infinity)
-        }
-        .buttonStyle(.plain)
-    }
-
-    private func formatXP(_ xp: Int) -> String {
-        if xp >= 10000 {
-            return String(format: "%.1fk", Double(xp) / 1000.0)
-        }
-        return "\(xp)"
-    }
-}
-
-// =========================================
-// MARK: - Shimmer Modifier
-// =========================================
-
-struct ShimmerModifier: ViewModifier {
-    let color: Color
-    @State private var phase: CGFloat = 0
-
-    func body(content: Content) -> some View {
-        content
-            .overlay(
-                GeometryReader { geo in
-                    LinearGradient(
-                        colors: [
-                            .clear,
-                            color.opacity(0.3),
-                            .clear
-                        ],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                    .frame(width: geo.size.width * 0.6)
-                    .offset(x: -geo.size.width * 0.3 + phase * (geo.size.width * 1.6))
-                    .mask(content)
-                }
+        if !topThree.isEmpty {
+            AlpinistPodium(
+                topThree: topThree,
+                currentUserHandle: profileVM.userHandle,
+                onTap: { selectedProfile = $0 }
             )
-            .onAppear {
-                withAnimation(.easeInOut(duration: 2.5).repeatForever(autoreverses: false)) {
-                    phase = 1
+        }
+
+        if !rest.isEmpty {
+            VStack(spacing: DesignSystem.Spacing.xs) {
+                ForEach(Array(rest.enumerated()), id: \.element.id) { idx, profile in
+                    AlpinistRow(
+                        profile: profile,
+                        rank: idx + 4,
+                        currentUserHandle: profileVM.userHandle,
+                        onTap: { selectedProfile = profile }
+                    )
                 }
             }
+            .padding(.horizontal, DesignSystem.Spacing.lg)
+        }
+
+        if let myProfile = currentUserProfile(in: entries),
+           let myIndex = entries.firstIndex(where: { $0.id == myProfile.id }),
+           myIndex >= 3 {
+            MotivationalBanner(
+                userRank: myIndex + 1,
+                userXP: myProfile.xp,
+                nextProfile: myIndex > 0 ? entries[myIndex - 1] : nil
+            )
+        }
+    }
+
+    private var emptyTimeRange: some View {
+        VStack(spacing: DesignSystem.Spacing.sm) {
+            Text("No data for this time range yet")
+                .font(DesignSystem.Typography.title3Inter)
+                .foregroundStyle(DesignSystem.Colors.inkWarm)
+            Text("Switch to All time to see the full leaderboard.")
+                .font(DesignSystem.Typography.bodyInter)
+                .foregroundStyle(DesignSystem.Colors.inkWarm.opacity(0.62))
+                .multilineTextAlignment(.center)
+        }
+        .padding(.vertical, DesignSystem.Spacing.xxl)
+    }
+
+    // MARK: - Data
+
+    /// Source list for the current scope, time-filtered when possible.
+    /// CloudProfile has no lastActivityDate today, so Week/Month
+    /// degrade to the full list — see filter helper.
+    private var filteredEntries: [CloudProfile] {
+        let source: [CloudProfile]
+        switch selectedScope {
+        case .global:   source = leaderboardVM.globalLeaderboard
+        case .regional: source = []
+        case .friends:  source = leaderboardVM.friendsLeaderboard
+        }
+        return timeFiltered(source)
+    }
+
+    /// Phase-1 client-side time filter. CloudProfile doesn't expose
+    /// a timestamp yet, so Week / Month currently return the same
+    /// list as All time. Once the model + backend land, swap this
+    /// for the real check on `profile.lastActivityDate`.
+    private func timeFiltered(_ source: [CloudProfile]) -> [CloudProfile] {
+        switch selectedTime {
+        case .allTime, .week, .month:
+            return source
+        }
+    }
+
+    private func currentUserProfile(in entries: [CloudProfile]) -> CloudProfile? {
+        entries.first { $0.handle == profileVM.userHandle }
     }
 }
 
 // =========================================
-// MARK: - Premium Leaderboard Row
+// MARK: - Scope selector
 // =========================================
 
-struct PremiumLeaderboardRow: View {
-    let rank: Int
-    let player: Player
-    let gold: Color
-    var isRevealed: Bool = true
-    var delay: Double = 0
-    var isFirst: Bool = false
-    var isLast: Bool = false
+enum LeaderboardScope: String, CaseIterable {
+    case global, regional, friends
 
-    @State private var showPublicProfile = false
-    @EnvironmentObject var appState: AppState
+    var title: String {
+        switch self {
+        case .global:   return "World"
+        case .regional: return "Region"
+        case .friends:  return "Friends"
+        }
+    }
+}
+
+struct ScopeSelector: View {
+    @Binding var selectedScope: LeaderboardScope
+    @Namespace private var pillNamespace
 
     var body: some View {
-        Button(action: {
-            showPublicProfile = true
-        }) {
-            HStack(spacing: 14) {
-                // Rank number
-                Text("\(rank)")
-                    .font(.app(size: 15, weight: .bold))
-                    .foregroundColor(player.isCurrentUser ? gold : .black.opacity(0.4))
-                    .frame(width: 30, alignment: .center)
-
-            // Avatar with mini progress ring
-            ZStack {
-                if let urlString = player.avatarURL, let url = URL(string: urlString) {
-                    CachedAsyncImage(url: url) { image in
-                        image.resizable().scaledToFill()
-                    } placeholder: {
-                        Circle().fill(Color.white.opacity(0.06))
+        HStack(spacing: 0) {
+            ForEach(LeaderboardScope.allCases, id: \.self) { scope in
+                Button {
+                    withAnimation(DesignSystem.Animations.standard) {
+                        selectedScope = scope
                     }
-                    .frame(width: 42, height: 42)
-                    .clipShape(Circle())
-                } else {
-                    Circle()
-                        .fill(Color.gray.opacity(0.1))
-                        .frame(width: 42, height: 42)
-                        .overlay(
-                            Text(String(player.name.prefix(1)).uppercased())
-                                .font(.app(size: 16, weight: .bold))
-                                .foregroundColor(player.isCurrentUser ? gold : .gray)
-                        )
-                }
-
-                // Subtle progress ring
-                Circle()
-                    .trim(from: 0, to: min(Double(player.xp % 1000) / 1000.0, 1.0))
-                    .stroke(
-                        player.isCurrentUser ? gold.opacity(0.5) : Color.black.opacity(0.1),
-                        style: StrokeStyle(lineWidth: 2, lineCap: .round)
+                } label: {
+                    HStack(spacing: 6) {
+                        scopeGlyph(scope)
+                            .frame(width: 16, height: 16)
+                        Text(scope.title)
+                            .font(DesignSystem.Typography.subheadInter)
+                    }
+                    .foregroundStyle(
+                        selectedScope == scope
+                            ? DesignSystem.Colors.inkWarm
+                            : DesignSystem.Colors.inkWarm.opacity(0.55)
                     )
-                    .frame(width: 48, height: 48)
-                    .rotationEffect(.degrees(-90))
-            }
-
-            // Name, handle & level badge
-            VStack(alignment: .leading, spacing: 3) {
-                HStack(spacing: 6) {
-                    Text(player.name)
-                        .font(.app(size: 15, weight: player.isCurrentUser ? .bold : .semibold))
-                        .foregroundColor(.white)
-                        .lineLimit(1)
-
-                    if player.isCurrentUser {
-                        Text("YOU")
-                            .font(.app(size: 8, weight: .black))
-                            .foregroundColor(.black)
-                            .padding(.horizontal, 5)
-                            .padding(.vertical, 2)
-                            .background(gold)
-                            .clipShape(Capsule())
+                    .padding(.vertical, 10)
+                    .frame(maxWidth: .infinity)
+                    .background {
+                        if selectedScope == scope {
+                            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                                .fill(DesignSystem.Colors.paperWarm)
+                                .matchedGeometryEffect(id: "selectedPill", in: pillNamespace)
+                        }
                     }
                 }
-
-                HStack(spacing: 4) {
-                    Text("@\(player.handle)")
-                        .font(.app(size: 11))
-                        .foregroundColor(.gray)
-                        .lineLimit(1)
-
-                    // Level indicator
-                    let level = max(1, (player.xp / 1000) + 1)
-                    Text("Lv.\(level)")
-                        .font(.app(size: 9, weight: .bold))
-                        .foregroundColor(RankTitle.forLevel(level).color.opacity(0.7))
-                }
-            }
-
-            Spacer()
-
-            // XP
-            VStack(alignment: .trailing, spacing: 2) {
-                Text("\(player.xp)")
-                    .font(.app(size: 17, weight: .bold))
-                    .foregroundColor(player.isCurrentUser ? gold : .black)
-                Text("XP")
-                    .font(.app(size: 9, weight: .semibold))
-                    .foregroundColor(.gray.opacity(0.5))
-                    .tracking(0.5)
+                .buttonStyle(.plain)
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
+        .padding(4)
         .background(
-            player.isCurrentUser
-                ? AnyShapeStyle(gold.opacity(0.06))
-                : AnyShapeStyle(Color.clear)
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.lg)
+                .fill(DesignSystem.Colors.surfaceWarm)
         )
-        .overlay(alignment: .leading) {
-            // Gold left accent for current user — aligned to leading edge
-            if player.isCurrentUser {
-                UnevenRoundedRectangle(
-                    topLeadingRadius: isFirst ? 22 : 0,
-                    bottomLeadingRadius: isLast ? 22 : 0,
-                    bottomTrailingRadius: 0,
-                    topTrailingRadius: 0
-                )
-                .fill(gold)
-                .frame(width: 3.5)
+        .padding(.horizontal, DesignSystem.Spacing.lg)
+    }
+
+    @ViewBuilder
+    private func scopeGlyph(_ scope: LeaderboardScope) -> some View {
+        let stroke = DesignSystem.Colors.inkWarm.opacity(selectedScope == scope ? 0.85 : 0.55)
+        switch scope {
+        case .global:
+            ZStack {
+                Circle()
+                    .stroke(stroke, lineWidth: 1.4)
+                Path { p in
+                    p.move(to: CGPoint(x: 3, y: 8))
+                    p.addQuadCurve(to: CGPoint(x: 13, y: 8), control: CGPoint(x: 8, y: 4))
+                }
+                .stroke(stroke, style: StrokeStyle(lineWidth: 1.2, lineCap: .round))
             }
-        }
-        }
-        .buttonStyle(.plain)
-        .opacity(isRevealed ? 1 : 0)
-        .offset(x: isRevealed ? 0 : 20)
-        .animation(
-            .spring(response: 0.5, dampingFraction: 0.8).delay(delay),
-            value: isRevealed
-        )
-        .sheet(isPresented: $showPublicProfile) {
-            PublicProfileView(
-                userId: player.id,
-                userName: player.name,
-                userHandle: player.handle,
-                avatarURL: player.avatarURL,
-                xp: player.xp
-            )
-            .presentationDetents([.fraction(0.85), .large])
-            .preferredColorScheme(.dark)
-            .environmentObject(appState)
+        case .regional:
+            Path { p in
+                p.move(to: CGPoint(x: 8, y: 14))
+                p.addLine(to: CGPoint(x: 4, y: 7))
+                p.addArc(center: CGPoint(x: 8, y: 7), radius: 4,
+                         startAngle: .degrees(180), endAngle: .degrees(0),
+                         clockwise: false)
+                p.addLine(to: CGPoint(x: 8, y: 14))
+            }
+            .stroke(stroke, style: StrokeStyle(lineWidth: 1.4, lineCap: .round, lineJoin: .round))
+        case .friends:
+            ZStack {
+                Circle()
+                    .stroke(stroke, lineWidth: 1.4)
+                    .frame(width: 9, height: 9)
+                    .offset(x: -2.5)
+                Circle()
+                    .stroke(stroke, lineWidth: 1.4)
+                    .frame(width: 9, height: 9)
+                    .offset(x: 2.5)
+            }
         }
     }
 }
 
 // =========================================
-// MARK: - Motivational Banner
+// MARK: - Time filter
 // =========================================
 
-struct MotivationalBanner: View {
-    let rank: Int
-    let xp: Int
-    let nextPlayer: Player?
-    let gold: Color
+enum LeaderboardTime: String, CaseIterable {
+    case week, month, allTime
 
-    private var xpGap: Int {
-        guard let next = nextPlayer else { return 0 }
-        return next.xp - xp
+    var title: String {
+        switch self {
+        case .week:    return "This week"
+        case .month:   return "This month"
+        case .allTime: return "All time"
+        }
+    }
+}
+
+struct TimeFilter: View {
+    @Binding var selectedTime: LeaderboardTime
+
+    var body: some View {
+        HStack(spacing: DesignSystem.Spacing.xs) {
+            ForEach(LeaderboardTime.allCases, id: \.self) { time in
+                Button {
+                    withAnimation(DesignSystem.Animations.quick) {
+                        selectedTime = time
+                    }
+                } label: {
+                    Text(time.title)
+                        .font(DesignSystem.Typography.kickerInter)
+                        .foregroundStyle(
+                            selectedTime == time
+                                ? DesignSystem.Colors.inkWarm
+                                : DesignSystem.Colors.inkFaintWarm
+                        )
+                        .padding(.vertical, 6)
+                        .padding(.horizontal, 12)
+                        .background(
+                            Capsule()
+                                .fill(selectedTime == time
+                                      ? DesignSystem.Colors.paperWarm
+                                      : Color.clear)
+                                .overlay(
+                                    Capsule().stroke(
+                                        selectedTime == time
+                                            ? DesignSystem.Colors.borderSubtle
+                                            : Color.clear,
+                                        lineWidth: 0.5
+                                    )
+                                )
+                        )
+                }
+                .buttonStyle(.plain)
+            }
+            Spacer()
+        }
+        .padding(.horizontal, DesignSystem.Spacing.lg)
+        .padding(.top, DesignSystem.Spacing.sm)
+    }
+}
+
+// =========================================
+// MARK: - Avatar rotation helper
+// =========================================
+
+/// Pick one of the three mood assets deterministically from a handle
+/// so each user has a consistent fallback avatar (and the list reads
+/// varied instead of three rows of the same character). Sum of UTF-8
+/// bytes is stable across app launches — Swift's String.hashValue is
+/// randomized per process and would not be.
+fileprivate func fallbackAvatarName(for handle: String) -> String {
+    let assets = ["hero-ready", "hero-rest", "hero-caution"]
+    let normalized = handle.lowercased()
+    let sum = normalized.utf8.reduce(0) { $0 + Int($1) }
+    return assets[sum % assets.count]
+}
+
+// =========================================
+// MARK: - Podium (Top 3)
+// =========================================
+
+struct AlpinistPodium: View {
+    let topThree: [CloudProfile]
+    let currentUserHandle: String?
+    let onTap: (CloudProfile) -> Void
+
+    var body: some View {
+        HStack(alignment: .bottom, spacing: DesignSystem.Spacing.sm) {
+            if topThree.count > 1 {
+                podiumCard(profile: topThree[1], rank: 2, height: 150)
+            }
+            if let first = topThree.first {
+                podiumCard(profile: first, rank: 1, height: 180)
+            }
+            if topThree.count > 2 {
+                podiumCard(profile: topThree[2], rank: 3, height: 135)
+            }
+        }
+        .padding(.horizontal, DesignSystem.Spacing.lg)
     }
 
-    private var progress: CGFloat {
-        guard let next = nextPlayer, next.xp > 0 else { return 0.5 }
-        // How close are we? If gap is small relative to our XP, we're close
-        let totalRange = Double(next.xp)
-        return min(CGFloat(Double(xp) / totalRange), 0.95)
+    private func podiumCard(profile: CloudProfile, rank: Int, height: CGFloat) -> some View {
+        Button { onTap(profile) } label: {
+            VStack(spacing: DesignSystem.Spacing.xs) {
+                avatar(for: profile)
+                    .frame(width: rank == 1 ? 64 : 52, height: rank == 1 ? 64 : 52)
+                    .clipShape(Circle())
+
+                Text(profile.username)
+                    .font(rank == 1
+                          ? DesignSystem.Typography.bodyEmphasisInter
+                          : DesignSystem.Typography.subheadInter)
+                    .foregroundStyle(DesignSystem.Colors.inkWarm)
+                    .lineLimit(1)
+
+                Text("\(profile.xp) XP")
+                    .font(DesignSystem.Typography.kickerInter)
+                    .foregroundStyle(DesignSystem.Colors.inkWarm.opacity(0.62))
+                    .monospacedDigit()
+
+                Text("#\(rank)")
+                    .font(DesignSystem.Typography.kickerInter)
+                    .foregroundStyle(rankColor(rank))
+                    .padding(.vertical, 3)
+                    .padding(.horizontal, 8)
+                    .background(Capsule().fill(DesignSystem.Colors.paperWarm))
+                    .overlay(
+                        Capsule().stroke(DesignSystem.Colors.borderSubtle, lineWidth: 0.5)
+                    )
+            }
+            .padding(.vertical, DesignSystem.Spacing.md)
+            .padding(.horizontal, DesignSystem.Spacing.sm)
+            .frame(maxWidth: .infinity)
+            .frame(height: height)
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.cardSoft, style: .continuous)
+                    .fill(cardBackground(rank))
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private func avatar(for profile: CloudProfile) -> some View {
+        if let url = profile.avatar_url, let parsed = URL(string: url), !url.isEmpty {
+            AsyncImage(url: parsed) { phase in
+                switch phase {
+                case .success(let img):
+                    img.resizable().scaledToFill()
+                default:
+                    fallbackAvatar(for: profile.handle)
+                }
+            }
+        } else {
+            fallbackAvatar(for: profile.handle)
+        }
+    }
+
+    private func fallbackAvatar(for handle: String) -> some View {
+        Image(fallbackAvatarName(for: handle))
+            .resizable()
+            .scaledToFit()
+            .background(DesignSystem.Colors.paperWarm)
+    }
+
+    private func cardBackground(_ rank: Int) -> Color {
+        switch rank {
+        case 1: return DesignSystem.Colors.alpenglowSoft
+        case 2: return DesignSystem.Colors.glacierSoft
+        case 3: return DesignSystem.Colors.sageCard
+        default: return DesignSystem.Colors.paperWarm
+        }
+    }
+
+    private func rankColor(_ rank: Int) -> Color {
+        switch rank {
+        case 1: return DesignSystem.Colors.alpenglow
+        case 2: return DesignSystem.Colors.glacierDeep
+        case 3: return DesignSystem.Colors.meadow
+        default: return DesignSystem.Colors.inkWarm.opacity(0.62)
+        }
+    }
+}
+
+// =========================================
+// MARK: - List row (ranks 4+)
+// =========================================
+
+struct AlpinistRow: View {
+    let profile: CloudProfile
+    let rank: Int
+    let currentUserHandle: String?
+    let onTap: () -> Void
+
+    private var isCurrentUser: Bool {
+        profile.handle == currentUserHandle
     }
 
     var body: some View {
-        VStack(spacing: 14) {
-            HStack(spacing: 10) {
-                ZStack {
-                    Circle()
-                        .fill(gold.opacity(0.12))
-                        .frame(width: 36, height: 36)
+        Button(action: onTap) {
+            HStack(spacing: DesignSystem.Spacing.md) {
+                Text("\(rank)")
+                    .font(DesignSystem.Typography.bodyEmphasisInter)
+                    .foregroundStyle(DesignSystem.Colors.inkWarm.opacity(0.62))
+                    .frame(width: 28, alignment: .leading)
+                    .monospacedDigit()
 
-                    Image(systemName: "flame.fill")
-                        .font(.app(size: 15, weight: .bold))
-                        .foregroundColor(gold)
-                }
+                avatarView
+                    .frame(width: 44, height: 44)
+                    .clipShape(Circle())
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("You're ranked #\(rank)")
-                        .font(.app(size: 14, weight: .bold))
-                        .foregroundColor(.black)
+                    HStack(spacing: 6) {
+                        Text(profile.username)
+                            .font(DesignSystem.Typography.bodyEmphasisInter)
+                            .foregroundStyle(DesignSystem.Colors.inkWarm)
+                            .lineLimit(1)
 
-                    if let next = nextPlayer, xpGap > 0 {
-                        Text("\(xpGap) XP to overtake @\(next.handle)")
-                            .font(.app(size: 12, weight: .medium))
-                            .foregroundColor(gold.opacity(0.8))
+                        if isCurrentUser {
+                            Text("you")
+                                .font(DesignSystem.Typography.kickerInter)
+                                .foregroundStyle(DesignSystem.Colors.alpenglow)
+                                .padding(.vertical, 2)
+                                .padding(.horizontal, 6)
+                                .background(
+                                    Capsule().fill(DesignSystem.Colors.alpenglowSoft)
+                                )
+                        }
                     }
+
+                    Text("@\(profile.handle)")
+                        .font(DesignSystem.Typography.kickerInter)
+                        .foregroundStyle(DesignSystem.Colors.inkFaintWarm)
                 }
 
                 Spacer()
 
-                Text("\(xp) XP")
-                    .font(.app(size: 15, weight: .black))
-                    .foregroundColor(gold)
-            }
-
-            // Progress bar toward next rank
-            if nextPlayer != nil && xpGap > 0 {
-                GeometryReader { geo in
-                    ZStack(alignment: .leading) {
-                        Capsule()
-                            .fill(Color.white.opacity(0.06))
-                            .frame(height: 5)
-
-                        Capsule()
-                            .fill(
-                                LinearGradient(
-                                    colors: [gold.opacity(0.6), gold],
-                                    startPoint: .leading, endPoint: .trailing
-                                )
-                            )
-                            .frame(width: max(8, geo.size.width * progress), height: 5)
-                    }
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text("\(profile.xp)")
+                        .font(DesignSystem.Typography.bodyEmphasisInter)
+                        .foregroundStyle(DesignSystem.Colors.inkWarm)
+                        .monospacedDigit()
+                    Text("XP")
+                        .font(DesignSystem.Typography.kickerInter)
+                        .foregroundStyle(DesignSystem.Colors.inkFaintWarm)
                 }
-                .frame(height: 5)
             }
+            .padding(.vertical, DesignSystem.Spacing.sm)
+            .padding(.horizontal, DesignSystem.Spacing.md)
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.cardSoft, style: .continuous)
+                    .fill(isCurrentUser
+                          ? DesignSystem.Colors.alpenglowSoft
+                          : DesignSystem.Colors.surfaceWarm)
+            )
         }
-        .padding(18)
-        .background(
-            RoundedRectangle(cornerRadius: 18)
-                .fill(DesignSystem.Colors.surface)
-                .environment(\.colorScheme, .dark)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 18)
-                .stroke(gold.opacity(0.15), lineWidth: 1)
-        )
+        .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private var avatarView: some View {
+        let fallbackName = fallbackAvatarName(for: profile.handle)
+        if let url = profile.avatar_url, let parsed = URL(string: url), !url.isEmpty {
+            AsyncImage(url: parsed) { phase in
+                switch phase {
+                case .success(let img):
+                    img.resizable().scaledToFill()
+                default:
+                    Image(fallbackName).resizable().scaledToFit()
+                }
+            }
+        } else {
+            Image(fallbackName).resizable().scaledToFit()
+        }
     }
 }
 
 // =========================================
-// MARK: - Empty Friends View
+// MARK: - Motivational banner
 // =========================================
 
-struct EmptyFriendsView: View {
-    let gold: Color
-    let onAdd: () -> Void
-
-    @State private var pulseScale: CGFloat = 1.0
-    @State private var floatOffset: CGFloat = 0
+struct MotivationalBanner: View {
+    let userRank: Int
+    let userXP: Int
+    let nextProfile: CloudProfile?
 
     var body: some View {
-        VStack(spacing: 24) {
-            Spacer().frame(height: 50)
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+            HStack(spacing: DesignSystem.Spacing.xs) {
+                Text("#\(userRank)")
+                    .font(DesignSystem.Typography.title3Inter)
+                    .foregroundStyle(DesignSystem.Colors.inkWarm)
+                    .monospacedDigit()
 
-            // Animated mountain + people illustration
-            ZStack {
-                // Outer glow ring
-                Circle()
-                    .fill(gold.opacity(0.04))
-                    .frame(width: 150, height: 150)
-
-                Circle()
-                    .fill(gold.opacity(0.06))
-                    .frame(width: 110, height: 110)
-
-                // Mountain icon
-                ZStack {
-                    Image(systemName: "mountain.2.fill")
-                        .font(.app(size: 44))
-                        .foregroundColor(gold.opacity(0.12))
-                        .offset(y: 8)
-
-                    Image(systemName: "person.3.fill")
-                        .font(.app(size: 32))
-                        .foregroundColor(gold.opacity(0.45))
-                        .offset(y: floatOffset)
-                }
+                Text(positionLabel)
+                    .font(DesignSystem.Typography.subheadInter)
+                    .foregroundStyle(DesignSystem.Colors.inkWarm.opacity(0.62))
             }
 
-            VStack(spacing: 10) {
-                Text("The summit is better shared")
-                    .font(.app(size: 20, weight: .bold))
-                    .foregroundColor(.white)
+            if let next = nextProfile {
+                let gap = max(0, next.xp - userXP)
 
-                Text("Invite fellow alpinists to compete,\ncheer each other on, and climb together.")
-                    .font(.app(size: 14, weight: .medium))
-                    .foregroundColor(.gray)
-                    .multilineTextAlignment(.center)
-                    .lineSpacing(3)
+                Text(motivationalText(gap: gap, nextName: next.username))
+                    .font(DesignSystem.Typography.bodyInter)
+                    .foregroundStyle(DesignSystem.Colors.inkWarm.opacity(0.72))
+                    .fixedSize(horizontal: false, vertical: true)
+
+                gapProgressBar(gap: gap)
             }
-
-            Button(action: onAdd) {
-                HStack(spacing: 8) {
-                    Image(systemName: "plus")
-                        .font(.app(size: 14, weight: .bold))
-                    Text("Add Friend")
-                        .font(.app(size: 15, weight: .bold))
-                }
-                .foregroundColor(.black)
-                .padding(.horizontal, 28)
-                .padding(.vertical, 14)
-                .background(gold)
-                .clipShape(Capsule())
-                .scaleEffect(pulseScale)
-            }
-            .padding(.top, 4)
-
-            Spacer()
         }
-        .onAppear {
-            withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true)) {
-                pulseScale = 1.05
+        .padding(DesignSystem.Spacing.md)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.cardSoft, style: .continuous)
+                .fill(DesignSystem.Colors.alpenglowSoft)
+        )
+        .padding(.horizontal, DesignSystem.Spacing.lg)
+    }
+
+    private var positionLabel: String {
+        switch userRank {
+        case 1...3:   return "on the podium"
+        case 4...10:  return "in the Top 10"
+        case 11...50: return "in the Top 50"
+        default:      return "in the leaderboard"
+        }
+    }
+
+    private func motivationalText(gap: Int, nextName: String) -> String {
+        if gap < 100 {
+            return "Only \(gap) XP to \(nextName) — almost there."
+        } else if gap < 500 {
+            return "\(gap) XP to \(nextName). One tour could do it."
+        } else {
+            return "\(gap) XP to \(nextName)."
+        }
+    }
+
+    /// Closer to the next alpinist = fuller bar. 0 gap = full,
+    /// 1000+ gap = empty. Visual signal, not absolute progress.
+    @ViewBuilder
+    private func gapProgressBar(gap: Int) -> some View {
+        let progressFraction = CGFloat(max(0, min(1, 1.0 - Double(gap) / 1000.0)))
+
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .fill(DesignSystem.Colors.alpenglowSoft.opacity(0.5))
+                Capsule()
+                    .fill(DesignSystem.Colors.alpenglow)
+                    .frame(width: geo.size.width * progressFraction)
             }
-            withAnimation(.easeInOut(duration: 3.0).repeatForever(autoreverses: true)) {
-                floatOffset = -6
+        }
+        .frame(height: 4)
+    }
+}
+
+// =========================================
+// MARK: - Empty states
+// =========================================
+
+struct FriendsEmptyState: View {
+    let onAddFriend: () -> Void
+
+    var body: some View {
+        VStack(spacing: DesignSystem.Spacing.md) {
+            Image("hero-ready")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 100, height: 120)
+                .opacity(0.6)
+
+            Text("No friends yet")
+                .font(DesignSystem.Typography.title3Inter)
+                .foregroundStyle(DesignSystem.Colors.inkWarm)
+
+            Text("Mountains are better with company. Invite someone by their handle.")
+                .font(DesignSystem.Typography.bodyInter)
+                .foregroundStyle(DesignSystem.Colors.inkWarm.opacity(0.62))
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, DesignSystem.Spacing.lg)
+
+            Button(action: onAddFriend) {
+                Text("Add friend")
+                    .font(DesignSystem.Typography.bodyEmphasisInter)
+                    .foregroundStyle(DesignSystem.Colors.inkOnSand)
+                    .padding(.vertical, DesignSystem.Spacing.sm)
+                    .padding(.horizontal, DesignSystem.Spacing.lg)
+                    .background(Capsule().fill(DesignSystem.Colors.alpenglow))
             }
+            .buttonStyle(.plain)
+        }
+        .padding(.vertical, DesignSystem.Spacing.xxl)
+        .frame(maxWidth: .infinity)
+    }
+}
+
+struct RegionEmptyState: View {
+    var body: some View {
+        VStack(spacing: DesignSystem.Spacing.md) {
+            Text("Region not set yet")
+                .font(DesignSystem.Typography.title3Inter)
+                .foregroundStyle(DesignSystem.Colors.inkWarm)
+
+            Text("Coming soon — you'll be able to see who's on top in your region.")
+                .font(DesignSystem.Typography.bodyInter)
+                .foregroundStyle(DesignSystem.Colors.inkWarm.opacity(0.62))
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, DesignSystem.Spacing.lg)
+        }
+        .padding(.vertical, DesignSystem.Spacing.xxl)
+        .frame(maxWidth: .infinity)
+    }
+}
+
+// =========================================
+// MARK: - Add friend sheet
+// =========================================
+
+struct AddFriendSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject var appState: AppState
+    @EnvironmentObject var profileVM: ProfileViewModel
+    @EnvironmentObject var leaderboardVM: LeaderboardViewModel
+
+    @State private var handleInput: String = ""
+    @State private var isSubmitting = false
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                DesignSystem.Colors.paperWarm.ignoresSafeArea()
+
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
+
+                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                        Text("Your handle to share")
+                            .font(DesignSystem.Typography.kickerInter)
+                            .foregroundStyle(DesignSystem.Colors.inkFaintWarm)
+
+                        Text("@\(profileVM.userHandle.isEmpty ? "—" : profileVM.userHandle)")
+                            .font(DesignSystem.Typography.title3Inter)
+                            .foregroundStyle(DesignSystem.Colors.inkWarm)
+                            .padding(DesignSystem.Spacing.md)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(
+                                RoundedRectangle(cornerRadius: DesignSystem.Radius.cardSoft)
+                                    .fill(DesignSystem.Colors.surfaceWarm)
+                            )
+                    }
+
+                    Divider()
+                        .background(DesignSystem.Colors.borderSubtle)
+
+                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                        Text("Friend's handle")
+                            .font(DesignSystem.Typography.kickerInter)
+                            .foregroundStyle(DesignSystem.Colors.inkFaintWarm)
+
+                        HStack {
+                            Text("@")
+                                .font(DesignSystem.Typography.bodyEmphasisInter)
+                                .foregroundStyle(DesignSystem.Colors.inkWarm.opacity(0.62))
+
+                            TextField("name", text: $handleInput)
+                                .font(DesignSystem.Typography.bodyInter)
+                                .foregroundStyle(DesignSystem.Colors.inkWarm)
+                                .textInputAutocapitalization(.never)
+                                .autocorrectionDisabled()
+                        }
+                        .padding(DesignSystem.Spacing.md)
+                        .background(
+                            RoundedRectangle(cornerRadius: DesignSystem.Radius.cardSoft)
+                                .fill(DesignSystem.Colors.paperWarm)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: DesignSystem.Radius.cardSoft)
+                                        .stroke(DesignSystem.Colors.borderSubtle, lineWidth: 0.5)
+                                )
+                        )
+                    }
+
+                    Spacer()
+
+                    Button(action: submit) {
+                        HStack {
+                            if isSubmitting {
+                                ProgressView().tint(DesignSystem.Colors.inkOnSand)
+                            }
+                            Text(isSubmitting ? "Adding…" : "Add")
+                                .font(DesignSystem.Typography.bodyEmphasisInter)
+                                .foregroundStyle(DesignSystem.Colors.inkOnSand)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, DesignSystem.Spacing.md)
+                        .background(
+                            Capsule().fill(
+                                handleInput.isEmpty
+                                    ? DesignSystem.Colors.inkFaintWarm.opacity(0.6)
+                                    : DesignSystem.Colors.alpenglow
+                            )
+                        )
+                    }
+                    .disabled(handleInput.isEmpty || isSubmitting)
+                    .buttonStyle(.plain)
+                }
+                .padding(DesignSystem.Spacing.lg)
+            }
+            .navigationTitle("Add friend")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") { dismiss() }
+                        .foregroundStyle(DesignSystem.Colors.inkWarm.opacity(0.62))
+                }
+            }
+        }
+    }
+
+    private func submit() {
+        let trimmed = handleInput.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return }
+        isSubmitting = true
+        leaderboardVM.addFriend(handleToSearch: trimmed)
+        // addFriend is fire-and-forget Task — dismiss optimistically.
+        // The friends list refreshes on completion via leaderboardVM
+        // observer in the parent.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+            dismiss()
         }
     }
 }

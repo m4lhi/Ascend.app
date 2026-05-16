@@ -14,7 +14,7 @@ struct ContentView: View {
                 customTabLayout
             }
         }
-        .preferredColorScheme(.dark)
+        // .preferredColorScheme(.dark) removed — design system has light + dark; let system pick.
         .fullScreenCover(isPresented: $showAIChat) { AIChatGuideView() }
         .fullScreenCover(isPresented: $showCoachingGateway) {
             AICoachingGatewayView().environmentObject(appState)

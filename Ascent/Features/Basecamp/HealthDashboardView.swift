@@ -10,6 +10,7 @@ struct HealthDashboardView: View {
     @StateObject private var healthData = HealthDataProvider.shared
     @ObservedObject private var weather = WeatherManager.shared
     @State private var showSettings = false
+    @State private var showAchievements = false
     @State private var showArena = false
     @State private var showExtendedReadiness = false
     @State private var showAlpineWeather = false
@@ -67,7 +68,7 @@ struct HealthDashboardView: View {
 
     var body: some View {
         ZStack {
-            DesignSystem.Colors.background.ignoresSafeArea()
+            DesignSystem.Colors.paperWarm.ignoresSafeArea()
 
             ScrollView(showsIndicators: false) {
                 LazyVStack(spacing: 20) {
@@ -122,7 +123,7 @@ struct HealthDashboardView: View {
                 .adaptiveSheetBackground()
         }
         .sheet(isPresented: $showExtendedReadiness) {
-            SummitReadinessExtendedView()
+            SummitReadinessScreen()
                 .environmentObject(appState)
                 .presentationCornerRadius(36)
                 .adaptiveSheetBackground()
@@ -164,7 +165,7 @@ struct HealthDashboardView: View {
             .presentationBackgroundInteraction(.enabled(upThrough: .large))
         }
         .sheet(isPresented: $showAllActivities) {
-            AllActivitiesView()
+            ToursView()
                 .presentationCornerRadius(36)
                 .adaptiveSheetBackground()
                 .presentationBackgroundInteraction(.enabled(upThrough: .large))
@@ -172,6 +173,15 @@ struct HealthDashboardView: View {
         .sheet(isPresented: $showTrophyRoom) {
             TrophyRoomView()
                 .environmentObject(appState)
+                .presentationDetents([.large])
+                .presentationCornerRadius(36)
+                .adaptiveSheetBackground()
+        }
+        .sheet(isPresented: $showAchievements) {
+            AchievementsView()
+                .environmentObject(appState)
+                .environmentObject(feedVM)
+                .environmentObject(leaderboardVM)
                 .presentationDetents([.large])
                 .presentationCornerRadius(36)
                 .adaptiveSheetBackground()
@@ -186,55 +196,183 @@ struct HealthDashboardView: View {
     // MARK: - Header
 
     private var header: some View {
-        HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("\(weekdayLabel), \(dateLabel)")
-                    .font(.appMono(size: 12, weight: .medium))
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                Text("Heute")
-                    .font(.app(size: 30, weight: .black))
-                    .foregroundColor(.white)
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+
+            // Profile button alone on its own row, top-right.
+            HStack {
+                Spacer()
+                profileButton
             }
-            Spacer()
-            Button { showSettings = true } label: {
-                ZStack {
+
+            // TOP ROW: editorial text column left, large character right.
+            HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+
+                // LEFT: date kicker → greeting → editorial title stack.
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                    Text("\(weekdayLabel), \(dateLabel)")
+                        .font(DesignSystem.Typography.kickerInter)
+                        .tracking(0.5)
+                        .foregroundStyle(DesignSystem.Colors.inkFaintWarm)
+
+                    Text("Hi \(greetingFirstName),")
+                        .font(DesignSystem.Typography.bodyEmphasisInter)
+                        .foregroundStyle(DesignSystem.Colors.inkWarm.opacity(0.72))
+
+                    Text(editorialTitle)
+                        .font(DesignSystem.Typography.title1Inter)
+                        .foregroundStyle(DesignSystem.Colors.inkWarm)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .lineSpacing(2)
+                        .padding(.top, DesignSystem.Spacing.xs)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                // RIGHT: character — large, prominent visual anchor.
+                BasecampMountainHero(mood: mountainMood)
+                    .frame(width: 140, height: 165)
+                    .id(mountainMood)
+                    .animation(.easeInOut(duration: 0.4), value: mountainMood)
+            }
+
+            // BELOW: narrative body full-width.
+            Text(narrativeBody)
+                .font(DesignSystem.Typography.bodyInter)
+                .foregroundStyle(DesignSystem.Colors.inkWarm.opacity(0.72))
+                .fixedSize(horizontal: false, vertical: true)
+                .lineSpacing(3)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.top, DesignSystem.Spacing.sm)
+    }
+
+    /// Hero mood. Subjective check-in answer wins when present —
+    /// ReadinessManager doesn't fold the daily check-in into the
+    /// totalScore, so without this override the character would never
+    /// react to what the user actually picked. Falls back to the
+    /// score-band mapping when no check-in answer for today exists.
+    private var mountainMood: BasecampMountainHero.Mood {
+        if let overall = readinessVM.extendedReadinessAnswers["overall"]?.first {
+            switch overall {
+            case "Strong":  return .ready
+            case "Okay":    return .moderate
+            case "Tired":   return .rest
+            case "Drained": return .caution
+            default: break
+            }
+        }
+        if let detail = aggregatedDetailMood {
+            return detail
+        }
+        guard let score = readinessVM.readiness?.totalScore else { return .ready }
+        if score > 70 { return .ready }
+        if score > 45 { return .moderate }
+        if score >= 25 { return .rest }
+        return .caution
+    }
+
+    /// Aggregate the five detail-variant answers (Sleep / Energy /
+    /// Legs / Focus / HR) to a single mood. Each word maps to 1–4 on
+    /// a sleep-is-good → barely-slept scale; the average picks the
+    /// band. Returns nil if no detail answers exist.
+    private var aggregatedDetailMood: BasecampMountainHero.Mood? {
+        let detailKeys = ["sleep", "energy", "legs", "focus", "hr"]
+        let words = detailKeys.compactMap { readinessVM.extendedReadinessAnswers[$0]?.first }
+        guard !words.isEmpty else { return nil }
+        let scored = words.map { word -> Int in
+            switch word {
+            case "Restored", "Strong", "Fresh", "Sharp", "Calm":          return 4
+            case "Okay", "Normal":                                        return 3
+            case "Light", "Low", "Sore", "Foggy", "Elevated":             return 2
+            case "Barely slept", "Drained", "Heavy", "Scattered":         return 1
+            default:                                                      return 3
+            }
+        }
+        let avg = Double(scored.reduce(0, +)) / Double(scored.count)
+        switch avg {
+        case 3.5...:  return .ready
+        case 2.5..<3.5: return .moderate
+        case 1.5..<2.5: return .rest
+        default:        return .caution
+        }
+    }
+
+    /// First name (or full name if no space) for the Gentler-Streak
+    /// 'Hi X,' greeting. Falls back to a friendly default when the
+    /// profile hasn't loaded yet.
+    private var greetingFirstName: String {
+        let full = profileVM.userName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !full.isEmpty else { return "friend" }
+        return full.split(separator: " ").first.map(String.init) ?? full
+    }
+
+    /// Editorial title — narrative, English, mood-driven from the
+    /// current readiness score. Replaces the generic "Heute" header.
+    private var editorialTitle: String {
+        guard let score = readinessVM.readiness?.totalScore else {
+            return "Take the day slow."
+        }
+        if score > 70 { return "You're ready for the mountain today." }
+        if score > 45 { return "A measured day in the mountains." }
+        return "Stay low today — your body asks for rest."
+    }
+
+    /// Narrative body — one or two sentences that explain the score in
+    /// human terms. Uses the readiness recommendation (already English
+    /// from ReadinessManager.calculate) plus an optional weather line.
+    private var narrativeBody: String {
+        guard let r = readinessVM.readiness else {
+            return "Your numbers are still warming up. Give it a moment."
+        }
+        let weatherSnippet: String = {
+            if let w = weather.currentWeather {
+                let temp = Int(w.temperature.rounded())
+                return " Today's window opens around \(temp)°."
+            }
+            return ""
+        }()
+        return r.recommendation + weatherSnippet
+    }
+
+    private var profileButton: some View {
+        Button { showTrophyRoom = true } label: {
+            ZStack {
+                Circle()
+                    .stroke(DesignSystem.Colors.inkWarm.opacity(0.12), lineWidth: 2)
+                    .frame(width: 42, height: 42)
+                Circle()
+                    .trim(from: 0, to: phase ? Double(appState.currentLevelProgressXP) / Double(max(appState.xpNeededForNextLevel, 1)) : 0)
+                    .stroke(DesignSystem.Colors.glacierDeep, style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                    .frame(width: 42, height: 42)
+                    .rotationEffect(.degrees(-90))
+                    .animation(.easeOut(duration: 1.1).delay(0.35), value: phase)
+                if let urlString = profileVM.avatarURL, let url = URL(string: urlString) {
+                    CachedAsyncImage(url: url) { img in img.resizable().scaledToFill() }
+                        placeholder: { Circle().fill(DesignSystem.Colors.inkWarm.opacity(0.10)) }
+                        .frame(width: 34, height: 34)
+                        .clipShape(Circle())
+                } else {
                     Circle()
-                        .stroke(Color.white.opacity(0.15), lineWidth: 2)
-                        .frame(width: 42, height: 42)
-                    Circle()
-                        .trim(from: 0, to: phase ? Double(appState.currentLevelProgressXP) / Double(max(appState.xpNeededForNextLevel, 1)) : 0)
-                        .stroke(accent, style: StrokeStyle(lineWidth: 2, lineCap: .round))
-                        .frame(width: 42, height: 42)
-                        .rotationEffect(.degrees(-90))
-                        .animation(.easeOut(duration: 1.1).delay(0.35), value: phase)
-                    if let urlString = profileVM.avatarURL, let url = URL(string: urlString) {
-                        CachedAsyncImage(url: url) { img in img.resizable().scaledToFill() }
-                            placeholder: { Circle().fill(Color.white.opacity(0.12)) }
-                            .frame(width: 34, height: 34)
-                            .clipShape(Circle())
-                    } else {
-                        Circle()
-                            .fill(Color.white.opacity(0.12))
-                            .frame(width: 34, height: 34)
-                            .overlay(
-                                Image(systemName: "person.fill")
-                                    .font(.system(size: 14))
-                                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                            )
-                    }
+                        .fill(DesignSystem.Colors.glacierDeep.opacity(0.18))
+                        .frame(width: 34, height: 34)
+                        .overlay(
+                            Image(systemName: "person.fill")
+                                .font(.system(size: 14))
+                                .foregroundStyle(DesignSystem.Colors.glacierDeep)
+                        )
                 }
             }
-            .buttonStyle(.plain)
         }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Readiness Hero Card (full-width, top of page)
 
     private var readinessHeroCard: some View {
         let score = readinessVM.readiness?.totalScore ?? 0
-        let label = readinessVM.readiness?.status ?? "Keine Daten"
+        let label = readinessVM.readiness?.status ?? "No data yet"
         let ratio = min(1.0, Double(score) / 100.0)
         let barColor = readinessColorFor(score)
+        let ink = DesignSystem.Colors.inkOnSage
 
         return Button {
             HapticManager.shared.light()
@@ -244,28 +382,24 @@ struct HealthDashboardView: View {
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 6) {
                         HStack(spacing: 6) {
-                            Image(systemName: "mountain.2.fill")
-                                .font(.system(size: 11, weight: .bold))
-                                .foregroundColor(barColor.opacity(0.8))
-                            Text("SUMMIT READINESS")
-                                .font(.appMono(size: 9, weight: .bold))
-                                .foregroundColor(DesignSystem.Colors.secondaryText)
-                                .tracking(1.4)
+                            ReadinessGlyph()
+                                .frame(width: 14, height: 14)
+                                .foregroundStyle(barColor.opacity(0.85))
+                            Text("Summit readiness")
+                                .font(DesignSystem.Typography.kickerInter)
+                                .tracking(0.5)
+                                .foregroundStyle(ink.opacity(0.62))
                         }
 
                         HStack(alignment: .firstTextBaseline, spacing: 4) {
                             Text("\(score)")
                                 .font(.system(size: 64, weight: .black, design: .rounded))
-                                .foregroundStyle(
-                                    LinearGradient(
-                                        colors: [.white, .white.opacity(0.65)],
-                                        startPoint: .top, endPoint: .bottom
-                                    )
-                                )
+                                .foregroundStyle(ink)
                                 .contentTransition(.numericText())
+                                .monospacedDigit()
                             Text("%")
-                                .font(.appMono(size: 24, weight: .bold))
-                                .foregroundColor(DesignSystem.Colors.secondaryText)
+                                .font(.system(size: 24, weight: .semibold, design: .rounded))
+                                .foregroundStyle(ink.opacity(0.55))
                         }
                     }
 
@@ -274,11 +408,11 @@ struct HealthDashboardView: View {
                     VStack(alignment: .trailing, spacing: 6) {
                         Image(systemName: "info.circle")
                             .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(DesignSystem.Colors.tertiaryText)
+                            .foregroundStyle(ink.opacity(0.45))
                         Spacer()
                         Text(label)
-                            .font(.app(size: 18, weight: .black))
-                            .foregroundColor(barColor)
+                            .font(DesignSystem.Typography.title3Inter)
+                            .foregroundStyle(ink)
                     }
                 }
                 .padding(.bottom, 16)
@@ -286,37 +420,15 @@ struct HealthDashboardView: View {
                 GeometryReader { geo in
                     let barWidth = phase ? geo.size.width * ratio : 0
                     ZStack(alignment: .leading) {
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.white.opacity(0.06))
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(
-                                LinearGradient(
-                                    colors: [barColor, barColor.opacity(0.6)],
-                                    startPoint: .leading, endPoint: .trailing
-                                )
-                            )
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(ink.opacity(0.10))
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(barColor)
                             .frame(width: barWidth)
-                            .neonSweep(barColor)
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
-                            .overlay(alignment: .trailing) {
-                                if phase && score > 0 {
-                                    Circle()
-                                        .fill(.white)
-                                        .frame(width: 8, height: 8)
-                                        .shadow(color: barColor.opacity(0.9), radius: 8)
-                                        .padding(.trailing, 6)
-                                }
-                            }
                             .animation(.spring(response: 1.2, dampingFraction: 0.7), value: phase)
                     }
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(barColor.opacity(phase ? 0.2 : 0))
-                        .frame(width: barWidth)
-                        .blur(radius: 10)
-                        .offset(y: 3)
-                        .animation(.spring(response: 1.2, dampingFraction: 0.7), value: phase)
                 }
-                .frame(height: 16)
+                .frame(height: 10)
 
                 if let readiness = readinessVM.readiness {
                     HStack(spacing: 8) {
@@ -330,69 +442,41 @@ struct HealthDashboardView: View {
                         Image(systemName: "hand.tap.fill")
                             .font(.system(size: 12))
                         Text("Tap to assess your summit readiness")
-                            .font(.app(size: 13, weight: .medium))
+                            .font(DesignSystem.Typography.bodyInter)
                     }
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .foregroundStyle(ink.opacity(0.55))
                     .padding(.top, 14)
                 }
             }
-            .padding(DesignSystem.Spacing.cardPadding)
-            .padding(.vertical, 6)
+            .padding(20)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
             .background(
-                ZStack {
-                    RoundedRectangle(cornerRadius: DesignSystem.Radius.xl, style: .continuous)
-                        .fill(DesignSystem.Colors.cardBackground)
-                    RoundedRectangle(cornerRadius: DesignSystem.Radius.xl, style: .continuous)
-                        .fill(
-                            RadialGradient(
-                                colors: [barColor.opacity(0.08), .clear],
-                                center: .topLeading,
-                                startRadius: 0,
-                                endRadius: 350
-                            )
-                        )
-                    RoundedRectangle(cornerRadius: DesignSystem.Radius.xl, style: .continuous)
-                        .fill(
-                            RadialGradient(
-                                colors: [barColor.opacity(0.04), .clear],
-                                center: .bottomTrailing,
-                                startRadius: 0,
-                                endRadius: 250
-                            )
-                        )
-                }
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: DesignSystem.Radius.xl, style: .continuous)
-                    .strokeBorder(
-                        LinearGradient(
-                            colors: [barColor.opacity(0.2), Color.white.opacity(0.05), barColor.opacity(0.08)],
-                            startPoint: .topLeading, endPoint: .bottomTrailing
-                        ),
-                        lineWidth: 0.5
-                    )
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.cardSoft, style: .continuous)
+                    .fill(DesignSystem.Colors.sageCard)
             )
         }
-        .buttonStyle(PressableButtonStyle())
+        .buttonStyle(.plain)
     }
 
     private func readinessSubPill(label: String, score: Int) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text(label.uppercased())
-                .font(.appMono(size: 7, weight: .bold))
-                .foregroundColor(DesignSystem.Colors.tertiaryText)
-                .tracking(0.8)
+        let ink = DesignSystem.Colors.inkOnSage
+        return VStack(alignment: .leading, spacing: 4) {
+            Text(label)
+                .font(DesignSystem.Typography.kickerInter)
+                .tracking(0.5)
+                .foregroundStyle(ink.opacity(0.55))
             Text("\(score)")
-                .font(.appMono(size: 16, weight: .black))
-                .foregroundColor(.white)
+                .font(DesignSystem.Typography.title3Inter)
+                .foregroundStyle(ink)
                 .contentTransition(.numericText())
+                .monospacedDigit()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
         .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.white.opacity(0.06))
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(ink.opacity(0.08))
         )
     }
 
@@ -412,65 +496,73 @@ struct HealthDashboardView: View {
             showArena = true
         } label: {
             HStack(spacing: 14) {
+                // Neutral pastel disc, no tier color — tier moves to corner badge.
                 ZStack {
                     Circle()
-                        .fill(
-                            LinearGradient(
-                                colors: [tierColor, tierColorDeep],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
+                        .fill(DesignSystem.Colors.inkOnSand.opacity(0.08))
                         .frame(width: 46, height: 46)
-                    Circle()
-                        .fill(
-                            RadialGradient(
-                                colors: [Color.white.opacity(0.45), .clear],
-                                center: UnitPoint(x: 0.30, y: 0.20),
-                                startRadius: 0,
-                                endRadius: 20
-                            )
-                        )
-                        .frame(width: 46, height: 46)
-                        .blendMode(.plusLighter)
-                    Image(systemName: "trophy.fill")
-                        .font(.system(size: 17, weight: .black))
-                        .foregroundColor(.white)
+                    RankGlyph()
+                        .frame(width: 22, height: 22)
+                        .foregroundStyle(DesignSystem.Colors.inkOnSand)
                 }
 
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(tierLabel.uppercased())
-                        .font(.appMono(size: 9, weight: .bold))
-                        .tracking(1.6)
-                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                    Text("Your rank")
+                        .font(DesignSystem.Typography.kickerInter)
+                        .tracking(0.5)
+                        .foregroundStyle(DesignSystem.Colors.inkOnSand.opacity(0.62))
                     if let rank = globalRank {
-                        Text("Global Rank #\(rank)")
-                            .font(.app(size: 16, weight: .heavy))
-                            .foregroundColor(.white)
+                        Text("Global #\(rank)")
+                            .font(DesignSystem.Typography.title3Inter)
+                            .foregroundStyle(DesignSystem.Colors.inkOnSand)
+                            .monospacedDigit()
                     } else {
                         Text("\(appState.currentXP) XP · Lvl \(appState.currentLevel)")
-                            .font(.app(size: 16, weight: .heavy))
-                            .foregroundColor(.white)
+                            .font(DesignSystem.Typography.title3Inter)
+                            .foregroundStyle(DesignSystem.Colors.inkOnSand)
+                            .monospacedDigit()
                     }
                 }
                 Spacer()
 
                 HStack(spacing: 6) {
-                    Text("ARENA")
-                        .font(.appMono(size: 9, weight: .bold))
-                        .tracking(1.4)
-                        .foregroundColor(accent)
+                    Text("Arena")
+                        .font(DesignSystem.Typography.kickerInter)
+                        .tracking(0.5)
+                        .foregroundStyle(DesignSystem.Colors.alpenglow)
                     Image(systemName: "chevron.right")
-                        .font(.system(size: 11, weight: .heavy))
-                        .foregroundColor(accent)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(DesignSystem.Colors.alpenglow)
                 }
             }
             .padding(.horizontal, DesignSystem.Spacing.md)
             .padding(.vertical, 14)
             .frame(maxWidth: .infinity)
-            .ascentCard(cornerRadius: DesignSystem.Radius.xl)
+            .pastelCard(.sand, applyForeground: false)
+            .overlay(alignment: .topTrailing) {
+                // Tier badge — small color dot + tier name, paperWarm
+                // pill with subtle hairline. Sits inside the card edge.
+                HStack(spacing: 4) {
+                    Circle()
+                        .fill(tierColor)
+                        .frame(width: 6, height: 6)
+                    Text(tierLabel)
+                        .font(DesignSystem.Typography.kickerInter)
+                        .tracking(0.5)
+                        .foregroundStyle(DesignSystem.Colors.inkOnSand)
+                }
+                .padding(.vertical, 5)
+                .padding(.horizontal, 9)
+                .background(
+                    Capsule().fill(DesignSystem.Colors.paperWarm)
+                )
+                .overlay(
+                    Capsule().stroke(DesignSystem.Colors.inkOnSand.opacity(0.12), lineWidth: 0.5)
+                )
+                .padding(10)
+            }
         }
-        .buttonStyle(PressableButtonStyle())
+        .buttonStyle(.plain)
     }
 
     // MARK: - Dashboard Grid
@@ -482,26 +574,30 @@ struct HealthDashboardView: View {
                     HapticManager.shared.light()
                     showCoachingGateway = true
                 } label: {
-                    VStack(alignment: .leading, spacing: 10) {
+                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
                         HStack {
-                            Image(systemName: "sparkles")
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundColor(accent)
+                            CoachGlyph()
+                                .frame(width: 18, height: 18)
+                                .foregroundStyle(DesignSystem.Colors.inkOnSage)
+                            Text("AI Coach")
+                                .font(DesignSystem.Typography.kickerInter)
+                                .tracking(0.5)
+                                .foregroundStyle(DesignSystem.Colors.inkOnSage.opacity(0.72))
                             Spacer()
                             Image(systemName: "arrow.up.right")
-                                .font(.system(size: 10, weight: .bold))
-                                .foregroundColor(accent.opacity(0.6))
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundStyle(DesignSystem.Colors.inkOnSage.opacity(0.55))
                         }
-                        Text("AI Coach")
-                            .font(.app(size: 15, weight: .black))
-                            .foregroundColor(.white)
+                        Text("Talk it out")
+                            .font(DesignSystem.Typography.title3Inter)
+                            .foregroundStyle(DesignSystem.Colors.inkOnSage)
                         Text("Training · Recovery")
-                            .font(.appMono(size: 9, weight: .medium))
-                            .foregroundColor(DesignSystem.Colors.secondaryText)
+                            .font(DesignSystem.Typography.subheadInter)
+                            .foregroundStyle(DesignSystem.Colors.inkOnSage.opacity(0.62))
                     }
-                    .padding(16)
+                    .padding(DesignSystem.Spacing.md)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                    .ascentCard()
+                    .pastelCard(.sage, applyForeground: false)
                 }
                 .buttonStyle(PressableButtonStyle())
 
@@ -509,29 +605,34 @@ struct HealthDashboardView: View {
                     HapticManager.shared.light()
                     showAllActivities = true
                 } label: {
-                    VStack(alignment: .leading, spacing: 10) {
+                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
                         HStack {
-                            Image(systemName: "figure.hiking")
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundColor(.orange)
+                            ActivityGlyph()
+                                .frame(width: 18, height: 18)
+                                .foregroundStyle(DesignSystem.Colors.inkOnIce)
+                            Text("Tours")
+                                .font(DesignSystem.Typography.kickerInter)
+                                .tracking(0.5)
+                                .foregroundStyle(DesignSystem.Colors.inkOnIce.opacity(0.62))
                             Spacer()
                             Image(systemName: "chevron.right")
-                                .font(.system(size: 10, weight: .bold))
-                                .foregroundColor(DesignSystem.Colors.tertiaryText)
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundStyle(DesignSystem.Colors.inkOnIce.opacity(0.45))
                         }
-                        HStack(alignment: .firstTextBaseline, spacing: 3) {
-                            Text("\(feedVM.recentTours.filter { $0.isCurrentUser }.count)")
-                                .font(.appMono(size: 24, weight: .black))
-                                .foregroundColor(.white)
-                                .contentTransition(.numericText())
-                            Text("Sessions")
-                                .font(.appMono(size: 10, weight: .bold))
-                                .foregroundColor(DesignSystem.Colors.secondaryText)
-                        }
+
+                        Text("\(feedVM.recentTours.filter { $0.isCurrentUser }.count)")
+                            .font(DesignSystem.Typography.title1Inter)
+                            .foregroundStyle(DesignSystem.Colors.inkOnIce)
+                            .monospacedDigit()
+                            .contentTransition(.numericText())
+
+                        Text("Logged")
+                            .font(DesignSystem.Typography.subheadInter)
+                            .foregroundStyle(DesignSystem.Colors.inkOnIce.opacity(0.72))
                     }
-                    .padding(16)
+                    .padding(DesignSystem.Spacing.md)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                    .ascentCard()
+                    .pastelCard(.ice, applyForeground: false)
                 }
                 .buttonStyle(PressableButtonStyle())
             }
@@ -541,29 +642,34 @@ struct HealthDashboardView: View {
                     HapticManager.shared.light()
                     showElevationDetail = true
                 } label: {
-                    VStack(alignment: .leading, spacing: 10) {
+                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
                         HStack {
-                            Image(systemName: "mountain.2.fill")
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundColor(DesignSystem.Colors.metricElevation)
+                            ElevationGlyph()
+                                .frame(width: 18, height: 18)
+                                .foregroundStyle(DesignSystem.Colors.inkOnSand)
+                            Text("Elevation")
+                                .font(DesignSystem.Typography.kickerInter)
+                                .tracking(0.5)
+                                .foregroundStyle(DesignSystem.Colors.inkOnSand.opacity(0.62))
                             Spacer()
                         }
                         HStack(alignment: .firstTextBaseline, spacing: 3) {
                             Text("\(appState.weeklyElevation)")
-                                .font(.appMono(size: 24, weight: .black))
-                                .foregroundColor(.white)
+                                .font(DesignSystem.Typography.title1Inter)
+                                .foregroundStyle(DesignSystem.Colors.inkOnSand)
+                                .monospacedDigit()
                                 .contentTransition(.numericText())
                             Text("m")
-                                .font(.appMono(size: 12, weight: .bold))
-                                .foregroundColor(DesignSystem.Colors.secondaryText)
+                                .font(DesignSystem.Typography.footnoteInter)
+                                .foregroundStyle(DesignSystem.Colors.inkOnSand.opacity(0.62))
                         }
-                        Text("Höhenmeter diese Woche")
-                            .font(.appMono(size: 9, weight: .medium))
-                            .foregroundColor(DesignSystem.Colors.secondaryText)
+                        Text("This week")
+                            .font(DesignSystem.Typography.subheadInter)
+                            .foregroundStyle(DesignSystem.Colors.inkOnSand.opacity(0.72))
                     }
-                    .padding(16)
+                    .padding(DesignSystem.Spacing.md)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                    .ascentCard()
+                    .pastelCard(.sand, applyForeground: false)
                 }
                 .buttonStyle(PressableButtonStyle())
 
@@ -571,33 +677,43 @@ struct HealthDashboardView: View {
                     HapticManager.shared.light()
                     showGoalsList = true
                 } label: {
-                    VStack(alignment: .leading, spacing: 10) {
+                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
                         HStack {
-                            Image(systemName: appState.goals.isEmpty ? "plus" : "flag.2.crossed.fill")
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundColor(accent)
+                            GoalGlyph()
+                                .frame(width: 18, height: 18)
+                                .foregroundStyle(DesignSystem.Colors.inkOnSand)
+                            Text(appState.goals.isEmpty ? "Goal" : "Next goal")
+                                .font(DesignSystem.Typography.kickerInter)
+                                .tracking(0.5)
+                                .foregroundStyle(DesignSystem.Colors.inkOnSand.opacity(0.72))
                             Spacer()
                             Image(systemName: "chevron.right")
-                                .font(.system(size: 10, weight: .bold))
-                                .foregroundColor(DesignSystem.Colors.tertiaryText)
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundStyle(DesignSystem.Colors.inkOnSand.opacity(0.45))
                         }
-                        Text(appState.goals.first?.mountainName ?? "Ziel setzen")
-                            .font(.app(size: 15, weight: .black))
-                            .foregroundColor(.white)
+
+                        Text(appState.goals.primary?.mountainName ?? "Add a goal")
+                            .font(DesignSystem.Typography.title3Inter)
+                            .foregroundStyle(DesignSystem.Colors.inkOnSand)
                             .lineLimit(2)
+
                         if let r = readinessVM.readiness {
                             Text("\(r.totalScore)% ready")
-                                .font(.appMono(size: 10, weight: .bold))
-                                .foregroundColor(accent)
+                                .font(DesignSystem.Typography.kickerInter)
+                                .foregroundStyle(DesignSystem.Colors.inkOnSand.opacity(0.72))
+                                .monospacedDigit()
                         } else {
                             Text("Tap to plan")
-                                .font(.appMono(size: 10, weight: .bold))
-                                .foregroundColor(accent)
+                                .font(DesignSystem.Typography.kickerInter)
+                                .foregroundStyle(DesignSystem.Colors.inkOnSand.opacity(0.62))
                         }
                     }
-                    .padding(16)
+                    .padding(DesignSystem.Spacing.lg)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                    .ascentCard()
+                    .background(
+                        RoundedRectangle(cornerRadius: DesignSystem.Radius.cardSoft, style: .continuous)
+                            .fill(DesignSystem.Colors.alpenglowSoft)
+                    )
                 }
                 .buttonStyle(PressableButtonStyle())
             }
@@ -607,92 +723,98 @@ struct HealthDashboardView: View {
     // MARK: - Alpine Weather
 
     private var alpineWeatherWidget: some View {
-        let safetyColor: Color = {
-            guard let w = weather.currentWeather else { return .blue }
-            switch w.safetyLevel {
-            case .good:    return .green
-            case .caution: return .yellow
-            case .warning: return .orange
-            case .danger:  return .red
-            }
-        }()
+        let currentSafety = weather.currentWeather?.safetyLevel ?? .good
 
         return Button {
             HapticManager.shared.light()
             showAlpineWeather = true
         } label: {
-            VStack(alignment: .leading, spacing: 14) {
-                HStack {
-                    HStack(spacing: 8) {
-                        Image(systemName: "cloud.sun.fill")
-                            .font(.system(size: 16, weight: .semibold))
-                            .symbolRenderingMode(.multicolor)
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text("ALPINE SAFETY")
-                                .font(.appMono(size: 9, weight: .bold))
-                                .foregroundColor(DesignSystem.Colors.secondaryText)
-                                .tracking(1.4)
-                            if let w = weather.currentWeather {
-                                Text(w.safetyLevel.label)
-                                    .font(.app(size: 13, weight: .black))
-                                    .foregroundColor(safetyColor)
-                            }
-                        }
-                    }
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+
+                HStack(spacing: DesignSystem.Spacing.xs) {
+                    WeatherGlyph()
+                        .foregroundStyle(DesignSystem.Colors.inkOnIce)
+                        .frame(width: 18, height: 18)
+                    Text("Alpine safety")
+                        .font(DesignSystem.Typography.kickerInter)
+                        .tracking(0.5)
+                        .foregroundStyle(DesignSystem.Colors.inkOnIce)
                     Spacer()
                     HStack(spacing: 4) {
-                        LivePulse()
-                        Text("LIVE")
-                            .font(.appMono(size: 8, weight: .bold))
-                            .foregroundColor(.red)
-                            .tracking(0.8)
+                        Circle()
+                            .fill(DesignSystem.Colors.ember)
+                            .frame(width: 5, height: 5)
+                            .modifier(WeatherWidgetPulseModifier())
+                        Text("Live")
+                            .font(DesignSystem.Typography.kickerInter)
+                            .foregroundStyle(DesignSystem.Colors.inkOnIce.opacity(0.72))
                     }
                 }
 
-                HStack(spacing: 0) {
-                    WeatherMetric(
-                        icon: "wind",
-                        value: weather.currentWeather.map { "\(Int($0.windSpeed))" } ?? "–",
-                        label: "km/h"
-                    )
-                    WeatherMetric(
-                        icon: "thermometer.low",
-                        value: weather.currentWeather.map { "\(Int($0.temperature))°" } ?? "–",
-                        label: "Temp"
-                    )
-                    WeatherMetric(
-                        icon: "drop.fill",
-                        value: weather.currentWeather.map { "\(Int($0.precipitationChance * 100))%" } ?? "–",
-                        label: "Precip"
-                    )
-                    WeatherMetric(
-                        icon: "eye",
-                        value: weather.currentWeather.map { String(format: "%.0fkm", $0.visibility) } ?? "–",
-                        label: "Vis."
-                    )
+                HStack(spacing: DesignSystem.Spacing.xs) {
+                    Text(currentSafety.sentenceLabel)
+                        .font(DesignSystem.Typography.title3Inter)
+                        .foregroundStyle(DesignSystem.Colors.inkOnIce)
+                    Circle()
+                        .fill(currentSafety.pastelColor)
+                        .frame(width: 8, height: 8)
                 }
-                .padding(.vertical, 12)
-                .background(Color.white.opacity(0.06))
-                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+
+                HStack(spacing: DesignSystem.Spacing.md) {
+                    weatherMetric(value: weather.currentWeather.map { "\(Int($0.windSpeed))" } ?? "–",
+                                  unit: "km/h",
+                                  label: "Wind")
+                    weatherMetric(value: weather.currentWeather.map { "\(Int($0.temperature))°" } ?? "–",
+                                  unit: "",
+                                  label: "Temp")
+                    weatherMetric(value: weather.currentWeather.map { "\(Int($0.precipitationChance * 100))%" } ?? "–",
+                                  unit: "",
+                                  label: "Rain")
+                    weatherMetric(value: weather.currentWeather.map { String(format: "%.0f", $0.visibility) } ?? "–",
+                                  unit: "km",
+                                  label: "Vis")
+                }
+                .padding(.vertical, DesignSystem.Spacing.sm)
 
                 HStack(spacing: 6) {
-                    Image(systemName: "map.fill")
-                        .font(.system(size: 10))
-                        .foregroundColor(DesignSystem.Colors.secondaryText)
-                    Text("Open live weather map")
-                        .font(.app(size: 12))
-                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                    Text("Open weather map")
+                        .font(DesignSystem.Typography.kickerInter)
+                        .foregroundStyle(DesignSystem.Colors.inkOnIce.opacity(0.72))
                     Spacer()
                     Image(systemName: "chevron.right")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundColor(DesignSystem.Colors.tertiaryText)
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(DesignSystem.Colors.inkOnIce.opacity(0.45))
                 }
             }
-            .padding(DesignSystem.Spacing.cardPadding)
+            .padding(DesignSystem.Spacing.lg)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .ascentCard()
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.cardSoft, style: .continuous)
+                    .fill(DesignSystem.Colors.iceGlacierCard)
+            )
         }
         .buttonStyle(PressableButtonStyle())
+    }
+
+    @ViewBuilder
+    private func weatherMetric(value: String, unit: String, label: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(alignment: .firstTextBaseline, spacing: 1) {
+                Text(value)
+                    .font(DesignSystem.Typography.title3Inter)
+                    .foregroundStyle(DesignSystem.Colors.inkOnIce)
+                    .monospacedDigit()
+                if !unit.isEmpty {
+                    Text(unit)
+                        .font(DesignSystem.Typography.kickerInter)
+                        .foregroundStyle(DesignSystem.Colors.inkOnIce.opacity(0.62))
+                }
+            }
+            Text(label)
+                .font(DesignSystem.Typography.kickerInter)
+                .foregroundStyle(DesignSystem.Colors.inkOnIce.opacity(0.62))
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // MARK: - Trophy Room Access
@@ -700,27 +822,27 @@ struct HealthDashboardView: View {
     private var trophyAccessCard: some View {
         Button {
             HapticManager.shared.light()
-            showTrophyRoom = true
+            showAchievements = true
         } label: {
             HStack(spacing: 14) {
-                Image(systemName: "medal.fill")
-                    .font(.system(size: 22, weight: .semibold))
-                    .foregroundColor(DesignSystem.Colors.prestige)
+                MilestoneGlyph()
+                    .frame(width: 22, height: 22)
+                    .foregroundStyle(DesignSystem.Colors.inkOnSand)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Achievements & Trophies")
-                        .font(.app(size: 16, weight: .bold))
-                        .foregroundColor(.white)
-                    Text("Badges, Milestones, Collections")
-                        .font(.appMono(size: 11, weight: .medium))
-                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                    Text("Achievements")
+                        .font(DesignSystem.Typography.bodyEmphasisInter)
+                        .foregroundStyle(DesignSystem.Colors.inkOnSand)
+                    Text("Badges & milestones")
+                        .font(DesignSystem.Typography.kickerInter)
+                        .foregroundStyle(DesignSystem.Colors.inkOnSand.opacity(0.62))
                 }
                 Spacer()
                 Image(systemName: "chevron.right")
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(DesignSystem.Colors.tertiaryText)
+                    .foregroundStyle(DesignSystem.Colors.inkOnSand.opacity(0.45))
             }
             .padding(DesignSystem.Spacing.cardPadding)
-            .ascentCard()
+            .pastelCard(.sand, applyForeground: false)
         }
         .buttonStyle(PressableButtonStyle())
     }
@@ -728,9 +850,17 @@ struct HealthDashboardView: View {
     // MARK: - Suggested Routes
 
     private var suggestedRoutesSection: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            OutsidersSectionLabel(text: "Vorgeschlagene Routen")
-                .padding(.horizontal, DesignSystem.Spacing.screenInset)
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                RouteGlyph()
+                    .foregroundStyle(DesignSystem.Colors.inkWarm.opacity(0.62))
+                    .frame(width: 18, height: 18)
+                Text("Recommended routes")
+                    .font(DesignSystem.Typography.title2Inter)
+                    .foregroundStyle(DesignSystem.Colors.inkWarm)
+            }
+            .padding(.horizontal, DesignSystem.Spacing.screenInset)
+
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
                     ForEach(discoveryVM.suggestedRoutes) { mountain in
@@ -740,6 +870,7 @@ struct HealthDashboardView: View {
                 .padding(.horizontal, DesignSystem.Spacing.screenInset)
             }
         }
+        .padding(.top, 8)
     }
 }
 
@@ -837,5 +968,21 @@ struct EnergyMiniDonut: View {
                 .blur(radius: 4)
         }
         .frame(width: 36, height: 36)
+    }
+}
+
+// MARK: - Live-indicator pulse for the weather widget
+
+fileprivate struct WeatherWidgetPulseModifier: ViewModifier {
+    @State private var pulsing = false
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(pulsing ? 1.0 : 0.4)
+            .animation(
+                .easeInOut(duration: 1.2).repeatForever(autoreverses: true),
+                value: pulsing
+            )
+            .onAppear { pulsing = true }
     }
 }

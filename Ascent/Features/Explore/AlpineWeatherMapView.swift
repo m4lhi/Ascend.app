@@ -271,14 +271,15 @@ struct AlpineWeatherMapView: View {
                     VStack {
                         Spacer()
                         HStack(spacing: 10) {
-                            ProgressView().tint(.white)
+                            ProgressView().tint(DesignSystem.Colors.inkWarm.opacity(0.62))
                             Text("Loading alpine forecast…")
-                                .font(.appMono(size: 12, weight: .semibold))
-                                .foregroundColor(.white)
+                                .font(DesignSystem.Typography.subheadInter)
+                                .foregroundStyle(DesignSystem.Colors.inkWarm)
                         }
-                        .padding(.horizontal, 18)
-                        .padding(.vertical, 10)
-                        .background(Capsule().fill(Color.black.opacity(0.6)))
+                        .padding(.horizontal, DesignSystem.Spacing.md)
+                        .padding(.vertical, DesignSystem.Spacing.sm)
+                        .background(Capsule().fill(DesignSystem.Colors.paperWarm.opacity(0.95)))
+                        .shadow(color: .black.opacity(0.1), radius: 8, y: 2)
                         Spacer()
                     }
                 }
@@ -314,81 +315,77 @@ struct AlpineWeatherMapView: View {
     // MARK: - Top Bar
 
     private var topBar: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: DesignSystem.Spacing.sm) {
             Button { dismiss() } label: {
-                Image(systemName: "xmark")
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundColor(.white)
-                    .frame(width: 36, height: 36)
-                    .background(Circle().fill(DesignSystem.Colors.surface))
+                ZStack {
+                    Circle()
+                        .fill(DesignSystem.Colors.paperWarm.opacity(0.95))
+                        .frame(width: 36, height: 36)
+                    Image(systemName: "xmark")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(DesignSystem.Colors.inkWarm.opacity(0.62))
+                }
+                .shadow(color: .black.opacity(0.1), radius: 8, y: 2)
             }
 
             Spacer()
 
             VStack(spacing: 1) {
-                Text("ALPINE SAFETY")
-                    .font(.appMono(size: 8, weight: .bold))
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .tracking(1.0)
-                Text(appState.activeMountain?.name ?? "Target Region")
-                    .font(.app(size: 13, weight: .bold))
+                Text("Alpine safety")
+                    .font(DesignSystem.Typography.kickerInter)
+                    .foregroundStyle(DesignSystem.Colors.inkFaintWarm)
+                Text(appState.activeMountain?.name ?? "Target region")
+                    .font(DesignSystem.Typography.bodyEmphasisInter)
+                    .foregroundStyle(DesignSystem.Colors.inkWarm)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(Capsule().fill(DesignSystem.Colors.surface))
+            .padding(.horizontal, DesignSystem.Spacing.md)
+            .padding(.vertical, 8)
+            .background(Capsule().fill(DesignSystem.Colors.paperWarm.opacity(0.95)))
+            .shadow(color: .black.opacity(0.1), radius: 8, y: 2)
 
             Spacer()
 
-            // Safety verdict badge
             safetyBadge
         }
-        .padding(.horizontal, 14)
-        .padding(.top, 8)
+        .padding(.horizontal, DesignSystem.Spacing.md)
+        .padding(.top, DesignSystem.Spacing.sm)
     }
 
     @ViewBuilder
     private var safetyBadge: some View {
         let safety = weather.currentWeather?.safetyLevel ?? .good
-        HStack(spacing: 4) {
-            Image(systemName: safety.icon)
-                .font(.system(size: 10, weight: .bold))
-            Text(safety.label.uppercased())
-                .font(.appMono(size: 8, weight: .bold))
-                .tracking(0.5)
+        HStack(spacing: 5) {
+            Circle()
+                .fill(safety.pastelColor)
+                .frame(width: 6, height: 6)
+            Text(safety.sentenceLabel)
+                .font(DesignSystem.Typography.kickerInter)
+                .foregroundStyle(DesignSystem.Colors.inkWarm)
         }
-        .foregroundColor(safety.color)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(Capsule().fill(DesignSystem.Colors.surface))
-        .overlay(Capsule().stroke(safety.color.opacity(0.4), lineWidth: 1))
+        .padding(.horizontal, DesignSystem.Spacing.sm)
+        .padding(.vertical, 8)
+        .background(Capsule().fill(safety.pastelSoftColor))
+        .shadow(color: .black.opacity(0.1), radius: 8, y: 2)
     }
 
     // MARK: - Bottom Panel
 
     private var bottomPanel: some View {
-        VStack(spacing: 12) {
-            // Layer switcher
+        VStack(spacing: DesignSystem.Spacing.sm) {
             layerPicker
-
-            // Avalanche bulletin (always visible — critical safety info)
             avalancheCard
-
-            // Alpine telemetry readout
             alpineTelemetry
-
-            // Hourly scrubber
             hourlyScrubber
-
-            // Hourly strip
             hourlyStrip
         }
-        .padding(14)
+        .padding(DesignSystem.Spacing.md)
         .background(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(DesignSystem.Colors.surface)
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.cardSoft, style: .continuous)
+                .fill(DesignSystem.Colors.paperWarm)
         )
-        .padding(.horizontal, 10)
-        .padding(.bottom, 16)
+        .shadow(color: .black.opacity(0.08), radius: 12, y: -2)
+        .padding(.horizontal, DesignSystem.Spacing.sm)
+        .padding(.bottom, DesignSystem.Spacing.md)
     }
 
     // MARK: Avalanche Bulletin Card
@@ -396,73 +393,76 @@ struct AlpineWeatherMapView: View {
     private var avalancheCard: some View {
         if let b = avalancheBulletin {
             Button { showAvalancheHeatmap = true } label: {
-                HStack(spacing: 12) {
+                HStack(spacing: DesignSystem.Spacing.sm) {
+                    // EAWS danger-rating circle keeps its official 1–5 colour
+                    // scale; that hex is functional, not stylistic.
                     ZStack {
                         Circle()
                             .fill(Color(hex: b.dangerColorHex) ?? .gray)
                             .frame(width: 44, height: 44)
                         Text("\(b.dangerLevel)")
-                            .font(.system(size: 19, weight: .black))
-                            .foregroundColor(b.dangerLevel >= 4 ? .white : .black)
+                            .font(.system(size: 19, weight: .heavy))
+                            .foregroundStyle(b.dangerLevel >= 4 ? .white : .black)
+                            .monospacedDigit()
                     }
 
                     VStack(alignment: .leading, spacing: 2) {
-                        HStack(spacing: 6) {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .font(.system(size: 9, weight: .heavy))
-                                .foregroundColor(.orange)
-                            Text("AVALANCHE — \(b.dangerLabel.uppercased())")
-                                .font(.appMono(size: 9, weight: .heavy))
-                                .tracking(1.0)
-                        }
+                        Text("Avalanche · \(b.dangerLabel.capitalized)")
+                            .font(DesignSystem.Typography.kickerInter)
+                            .foregroundStyle(DesignSystem.Colors.ember)
                         Text(b.regionName)
-                            .font(.app(size: 13, weight: .heavy))
-                            .foregroundColor(.white)
+                            .font(DesignSystem.Typography.bodyEmphasisInter)
+                            .foregroundStyle(DesignSystem.Colors.inkWarm)
                             .lineLimit(1)
                         if !b.problems.isEmpty {
                             Text(b.problems.prefix(2).joined(separator: ", ").replacingOccurrences(of: "_", with: " "))
-                                .font(.app(size: 10))
-                                .foregroundColor(DesignSystem.Colors.secondaryText)
+                                .font(DesignSystem.Typography.kickerInter)
+                                .foregroundStyle(DesignSystem.Colors.inkWarm.opacity(0.62))
                                 .lineLimit(1)
                         }
                     }
                     Spacer()
-                    Image(systemName: "map.fill")
-                        .font(.system(size: 13, weight: .heavy))
-                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(DesignSystem.Colors.inkFaintWarm)
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 10)
-                .background(Color.white.opacity(0.5))
-                .clipShape(RoundedRectangle(cornerRadius: DesignSystem.Radius.md))
+                .padding(DesignSystem.Spacing.sm)
+                .background(
+                    RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                        .fill(DesignSystem.Colors.alpenglowSoft.opacity(0.5))
+                )
             }
             .buttonStyle(.plain)
         } else if avalancheLoading {
             HStack(spacing: 10) {
-                ProgressView().scaleEffect(0.7)
+                ProgressView()
+                    .scaleEffect(0.7)
+                    .tint(DesignSystem.Colors.inkWarm.opacity(0.62))
                 Text("Loading avalanche bulletin…")
-                    .font(.app(size: 11))
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .font(DesignSystem.Typography.subheadInter)
+                    .foregroundStyle(DesignSystem.Colors.inkWarm.opacity(0.62))
                 Spacer()
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-            .background(Color.white.opacity(0.4))
-            .clipShape(RoundedRectangle(cornerRadius: DesignSystem.Radius.md))
+            .padding(DesignSystem.Spacing.sm)
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                    .fill(DesignSystem.Colors.surfaceWarm)
+            )
         } else {
-            // No bulletin available for region (e.g. summer or unsupported area)
             HStack(spacing: 8) {
-                Image(systemName: "checkmark.shield.fill")
-                    .foregroundColor(.green)
+                Circle()
+                    .fill(DesignSystem.Colors.meadow)
+                    .frame(width: 8, height: 8)
                 Text("No avalanche bulletin issued for this region.")
-                    .font(.app(size: 11))
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .font(DesignSystem.Typography.subheadInter)
+                    .foregroundStyle(DesignSystem.Colors.inkWarm.opacity(0.72))
                 Spacer()
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-            .background(Color.white.opacity(0.4))
-            .clipShape(RoundedRectangle(cornerRadius: DesignSystem.Radius.md))
+            .padding(DesignSystem.Spacing.sm)
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                    .fill(DesignSystem.Colors.meadowSoft.opacity(0.5))
+            )
         }
     }
 
@@ -473,25 +473,31 @@ struct AlpineWeatherMapView: View {
             HStack(spacing: 6) {
                 ForEach(Layer.allCases, id: \.self) { l in
                     Button {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) { layer = l }
+                        withAnimation(DesignSystem.Animations.quick) { layer = l }
                         HapticManager.shared.light()
                     } label: {
                         HStack(spacing: 5) {
                             Image(systemName: l.icon)
-                                .font(.system(size: 10, weight: .bold))
-                            Text(l.rawValue.uppercased())
-                                .font(.appMono(size: 9, weight: .bold))
-                                .tracking(0.6)
+                                .font(.system(size: 10, weight: .semibold))
+                            Text(l.rawValue)
+                                .font(DesignSystem.Typography.kickerInter)
                         }
-                        .foregroundColor(layer == l ? .white : .primary.opacity(0.7))
-                        .padding(.horizontal, 10)
+                        .foregroundStyle(layer == l
+                                         ? DesignSystem.Colors.inkOnSand
+                                         : DesignSystem.Colors.inkWarm.opacity(0.62))
+                        .padding(.horizontal, DesignSystem.Spacing.sm)
                         .padding(.vertical, 7)
                         .background(
-                            Capsule().fill(layer == l ? l.tint : Color.white.opacity(0.5))
+                            Capsule().fill(
+                                layer == l
+                                    ? DesignSystem.Colors.alpenglow
+                                    : DesignSystem.Colors.surfaceWarm
+                            )
                         )
                     }
                 }
             }
+            .padding(.horizontal, 2)
         }
     }
 
@@ -507,66 +513,61 @@ struct AlpineWeatherMapView: View {
 
         return HStack(spacing: 0) {
             telemetryCell(
-                label: "PRECIP",
+                label: "Precip",
                 value: String(format: "%.0f%%", (h?.precipitationChance ?? 0) * 100),
-                icon: "drop.fill",
-                tint: .blue,
                 active: layer == .rain
             )
-            Divider().frame(height: 36)
+            telemetryDivider
             telemetryCell(
-                label: "WIND",
+                label: "Wind",
                 value: "\(Int(h?.windSpeed ?? 0)) km/h",
-                icon: "wind",
-                tint: .teal,
                 active: layer == .wind
             )
-            Divider().frame(height: 36)
+            telemetryDivider
             telemetryCell(
-                label: "TEMP",
+                label: "Temp",
                 value: "\(Int(h?.temperature ?? 0))°C",
-                icon: "thermometer.medium",
-                tint: .orange,
                 active: layer == .temp
             )
-            Divider().frame(height: 36)
+            telemetryDivider
             telemetryCell(
-                label: "CHILL",
+                label: "Chill",
                 value: "\(Int(windChill))°C",
-                icon: "wind.snow",
-                tint: windChill < -20 ? .purple : (windChill < -10 ? .blue : .cyan),
                 active: false
             )
-            Divider().frame(height: 36)
+            telemetryDivider
             telemetryCell(
-                label: "0° LVL",
-                value: "\(freezingLevel)m",
-                icon: "arrow.up.to.line",
-                tint: freezingLevel < 2500 ? .blue : .green,
+                label: "0° lvl",
+                value: "\(freezingLevel) m",
                 active: false
             )
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, DesignSystem.Spacing.xs)
         .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color.white.opacity(0.35))
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md, style: .continuous)
+                .fill(DesignSystem.Colors.surfaceWarm)
         )
     }
 
-    private func telemetryCell(label: String, value: String, icon: String, tint: Color, active: Bool) -> some View {
+    private func telemetryCell(label: String, value: String, active: Bool) -> some View {
         VStack(spacing: 3) {
-            Image(systemName: icon)
-                .font(.system(size: 10, weight: .bold))
-                .foregroundColor(active ? tint : .secondary)
             Text(value)
-                .font(.appMono(size: 12, weight: .bold))
-                .foregroundColor(active ? tint : .primary)
+                .font(DesignSystem.Typography.subheadInter.weight(.semibold))
+                .foregroundStyle(active
+                                 ? DesignSystem.Colors.alpenglow
+                                 : DesignSystem.Colors.inkWarm)
+                .monospacedDigit()
             Text(label)
-                .font(.appMono(size: 7, weight: .bold))
-                .foregroundColor(DesignSystem.Colors.secondaryText)
-                .tracking(0.5)
+                .font(DesignSystem.Typography.kickerInter)
+                .foregroundStyle(DesignSystem.Colors.inkFaintWarm)
         }
         .frame(maxWidth: .infinity)
+    }
+
+    private var telemetryDivider: some View {
+        Rectangle()
+            .fill(DesignSystem.Colors.borderSubtle)
+            .frame(width: 0.5, height: 28)
     }
 
     // MARK: Hourly Scrubber
@@ -576,39 +577,40 @@ struct AlpineWeatherMapView: View {
             if hourly.count < 2 {
                 HStack(spacing: 8) {
                     if weather.isLoading {
-                        ProgressView().tint(layer.tint).scaleEffect(0.8)
+                        ProgressView().tint(DesignSystem.Colors.alpenglow).scaleEffect(0.8)
                         Text("Loading forecast…")
                     } else {
-                        Image(systemName: "exclamationmark.triangle")
                         Text("No forecast available")
                     }
                 }
-                .font(.appMono(size: 11, weight: .semibold))
-                .foregroundColor(DesignSystem.Colors.secondaryText)
+                .font(DesignSystem.Typography.subheadInter)
+                .foregroundStyle(DesignSystem.Colors.inkWarm.opacity(0.62))
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 8)
+                .padding(.vertical, DesignSystem.Spacing.sm)
             } else {
                 Slider(
                     value: $selectedHourOffset,
                     in: 0...Double(hourly.count - 1),
                     step: 1
                 )
-                .tint(layer.tint)
+                .tint(DesignSystem.Colors.alpenglow)
 
                 HStack {
                     Text("Now")
-                        .font(.appMono(size: 8, weight: .bold))
-                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                        .font(DesignSystem.Typography.kickerInter)
+                        .foregroundStyle(DesignSystem.Colors.inkFaintWarm)
                     Spacer()
                     if let h = selectedHour {
                         Text(timeLabel(h.hour))
-                            .font(.appMono(size: 10, weight: .bold))
-                            .foregroundColor(layer.tint)
+                            .font(DesignSystem.Typography.kickerInter.weight(.semibold))
+                            .foregroundStyle(DesignSystem.Colors.alpenglow)
+                            .monospacedDigit()
                     }
                     Spacer()
                     Text("+\(hourly.count)h")
-                        .font(.appMono(size: 8, weight: .bold))
-                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                        .font(DesignSystem.Typography.kickerInter)
+                        .foregroundStyle(DesignSystem.Colors.inkFaintWarm)
+                        .monospacedDigit()
                 }
             }
         }
@@ -631,23 +633,30 @@ struct AlpineWeatherMapView: View {
         let selected = idx == Int(selectedHourOffset)
         let danger = hour.windSpeed > 50 || hour.precipitationChance > 0.7
         return Button {
-            withAnimation(.spring(response: 0.25, dampingFraction: 0.78)) {
+            withAnimation(DesignSystem.Animations.quick) {
                 selectedHourOffset = Double(idx)
             }
             HapticManager.shared.light()
         } label: {
             VStack(spacing: 2) {
                 Text(shortHour(hour.hour))
-                    .font(.appMono(size: 8, weight: .bold))
-                    .foregroundColor(selected ? .white : .secondary)
+                    .font(DesignSystem.Typography.kickerInter)
+                    .foregroundStyle(selected
+                                     ? DesignSystem.Colors.inkOnSand
+                                     : DesignSystem.Colors.inkWarm.opacity(0.62))
+                    .monospacedDigit()
                 Image(systemName: hour.conditionSymbol)
                     .font(.system(size: 12))
                     .symbolRenderingMode(.multicolor)
-                    .foregroundColor(selected ? .white : .primary)
+                    .foregroundStyle(selected
+                                     ? DesignSystem.Colors.inkOnSand
+                                     : DesignSystem.Colors.inkWarm)
                 Text("\(Int(hour.temperature))°")
-                    .font(.appMono(size: 9, weight: .bold))
-                    .foregroundColor(selected ? .white : .primary)
-                // Rain chance bar
+                    .font(DesignSystem.Typography.kickerInter.weight(.semibold))
+                    .foregroundStyle(selected
+                                     ? DesignSystem.Colors.inkOnSand
+                                     : DesignSystem.Colors.inkWarm)
+                    .monospacedDigit()
                 RoundedRectangle(cornerRadius: 1)
                     .fill(rainBarColor(hour.precipitationChance))
                     .frame(width: 16, height: max(2, CGFloat(hour.precipitationChance) * 10))
@@ -656,11 +665,16 @@ struct AlpineWeatherMapView: View {
             .padding(.vertical, 5)
             .background(
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(selected ? layer.tint : (danger ? Color.red.opacity(0.08) : Color.white.opacity(0.4)))
+                    .fill(selected
+                          ? DesignSystem.Colors.alpenglow
+                          : (danger ? DesignSystem.Colors.ember.opacity(0.10) : DesignSystem.Colors.surfaceWarm))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .stroke(danger && !selected ? Color.red.opacity(0.3) : .clear, lineWidth: 1)
+                    .stroke(danger && !selected
+                            ? DesignSystem.Colors.ember.opacity(0.30)
+                            : Color.clear,
+                            lineWidth: 1)
             )
         }
     }

@@ -74,7 +74,7 @@ struct BasecampView: View {
 
     var body: some View {
         ZStack {
-            DesignSystem.Colors.background
+            DesignSystem.Colors.paperWarm
                 .ignoresSafeArea()
 
             ScrollView(showsIndicators: false) {
@@ -158,7 +158,7 @@ struct BasecampView: View {
             }
         }
         .sheet(isPresented: $showAllActivities) {
-            AllActivitiesView()
+            ToursView()
                 .presentationCornerRadius(36)
                 .adaptiveSheetBackground()
                 .presentationBackgroundInteraction(.enabled(upThrough: .large))
@@ -171,7 +171,7 @@ struct BasecampView: View {
             }
         }
         .sheet(isPresented: $showExtendedReadiness) {
-            SummitReadinessExtendedView()
+            SummitReadinessScreen()
                 .environmentObject(appState)
                 .presentationCornerRadius(36)
                 .adaptiveSheetBackground()
@@ -309,80 +309,59 @@ struct BasecampView: View {
             showArena = true
         } label: {
             HStack(spacing: 14) {
-                // Tier Disc — 3D dimensional gem
+                // Tier Disc — flat sand-tone with 1.5pt tier-color ring (accent only)
                 ZStack {
-                    // Base sphere
                     Circle()
-                        .fill(
-                            LinearGradient(
-                                colors: [tierColor, tierColorDeep],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .frame(width: 50, height: 50)
+                        .fill(DesignSystem.Colors.inkOnSand.opacity(0.08))
+                        .frame(width: 48, height: 48)
 
-                    // Top specular highlight (3D lit-from-above)
                     Circle()
-                        .fill(
-                            RadialGradient(
-                                colors: [Color.white.opacity(0.55), .clear],
-                                center: UnitPoint(x: 0.30, y: 0.20),
-                                startRadius: 0,
-                                endRadius: 22
-                            )
-                        )
-                        .frame(width: 50, height: 50)
-                        .blendMode(.plusLighter)
-
-                    // Inner darken bottom-right (depth shadow)
-                    Circle()
-                        .stroke(
-                            LinearGradient(
-                                colors: [.clear, tierColorDeep.opacity(0.55)],
-                                startPoint: .topLeading, endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 1
-                        )
-                        .frame(width: 50, height: 50)
+                        .stroke(tierColor, lineWidth: 1.5)
+                        .frame(width: 52, height: 52)
 
                     Image(systemName: "trophy.fill")
-                        .font(.system(size: 19, weight: .black))
-                        .foregroundColor(.white)
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(DesignSystem.Colors.inkOnSand.opacity(0.85))
                 }
 
 
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(tierLabel.uppercased())
-                        .font(.appMono(size: 10, weight: .bold))
-                        .tracking(1.6)
-                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                    Text(tierLabel)
+                        .font(DesignSystem.Typography.kickerInter)
+                        .tracking(0.5)
+                        .foregroundStyle(DesignSystem.Colors.inkOnSand.opacity(0.62))
                     if let rank = globalRank {
                         Text("Global Rank #\(rank)")
-                            .font(.app(size: 17, weight: .heavy))
+                            .font(DesignSystem.Typography.title3Inter)
+                            .foregroundStyle(DesignSystem.Colors.inkOnSand)
                     } else {
                         Text("\(appState.currentXP) XP · Lvl \(appState.currentLevel)")
-                            .font(.app(size: 17, weight: .heavy))
+                            .font(DesignSystem.Typography.title3Inter)
+                            .foregroundStyle(DesignSystem.Colors.inkOnSand)
+                            .monospacedDigit()
                     }
                 }
                 Spacer()
 
                 HStack(spacing: 6) {
-                    Text("ARENA")
-                        .font(.appMono(size: 10, weight: .bold))
-                        .tracking(1.4)
-                        .foregroundColor(DesignSystem.Colors.accent)
+                    Text("Arena")
+                        .font(DesignSystem.Typography.kickerInter)
+                        .tracking(0.5)
+                        .foregroundStyle(DesignSystem.Colors.alpenglow)
                     Image(systemName: "chevron.right")
-                        .font(.system(size: 12, weight: .heavy))
-                        .foregroundColor(DesignSystem.Colors.accent)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(DesignSystem.Colors.alpenglow)
                 }
             }
-            .padding(.horizontal, DesignSystem.Spacing.md)
-            .padding(.vertical, 14)
+            .padding(.horizontal, 18)
+            .padding(.vertical, 16)
             .frame(maxWidth: .infinity)
-            .ascentCard(cornerRadius: DesignSystem.Radius.xl)
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.cardSoft, style: .continuous)
+                    .fill(DesignSystem.Colors.sandCard)
+            )
         }
-        .buttonStyle(AscentButtonStyle())
+        .buttonStyle(.plain)
     }
 
     private var topBar: some View {
@@ -723,7 +702,7 @@ struct BasecampView: View {
             }
             .padding(18)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .ascentCard()
+            .pastelCard(.ice, applyForeground: false)
         }
         .buttonStyle(PressableButtonStyle())
     }
@@ -768,7 +747,7 @@ struct BasecampView: View {
             }
             .padding(18)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .ascentCard()
+            .pastelCard(.sage, applyForeground: false)
         }
         .buttonStyle(PressableButtonStyle())
     }
@@ -828,42 +807,34 @@ struct BasecampView: View {
             HapticManager.shared.light()
             showAllActivities = true
         } label: {
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
                 HStack {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 11, style: .continuous)
-                            .fill(LinearGradient(colors: [Color.orange.opacity(0.28), Color.orange.opacity(0.10)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                            .frame(width: 36, height: 36)
-                        Image(systemName: "figure.hiking")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(.orange)
-                            .symbolRenderingMode(.hierarchical)
-                    }
-                    Text("ACTIVITY")
-                        .font(.appMono(size: 9, weight: .bold))
-                        .foregroundColor(DesignSystem.Colors.secondaryText)
-                        .tracking(1.4)
+                    ActivityGlyph()
+                        .frame(width: 18, height: 18)
+                        .foregroundStyle(DesignSystem.Colors.inkOnIce)
+                    Text("Tours")
+                        .font(DesignSystem.Typography.kickerInter)
+                        .tracking(0.5)
+                        .foregroundStyle(DesignSystem.Colors.inkOnIce.opacity(0.62))
                     Spacer()
                     Image(systemName: "chevron.right")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundColor(.secondary.opacity(0.5))
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(DesignSystem.Colors.inkOnIce.opacity(0.45))
                 }
-                HStack(alignment: .firstTextBaseline, spacing: 4) {
-                    Text("\(feedVM.recentTours.filter { $0.isCurrentUser }.count)")
-                        .font(.appMono(size: 30, weight: .black))
-                        .foregroundColor(.white)
-                        .contentTransition(.numericText())
-                    Text("Sessions")
-                        .font(.appMono(size: 13, weight: .bold))
-                        .foregroundColor(DesignSystem.Colors.secondaryText)
-                }
-                Text("Total missions")
-                    .font(.app(size: 10))
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
+
+                Text("\(feedVM.recentTours.filter { $0.isCurrentUser }.count)")
+                    .font(DesignSystem.Typography.title1Inter)
+                    .foregroundStyle(DesignSystem.Colors.inkOnIce)
+                    .monospacedDigit()
+                    .contentTransition(.numericText())
+
+                Text("Logged")
+                    .font(DesignSystem.Typography.subheadInter)
+                    .foregroundStyle(DesignSystem.Colors.inkOnIce.opacity(0.72))
             }
-            .padding(18)
+            .padding(DesignSystem.Spacing.md)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .ascentCard()
+            .pastelCard(.ice, applyForeground: false)
         }
         .buttonStyle(PressableButtonStyle())
     }
@@ -879,165 +850,186 @@ struct BasecampView: View {
             HapticManager.shared.light()
             showGoalsList = true
         } label: {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(alignment: .top) {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(appState.goals.isEmpty ? "GOALS" : "NEXT GOAL")
-                            .font(.appMono(size: 9, weight: .bold))
-                            .foregroundColor(DesignSystem.Colors.secondaryText)
-                            .tracking(1.4)
-                        Text(primaryGoal?.mountainName ?? "Add Goal")
-                            .font(.app(size: 16, weight: .black))
-                            .lineLimit(2)
-                    }
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                HStack {
+                    GoalGlyph()
+                        .frame(width: 18, height: 18)
+                        .foregroundStyle(DesignSystem.Colors.inkOnSand)
+                    Text(appState.goals.isEmpty ? "Goal" : "Next goal")
+                        .font(DesignSystem.Typography.kickerInter)
+                        .tracking(0.5)
+                        .foregroundStyle(DesignSystem.Colors.inkOnSand.opacity(0.72))
                     Spacer()
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 11, style: .continuous)
-                            .fill(LinearGradient(colors: [accent.opacity(0.28), accent.opacity(0.10)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                            .frame(width: 36, height: 36)
-                        Image(systemName: appState.goals.isEmpty ? "plus" : "flag.2.crossed.fill")
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundColor(accent)
-                            .symbolRenderingMode(.hierarchical)
-                    }
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(DesignSystem.Colors.inkOnSand.opacity(0.45))
                 }
 
+                Text(primaryGoal?.mountainName ?? "Add a goal")
+                    .font(DesignSystem.Typography.title3Inter)
+                    .foregroundStyle(DesignSystem.Colors.inkOnSand)
+                    .lineLimit(2)
+
+                Spacer(minLength: 0)
+
                 let readinessPct: Double = {
-                    if let r = readinessVM.readiness { return min(max(Double(r.totalScore) / 100.0, 0), 1) }
+                    if let r = readinessVM.readiness {
+                        return min(max(Double(r.totalScore) / 100.0, 0), 1)
+                    }
                     return 0
                 }()
+
                 GeometryReader { geo in
                     ZStack(alignment: .leading) {
-                        Capsule().fill(Color.gray.opacity(0.12)).frame(height: 5)
                         Capsule()
-                            .fill(LinearGradient(colors: [accent, accent.opacity(0.6)], startPoint: .leading, endPoint: .trailing))
-                            .frame(width: phase ? geo.size.width * readinessPct : 0, height: 5)
+                            .fill(DesignSystem.Colors.inkOnSand.opacity(0.15))
+                            .frame(height: 4)
+                        Capsule()
+                            .fill(DesignSystem.Colors.alpenglow)
+                            .frame(width: phase ? geo.size.width * readinessPct : 0, height: 4)
                             .animation(.easeOut(duration: 1.0).delay(0.4), value: phase)
                     }
                 }
-                .frame(height: 5)
+                .frame(height: 4)
 
                 HStack {
                     if readinessVM.readiness != nil {
                         Text("\(Int(readinessPct * 100))% ready")
-                            .font(.appMono(size: 10, weight: .bold))
-                            .foregroundColor(accent)
+                            .font(DesignSystem.Typography.kickerInter)
+                            .foregroundStyle(DesignSystem.Colors.inkOnSand.opacity(0.72))
+                            .monospacedDigit()
                     } else {
                         Text("Tap to plan")
-                            .font(.appMono(size: 10, weight: .bold))
-                            .foregroundColor(accent)
+                            .font(DesignSystem.Typography.kickerInter)
+                            .foregroundStyle(DesignSystem.Colors.inkOnSand.opacity(0.62))
                     }
+
                     Spacer()
-                    if let goal = primaryGoal, let date = goal.targetDate {
-                        Text(date, format: .dateTime.month(.abbreviated).year())
-                            .font(.appMono(size: 10, weight: .semibold))
-                            .foregroundColor(DesignSystem.Colors.secondaryText)
-                    } else if appState.goals.count > 1 {
-                        Text("\(appState.goals.count) goals")
-                            .font(.appMono(size: 10, weight: .semibold))
-                            .foregroundColor(DesignSystem.Colors.secondaryText)
+
+                    if let primary = primaryGoal, let days = primary.daysUntilTarget {
+                        Text(daysLabel(days))
+                            .font(DesignSystem.Typography.kickerInter)
+                            .foregroundStyle(deadlineColor(days))
+                            .monospacedDigit()
                     }
                 }
             }
-            .padding(18)
+            .padding(DesignSystem.Spacing.lg)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .ascentCard()
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.cardSoft, style: .continuous)
+                    .fill(DesignSystem.Colors.alpenglowSoft)
+            )
         }
         .buttonStyle(PressableButtonStyle())
     }
 
+    private func daysLabel(_ days: Int) -> String {
+        if days < 0 { return "Past due" }
+        if days == 0 { return "Today" }
+        if days == 1 { return "1 day" }
+        return "\(days) days"
+    }
+
+    private func deadlineColor(_ days: Int) -> Color {
+        if days < 0 { return DesignSystem.Colors.ember }
+        if days <= 7 { return DesignSystem.Colors.alpenglow }
+        return DesignSystem.Colors.inkOnSand.opacity(0.72)
+    }
+
     private var alpineWeatherWidget: some View {
-        let safetyColor: Color = {
-            guard let w = weather.currentWeather else { return .blue }
-            switch w.safetyLevel {
-            case .good:    return .green
-            case .caution: return .yellow
-            case .warning: return .orange
-            case .danger:  return .red
-            }
-        }()
+        let currentSafety = weather.currentWeather?.safetyLevel ?? .good
 
         return Button {
             HapticManager.shared.light()
             showAlpineWeather = true
         } label: {
-            VStack(alignment: .leading, spacing: 14) {
-                HStack {
-                    HStack(spacing: 8) {
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 11, style: .continuous)
-                                .fill(LinearGradient(colors: [safetyColor.opacity(0.28), safetyColor.opacity(0.10)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                                .frame(width: 36, height: 36)
-                            Image(systemName: "cloud.sun.fill")
-                                .font(.system(size: 16, weight: .semibold))
-                                .symbolRenderingMode(.multicolor)
-                        }
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text("ALPINE SAFETY")
-                                .font(.appMono(size: 9, weight: .bold))
-                                .foregroundColor(DesignSystem.Colors.secondaryText)
-                                .tracking(1.4)
-                            if let w = weather.currentWeather {
-                                Text(w.safetyLevel.label)
-                                    .font(.app(size: 13, weight: .black))
-                                    .foregroundColor(safetyColor)
-                            }
-                        }
-                    }
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+
+                HStack(spacing: DesignSystem.Spacing.xs) {
+                    WeatherGlyph()
+                        .foregroundStyle(DesignSystem.Colors.inkOnIce)
+                        .frame(width: 18, height: 18)
+                    Text("Alpine safety")
+                        .font(DesignSystem.Typography.kickerInter)
+                        .tracking(0.5)
+                        .foregroundStyle(DesignSystem.Colors.inkOnIce)
                     Spacer()
                     HStack(spacing: 4) {
-                        LivePulse()
-                        Text("LIVE")
-                            .font(.appMono(size: 8, weight: .bold))
-                            .foregroundColor(.red)
-                            .tracking(0.8)
+                        Circle()
+                            .fill(DesignSystem.Colors.ember)
+                            .frame(width: 5, height: 5)
+                            .modifier(BasecampLivePulseModifier())
+                        Text("Live")
+                            .font(DesignSystem.Typography.kickerInter)
+                            .foregroundStyle(DesignSystem.Colors.inkOnIce.opacity(0.72))
                     }
                 }
 
-                HStack(spacing: 0) {
-                    WeatherMetric(
-                        icon: "wind",
-                        value: weather.currentWeather.map { "\(Int($0.windSpeed))" } ?? "–",
-                        label: "km/h"
-                    )
-                    WeatherMetric(
-                        icon: "thermometer.low",
-                        value: weather.currentWeather.map { "\(Int($0.temperature))°" } ?? "–",
-                        label: "Temp"
-                    )
-                    WeatherMetric(
-                        icon: "drop.fill",
-                        value: weather.currentWeather.map { "\(Int($0.precipitationChance * 100))%" } ?? "–",
-                        label: "Precip"
-                    )
-                    WeatherMetric(
-                        icon: "eye",
-                        value: weather.currentWeather.map { String(format: "%.0fkm", $0.visibility) } ?? "–",
-                        label: "Vis."
-                    )
+                HStack(spacing: DesignSystem.Spacing.xs) {
+                    Text(currentSafety.sentenceLabel)
+                        .font(DesignSystem.Typography.title3Inter)
+                        .foregroundStyle(DesignSystem.Colors.inkOnIce)
+                    Circle()
+                        .fill(currentSafety.pastelColor)
+                        .frame(width: 8, height: 8)
                 }
-                .padding(.vertical, 12)
-                .background(Color.white.opacity(0.15))
-                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+
+                HStack(spacing: DesignSystem.Spacing.md) {
+                    weatherMetricInline(value: weather.currentWeather.map { "\(Int($0.windSpeed))" } ?? "–",
+                                        unit: "km/h",
+                                        label: "Wind")
+                    weatherMetricInline(value: weather.currentWeather.map { "\(Int($0.temperature))°" } ?? "–",
+                                        unit: "",
+                                        label: "Temp")
+                    weatherMetricInline(value: weather.currentWeather.map { "\(Int($0.precipitationChance * 100))%" } ?? "–",
+                                        unit: "",
+                                        label: "Rain")
+                    weatherMetricInline(value: weather.currentWeather.map { String(format: "%.0f", $0.visibility) } ?? "–",
+                                        unit: "km",
+                                        label: "Vis")
+                }
+                .padding(.vertical, DesignSystem.Spacing.sm)
 
                 HStack(spacing: 6) {
-                    Image(systemName: "map.fill")
-                        .font(.system(size: 10))
-                        .foregroundColor(DesignSystem.Colors.secondaryText)
-                    Text("Open live weather map")
-                        .font(.app(size: 12))
-                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                    Text("Open weather map")
+                        .font(DesignSystem.Typography.kickerInter)
+                        .foregroundStyle(DesignSystem.Colors.inkOnIce.opacity(0.72))
                     Spacer()
                     Image(systemName: "chevron.right")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundColor(.secondary.opacity(0.5))
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(DesignSystem.Colors.inkOnIce.opacity(0.45))
                 }
             }
-            .padding(18)
+            .padding(DesignSystem.Spacing.lg)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .ascentCard()
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.cardSoft, style: .continuous)
+                    .fill(DesignSystem.Colors.iceGlacierCard)
+            )
         }
         .buttonStyle(PressableButtonStyle())
+    }
+
+    @ViewBuilder
+    private func weatherMetricInline(value: String, unit: String, label: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(alignment: .firstTextBaseline, spacing: 1) {
+                Text(value)
+                    .font(DesignSystem.Typography.title3Inter)
+                    .foregroundStyle(DesignSystem.Colors.inkOnIce)
+                    .monospacedDigit()
+                if !unit.isEmpty {
+                    Text(unit)
+                        .font(DesignSystem.Typography.kickerInter)
+                        .foregroundStyle(DesignSystem.Colors.inkOnIce.opacity(0.62))
+                }
+            }
+            Text(label)
+                .font(DesignSystem.Typography.kickerInter)
+                .foregroundStyle(DesignSystem.Colors.inkOnIce.opacity(0.62))
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var readinessColor: Color {
@@ -1228,73 +1220,104 @@ struct RouteCard: View {
     let mountain: Mountain
     var onTap: () -> Void
 
+    private var ink: Color { DesignSystem.Colors.inkOnSand }
+
     var body: some View {
         Button(action: onTap) {
             VStack(alignment: .leading, spacing: 0) {
+                // Image — full-bleed across the card width (Option A,
+                // magazine-style). No own horizontal padding; bleeds
+                // into the cardSoft rounding left and right symmetrically.
                 ZStack(alignment: .topTrailing) {
-                    Color.clear
-                        .frame(width: 180, height: 100)
-                        .overlay(
-                            Group {
-                                if let urlString = mountain.effectiveImageUrl, !urlString.isEmpty, let url = URL(string: urlString) {
-                                    CachedAsyncImage(url: url) { image in
-                                        image.resizable().scaledToFill()
-                                    } placeholder: {
-                                        routePlaceholder
-                                    }
-                                } else {
-                                    routePlaceholder
-                                }
+                    Group {
+                        if let urlString = mountain.effectiveImageUrl, !urlString.isEmpty, let url = URL(string: urlString) {
+                            CachedAsyncImage(url: url) { image in
+                                image.resizable().scaledToFill()
+                            } placeholder: {
+                                routePlaceholder
                             }
-                        )
-                        .clipped()
-                        
+                        } else {
+                            routePlaceholder
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 110)
+                    .clipped()
+
                     if let credit = mountain.image_credit, !credit.isEmpty {
                         VStack {
                             Spacer()
                             HStack {
                                 Spacer()
-                                Text("Foto: \(credit)")
-                                    .font(.app(size: 6, weight: .medium))
-                                    .foregroundColor(.white.opacity(0.4))
-                                    .padding(.trailing, 6)
-                                    .padding(.bottom, 4)
+                                Text("Photo: \(credit)")
+                                    .font(DesignSystem.Typography.footnoteInter)
+                                    .foregroundStyle(Color.white.opacity(0.55))
+                                    .padding(.trailing, 8)
+                                    .padding(.bottom, 6)
                             }
                         }
                     }
 
-                    Text(mountain.difficulty.rawValue.uppercased())
-                        .font(.app(size: 8, weight: .black))
-                        .foregroundColor(.black)
-                        .padding(.horizontal, 6).padding(.vertical, 3)
-                        .background(mountain.difficulty.color)
-                        .cornerRadius(4)
-                        .padding(8)
+                    Text(mountain.difficulty.rawValue.capitalized)
+                        .font(DesignSystem.Typography.kickerInter)
+                        .tracking(0.5)
+                        .foregroundStyle(ink)
+                        .padding(.horizontal, 8).padding(.vertical, 4)
+                        .background(
+                            Capsule().fill(DesignSystem.Colors.sandCard.opacity(0.92))
+                        )
+                        .padding(10)
                 }
 
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(mountain.name)
-                        .font(.app(size: 14, weight: .bold))
-                        .foregroundColor(.white)
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 6) {
+                        RouteGlyph()
+                            .foregroundStyle(ink.opacity(0.55))
+                            .frame(width: 14, height: 14)
+                        Text(mountain.name)
+                            .font(DesignSystem.Typography.title3Inter)
+                            .foregroundStyle(ink)
+                            .lineLimit(1)
+                    }
+                    Text("\(mountain.elevation) m · \(mountain.region)")
+                        .font(DesignSystem.Typography.subheadInter)
+                        .foregroundStyle(ink.opacity(0.65))
                         .lineLimit(1)
-                    Text("\(mountain.elevation)m · \(mountain.region)")
-                        .font(.app(size: 11))
-                        .foregroundColor(DesignSystem.Colors.secondaryText)
-                        .lineLimit(1)
+                        .monospacedDigit()
+
+                    HStack(spacing: 6) {
+                        Text("Start tour")
+                            .font(DesignSystem.Typography.kickerInter)
+                            .foregroundStyle(Color.white)
+                        Text("→")
+                            .font(DesignSystem.Typography.kickerInter)
+                            .foregroundStyle(Color.white)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 7)
+                    .background(
+                        Capsule().fill(DesignSystem.Colors.alpenglow)
+                    )
+                    .padding(.top, 4)
                 }
-                .padding(.horizontal, 12).padding(.vertical, 10)
+                .padding(.horizontal, 14).padding(.vertical, 12)
             }
-            .frame(width: 180)
-            .background(DesignSystem.Colors.surface)
-            .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .frame(width: 200)
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.cardSoft, style: .continuous)
+                    .fill(DesignSystem.Colors.sandCard)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: DesignSystem.Radius.cardSoft, style: .continuous))
         }
-        .buttonStyle(PlainButtonStyle())
+        .buttonStyle(.plain)
     }
 
     private var routePlaceholder: some View {
         ZStack {
-            LinearGradient(colors: [Color.blue.opacity(0.12), Color.purple.opacity(0.06)], startPoint: .topLeading, endPoint: .bottomTrailing)
-            Image(systemName: "mountain.2.fill").font(.app(size: 28)).foregroundColor(.white.opacity(0.12))
+            DesignSystem.Colors.sandCard
+            RouteGlyph()
+                .foregroundStyle(DesignSystem.Colors.inkOnSand.opacity(0.20))
+                .frame(width: 40, height: 40)
         }
     }
 }
@@ -1456,58 +1479,110 @@ struct StatColumn: View {
 }
 
 // =========================================
-// MARK: - All Activities
+// MARK: - Tours sheet
 // =========================================
 
-struct AllActivitiesView: View {
+struct ToursView: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var feedVM: FeedViewModel
     @Environment(\.dismiss) var dismiss
 
     var body: some View {
-        NavigationView {
-            ScrollView(showsIndicators: false) {
-                LazyVStack(spacing: 12) {
-                    ForEach(feedVM.recentTours) { tour in
-                        ActivityCardView(tour: tour)
-                            .padding(.horizontal, 16)
-                            .onAppear {
-                                if tour.id == feedVM.recentTours.last?.id {
-                                    feedVM.loadNextFeedPage()
-                                }
+        NavigationStack {
+            ZStack {
+                DesignSystem.Colors.paperWarm.ignoresSafeArea()
+
+                ScrollView(showsIndicators: false) {
+                    if feedVM.recentTours.isEmpty {
+                        EmptyToursState(onStartTour: { dismiss() })
+                            .padding(.top, DesignSystem.Spacing.xxl)
+                    } else {
+                        LazyVStack(spacing: DesignSystem.Spacing.md) {
+                            ForEach(feedVM.recentTours) { tour in
+                                TourCard(tour: tour)
+                                    .padding(.horizontal, DesignSystem.Spacing.lg)
+                                    .onAppear {
+                                        if tour.id == feedVM.recentTours.last?.id {
+                                            feedVM.loadNextFeedPage()
+                                        }
+                                    }
                             }
-                    }
-                    if feedVM.isLoadingMoreFeed {
-                        ProgressView().tint(.gray).padding()
-                    }
-                    if !feedVM.hasMoreFeed && !feedVM.recentTours.isEmpty {
-                        Text("You've seen it all!")
-                            .font(.app(.caption))
-                            .foregroundColor(DesignSystem.Colors.secondaryText)
-                            .padding(.top, 10)
+
+                            if feedVM.isLoadingMoreFeed {
+                                ProgressView()
+                                    .tint(DesignSystem.Colors.inkWarm.opacity(0.62))
+                                    .padding(.vertical, DesignSystem.Spacing.lg)
+                            }
+
+                            if !feedVM.hasMoreFeed && !feedVM.recentTours.isEmpty {
+                                Text("You've reached the start of your journey")
+                                    .font(DesignSystem.Typography.kickerInter)
+                                    .foregroundStyle(DesignSystem.Colors.inkFaintWarm)
+                                    .padding(.vertical, DesignSystem.Spacing.lg)
+                            }
+                        }
+                        .padding(.vertical, DesignSystem.Spacing.md)
                     }
                 }
-                .padding(.top, 10)
-                .padding(.bottom, 40)
             }
-            .scrollContentBackground(.hidden)
-            .background(.clear)
-            .navigationTitle("All Activities")
+            .navigationTitle("Tours")
             .navigationBarTitleDisplayMode(.large)
-            .toolbarBackground(.hidden, for: .navigationBar)
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: { dismiss() }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.app(size: 22))
-                            .foregroundColor(DesignSystem.Colors.secondaryText)
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { dismiss() } label: {
+                        ZStack {
+                            Circle()
+                                .fill(DesignSystem.Colors.surfaceWarm)
+                                .frame(width: 32, height: 32)
+                            Image(systemName: "xmark")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(DesignSystem.Colors.inkWarm.opacity(0.62))
+                        }
                     }
+                    .buttonStyle(.plain)
                 }
             }
         }
-        .background(.clear)
-        .adaptiveSheetBackground()
         .presentationBackgroundInteraction(.enabled(upThrough: .large))
+    }
+}
+
+// MARK: - Empty state
+
+struct EmptyToursState: View {
+    let onStartTour: () -> Void
+
+    var body: some View {
+        VStack(spacing: DesignSystem.Spacing.md) {
+            Image("hero-ready")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 140, height: 165)
+
+            Text("No tours yet")
+                .font(DesignSystem.Typography.title2Inter)
+                .foregroundStyle(DesignSystem.Colors.inkWarm)
+
+            Text("Your first ascent is waiting.\nLog a hike or pick a peak from Discover.")
+                .font(DesignSystem.Typography.bodyInter)
+                .foregroundStyle(DesignSystem.Colors.inkWarm.opacity(0.62))
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, DesignSystem.Spacing.xl)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Button(action: onStartTour) {
+                Text("Start a tour")
+                    .font(DesignSystem.Typography.bodyEmphasisInter)
+                    .foregroundStyle(DesignSystem.Colors.inkOnSand)
+                    .padding(.vertical, DesignSystem.Spacing.sm)
+                    .padding(.horizontal, DesignSystem.Spacing.lg)
+                    .background(Capsule().fill(DesignSystem.Colors.alpenglow))
+            }
+            .buttonStyle(.plain)
+            .padding(.top, DesignSystem.Spacing.sm)
+        }
+        .padding(.vertical, DesignSystem.Spacing.xxl)
+        .frame(maxWidth: .infinity)
     }
 }
 
@@ -1710,6 +1785,22 @@ struct WeeklyObjectiveCard: View {
         }
         .padding(16).frame(maxWidth: .infinity)
         .background(DesignSystem.Colors.surface).cornerRadius(16)
+    }
+}
+
+// MARK: - Live-indicator pulse for the weather widget
+
+fileprivate struct BasecampLivePulseModifier: ViewModifier {
+    @State private var pulsing = false
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(pulsing ? 1.0 : 0.4)
+            .animation(
+                .easeInOut(duration: 1.2).repeatForever(autoreverses: true),
+                value: pulsing
+            )
+            .onAppear { pulsing = true }
     }
 }
 

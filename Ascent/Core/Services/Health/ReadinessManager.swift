@@ -25,10 +25,10 @@ class ReadinessManager: ObservableObject {
     
     @Published var currentReadiness: ReadinessBreakdown?
     
-    func calculate(profile: HealthKitProfile, tours: [Tour], targetMountain: Mountain?, targetWeather: MountainWeather?) -> ReadinessBreakdown {
-        
+    func calculate(profile: HealthKitProfile, tours: [Tour], targetMountain: Mountain?, targetWeather: MountainWeather?, extendedAnswers: [String: [String]] = [:]) -> ReadinessBreakdown {
+
         // 1. PHYSIOLOGY (40%)
-        let phys = calculatePhysiologicalScore(profile)
+        let phys = calculatePhysiologicalScore(profile, answers: extendedAnswers)
         
         // 2. WORKLOAD (30%)
         let load = calculateWorkloadScore(tours)
@@ -64,32 +64,91 @@ class ReadinessManager: ObservableObject {
     
     // MARK: - Private Calculators
     
-    private func calculatePhysiologicalScore(_ p: HealthKitProfile) -> (score: Int, status: String, detail: String) {
+    private func calculatePhysiologicalScore(_ p: HealthKitProfile, answers: [String: [String]] = [:]) -> (score: Int, status: String, detail: String) {
         var score = 75 // Baseline
         var details: [String] = []
-        
+
+        // Subjective self-report — fold the user's check-in into the
+        // physiological score. Two flavours of input:
+        //   1. Quick variant writes the "overall" key with one word.
+        //   2. Detail variant writes five keys (sleep/energy/legs/
+        //      focus/hr); we aggregate them to a synthesized nudge.
+        // When HRV is missing entirely the self-report becomes the
+        // baseline. When HRV is present the answer nudges the score
+        // by half so HealthKit still anchors it.
+        if let nudgeInfo = selfReportNudge(answers: answers) {
+            let (nudge, label) = nudgeInfo
+            if p.heartRateVariability == nil {
+                score = 75 + nudge
+                details.append("Self-report: \(label)")
+            } else {
+                score += nudge / 2
+            }
+        }
+
         // HRV impact
         if let hrv = p.heartRateVariability {
             if hrv < 30 { score -= 15; details.append("Low HRV (Recovery potential low)") }
             else if hrv > 60 { score += 10; details.append("High HRV (Ready for load)") }
         }
-        
+
         // SpO2 impact
         if let spo2 = p.bloodOxygenSaturation {
             if spo2 < 92 { score -= 25; details.append("Low Blood Oxygen (Critical for altitude)") }
             else if spo2 < 95 { score -= 10; details.append("Sub-optimal Oxygenation") }
             else { score += 5; details.append("Great Oxygen Saturation") }
         }
-        
+
         // RHR impact
         if let rhr = p.restingHeartRate {
             if rhr > 75 { score -= 10; details.append("Elevated Resting HR") }
             else if rhr < 55 { score += 5; details.append("Efficient Cardiovascular state") }
         }
-        
+
         return (max(0, min(100, score)), score > 70 ? "Stable" : "Stressed", details.first ?? "Body systems active")
     }
     
+    /// Returns the score nudge + a display label from the user's
+    /// extendedReadinessAnswers. Quick "overall" wins when present;
+    /// otherwise the five detail keys average onto a 1–4 scale and
+    /// pick a band. Returns nil if no relevant answer exists.
+    private func selfReportNudge(answers: [String: [String]]) -> (nudge: Int, label: String)? {
+        if let overall = answers["overall"]?.first {
+            let nudge: Int
+            switch overall {
+            case "Strong":  nudge = 12
+            case "Okay":    nudge = 4
+            case "Tired":   nudge = -12
+            case "Drained": nudge = -28
+            default:        nudge = 0
+            }
+            return (nudge, overall)
+        }
+
+        let detailKeys = ["sleep", "energy", "legs", "focus", "hr"]
+        let words = detailKeys.compactMap { answers[$0]?.first }
+        guard !words.isEmpty else { return nil }
+        let scored = words.map { word -> Int in
+            switch word {
+            case "Restored", "Strong", "Fresh", "Sharp", "Calm":  return 4
+            case "Okay", "Normal":                                return 3
+            case "Light", "Low", "Sore", "Foggy", "Elevated":     return 2
+            case "Barely slept", "Drained", "Heavy", "Scattered": return 1
+            default:                                              return 3
+            }
+        }
+        let avg = Double(scored.reduce(0, +)) / Double(scored.count)
+        let nudge: Int
+        let label: String
+        switch avg {
+        case 3.5...:    nudge = 12;  label = "Strong"
+        case 2.5..<3.5: nudge = 4;   label = "Okay"
+        case 1.5..<2.5: nudge = -12; label = "Tired"
+        default:        nudge = -28; label = "Drained"
+        }
+        return (nudge, label)
+    }
+
     private func calculateWorkloadScore(_ tours: [Tour]) -> (score: Int, status: String, detail: String) {
         let calendar = Calendar.current
         let now = Date()

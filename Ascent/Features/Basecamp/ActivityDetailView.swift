@@ -1,233 +1,248 @@
 import SwiftUI
 import MapKit
 
-struct ActivityDetailView: View {
+// =========================================
+// === DATEI: ActivityDetailView.swift ===
+// === TourDetailView — pastel editorial detail ===
+// =========================================
+//
+// Rebuilt detail screen for a single Tour. Same MapKit + elevation
+// profile + photo functionality as the old ActivityDetailView, now
+// composed in the Tours/iteration-16 vocabulary:
+//
+//   - Top bar with close button on paperWarm (no .preferredColorScheme
+//     forced dark, no dark map overlay).
+//   - Editorial title (summit name) + relative date kicker.
+//   - Bento 2×2 stats grid: duration, distance, elevation, XP.
+//   - Story block (if storyComment present), surfaceWarm card.
+//   - Route map (if routeCoordinates present) with start / summit
+//     annotations and the route polyline in glacierDeep.
+//   - Elevation profile (if routeLocations present), reusing the
+//     existing ElevationProfileView component.
+//   - Full-screen photo viewer below the map when photoURL is set.
+//
+// File name kept as ActivityDetailView.swift; the struct is
+// TourDetailView so it can be referenced by TourCard.
+
+struct TourDetailView: View {
     @Environment(\.dismiss) var dismiss
     let tour: Tour
-    
-    @State private var selectedTab = 0
-    @State private var showPhotoPopover = false
-    @State private var scrubDistance: Double? = nil
-    
-    private let accent = DesignSystem.Colors.accent
-    
-    // We mock the photo location to be halfway through the route
-    private var photoCoordinate: CLLocationCoordinate2D? {
-        guard tour.photoURL != nil, !tour.routeCoordinates.isEmpty else { return nil }
-        return tour.routeCoordinates[tour.routeCoordinates.count / 2] // Roughly halfway
-    }
-    
-    var body: some View {
-        ZStack(alignment: .topTrailing) {
-            TabView(selection: $selectedTab) {
-                // TAB 1: Map & Stats
-                mapAndStatsPage
-                    .tag(0)
-                
-                // TAB 2: Photo Full Screen
-                if let photoURL = tour.photoURL, let url = URL(string: photoURL) {
-                    photoPage(url: url)
-                        .tag(1)
-                }
-            }
-            .tabViewStyle(PageTabViewStyle(indexDisplayMode: .always))
-            .indexViewStyle(.page(backgroundDisplayMode: .always))
-            .ignoresSafeArea()
-            
-            // Close Button
-            Button(action: {
-                dismiss()
-            }) {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.app(size: 30))
-                    .foregroundColor(.white.opacity(0.8))
-                    .padding(.trailing, 20)
-                    .padding(.top, 50)
-            }
-        }
-        .preferredColorScheme(.dark) // Make the detail view dark mode for that premium feel
-    }
-    
-    // MARK: - Map & Stats Page
-    private var mapAndStatsPage: some View {
-        ZStack(alignment: .bottom) {
-            // Full screen map
-            Map {
-                MapPolyline(coordinates: tour.routeCoordinates)
-                    .stroke(accent, lineWidth: 4)
 
-                if let dist = scrubDistance, tour.routeLocations.count > 1 {
-                    let totalDist = tour.distanceKilometers
-                    let fraction = max(0, min(1, dist / totalDist))
-                    let index = Int(fraction * Double(tour.routeLocations.count - 1))
-                    let safeIndex = max(0, min(tour.routeLocations.count - 1, index))
-                    let point = tour.routeLocations[safeIndex]
-                    
-                    Annotation("", coordinate: point.coordinate) {
-                        Circle()
-                            .fill(accent)
-                            .frame(width: 16, height: 16)
-                            .overlay(Circle().stroke(Color.white, lineWidth: 3))
-                            .animation(.none, value: dist)
-                    }
-                }
-                
-                if let first = tour.routeCoordinates.first {
-                    Annotation("Start", coordinate: first) {
-                        Circle().fill(.green).frame(width: 12, height: 12)
-                            .overlay(Circle().stroke(.white, lineWidth: 2))
-                    }
-                }
-                
-                if let last = tour.routeCoordinates.last, tour.routeCoordinates.count > 1 {
-                    Annotation("Summit", coordinate: last) {
-                        Image(systemName: "flag.fill")
-                            .font(.app(size: 16))
-                            .foregroundColor(.red)
-                    }
-                }
-                
-                if let photoCoord = photoCoordinate, let urlText = tour.photoURL, let url = URL(string: urlText) {
-                    Annotation("Photo", coordinate: photoCoord) {
-                        Button(action: {
-                            showPhotoPopover = true
-                        }) {
-                            ZStack {
-                                Circle().fill(Color.white).frame(width: 44, height: 44)
-                                CachedAsyncImage(url: url) { image in
-                                    image.resizable().scaledToFill()
-                                } placeholder: {
-                                    Color.gray
-                                }
-                                .frame(width: 40, height: 40)
-                                .clipShape(Circle())
-                            }
-                        }
-                        .popover(isPresented: $showPhotoPopover) {
-                            VStack(spacing: 8) {
-                                Text("\(tour.playerName) took a photo here.")
-                                    .font(.app(size: 14, weight: .semibold))
-                                    .padding()
-                                Button("View Full Photo") {
-                                    showPhotoPopover = false
-                                    selectedTab = 1
-                                }
-                                .font(.app(size: 14, weight: .bold))
-                                .foregroundColor(accent)
-                                .padding(.bottom, 10)
-                            }
-                            .presentationCompactAdaptation(.popover)
-                        }
-                    }
-                }
-            }
-            .mapStyle(.standard(elevation: .realistic))
-            .ignoresSafeArea()
-            
-            // Bottom Stats Overlay
-            VStack(spacing: 12) {
-                if !tour.routeLocations.isEmpty {
-                    ElevationProfileView(routePoints: tour.routeLocations, compact: true, scrubDistanceOut: $scrubDistance)
-                        .padding(.top, 10)
-                } else {
-                    // Simulated Elevation Profile Fallback
-                    HStack(alignment: .bottom, spacing: 2) {
-                        ForEach(0..<40, id: \.self) { i in
-                            let height = abs(sin(Double(i) * 0.2)) * 40 + Double.random(in: 10...20)
-                            Rectangle()
-                                .fill(accent.opacity(0.8))
-                                .frame(width: 6, height: CGFloat(height))
-                                .cornerRadius(3)
-                        }
-                    }
-                    .frame(height: 60)
-                    .padding(.top, 10)
-                }
-                
-                HStack {
-                    Spacer()
-                    statItem(icon: "figure.walk", label: "Distance", value: String(format: "%.1f km", tour.distanceKilometers))
-                    Spacer()
-                    statItem(icon: "arrow.up.forward", label: "Elevation", value: "+\(tour.elevationGainMeters) m")
-                    Spacer()
-                    let formatter = DateComponentsFormatter()
-                    let _ = { formatter.allowedUnits = [.hour, .minute] }()
-                    let _ = { formatter.unitsStyle = .abbreviated }()
-                    let durStr = formatter.string(from: tour.durationSeconds) ?? "0m"
-                    statItem(icon: "clock", label: "Duration", value: durStr)
-                    Spacer()
-                }
-            }
-            .padding()
-            .background(
-                RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .fill(DesignSystem.Colors.surface)
-            )
-            .padding(.horizontal, 16)
-            .padding(.bottom, 40)
-        }
+    @State private var scrubDistance: Double? = nil
+
+    private static let dateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateStyle = .full
+        f.timeStyle = .none
+        return f
+    }()
+
+    private static let durationFormatter: DateComponentsFormatter = {
+        let f = DateComponentsFormatter()
+        f.allowedUnits = [.hour, .minute]
+        f.unitsStyle = .abbreviated
+        return f
+    }()
+
+    private var formattedDate: String {
+        Self.dateFormatter.string(from: tour.date)
     }
-    
-    // MARK: - Photo Full Screen Page
-    private func photoPage(url: URL) -> some View {
-        ZStack {
-            Color.black.ignoresSafeArea()
-            
-            CachedAsyncImage(url: url) { image in
-                image.resizable()
-                    .scaledToFit()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } placeholder: {
-                ProgressView().tint(.white)
-            }
-            
-            // Attribution
-            VStack {
-                Spacer()
-                HStack(spacing: 12) {
-                    if let avatar = tour.playerAvatarURL, let avatarURL = URL(string: avatar) {
-                        CachedAsyncImage(url: avatarURL) { image in
-                            image.resizable().scaledToFill()
-                        } placeholder: {
-                            Circle().fill(Color.gray)
+
+    private var formattedDuration: String {
+        Self.durationFormatter.string(from: tour.durationSeconds) ?? "0m"
+    }
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                DesignSystem.Colors.paperWarm.ignoresSafeArea()
+
+                ScrollView {
+                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
+
+                        titleBlock
+
+                        statsBentoGrid
+
+                        if let photoURL = tour.photoURL,
+                           !photoURL.isEmpty,
+                           let url = URL(string: photoURL) {
+                            photoCard(url: url)
                         }
-                        .frame(width: 40, height: 40)
-                        .clipShape(Circle())
-                    } else {
-                        Circle().fill(Color.gray)
-                            .frame(width: 40, height: 40)
+
+                        if !tour.storyComment.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            storyBlock
+                        }
+
+                        if !tour.routeCoordinates.isEmpty {
+                            mapCard
+                        }
+
+                        if !tour.routeLocations.isEmpty {
+                            elevationCard
+                        }
+
+                        Spacer().frame(height: DesignSystem.Spacing.xxl)
                     }
-                    
-                    VStack(alignment: .leading) {
-                        Text(tour.playerName)
-                            .font(.app(.subheadline).bold())
-                            .foregroundColor(.white)
-                        Text("Captured along the route")
-                            .font(.app(.caption))
-                            .foregroundColor(.white.opacity(0.7))
-                    }
-                    Spacer()
+                    .padding(.horizontal, DesignSystem.Spacing.lg)
+                    .padding(.top, DesignSystem.Spacing.md)
                 }
-                .padding()
-                .background(Color.black.opacity(0.6))
-                .cornerRadius(16)
-                .padding(.horizontal, 20)
-                .padding(.bottom, 40)
+            }
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { dismiss() } label: {
+                        ZStack {
+                            Circle()
+                                .fill(DesignSystem.Colors.surfaceWarm)
+                                .frame(width: 32, height: 32)
+                            Image(systemName: "xmark")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(DesignSystem.Colors.inkWarm.opacity(0.62))
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
             }
         }
     }
-    
-    private func statItem(icon: String, label: String, value: String) -> some View {
-        VStack(spacing: 4) {
-            Image(systemName: icon)
-                .font(.app(size: 16))
-                .foregroundColor(.white.opacity(0.7))
+
+    // MARK: - Sections
+
+    private var titleBlock: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+            Text(tour.summitName)
+                .font(DesignSystem.Typography.title1Inter)
+                .foregroundStyle(DesignSystem.Colors.inkWarm)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Text(formattedDate)
+                .font(DesignSystem.Typography.kickerInter)
+                .tracking(0.5)
+                .foregroundStyle(DesignSystem.Colors.inkFaintWarm)
+        }
+    }
+
+    private var statsBentoGrid: some View {
+        VStack(spacing: DesignSystem.Spacing.sm) {
+            HStack(spacing: DesignSystem.Spacing.sm) {
+                statCard(kicker: "Duration",
+                         value: formattedDuration,
+                         family: .sage)
+                statCard(kicker: "Distance",
+                         value: String(format: "%.1f km", tour.distanceKilometers),
+                         family: .ice)
+            }
+            HStack(spacing: DesignSystem.Spacing.sm) {
+                statCard(kicker: "Elevation gain",
+                         value: "+\(tour.elevationGainMeters) m",
+                         family: .sand)
+                statCard(kicker: "XP",
+                         value: "\(tour.xpGained)",
+                         family: .sage)
+            }
+        }
+    }
+
+    private func statCard(kicker: String, value: String, family: PastelFamily) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(kicker)
+                .font(DesignSystem.Typography.kickerInter)
+                .tracking(0.5)
+                .foregroundStyle(family.ink.opacity(0.62))
             Text(value)
-                .font(.app(size: 18, weight: .bold))
-                .foregroundColor(.white)
-            Text(label)
-                .font(.app(size: 12, weight: .medium))
-                .foregroundColor(.white.opacity(0.6))
+                .font(DesignSystem.Typography.title2Inter)
+                .foregroundStyle(family.ink)
+                .monospacedDigit()
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .pastelCard(family, applyForeground: false)
+    }
+
+    private var storyBlock: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+            Text("Story")
+                .font(DesignSystem.Typography.kickerInter)
+                .tracking(0.5)
+                .foregroundStyle(DesignSystem.Colors.inkFaintWarm)
+            Text(tour.storyComment)
+                .font(DesignSystem.Typography.bodyInter)
+                .foregroundStyle(DesignSystem.Colors.inkWarm.opacity(0.82))
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(DesignSystem.Spacing.md)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.cardSoft, style: .continuous)
+                .fill(DesignSystem.Colors.surfaceWarm)
+        )
+    }
+
+    private var mapCard: some View {
+        Map {
+            MapPolyline(coordinates: tour.routeCoordinates)
+                .stroke(DesignSystem.Colors.glacierDeep, lineWidth: 4)
+
+            if let first = tour.routeCoordinates.first {
+                Annotation("Start", coordinate: first) {
+                    Circle()
+                        .fill(DesignSystem.Colors.meadow)
+                        .frame(width: 12, height: 12)
+                        .overlay(Circle().stroke(DesignSystem.Colors.paperWarm, lineWidth: 2))
+                }
+            }
+
+            if let last = tour.routeCoordinates.last, tour.routeCoordinates.count > 1 {
+                Annotation("Summit", coordinate: last) {
+                    Circle()
+                        .fill(DesignSystem.Colors.alpenglow)
+                        .frame(width: 14, height: 14)
+                        .overlay(Circle().stroke(DesignSystem.Colors.paperWarm, lineWidth: 2))
+                }
+            }
+        }
+        .mapStyle(.standard(elevation: .realistic))
+        .frame(height: 240)
+        .clipShape(RoundedRectangle(cornerRadius: DesignSystem.Radius.cardSoft, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.cardSoft, style: .continuous)
+                .stroke(DesignSystem.Colors.borderSubtle, lineWidth: 0.5)
+        )
+    }
+
+    private var elevationCard: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+            Text("Elevation profile")
+                .font(DesignSystem.Typography.kickerInter)
+                .tracking(0.5)
+                .foregroundStyle(DesignSystem.Colors.inkFaintWarm)
+
+            ElevationProfileView(
+                routePoints: tour.routeLocations,
+                compact: true,
+                scrubDistanceOut: $scrubDistance
+            )
+            .frame(height: 80)
+        }
+        .padding(DesignSystem.Spacing.md)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.cardSoft, style: .continuous)
+                .fill(DesignSystem.Colors.surfaceWarm)
+        )
+    }
+
+    private func photoCard(url: URL) -> some View {
+        AsyncImage(url: url) { phase in
+            switch phase {
+            case .success(let img):
+                img.resizable().scaledToFill()
+            default:
+                Rectangle().fill(DesignSystem.Colors.surfaceWarm)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: 240)
+        .clipped()
+        .clipShape(RoundedRectangle(cornerRadius: DesignSystem.Radius.cardSoft, style: .continuous))
     }
 }

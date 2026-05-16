@@ -552,12 +552,6 @@ extension View {
     }
 }
 
-extension View {
-    func shimmer(color: Color = .white) -> some View {
-        modifier(ShimmerModifier(color: color))
-    }
-}
-
 // MARK: - Pressable Button Style
 struct PressableButtonStyle: ButtonStyle {
     var scale: CGFloat = 0.96

@@ -269,7 +269,7 @@ class LocationFetcher: NSObject, ObservableObject, CLLocationManagerDelegate {
 // =========================================
 
 enum ProfileTab: String, CaseIterable {
-    case missions = "Missions"
+    case tours = "Tours"
     case saved = "Saved"
     case collections = "Collections"
 }
@@ -313,7 +313,7 @@ struct TrophyRoomView: View {
     @State private var selectedCategory: AchievementCategory? = nil
     @State private var selectedAchievement: Achievement? = nil
     @State private var showAllAchievements = false
-    @State private var selectedProfileTab: ProfileTab = .missions
+    @State private var selectedProfileTab: ProfileTab = .tours
     @State private var showAllActivities = false
     @State private var showAllSavedTours = false
 
@@ -336,9 +336,9 @@ struct TrophyRoomView: View {
         widgetOrderRaw = order.map { $0.rawValue }.joined(separator: ",")
     }
     
-    private let gold = DesignSystem.Colors.accent
-    private let cardBg = DesignSystem.Colors.surfaceElevated
-    private var bg: some View { DesignSystem.Colors.background }
+    private let gold = DesignSystem.Colors.alpenglow
+    private let cardBg = DesignSystem.Colors.surfaceWarm
+    private var bg: some View { DesignSystem.Colors.paperWarm }
 
 
     private var requiredXP: Int { appState.xpNeededForNextLevel }
@@ -387,9 +387,9 @@ struct TrophyRoomView: View {
             ZStack {
                 bg.ignoresSafeArea()
 
-                // One soft accent halo near top — premium, calm
+                // One soft warm halo near top — premium, calm
                 Circle()
-                    .fill(DesignSystem.Colors.accent.opacity(0.08))
+                    .fill(DesignSystem.Colors.alpenglow.opacity(0.10))
                     .frame(width: 420, height: 420)
                     .blur(radius: 90)
                     .offset(y: -240)
@@ -402,35 +402,48 @@ struct TrophyRoomView: View {
                     // ============================================
                     // MARK: - TOP BAR
                     // ============================================
-                    HStack {
+                    HStack(spacing: DesignSystem.Spacing.sm) {
                         Text("Profile")
-                            .font(.app(size: 28, weight: .bold))
-                            .foregroundColor(.white)
+                            .font(DesignSystem.Typography.title2Inter)
+                            .foregroundStyle(DesignSystem.Colors.inkWarm)
                         Spacer()
-                        
-                        Button(action: { showLayoutEditor = true }) {
-                            Image(systemName: "square.grid.2x2.fill")
-                                .font(.app(size: 18))
-                                .foregroundColor(.gray)
-                        }
-                        .padding(.trailing, 10)
 
-                        Button(action: { showEditProfile = true }) {
-                            Image(systemName: "pencil.circle.fill")
-                                .font(.app(size: 22))
-                                .foregroundColor(gold)
+                        topBarIconButton(action: { showLayoutEditor = true }) {
+                            VStack(spacing: 2) {
+                                HStack(spacing: 2) {
+                                    RoundedRectangle(cornerRadius: 1).fill(DesignSystem.Colors.inkWarm.opacity(0.62)).frame(width: 5, height: 5)
+                                    RoundedRectangle(cornerRadius: 1).fill(DesignSystem.Colors.inkWarm.opacity(0.62)).frame(width: 5, height: 5)
+                                }
+                                HStack(spacing: 2) {
+                                    RoundedRectangle(cornerRadius: 1).fill(DesignSystem.Colors.inkWarm.opacity(0.62)).frame(width: 5, height: 5)
+                                    RoundedRectangle(cornerRadius: 1).fill(DesignSystem.Colors.inkWarm.opacity(0.62)).frame(width: 5, height: 5)
+                                }
+                            }
                         }
-                        .padding(.trailing, 8)
 
-                        Button(action: { showSettings = true }) {
-                            Image(systemName: "gearshape.fill")
-                                .font(.app(size: 20))
-                                .foregroundColor(.gray)
+                        topBarIconButton(action: { showEditProfile = true }) {
+                            Path { p in
+                                p.move(to: CGPoint(x: 4, y: 14))
+                                p.addLine(to: CGPoint(x: 11, y: 7))
+                                p.addLine(to: CGPoint(x: 14, y: 10))
+                                p.addLine(to: CGPoint(x: 7, y: 17))
+                                p.closeSubpath()
+                            }
+                            .fill(DesignSystem.Colors.inkWarm.opacity(0.62))
+                            .frame(width: 18, height: 18)
+                        }
+
+                        topBarIconButton(action: { showSettings = true }) {
+                            ZStack {
+                                Circle().stroke(DesignSystem.Colors.inkWarm.opacity(0.62), lineWidth: 1.5).frame(width: 12, height: 12)
+                                Circle().fill(DesignSystem.Colors.inkWarm.opacity(0.62)).frame(width: 4, height: 4)
+                            }
+                            .frame(width: 18, height: 18)
                         }
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 16)
-                    .padding(.bottom, 20)
+                    .padding(.horizontal, DesignSystem.Spacing.lg)
+                    .padding(.top, DesignSystem.Spacing.md)
+                    .padding(.bottom, DesignSystem.Spacing.md)
                     
                     // ============================================
                     // MARK: - PROFILE HEADER CARD
@@ -481,13 +494,13 @@ struct TrophyRoomView: View {
                             
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(profileVM.userName)
-                                    .font(.app(size: 22, weight: .bold))
-                                    .foregroundColor(.white)
-                                
+                                    .font(DesignSystem.Typography.title2Inter)
+                                    .foregroundStyle(DesignSystem.Colors.inkWarm)
+
                                 HStack(spacing: 8) {
                                     Text("@\(profileVM.userHandle)")
-                                        .font(.app(size: 14))
-                                        .foregroundColor(.gray)
+                                        .font(DesignSystem.Typography.subheadInter)
+                                        .foregroundStyle(DesignSystem.Colors.inkWarm.opacity(0.62))
                                     
                                     if !profileVM.instaHandle.isEmpty {
                                         Button(action: { openInstagram(profileVM.instaHandle) }) {
@@ -579,54 +592,38 @@ struct TrophyRoomView: View {
                             }
                         }
                         
-                        // Stats row
-                        HStack(spacing: 0) {
+                        // Stats row — pastel triple
+                        HStack(spacing: DesignSystem.Spacing.sm) {
                             ProfileStatItem(
                                 value: "\(appState.currentXP)",
                                 label: "XP",
-                                color: gold
+                                color: DesignSystem.Colors.alpenglow,
+                                background: DesignSystem.Colors.alpenglowSoft
                             )
-                            
-                            Rectangle()
-                                .fill(Color.white.opacity(0.06))
-                                .frame(width: 1, height: 32)
-                            
                             ProfileStatItem(
                                 value: "\(totalTours)",
-                                label: "Missions",
-                                color: .cyan
+                                label: "Tours",
+                                color: DesignSystem.Colors.glacierDeep,
+                                background: DesignSystem.Colors.glacierSoft
                             )
-                            
-                            Rectangle()
-                                .fill(Color.white.opacity(0.06))
-                                .frame(width: 1, height: 32)
-                            
                             ProfileStatItem(
                                 value: formatElevation(totalElevation),
                                 label: "Elevation",
-                                color: .green
+                                color: DesignSystem.Colors.meadow,
+                                background: DesignSystem.Colors.meadowSoft
                             )
                         }
-                        .padding(.vertical, 14)
-                        .background(
-                            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                .fill(DesignSystem.Colors.surface)
-                                .environment(\.colorScheme, .light)
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                .stroke(Color.white.opacity(0.5), lineWidth: 0.5)
-                        )
                     }
-                    .padding(20)
-                    .background(DesignSystem.Colors.surface)
-                    .environment(\.colorScheme, .light)
-                    .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 24, style: .continuous)
-                            .stroke(Color.white.opacity(0.5), lineWidth: 0.5)
+                    .padding(DesignSystem.Spacing.lg)
+                    .background(
+                        RoundedRectangle(cornerRadius: DesignSystem.Radius.cardSoft, style: .continuous)
+                            .fill(DesignSystem.Colors.paperWarm)
                     )
-                    .padding(.horizontal, 20)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: DesignSystem.Radius.cardSoft, style: .continuous)
+                            .stroke(DesignSystem.Colors.borderSubtle, lineWidth: 0.5)
+                    )
+                    .padding(.horizontal, DesignSystem.Spacing.lg)
                     .opacity(animateIn ? 1 : 0)
                     .offset(y: animateIn ? 0 : 16)
                     
@@ -665,17 +662,20 @@ struct TrophyRoomView: View {
         .sheet(item: $selectedAchievement) { achievement in
             AchievementDetailSheet(achievement: achievement)
                 .presentationDetents([.medium])
-                .preferredColorScheme(.dark)
         }
         .sheet(isPresented: $showAllAchievements) {
-            AllAchievementsSheet(achievements: achievements, unlockedCount: unlockedCount)
+            AchievementsView()
+                .environmentObject(appState)
+                .environmentObject(feedVM)
+                .environmentObject(leaderboardVM)
+                .presentationDetents([.large])
+                .presentationCornerRadius(36)
         }
         .sheet(isPresented: $showLayoutEditor) {
             ProfileLayoutEditor(order: widgetOrder) { newOrder in
                 setWidgetOrder(newOrder)
             }
             .presentationDetents([.medium, .large])
-            .preferredColorScheme(.dark)
         }
     }
 
@@ -692,61 +692,67 @@ struct TrophyRoomView: View {
 
     private var rankWidget: some View {
         Button(action: { showAscendRank = true }) {
-                        HStack(spacing: 15) {
-                            if let profile = appState.ascendProfile {
-                                let tColor = tierColor
-                                let isObsidian = profile.ascend_tier.lowercased() == "obsidian"
-                                
-                                GemView(isActive: true, color: tColor, isObsidian: isObsidian)
-                                    .scaleEffect(0.9)
-                                    .frame(width: 45, height: 45)
-                                
-                                VStack(alignment: .leading, spacing: 6) {
-                                    Text("Alpinist Rank")
-                                        .font(.app(.caption))
-                                        .foregroundColor(.gray)
-                                    
-                                    HStack(alignment: .bottom, spacing: 5) {
-                                        Text("\(profile.ascend_tier) \(String(repeating: "I", count: profile.ascend_subtier))")
-                                            .font(.app(.headline))
-                                            .fontWeight(.bold)
-                                            .foregroundColor(isObsidian ? .black : tColor)
-                                        
-                                        Spacer()
-                                        
-                                        Text("\(Int(profile.ascend_xp)) XP")
-                                            .font(.app(.caption))
-                                            .foregroundColor(.gray)
-                                    }
-                                    
-                                    GeometryReader { geo in
-                                        let progress = max(0, min(Double(appState.currentLevelProgressXP) / Double(max(appState.xpNeededForNextLevel, 1)), 1.0))
-                                        ZStack(alignment: .leading) {
-                                            Capsule().fill(Color.gray.opacity(0.1)).frame(height: 6)
-                                            Capsule().fill(tColor)
-                                                .frame(width: progressAnimated ? geo.size.width * progress : 0, height: 6)
-                                        }
-                                    }.frame(height: 6)
-                                }
-                            } else {
-                                ProgressView().tint(.gray)
-                                Text("Loading Rank...").foregroundColor(.gray).padding(.leading, 10)
-                                Spacer()
-                            }
-                            
-                            Image(systemName: "chevron.right").font(.app(.caption)).foregroundColor(.gray)
-                        }
-                        .padding(20)
-                        .background(DesignSystem.Colors.surface)
-                        .environment(\.colorScheme, .light)
-                        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                                .stroke(Color.white.opacity(0.5), lineWidth: 0.5)
-                        )
+            HStack(spacing: DesignSystem.Spacing.md) {
+                if let profile = appState.ascendProfile {
+                    let tColor = tierColor
+
+                    ZStack {
+                        Circle()
+                            .fill(tColor.opacity(0.18))
+                            .frame(width: 48, height: 48)
+                        RankGlyph()
+                            .foregroundStyle(tColor)
+                            .frame(width: 22, height: 22)
                     }
-                    .buttonStyle(.plain)
-                    .padding(.horizontal, 20)
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Alpinist rank")
+                            .font(DesignSystem.Typography.kickerInter)
+                            .foregroundStyle(DesignSystem.Colors.inkFaintWarm)
+                        Text("\(profile.ascend_tier) \(String(repeating: "I", count: profile.ascend_subtier))")
+                            .font(DesignSystem.Typography.title3Inter)
+                            .foregroundStyle(DesignSystem.Colors.inkWarm)
+                    }
+
+                    Spacer()
+
+                    VStack(alignment: .trailing, spacing: 4) {
+                        Text("\(Int(profile.ascend_xp)) XP")
+                            .font(DesignSystem.Typography.kickerInter)
+                            .foregroundStyle(DesignSystem.Colors.inkWarm.opacity(0.62))
+                            .monospacedDigit()
+                        GeometryReader { geo in
+                            let progress = max(0, min(Double(appState.currentLevelProgressXP) / Double(max(appState.xpNeededForNextLevel, 1)), 1.0))
+                            ZStack(alignment: .leading) {
+                                Capsule().fill(DesignSystem.Colors.surfaceWarm)
+                                Capsule()
+                                    .fill(tColor)
+                                    .frame(width: progressAnimated ? geo.size.width * progress : 0)
+                            }
+                        }
+                        .frame(width: 80, height: 4)
+                    }
+                } else {
+                    ProgressView().tint(DesignSystem.Colors.inkWarm.opacity(0.62))
+                    Text("Loading rank…")
+                        .font(DesignSystem.Typography.subheadInter)
+                        .foregroundStyle(DesignSystem.Colors.inkWarm.opacity(0.62))
+                        .padding(.leading, 10)
+                    Spacer()
+                }
+            }
+            .padding(DesignSystem.Spacing.md)
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.cardSoft, style: .continuous)
+                    .fill(DesignSystem.Colors.paperWarm)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.cardSoft, style: .continuous)
+                    .stroke(DesignSystem.Colors.borderSubtle, lineWidth: 0.5)
+            )
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, DesignSystem.Spacing.lg)
     }
 
     // MARK: - Equipment widget
@@ -794,18 +800,18 @@ struct TrophyRoomView: View {
             .padding(.horizontal, 20)
 
             switch selectedProfileTab {
-            case .missions:
+            case .tours:
                 let myTours = feedVM.recentTours.filter { $0.isCurrentUser }
                 if myTours.isEmpty {
-                    Text("No missions completed yet.")
-                        .font(.app(.subheadline))
-                        .foregroundColor(.gray)
+                    Text("No tours logged yet.")
+                        .font(DesignSystem.Typography.subheadInter)
+                        .foregroundStyle(DesignSystem.Colors.inkWarm.opacity(0.62))
                         .padding(.horizontal, 20)
                         .padding(.vertical, 10)
                 } else {
                     VStack(spacing: 16) {
                         ForEach(myTours.prefix(3)) { tour in
-                            ActivityCardView(tour: tour)
+                            TourCard(tour: tour)
                                 .padding(.horizontal, 16)
                         }
                         if myTours.count > 3 {
@@ -832,7 +838,7 @@ struct TrophyRoomView: View {
                 } else {
                     VStack(spacing: 16) {
                         ForEach(feedVM.bookmarkedTours.prefix(3)) { tour in
-                            ActivityCardView(tour: tour)
+                            TourCard(tour: tour)
                                 .padding(.horizontal, 16)
                         }
                         if feedVM.bookmarkedTours.count > 3 {
@@ -856,45 +862,47 @@ struct TrophyRoomView: View {
         }
     }
 
-    // MARK: - Achievements widget
+    // MARK: - Achievements widget (preview links to AchievementsView)
     private var achievementsWidget: some View {
         Button(action: { showAllAchievements = true }) {
-            HStack(alignment: .center, spacing: 15) {
+            HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
                 ZStack {
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(gold.opacity(0.1))
+                    Circle()
+                        .fill(DesignSystem.Colors.alpenglowSoft)
                         .frame(width: 48, height: 48)
-                    Image(systemName: "medal.fill")
-                        .font(.app(size: 20))
-                        .foregroundColor(gold)
+                    MilestoneGlyph()
+                        .foregroundStyle(DesignSystem.Colors.alpenglow)
+                        .frame(width: 22, height: 22)
                 }
 
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 3) {
                     Text("Achievements")
-                        .font(.app(.headline))
-                        .fontWeight(.bold)
-                        .foregroundColor(.white)
-                    Text("\(unlockedCount) / \(achievements.count) Unlocked")
-                        .font(.app(.caption))
-                        .foregroundColor(.gray)
+                        .font(DesignSystem.Typography.title3Inter)
+                        .foregroundStyle(DesignSystem.Colors.inkWarm)
+                    Text("\(unlockedCount) of \(achievements.count) unlocked")
+                        .font(DesignSystem.Typography.subheadInter)
+                        .foregroundStyle(DesignSystem.Colors.inkWarm.opacity(0.62))
+                        .monospacedDigit()
                 }
 
                 Spacer()
 
                 Image(systemName: "chevron.right")
-                    .font(.app(.caption))
-                    .foregroundColor(.gray)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(DesignSystem.Colors.inkFaintWarm)
             }
             .padding(DesignSystem.Spacing.md)
-            .background(DesignSystem.Colors.surface)
-            .clipShape(RoundedRectangle(cornerRadius: DesignSystem.Radius.lg, style: .continuous))
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.cardSoft, style: .continuous)
+                    .fill(DesignSystem.Colors.paperWarm)
+            )
             .overlay(
-                RoundedRectangle(cornerRadius: DesignSystem.Radius.lg, style: .continuous)
-                    .stroke(Color.black.opacity(0.04), lineWidth: 0.5)
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.cardSoft, style: .continuous)
+                    .stroke(DesignSystem.Colors.borderSubtle, lineWidth: 0.5)
             )
         }
         .buttonStyle(.plain)
-        .padding(.horizontal, 20)
+        .padding(.horizontal, DesignSystem.Spacing.lg)
     }
 
     private func openInstagram(_ handle: String) {
@@ -914,6 +922,19 @@ struct TrophyRoomView: View {
         }
         return "\(m)m"
     }
+
+    @ViewBuilder
+    private func topBarIconButton<Content: View>(action: @escaping () -> Void, @ViewBuilder content: () -> Content) -> some View {
+        Button(action: action) {
+            ZStack {
+                Circle()
+                    .fill(DesignSystem.Colors.surfaceWarm)
+                    .frame(width: 36, height: 36)
+                content()
+            }
+        }
+        .buttonStyle(.plain)
+    }
 }
 
 // =========================================
@@ -924,18 +945,24 @@ struct ProfileStatItem: View {
     let value: String
     let label: String
     let color: Color
-    
+    var background: Color = DesignSystem.Colors.surfaceWarm
+
     var body: some View {
-        VStack(spacing: 4) {
+        VStack(alignment: .leading, spacing: 2) {
             Text(value)
-                .font(.app(size: 18, weight: .bold))
-                .foregroundColor(.white)
+                .font(DesignSystem.Typography.title3Inter)
+                .foregroundStyle(DesignSystem.Colors.inkWarm)
+                .monospacedDigit()
             Text(label)
-                .font(.app(size: 10, weight: .semibold))
-                .foregroundColor(color.opacity(0.7))
-                .tracking(0.5)
+                .font(DesignSystem.Typography.kickerInter)
+                .foregroundStyle(color)
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(DesignSystem.Spacing.sm)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .fill(background)
+        )
     }
 }
 
@@ -1581,9 +1608,8 @@ struct EditAccountView: View {
                 Text("This @handle is already in use by another Alpinist. Please choose a different one.")
             }
         }
-        .preferredColorScheme(.dark)
     }
-    
+
     // Hobbies list merged with any custom selections the user already has
     private var combinedHobbies: [String] {
         var seen = Set<String>()
@@ -1796,129 +1822,175 @@ struct SafariView: UIViewControllerRepresentable {
 
 struct EquipmentLockerView: View {
     let equipment: Equipment
-    
+
     var body: some View {
         ZStack {
-            // Background environment using premium gradient and frost
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(LinearGradient(colors: [Color.white, Color(red: 0.98, green: 0.98, blue: 0.99)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 24, style: .continuous)
-                        .stroke(Color.white, lineWidth: 2)
+            // Background: subtle outline silhouette so slots visually
+            // anchor to body parts (head / torso / hips / feet).
+            MountaineerSilhouette()
+                .stroke(
+                    DesignSystem.Colors.inkFaintWarm.opacity(0.30),
+                    style: StrokeStyle(lineWidth: 1.0, lineCap: .round, lineJoin: .round)
                 )
-            
-            // Subtle contour lines in the background
-            Image(systemName: "map.fill")
-                .font(.app(size: 150))
-                .foregroundColor(.black.opacity(0.02))
-                .rotationEffect(.degrees(-15))
-                .offset(x: 50, y: -20)
-            
-            // Character Silhouette
-            Image(systemName: "figure.climbing")
-                .font(.app(size: 160))
-                .foregroundColor(.black.opacity(0.07))
-                .offset(y: 10)
-            
-            // Equipment Slots layout around the character
-            VStack(spacing: 20) {
-                // Head
-                EquipmentSlot(icon: "crown.fill", label: "Head", value: equipment.head, color: .orange)
-                    .offset(y: -15)
-                
-                HStack(spacing: 90) {
-                    // Jacket
-                    EquipmentSlot(icon: "tshirt.fill", label: "Jacket", value: equipment.jacket, color: .blue)
-                    
-                    // Backpack
-                    EquipmentSlot(icon: "backpack.fill", label: "Pack", value: equipment.backpack, color: .red)
+                .frame(width: 220, height: 300)
+
+            // Foreground: slot grid positioned on the body landmarks.
+            // Order: Head → Jacket (torso) → Extras left + Pack right
+            // (waist) → Pants (legs) → Boots (feet).
+            VStack(spacing: DesignSystem.Spacing.md) {
+                EquipmentSlot(glyph: AnyView(HeadGlyph()), label: "Head", value: equipment.head)
+                EquipmentSlot(glyph: AnyView(JacketGlyph()), label: "Jacket", value: equipment.jacket)
+
+                HStack(spacing: DesignSystem.Spacing.xxl + DesignSystem.Spacing.sm) {
+                    EquipmentSlot(glyph: AnyView(ExtrasGlyph()), label: "Extras", value: equipment.extras)
+                    EquipmentSlot(glyph: AnyView(PackGlyph()), label: "Pack", value: equipment.backpack)
                 }
-                
-                HStack(spacing: 120) {
-                    // Pants
-                    EquipmentSlot(icon: "figure.walk", label: "Pants", value: equipment.pants, color: .indigo)
-                        .offset(y: 10)
-                    
-                    // Extras
-                    EquipmentSlot(icon: "sparkles", label: "Extras", value: equipment.extras, color: .orange)
-                        .offset(y: 10)
-                }
-                
-                // Boots
-                EquipmentSlot(icon: "shoe.fill", label: "Boots", value: equipment.boots, color: .brown)
-                    .offset(y: 30)
+
+                EquipmentSlot(glyph: AnyView(PantsGlyph()), label: "Pants", value: equipment.pants)
+                EquipmentSlot(glyph: AnyView(BootsGlyph()), label: "Boots", value: equipment.boots)
             }
-            .padding(.vertical, 40)
         }
-        .padding(.horizontal, 20)
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, DesignSystem.Spacing.md)
+    }
+}
+
+// MARK: - Mountaineer silhouette
+
+/// Subtle outline of a standing figure rendered behind the
+/// equipment slot grid. Stroke-only, designed to read as a
+/// "ghosted" anchor rather than a foreground illustration.
+struct MountaineerSilhouette: Shape {
+    func path(in rect: CGRect) -> Path {
+        var p = Path()
+        let w = rect.width
+        let h = rect.height
+
+        // Head — small circle at the top
+        let headDiameter = w * 0.18
+        let headCenterX = w * 0.5
+        let headCenterY = h * 0.10
+        p.addEllipse(in: CGRect(
+            x: headCenterX - headDiameter / 2,
+            y: headCenterY - headDiameter / 2,
+            width: headDiameter,
+            height: headDiameter
+        ))
+
+        // Torso — rounded rect under the head
+        let torsoW = w * 0.32
+        let torsoH = h * 0.30
+        let torsoX = w * 0.5 - torsoW / 2
+        let torsoY = headCenterY + headDiameter / 2 + h * 0.03
+        p.addRoundedRect(
+            in: CGRect(x: torsoX, y: torsoY, width: torsoW, height: torsoH),
+            cornerSize: CGSize(width: 14, height: 14)
+        )
+
+        // Arms — two diagonals out and down from the shoulders
+        let shoulderY = torsoY + h * 0.04
+        let armReach = w * 0.16
+        let armDrop = h * 0.18
+        p.move(to: CGPoint(x: torsoX, y: shoulderY))
+        p.addLine(to: CGPoint(x: torsoX - armReach, y: shoulderY + armDrop))
+        p.move(to: CGPoint(x: torsoX + torsoW, y: shoulderY))
+        p.addLine(to: CGPoint(x: torsoX + torsoW + armReach, y: shoulderY + armDrop))
+
+        // Legs — two capsules from hip down
+        let hipY = torsoY + torsoH
+        let legW = w * 0.08
+        let legH = h * 0.36
+        let gap: CGFloat = 4
+        let leftLegX = w * 0.5 - legW - gap
+        let rightLegX = w * 0.5 + gap
+        p.addRoundedRect(
+            in: CGRect(x: leftLegX, y: hipY, width: legW, height: legH),
+            cornerSize: CGSize(width: legW / 2, height: legW / 2)
+        )
+        p.addRoundedRect(
+            in: CGRect(x: rightLegX, y: hipY, width: legW, height: legH),
+            cornerSize: CGSize(width: legW / 2, height: legW / 2)
+        )
+
+        return p
     }
 }
 
 struct EquipmentSlot: View {
-    let icon: String
+    let glyph: AnyView
     let label: String
     let value: String
-    let color: Color
-    
+
     @State private var showDetail = false
-    
+
+    private var hasValue: Bool {
+        !value.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
     var body: some View {
-        Button(action: {
-            showDetail = true
-        }) {
+        Button { showDetail = true } label: {
             VStack(spacing: 6) {
                 ZStack {
                     Circle()
-                        .fill(DesignSystem.Colors.surface)
-                        .frame(width: 46, height: 46)
-                        .overlay(Circle().stroke(Color.white.opacity(0.07), lineWidth: 0.5))
-                    
-                    Image(systemName: icon)
-                        .font(.app(size: 18, weight: .bold))
-                        .foregroundColor(color)
+                        .fill(hasValue ? DesignSystem.Colors.alpenglowSoft : DesignSystem.Colors.surfaceWarm)
+                        .frame(width: 48, height: 48)
+                    glyph
+                        .foregroundStyle(hasValue
+                                         ? DesignSystem.Colors.alpenglow
+                                         : DesignSystem.Colors.inkFaintWarm)
+                        .frame(width: 22, height: 22)
                 }
-                
+
                 VStack(spacing: 2) {
                     Text(value)
-                        .font(.app(size: 11, weight: .bold))
-                        .foregroundColor(.white)
+                        .font(DesignSystem.Typography.kickerInter.weight(.semibold))
+                        .foregroundStyle(DesignSystem.Colors.inkWarm)
                         .lineLimit(1)
-                        .frame(width: 80)
-                    
-                    Text(label.uppercased())
-                        .font(.app(size: 9, weight: .black))
-                        .foregroundColor(.gray)
-                        .tracking(1)
+                        .frame(width: 84)
+                    Text(label)
+                        .font(DesignSystem.Typography.kickerInter)
+                        .foregroundStyle(DesignSystem.Colors.inkFaintWarm)
                 }
             }
         }
         .buttonStyle(.plain)
         .sheet(isPresented: $showDetail) {
-            VStack(spacing: 20) {
-                Image(systemName: icon)
-                    .font(.app(size: 60))
-                    .foregroundColor(color)
-                    .padding(.top, 40)
-                
-                Text(label.uppercased())
-                    .font(.app(size: 14, weight: .black))
-                    .foregroundColor(.gray)
-                    .tracking(2)
-                
-                Text(value)
-                    .font(.app(size: 28, weight: .bold))
-                
-                Text("This is a preview of the equipment detail view. In the future, you will be able to select and change your \(label) gear from a vast library of items here.")
-                    .font(.app(size: 15))
-                    .multilineTextAlignment(.center)
-                    .foregroundColor(.gray)
-                    .padding(.horizontal, 30)
-                    .padding(.top, 10)
-                
-                Spacer()
+            ZStack {
+                DesignSystem.Colors.paperWarm.ignoresSafeArea()
+
+                VStack(spacing: DesignSystem.Spacing.md) {
+                    ZStack {
+                        Circle()
+                            .fill(DesignSystem.Colors.alpenglowSoft)
+                            .frame(width: 80, height: 80)
+                        glyph
+                            .foregroundStyle(DesignSystem.Colors.alpenglow)
+                            .frame(width: 36, height: 36)
+                    }
+                    .padding(.top, DesignSystem.Spacing.xl)
+
+                    Text(label)
+                        .font(DesignSystem.Typography.kickerInter)
+                        .tracking(0.5)
+                        .foregroundStyle(DesignSystem.Colors.inkFaintWarm)
+
+                    Text(value)
+                        .font(DesignSystem.Typography.title2Inter)
+                        .foregroundStyle(DesignSystem.Colors.inkWarm)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, DesignSystem.Spacing.lg)
+
+                    Text("Item picker coming soon — you'll be able to set your \(label.lowercased()) gear from a curated library.")
+                        .font(DesignSystem.Typography.bodyInter)
+                        .foregroundStyle(DesignSystem.Colors.inkWarm.opacity(0.62))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, DesignSystem.Spacing.xl)
+                        .padding(.top, DesignSystem.Spacing.xs)
+
+                    Spacer()
+                }
             }
             .presentationDetents([.fraction(0.45)])
-            .preferredColorScheme(.dark)
         }
     }
 }
@@ -1983,7 +2055,6 @@ struct AllAchievementsSheet: View {
             .sheet(item: $selectedAchievement) { achievement in
                 AchievementDetailSheet(achievement: achievement)
                     .presentationDetents([.medium])
-                    .preferredColorScheme(.dark)
             }
         }
     }
@@ -2147,7 +2218,7 @@ struct FilteredActivitiesView: View {
                 ScrollView {
                     LazyVStack(spacing: 12) {
                         ForEach(tours) { tour in
-                            ActivityCardView(tour: tour)
+                            TourCard(tour: tour)
                                 .padding(.horizontal, 16)
                         }
                     }
