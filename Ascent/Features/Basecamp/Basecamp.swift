@@ -850,71 +850,91 @@ struct BasecampView: View {
             HapticManager.shared.light()
             showGoalsList = true
         } label: {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(alignment: .top) {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(appState.goals.isEmpty ? "GOALS" : "NEXT GOAL")
-                            .font(.appMono(size: 9, weight: .bold))
-                            .foregroundColor(DesignSystem.Colors.secondaryText)
-                            .tracking(1.4)
-                        Text(primaryGoal?.mountainName ?? "Add Goal")
-                            .font(.app(size: 16, weight: .black))
-                            .lineLimit(2)
-                    }
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                HStack {
+                    GoalGlyph()
+                        .frame(width: 18, height: 18)
+                        .foregroundStyle(DesignSystem.Colors.inkOnSand)
+                    Text(appState.goals.isEmpty ? "Goal" : "Next goal")
+                        .font(DesignSystem.Typography.kickerInter)
+                        .tracking(0.5)
+                        .foregroundStyle(DesignSystem.Colors.inkOnSand.opacity(0.72))
                     Spacer()
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 11, style: .continuous)
-                            .fill(LinearGradient(colors: [accent.opacity(0.28), accent.opacity(0.10)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                            .frame(width: 36, height: 36)
-                        Image(systemName: appState.goals.isEmpty ? "plus" : "flag.2.crossed.fill")
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundColor(accent)
-                            .symbolRenderingMode(.hierarchical)
-                    }
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(DesignSystem.Colors.inkOnSand.opacity(0.45))
                 }
 
+                Text(primaryGoal?.mountainName ?? "Add a goal")
+                    .font(DesignSystem.Typography.title3Inter)
+                    .foregroundStyle(DesignSystem.Colors.inkOnSand)
+                    .lineLimit(2)
+
+                Spacer(minLength: 0)
+
                 let readinessPct: Double = {
-                    if let r = readinessVM.readiness { return min(max(Double(r.totalScore) / 100.0, 0), 1) }
+                    if let r = readinessVM.readiness {
+                        return min(max(Double(r.totalScore) / 100.0, 0), 1)
+                    }
                     return 0
                 }()
+
                 GeometryReader { geo in
                     ZStack(alignment: .leading) {
-                        Capsule().fill(Color.gray.opacity(0.12)).frame(height: 5)
                         Capsule()
-                            .fill(LinearGradient(colors: [accent, accent.opacity(0.6)], startPoint: .leading, endPoint: .trailing))
-                            .frame(width: phase ? geo.size.width * readinessPct : 0, height: 5)
+                            .fill(DesignSystem.Colors.inkOnSand.opacity(0.15))
+                            .frame(height: 4)
+                        Capsule()
+                            .fill(DesignSystem.Colors.alpenglow)
+                            .frame(width: phase ? geo.size.width * readinessPct : 0, height: 4)
                             .animation(.easeOut(duration: 1.0).delay(0.4), value: phase)
                     }
                 }
-                .frame(height: 5)
+                .frame(height: 4)
 
                 HStack {
                     if readinessVM.readiness != nil {
                         Text("\(Int(readinessPct * 100))% ready")
-                            .font(.appMono(size: 10, weight: .bold))
-                            .foregroundColor(accent)
+                            .font(DesignSystem.Typography.kickerInter)
+                            .foregroundStyle(DesignSystem.Colors.inkOnSand.opacity(0.72))
+                            .monospacedDigit()
                     } else {
                         Text("Tap to plan")
-                            .font(.appMono(size: 10, weight: .bold))
-                            .foregroundColor(accent)
+                            .font(DesignSystem.Typography.kickerInter)
+                            .foregroundStyle(DesignSystem.Colors.inkOnSand.opacity(0.62))
                     }
+
                     Spacer()
-                    if let goal = primaryGoal, let date = goal.targetDate {
-                        Text(date, format: .dateTime.month(.abbreviated).year())
-                            .font(.appMono(size: 10, weight: .semibold))
-                            .foregroundColor(DesignSystem.Colors.secondaryText)
-                    } else if appState.goals.count > 1 {
-                        Text("\(appState.goals.count) goals")
-                            .font(.appMono(size: 10, weight: .semibold))
-                            .foregroundColor(DesignSystem.Colors.secondaryText)
+
+                    if let primary = primaryGoal, let days = primary.daysUntilTarget {
+                        Text(daysLabel(days))
+                            .font(DesignSystem.Typography.kickerInter)
+                            .foregroundStyle(deadlineColor(days))
+                            .monospacedDigit()
                     }
                 }
             }
-            .padding(18)
+            .padding(DesignSystem.Spacing.md)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .pastelCard(.ice, applyForeground: false)
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.cardSoft, style: .continuous)
+                    .fill(DesignSystem.Colors.alpenglowSoft)
+            )
         }
         .buttonStyle(PressableButtonStyle())
+    }
+
+    private func daysLabel(_ days: Int) -> String {
+        if days < 0 { return "Past due" }
+        if days == 0 { return "Today" }
+        if days == 1 { return "1 day" }
+        return "\(days) days"
+    }
+
+    private func deadlineColor(_ days: Int) -> Color {
+        if days < 0 { return DesignSystem.Colors.ember }
+        if days <= 7 { return DesignSystem.Colors.alpenglow }
+        return DesignSystem.Colors.inkOnSand.opacity(0.72)
     }
 
     private var alpineWeatherWidget: some View {

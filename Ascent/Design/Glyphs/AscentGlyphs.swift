@@ -171,6 +171,34 @@ struct RouteGlyph: View {
     }
 }
 
+// MARK: - Mountain (free-standing triangle with snow cap)
+
+struct MountainGlyph: View {
+    var body: some View {
+        ZStack {
+            Path { p in
+                p.move(to: CGPoint(x: 12, y: 4))
+                p.addQuadCurve(to: CGPoint(x: 20, y: 19),
+                               control: CGPoint(x: 18, y: 14))
+                p.addLine(to: CGPoint(x: 4, y: 19))
+                p.addQuadCurve(to: CGPoint(x: 12, y: 4),
+                               control: CGPoint(x: 6, y: 14))
+                p.closeSubpath()
+            }
+            .stroke(style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
+
+            // Snow cap accent — short top wedge.
+            Path { p in
+                p.move(to: CGPoint(x: 9.5, y: 9.5))
+                p.addLine(to: CGPoint(x: 12, y: 7))
+                p.addLine(to: CGPoint(x: 14.5, y: 9.5))
+            }
+            .stroke(style: StrokeStyle(lineWidth: 1.3, lineCap: .round, lineJoin: .round))
+        }
+        .frame(width: 24, height: 24)
+    }
+}
+
 // MARK: - Fist-bump (heart — outline or filled)
 
 struct FistBumpGlyph: View {

@@ -658,33 +658,43 @@ struct HealthDashboardView: View {
                     HapticManager.shared.light()
                     showGoalsList = true
                 } label: {
-                    VStack(alignment: .leading, spacing: 10) {
+                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
                         HStack {
                             GoalGlyph()
-                                .frame(width: 20, height: 20)
-                                .foregroundStyle(DesignSystem.Colors.inkOnIce)
+                                .frame(width: 18, height: 18)
+                                .foregroundStyle(DesignSystem.Colors.inkOnSand)
+                            Text(appState.goals.isEmpty ? "Goal" : "Next goal")
+                                .font(DesignSystem.Typography.kickerInter)
+                                .tracking(0.5)
+                                .foregroundStyle(DesignSystem.Colors.inkOnSand.opacity(0.72))
                             Spacer()
                             Image(systemName: "chevron.right")
                                 .font(.system(size: 10, weight: .semibold))
-                                .foregroundStyle(DesignSystem.Colors.inkOnIce.opacity(0.45))
+                                .foregroundStyle(DesignSystem.Colors.inkOnSand.opacity(0.45))
                         }
-                        Text(appState.goals.first?.mountainName ?? "Set a goal")
-                            .font(.app(size: 15, weight: .black))
-                            .foregroundColor(.white)
+
+                        Text(appState.goals.primary?.mountainName ?? "Add a goal")
+                            .font(DesignSystem.Typography.title3Inter)
+                            .foregroundStyle(DesignSystem.Colors.inkOnSand)
                             .lineLimit(2)
+
                         if let r = readinessVM.readiness {
                             Text("\(r.totalScore)% ready")
-                                .font(.appMono(size: 10, weight: .bold))
-                                .foregroundColor(accent)
+                                .font(DesignSystem.Typography.kickerInter)
+                                .foregroundStyle(DesignSystem.Colors.inkOnSand.opacity(0.72))
+                                .monospacedDigit()
                         } else {
                             Text("Tap to plan")
-                                .font(.appMono(size: 10, weight: .bold))
-                                .foregroundColor(accent)
+                                .font(DesignSystem.Typography.kickerInter)
+                                .foregroundStyle(DesignSystem.Colors.inkOnSand.opacity(0.62))
                         }
                     }
-                    .padding(16)
+                    .padding(DesignSystem.Spacing.md)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                    .pastelCard(.ice, applyForeground: false)
+                    .background(
+                        RoundedRectangle(cornerRadius: DesignSystem.Radius.cardSoft, style: .continuous)
+                            .fill(DesignSystem.Colors.alpenglowSoft)
+                    )
                 }
                 .buttonStyle(PressableButtonStyle())
             }
