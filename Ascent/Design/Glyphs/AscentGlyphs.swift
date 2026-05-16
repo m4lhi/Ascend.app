@@ -171,6 +171,88 @@ struct RouteGlyph: View {
     }
 }
 
+// MARK: - Milestone (5-point star outline)
+
+struct MilestoneGlyph: View {
+    var body: some View {
+        Path { p in
+            let center = CGPoint(x: 12, y: 12)
+            let outerR: CGFloat = 8.5
+            let innerR: CGFloat = 3.6
+            for i in 0..<10 {
+                let radius = i.isMultiple(of: 2) ? outerR : innerR
+                let angle = CGFloat(i) * .pi / 5 - .pi / 2
+                let x = center.x + cos(angle) * radius
+                let y = center.y + sin(angle) * radius
+                if i == 0 { p.move(to: CGPoint(x: x, y: y)) }
+                else      { p.addLine(to: CGPoint(x: x, y: y)) }
+            }
+            p.closeSubpath()
+        }
+        .stroke(style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
+        .frame(width: 24, height: 24)
+    }
+}
+
+// MARK: - Weekly (flame outline)
+
+struct WeeklyGlyph: View {
+    var body: some View {
+        Path { p in
+            p.move(to: CGPoint(x: 12, y: 4))
+            p.addQuadCurve(to: CGPoint(x: 6, y: 12), control: CGPoint(x: 8, y: 7))
+            p.addQuadCurve(to: CGPoint(x: 12, y: 20), control: CGPoint(x: 4, y: 16))
+            p.addQuadCurve(to: CGPoint(x: 18, y: 12), control: CGPoint(x: 20, y: 16))
+            p.addQuadCurve(to: CGPoint(x: 12, y: 4), control: CGPoint(x: 14, y: 9))
+            p.closeSubpath()
+            // Inner ember
+            p.move(to: CGPoint(x: 12, y: 11))
+            p.addQuadCurve(to: CGPoint(x: 10, y: 16), control: CGPoint(x: 9, y: 13))
+            p.addQuadCurve(to: CGPoint(x: 12, y: 17), control: CGPoint(x: 11, y: 17))
+            p.addQuadCurve(to: CGPoint(x: 14, y: 14), control: CGPoint(x: 14, y: 17))
+            p.addQuadCurve(to: CGPoint(x: 12, y: 11), control: CGPoint(x: 13, y: 12))
+        }
+        .stroke(style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
+        .frame(width: 24, height: 24)
+    }
+}
+
+// MARK: - Social (two overlapping circles representing crew)
+
+struct SocialGlyph: View {
+    var body: some View {
+        ZStack {
+            Circle().stroke(lineWidth: 1.5).frame(width: 9, height: 9).offset(x: -3)
+            Circle().stroke(lineWidth: 1.5).frame(width: 9, height: 9).offset(x: 3)
+            // Small dots inside for "heads"
+            Circle().fill().frame(width: 2.2, height: 2.2).offset(x: -3, y: -1)
+            Circle().fill().frame(width: 2.2, height: 2.2).offset(x: 3, y: -1)
+        }
+        .frame(width: 24, height: 24)
+    }
+}
+
+// MARK: - Explorer (map pin outline)
+
+struct ExplorerGlyph: View {
+    var body: some View {
+        ZStack {
+            Path { p in
+                p.move(to: CGPoint(x: 12, y: 21))
+                p.addLine(to: CGPoint(x: 6, y: 10))
+                p.addArc(center: CGPoint(x: 12, y: 10), radius: 6,
+                         startAngle: .degrees(180), endAngle: .degrees(0),
+                         clockwise: false)
+                p.addLine(to: CGPoint(x: 12, y: 21))
+                p.closeSubpath()
+            }
+            .stroke(style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
+            Circle().stroke(lineWidth: 1.3).frame(width: 4, height: 4).offset(y: -2)
+        }
+        .frame(width: 24, height: 24)
+    }
+}
+
 // MARK: - Mountain (free-standing triangle with snow cap)
 
 struct MountainGlyph: View {

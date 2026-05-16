@@ -10,6 +10,7 @@ struct HealthDashboardView: View {
     @StateObject private var healthData = HealthDataProvider.shared
     @ObservedObject private var weather = WeatherManager.shared
     @State private var showSettings = false
+    @State private var showAchievements = false
     @State private var showArena = false
     @State private var showExtendedReadiness = false
     @State private var showAlpineWeather = false
@@ -176,6 +177,15 @@ struct HealthDashboardView: View {
                 .presentationCornerRadius(36)
                 .adaptiveSheetBackground()
         }
+        .sheet(isPresented: $showAchievements) {
+            AchievementsView()
+                .environmentObject(appState)
+                .environmentObject(feedVM)
+                .environmentObject(leaderboardVM)
+                .presentationDetents([.large])
+                .presentationCornerRadius(36)
+                .adaptiveSheetBackground()
+        }
     }
 
     private var readinessGlowColor: Color {
@@ -324,7 +334,7 @@ struct HealthDashboardView: View {
     }
 
     private var profileButton: some View {
-        Button { showSettings = true } label: {
+        Button { showTrophyRoom = true } label: {
             ZStack {
                 Circle()
                     .stroke(DesignSystem.Colors.inkWarm.opacity(0.12), lineWidth: 2)
@@ -812,24 +822,24 @@ struct HealthDashboardView: View {
     private var trophyAccessCard: some View {
         Button {
             HapticManager.shared.light()
-            showTrophyRoom = true
+            showAchievements = true
         } label: {
             HStack(spacing: 14) {
-                Image(systemName: "medal.fill")
-                    .font(.system(size: 22, weight: .semibold))
-                    .foregroundColor(DesignSystem.Colors.prestige)
+                MilestoneGlyph()
+                    .frame(width: 22, height: 22)
+                    .foregroundStyle(DesignSystem.Colors.inkOnSand)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Achievements & Trophies")
-                        .font(.app(size: 16, weight: .bold))
-                        .foregroundColor(.white)
-                    Text("Badges, Milestones, Collections")
-                        .font(.appMono(size: 11, weight: .medium))
-                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                    Text("Achievements")
+                        .font(DesignSystem.Typography.bodyEmphasisInter)
+                        .foregroundStyle(DesignSystem.Colors.inkOnSand)
+                    Text("Badges & milestones")
+                        .font(DesignSystem.Typography.kickerInter)
+                        .foregroundStyle(DesignSystem.Colors.inkOnSand.opacity(0.62))
                 }
                 Spacer()
                 Image(systemName: "chevron.right")
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(DesignSystem.Colors.tertiaryText)
+                    .foregroundStyle(DesignSystem.Colors.inkOnSand.opacity(0.45))
             }
             .padding(DesignSystem.Spacing.cardPadding)
             .pastelCard(.sand, applyForeground: false)
