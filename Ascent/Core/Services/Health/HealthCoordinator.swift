@@ -62,7 +62,8 @@ final class HealthCoordinator: ObservableObject {
     func refreshReadiness(
         tours: [Tour],
         targetMountain: Mountain?,
-        targetWeather: MountainWeather?
+        targetWeather: MountainWeather?,
+        extendedAnswers: [String: [String]] = [:]
     ) async {
         guard appState != nil else { return }
         isSyncing = true
@@ -75,7 +76,8 @@ final class HealthCoordinator: ObservableObject {
             profile: fetched,
             tours: tours,
             targetMountain: targetMountain,
-            targetWeather: targetWeather
+            targetWeather: targetWeather,
+            extendedAnswers: extendedAnswers
         )
 
         // (R3 step 6) appState.healthProfile / .readiness mirror writes

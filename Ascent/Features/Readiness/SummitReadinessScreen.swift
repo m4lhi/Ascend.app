@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 // =========================================
 // === DATEI: SummitReadinessScreen.swift ===
@@ -352,8 +353,29 @@ struct SummitReadinessScreen: View {
             detailQuestion(id: "focus",  prompt: "Mental focus", options: ["Sharp", "Okay", "Foggy", "Scattered"])
             detailQuestion(id: "hr",     prompt: "Resting HR feel", options: ["Calm", "Normal", "Elevated"])
 
+            submitDetailButton
+
             variantToggle(to: .quick, label: "Switch to quick check ↑")
         }
+    }
+
+    private var submitDetailButton: some View {
+        Button(action: submitDetail) {
+            Text("Save check-in")
+                .font(DesignSystem.Typography.bodyEmphasisInter)
+                .foregroundStyle(DesignSystem.Colors.paperWarm)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, DesignSystem.Spacing.md)
+                .background(
+                    RoundedRectangle(cornerRadius: DesignSystem.Radius.cardSoft, style: .continuous)
+                        .fill(detailAnswers.isEmpty
+                              ? DesignSystem.Colors.inkWarm.opacity(0.25)
+                              : DesignSystem.Colors.glacierDeep)
+                )
+        }
+        .buttonStyle(.plain)
+        .disabled(detailAnswers.isEmpty)
+        .padding(.top, DesignSystem.Spacing.sm)
     }
 
     private func detailQuestion(id: String, prompt: String, options: [String]) -> some View {
@@ -390,22 +412,33 @@ struct SummitReadinessScreen: View {
         .padding(.top, DesignSystem.Spacing.xs)
     }
 
+    /// Quick variant: save + refresh + haptic on every tap. The score
+    /// updates instantly because there's only one answer to commit.
     private func pickMood(_ mood: String) {
         selectedMood = mood
         readinessVM.extendedReadinessAnswers = ["overall": [mood]]
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
         finishCheckIn()
     }
 
+    /// Detail variant: accumulate the pick in local state only. The
+    /// score commit waits for the user to hit Save — otherwise it
+    /// would bounce 5 times while they fill the form.
     private func pickDetail(id: String, option: String) {
         detailAnswers[id] = option
+    }
+
+    /// Detail variant submit: write all five answers in one shot,
+    /// then refresh + history. Haptic on success.
+    private func submitDetail() {
         readinessVM.extendedReadinessAnswers = detailAnswers.mapValues { [$0] }
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         finishCheckIn()
     }
 
     /// Mark answered, recompute the readiness score from HealthKit +
-    /// tours, and append today's composite score to the 90-day history.
-    /// Same call sequence as the old assessment view's save() so the
-    /// downstream state stays consistent.
+    /// tours + check-in answers, and append today's composite score
+    /// to the 90-day history.
     private func finishCheckIn() {
         readinessVM.extendedReadinessAnsweredAt = Date()
         readinessVM.refresh()

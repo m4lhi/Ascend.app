@@ -102,7 +102,8 @@ final class ReadinessViewModel: ObservableObject {
             await HealthCoordinator.shared.refreshReadiness(
                 tours: feedVM?.recentTours ?? [],
                 targetMountain: targetMt,
-                targetWeather: weather
+                targetWeather: weather,
+                extendedAnswers: extendedReadinessAnswers
             )
         }
     }
