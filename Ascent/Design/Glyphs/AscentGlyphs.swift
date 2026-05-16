@@ -170,3 +170,78 @@ struct RouteGlyph: View {
         .frame(width: 24, height: 24)
     }
 }
+
+// MARK: - Fist-bump (heart — outline or filled)
+
+struct FistBumpGlyph: View {
+    var filled: Bool = false
+
+    private var path: Path {
+        Path { p in
+            p.move(to: CGPoint(x: 12, y: 7))
+            p.addQuadCurve(to: CGPoint(x: 7, y: 5), control: CGPoint(x: 9, y: 4))
+            p.addQuadCurve(to: CGPoint(x: 4, y: 9), control: CGPoint(x: 4, y: 6.5))
+            p.addQuadCurve(to: CGPoint(x: 12, y: 19), control: CGPoint(x: 4, y: 14))
+            p.addQuadCurve(to: CGPoint(x: 20, y: 9), control: CGPoint(x: 20, y: 14))
+            p.addQuadCurve(to: CGPoint(x: 17, y: 5), control: CGPoint(x: 20, y: 6.5))
+            p.addQuadCurve(to: CGPoint(x: 12, y: 7), control: CGPoint(x: 15, y: 4))
+        }
+    }
+
+    var body: some View {
+        Group {
+            if filled {
+                path.fill()
+            } else {
+                path.stroke(style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
+            }
+        }
+        .frame(width: 24, height: 24)
+    }
+}
+
+// MARK: - Comment (speech bubble with tail)
+
+struct CommentGlyph: View {
+    var body: some View {
+        Path { p in
+            p.addRoundedRect(
+                in: CGRect(x: 3, y: 5, width: 18, height: 12),
+                cornerSize: CGSize(width: 4, height: 4)
+            )
+            p.move(to: CGPoint(x: 8, y: 17))
+            p.addLine(to: CGPoint(x: 7, y: 20))
+            p.addLine(to: CGPoint(x: 11, y: 17))
+        }
+        .stroke(style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
+        .frame(width: 24, height: 24)
+    }
+}
+
+// MARK: - Bookmark (rounded top, V-cut bottom)
+
+struct BookmarkGlyph: View {
+    var filled: Bool = false
+
+    private var path: Path {
+        Path { p in
+            p.move(to: CGPoint(x: 6, y: 4))
+            p.addLine(to: CGPoint(x: 18, y: 4))
+            p.addLine(to: CGPoint(x: 18, y: 20))
+            p.addLine(to: CGPoint(x: 12, y: 15))
+            p.addLine(to: CGPoint(x: 6, y: 20))
+            p.closeSubpath()
+        }
+    }
+
+    var body: some View {
+        Group {
+            if filled {
+                path.fill()
+            } else {
+                path.stroke(style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
+            }
+        }
+        .frame(width: 24, height: 24)
+    }
+}

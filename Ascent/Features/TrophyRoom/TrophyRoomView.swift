@@ -805,7 +805,7 @@ struct TrophyRoomView: View {
                 } else {
                     VStack(spacing: 16) {
                         ForEach(myTours.prefix(3)) { tour in
-                            ActivityCardView(tour: tour)
+                            TourCard(tour: tour)
                                 .padding(.horizontal, 16)
                         }
                         if myTours.count > 3 {
@@ -832,7 +832,7 @@ struct TrophyRoomView: View {
                 } else {
                     VStack(spacing: 16) {
                         ForEach(feedVM.bookmarkedTours.prefix(3)) { tour in
-                            ActivityCardView(tour: tour)
+                            TourCard(tour: tour)
                                 .padding(.horizontal, 16)
                         }
                         if feedVM.bookmarkedTours.count > 3 {
@@ -2147,7 +2147,7 @@ struct FilteredActivitiesView: View {
                 ScrollView {
                     LazyVStack(spacing: 12) {
                         ForEach(tours) { tour in
-                            ActivityCardView(tour: tour)
+                            TourCard(tour: tour)
                                 .padding(.horizontal, 16)
                         }
                     }
