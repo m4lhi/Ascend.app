@@ -118,6 +118,15 @@ extension DesignSystem.Colors {
         light: Color(red: 0.910, green: 0.608, blue: 0.369).opacity(0.16),
         dark:  Color(red: 0.941, green: 0.675, blue: 0.482).opacity(0.20)
     )
+
+    /// Granite — warm stone silhouette colour. Goes dark on light mode
+    /// (front mountain reads as silhouette against cream sky) and
+    /// inverts to a lighter warm stone-gray in dark mode so the
+    /// silhouette still has contrast against the warm-black bg.
+    static let granite = Color.ascentAdaptive(
+        light: Color(red: 0.165, green: 0.180, blue: 0.157),
+        dark:  Color(red: 0.659, green: 0.671, blue: 0.624)
+    )
 }
 
 // MARK: - Typography (Inter, with safe SF-Pro fallback)
