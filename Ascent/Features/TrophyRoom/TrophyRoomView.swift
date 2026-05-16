@@ -269,7 +269,7 @@ class LocationFetcher: NSObject, ObservableObject, CLLocationManagerDelegate {
 // =========================================
 
 enum ProfileTab: String, CaseIterable {
-    case missions = "Missions"
+    case tours = "Tours"
     case saved = "Saved"
     case collections = "Collections"
 }
@@ -313,7 +313,7 @@ struct TrophyRoomView: View {
     @State private var selectedCategory: AchievementCategory? = nil
     @State private var selectedAchievement: Achievement? = nil
     @State private var showAllAchievements = false
-    @State private var selectedProfileTab: ProfileTab = .missions
+    @State private var selectedProfileTab: ProfileTab = .tours
     @State private var showAllActivities = false
     @State private var showAllSavedTours = false
 
@@ -662,17 +662,20 @@ struct TrophyRoomView: View {
         .sheet(item: $selectedAchievement) { achievement in
             AchievementDetailSheet(achievement: achievement)
                 .presentationDetents([.medium])
-                .preferredColorScheme(.dark)
         }
         .sheet(isPresented: $showAllAchievements) {
-            AllAchievementsSheet(achievements: achievements, unlockedCount: unlockedCount)
+            AchievementsView()
+                .environmentObject(appState)
+                .environmentObject(feedVM)
+                .environmentObject(leaderboardVM)
+                .presentationDetents([.large])
+                .presentationCornerRadius(36)
         }
         .sheet(isPresented: $showLayoutEditor) {
             ProfileLayoutEditor(order: widgetOrder) { newOrder in
                 setWidgetOrder(newOrder)
             }
             .presentationDetents([.medium, .large])
-            .preferredColorScheme(.dark)
         }
     }
 
@@ -797,12 +800,12 @@ struct TrophyRoomView: View {
             .padding(.horizontal, 20)
 
             switch selectedProfileTab {
-            case .missions:
+            case .tours:
                 let myTours = feedVM.recentTours.filter { $0.isCurrentUser }
                 if myTours.isEmpty {
-                    Text("No missions completed yet.")
-                        .font(.app(.subheadline))
-                        .foregroundColor(.gray)
+                    Text("No tours logged yet.")
+                        .font(DesignSystem.Typography.subheadInter)
+                        .foregroundStyle(DesignSystem.Colors.inkWarm.opacity(0.62))
                         .padding(.horizontal, 20)
                         .padding(.vertical, 10)
                 } else {
@@ -1605,9 +1608,8 @@ struct EditAccountView: View {
                 Text("This @handle is already in use by another Alpinist. Please choose a different one.")
             }
         }
-        .preferredColorScheme(.dark)
     }
-    
+
     // Hobbies list merged with any custom selections the user already has
     private var combinedHobbies: [String] {
         var seen = Set<String>()
@@ -1820,129 +1822,104 @@ struct SafariView: UIViewControllerRepresentable {
 
 struct EquipmentLockerView: View {
     let equipment: Equipment
-    
+
     var body: some View {
-        ZStack {
-            // Background environment using premium gradient and frost
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(LinearGradient(colors: [Color.white, Color(red: 0.98, green: 0.98, blue: 0.99)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 24, style: .continuous)
-                        .stroke(Color.white, lineWidth: 2)
-                )
-            
-            // Subtle contour lines in the background
-            Image(systemName: "map.fill")
-                .font(.app(size: 150))
-                .foregroundColor(.black.opacity(0.02))
-                .rotationEffect(.degrees(-15))
-                .offset(x: 50, y: -20)
-            
-            // Character Silhouette
-            Image(systemName: "figure.climbing")
-                .font(.app(size: 160))
-                .foregroundColor(.black.opacity(0.07))
-                .offset(y: 10)
-            
-            // Equipment Slots layout around the character
-            VStack(spacing: 20) {
-                // Head
-                EquipmentSlot(icon: "crown.fill", label: "Head", value: equipment.head, color: .orange)
-                    .offset(y: -15)
-                
-                HStack(spacing: 90) {
-                    // Jacket
-                    EquipmentSlot(icon: "tshirt.fill", label: "Jacket", value: equipment.jacket, color: .blue)
-                    
-                    // Backpack
-                    EquipmentSlot(icon: "backpack.fill", label: "Pack", value: equipment.backpack, color: .red)
-                }
-                
-                HStack(spacing: 120) {
-                    // Pants
-                    EquipmentSlot(icon: "figure.walk", label: "Pants", value: equipment.pants, color: .indigo)
-                        .offset(y: 10)
-                    
-                    // Extras
-                    EquipmentSlot(icon: "sparkles", label: "Extras", value: equipment.extras, color: .orange)
-                        .offset(y: 10)
-                }
-                
-                // Boots
-                EquipmentSlot(icon: "shoe.fill", label: "Boots", value: equipment.boots, color: .brown)
-                    .offset(y: 30)
+        VStack(spacing: DesignSystem.Spacing.lg) {
+            // Body-style layout: head top, jacket+pack middle, pants+extras lower, boots bottom.
+            EquipmentSlot(glyph: AnyView(HeadGlyph()), label: "Head", value: equipment.head)
+
+            HStack(spacing: DesignSystem.Spacing.xxl) {
+                EquipmentSlot(glyph: AnyView(JacketGlyph()), label: "Jacket", value: equipment.jacket)
+                EquipmentSlot(glyph: AnyView(PackGlyph()), label: "Pack", value: equipment.backpack)
             }
-            .padding(.vertical, 40)
+
+            HStack(spacing: DesignSystem.Spacing.xxl) {
+                EquipmentSlot(glyph: AnyView(PantsGlyph()), label: "Pants", value: equipment.pants)
+                EquipmentSlot(glyph: AnyView(ExtrasGlyph()), label: "Extras", value: equipment.extras)
+            }
+
+            EquipmentSlot(glyph: AnyView(BootsGlyph()), label: "Boots", value: equipment.boots)
         }
-        .padding(.horizontal, 20)
+        .padding(.vertical, DesignSystem.Spacing.lg)
+        .padding(.horizontal, DesignSystem.Spacing.lg)
     }
 }
 
 struct EquipmentSlot: View {
-    let icon: String
+    let glyph: AnyView
     let label: String
     let value: String
-    let color: Color
-    
+
     @State private var showDetail = false
-    
+
+    private var hasValue: Bool {
+        !value.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
     var body: some View {
-        Button(action: {
-            showDetail = true
-        }) {
+        Button { showDetail = true } label: {
             VStack(spacing: 6) {
                 ZStack {
                     Circle()
-                        .fill(DesignSystem.Colors.surface)
-                        .frame(width: 46, height: 46)
-                        .overlay(Circle().stroke(Color.white.opacity(0.07), lineWidth: 0.5))
-                    
-                    Image(systemName: icon)
-                        .font(.app(size: 18, weight: .bold))
-                        .foregroundColor(color)
+                        .fill(hasValue ? DesignSystem.Colors.alpenglowSoft : DesignSystem.Colors.surfaceWarm)
+                        .frame(width: 48, height: 48)
+                    glyph
+                        .foregroundStyle(hasValue
+                                         ? DesignSystem.Colors.alpenglow
+                                         : DesignSystem.Colors.inkFaintWarm)
+                        .frame(width: 22, height: 22)
                 }
-                
+
                 VStack(spacing: 2) {
                     Text(value)
-                        .font(.app(size: 11, weight: .bold))
-                        .foregroundColor(.white)
+                        .font(DesignSystem.Typography.kickerInter.weight(.semibold))
+                        .foregroundStyle(DesignSystem.Colors.inkWarm)
                         .lineLimit(1)
-                        .frame(width: 80)
-                    
-                    Text(label.uppercased())
-                        .font(.app(size: 9, weight: .black))
-                        .foregroundColor(.gray)
-                        .tracking(1)
+                        .frame(width: 84)
+                    Text(label)
+                        .font(DesignSystem.Typography.kickerInter)
+                        .foregroundStyle(DesignSystem.Colors.inkFaintWarm)
                 }
             }
         }
         .buttonStyle(.plain)
         .sheet(isPresented: $showDetail) {
-            VStack(spacing: 20) {
-                Image(systemName: icon)
-                    .font(.app(size: 60))
-                    .foregroundColor(color)
-                    .padding(.top, 40)
-                
-                Text(label.uppercased())
-                    .font(.app(size: 14, weight: .black))
-                    .foregroundColor(.gray)
-                    .tracking(2)
-                
-                Text(value)
-                    .font(.app(size: 28, weight: .bold))
-                
-                Text("This is a preview of the equipment detail view. In the future, you will be able to select and change your \(label) gear from a vast library of items here.")
-                    .font(.app(size: 15))
-                    .multilineTextAlignment(.center)
-                    .foregroundColor(.gray)
-                    .padding(.horizontal, 30)
-                    .padding(.top, 10)
-                
-                Spacer()
+            ZStack {
+                DesignSystem.Colors.paperWarm.ignoresSafeArea()
+
+                VStack(spacing: DesignSystem.Spacing.md) {
+                    ZStack {
+                        Circle()
+                            .fill(DesignSystem.Colors.alpenglowSoft)
+                            .frame(width: 80, height: 80)
+                        glyph
+                            .foregroundStyle(DesignSystem.Colors.alpenglow)
+                            .frame(width: 36, height: 36)
+                    }
+                    .padding(.top, DesignSystem.Spacing.xl)
+
+                    Text(label)
+                        .font(DesignSystem.Typography.kickerInter)
+                        .tracking(0.5)
+                        .foregroundStyle(DesignSystem.Colors.inkFaintWarm)
+
+                    Text(value)
+                        .font(DesignSystem.Typography.title2Inter)
+                        .foregroundStyle(DesignSystem.Colors.inkWarm)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, DesignSystem.Spacing.lg)
+
+                    Text("Item picker coming soon — you'll be able to set your \(label.lowercased()) gear from a curated library.")
+                        .font(DesignSystem.Typography.bodyInter)
+                        .foregroundStyle(DesignSystem.Colors.inkWarm.opacity(0.62))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, DesignSystem.Spacing.xl)
+                        .padding(.top, DesignSystem.Spacing.xs)
+
+                    Spacer()
+                }
             }
             .presentationDetents([.fraction(0.45)])
-            .preferredColorScheme(.dark)
         }
     }
 }
@@ -2007,7 +1984,6 @@ struct AllAchievementsSheet: View {
             .sheet(item: $selectedAchievement) { achievement in
                 AchievementDetailSheet(achievement: achievement)
                     .presentationDetents([.medium])
-                    .preferredColorScheme(.dark)
             }
         }
     }

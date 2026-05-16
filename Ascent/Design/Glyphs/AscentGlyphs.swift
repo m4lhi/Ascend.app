@@ -171,6 +171,162 @@ struct RouteGlyph: View {
     }
 }
 
+// MARK: - Equipment Slot Glyphs
+
+/// Mountaineering helmet — domed silhouette with chin strap
+struct HeadGlyph: View {
+    var body: some View {
+        Path { p in
+            p.move(to: CGPoint(x: 4, y: 16))
+            p.addQuadCurve(to: CGPoint(x: 20, y: 16),
+                          control: CGPoint(x: 12, y: 3))
+            p.move(to: CGPoint(x: 4, y: 16))
+            p.addLine(to: CGPoint(x: 20, y: 16))
+            p.move(to: CGPoint(x: 8, y: 12))
+            p.addLine(to: CGPoint(x: 16, y: 12))
+        }
+        .stroke(style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
+        .frame(width: 24, height: 24)
+    }
+}
+
+/// Alpine jacket — silhouette with V-collar and zipper
+struct JacketGlyph: View {
+    var body: some View {
+        Path { p in
+            p.move(to: CGPoint(x: 8, y: 7))
+            p.addLine(to: CGPoint(x: 4, y: 11))
+            p.addLine(to: CGPoint(x: 4, y: 20))
+            p.addLine(to: CGPoint(x: 20, y: 20))
+            p.addLine(to: CGPoint(x: 20, y: 11))
+            p.addLine(to: CGPoint(x: 16, y: 7))
+            p.move(to: CGPoint(x: 8, y: 7))
+            p.addLine(to: CGPoint(x: 12, y: 11))
+            p.addLine(to: CGPoint(x: 16, y: 7))
+            p.move(to: CGPoint(x: 12, y: 11))
+            p.addLine(to: CGPoint(x: 12, y: 20))
+        }
+        .stroke(style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
+        .frame(width: 24, height: 24)
+    }
+}
+
+/// Climbing pants — inverted U with split legs
+struct PantsGlyph: View {
+    var body: some View {
+        Path { p in
+            p.move(to: CGPoint(x: 6, y: 5))
+            p.addLine(to: CGPoint(x: 18, y: 5))
+            p.addLine(to: CGPoint(x: 17, y: 20))
+            p.addLine(to: CGPoint(x: 13, y: 20))
+            p.addLine(to: CGPoint(x: 12, y: 10))
+            p.addLine(to: CGPoint(x: 11, y: 20))
+            p.addLine(to: CGPoint(x: 7, y: 20))
+            p.closeSubpath()
+        }
+        .stroke(style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
+        .frame(width: 24, height: 24)
+    }
+}
+
+/// Backpack — rounded rectangle with top handle and pocket divider
+struct PackGlyph: View {
+    var body: some View {
+        Path { p in
+            p.addRoundedRect(in: CGRect(x: 6, y: 6, width: 12, height: 14),
+                            cornerSize: CGSize(width: 2.5, height: 2.5))
+            p.move(to: CGPoint(x: 10, y: 6))
+            p.addLine(to: CGPoint(x: 10, y: 4))
+            p.addLine(to: CGPoint(x: 14, y: 4))
+            p.addLine(to: CGPoint(x: 14, y: 6))
+            p.move(to: CGPoint(x: 8, y: 13))
+            p.addLine(to: CGPoint(x: 16, y: 13))
+        }
+        .stroke(style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
+        .frame(width: 24, height: 24)
+    }
+}
+
+/// Mountaineering boots — L-shape with shaft and sole
+struct BootsGlyph: View {
+    var body: some View {
+        Path { p in
+            p.move(to: CGPoint(x: 8, y: 4))
+            p.addLine(to: CGPoint(x: 13, y: 4))
+            p.addLine(to: CGPoint(x: 13, y: 13))
+            p.addLine(to: CGPoint(x: 20, y: 13))
+            p.addQuadCurve(to: CGPoint(x: 20, y: 17),
+                          control: CGPoint(x: 22, y: 15))
+            p.addLine(to: CGPoint(x: 8, y: 17))
+            p.closeSubpath()
+            p.move(to: CGPoint(x: 7, y: 19))
+            p.addLine(to: CGPoint(x: 21, y: 19))
+        }
+        .stroke(style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
+        .frame(width: 24, height: 24)
+    }
+}
+
+/// Carabiner — D-shape with gate notch (Extras slot)
+struct ExtrasGlyph: View {
+    var body: some View {
+        ZStack {
+            Path { p in
+                p.move(to: CGPoint(x: 8, y: 5))
+                p.addLine(to: CGPoint(x: 13, y: 5))
+                p.addQuadCurve(to: CGPoint(x: 19, y: 12),
+                              control: CGPoint(x: 19, y: 5))
+                p.addQuadCurve(to: CGPoint(x: 13, y: 19),
+                              control: CGPoint(x: 19, y: 19))
+                p.addLine(to: CGPoint(x: 8, y: 19))
+                p.closeSubpath()
+            }
+            .stroke(style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
+
+            Path { p in
+                p.move(to: CGPoint(x: 8, y: 11))
+                p.addLine(to: CGPoint(x: 10, y: 13))
+            }
+            .stroke(style: StrokeStyle(lineWidth: 1.5, lineCap: .round))
+        }
+        .frame(width: 24, height: 24)
+    }
+}
+
+/// Generic equipment icon — reused for section header
+struct EquipmentGlyph: View {
+    var body: some View {
+        PackGlyph()
+    }
+}
+
+/// Trophy/cup — Achievements preview
+struct TrophyGlyph: View {
+    var body: some View {
+        Path { p in
+            p.move(to: CGPoint(x: 7, y: 5))
+            p.addLine(to: CGPoint(x: 17, y: 5))
+            p.addQuadCurve(to: CGPoint(x: 14, y: 14),
+                          control: CGPoint(x: 18, y: 11))
+            p.addLine(to: CGPoint(x: 10, y: 14))
+            p.addQuadCurve(to: CGPoint(x: 7, y: 5),
+                          control: CGPoint(x: 6, y: 11))
+            p.move(to: CGPoint(x: 17, y: 7))
+            p.addQuadCurve(to: CGPoint(x: 17, y: 11),
+                          control: CGPoint(x: 20, y: 9))
+            p.move(to: CGPoint(x: 7, y: 7))
+            p.addQuadCurve(to: CGPoint(x: 7, y: 11),
+                          control: CGPoint(x: 4, y: 9))
+            p.move(to: CGPoint(x: 12, y: 14))
+            p.addLine(to: CGPoint(x: 12, y: 18))
+            p.move(to: CGPoint(x: 9, y: 18))
+            p.addLine(to: CGPoint(x: 15, y: 18))
+        }
+        .stroke(style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
+        .frame(width: 24, height: 24)
+    }
+}
+
 // MARK: - Milestone (5-point star outline)
 
 struct MilestoneGlyph: View {
