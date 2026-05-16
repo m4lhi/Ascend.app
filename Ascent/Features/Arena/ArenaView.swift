@@ -113,7 +113,8 @@ struct ArenaView: View {
             .buttonStyle(.plain)
         }
         .padding(.horizontal, DesignSystem.Spacing.lg)
-        .padding(.top, DesignSystem.Spacing.sm)
+        .padding(.top, DesignSystem.Spacing.lg)
+        .padding(.bottom, DesignSystem.Spacing.md)
     }
 
     private var subtitleForCurrentScope: String {
@@ -392,6 +393,22 @@ struct TimeFilter: View {
 }
 
 // =========================================
+// MARK: - Avatar rotation helper
+// =========================================
+
+/// Pick one of the three mood assets deterministically from a handle
+/// so each user has a consistent fallback avatar (and the list reads
+/// varied instead of three rows of the same character). Sum of UTF-8
+/// bytes is stable across app launches — Swift's String.hashValue is
+/// randomized per process and would not be.
+fileprivate func fallbackAvatarName(for handle: String) -> String {
+    let assets = ["hero-ready", "hero-rest", "hero-caution"]
+    let normalized = handle.lowercased()
+    let sum = normalized.utf8.reduce(0) { $0 + Int($1) }
+    return assets[sum % assets.count]
+}
+
+// =========================================
 // MARK: - Podium (Top 3)
 // =========================================
 
@@ -464,16 +481,16 @@ struct AlpinistPodium: View {
                 case .success(let img):
                     img.resizable().scaledToFill()
                 default:
-                    fallbackAvatar
+                    fallbackAvatar(for: profile.handle)
                 }
             }
         } else {
-            fallbackAvatar
+            fallbackAvatar(for: profile.handle)
         }
     }
 
-    private var fallbackAvatar: some View {
-        Image("hero-ready")
+    private func fallbackAvatar(for handle: String) -> some View {
+        Image(fallbackAvatarName(for: handle))
             .resizable()
             .scaledToFit()
             .background(DesignSystem.Colors.paperWarm)
@@ -575,17 +592,18 @@ struct AlpinistRow: View {
 
     @ViewBuilder
     private var avatarView: some View {
+        let fallbackName = fallbackAvatarName(for: profile.handle)
         if let url = profile.avatar_url, let parsed = URL(string: url), !url.isEmpty {
             AsyncImage(url: parsed) { phase in
                 switch phase {
                 case .success(let img):
                     img.resizable().scaledToFill()
                 default:
-                    Image("hero-ready").resizable().scaledToFit()
+                    Image(fallbackName).resizable().scaledToFit()
                 }
             }
         } else {
-            Image("hero-ready").resizable().scaledToFit()
+            Image(fallbackName).resizable().scaledToFit()
         }
     }
 }
