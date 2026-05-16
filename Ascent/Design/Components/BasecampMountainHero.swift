@@ -46,24 +46,40 @@ struct BasecampMountainHero: View {
             sunDisc
                 .offset(y: sunDrift)
 
-            // Layer 3: back mountains — atmospheric, very faint
+            // Layer 3: back mountains — atmospheric haze
             MountainSilhouetteShape(layer: .back)
-                .fill(DesignSystem.Colors.glacierDeep.opacity(0.22))
+                .fill(DesignSystem.Colors.glacierDeep.opacity(0.14))
                 .scaleEffect(x: 1.0, y: atmospherePulse, anchor: .bottom)
                 .opacity(hasAppeared ? 1.0 : 0.0)
                 .animation(.easeOut(duration: 1.2).delay(0.1), value: hasAppeared)
 
             // Layer 4: middle mountains — glacier tint
             MountainSilhouetteShape(layer: .middle)
-                .fill(DesignSystem.Colors.glacierDeep.opacity(0.55))
+                .fill(DesignSystem.Colors.glacierDeep.opacity(0.32))
                 .opacity(hasAppeared ? 1.0 : 0.0)
                 .animation(.easeOut(duration: 1.2).delay(0.3), value: hasAppeared)
 
-            // Layer 5: front mountains — dark granite, sharpest
+            // Layer 5: front mountains — warm slate silhouette, not a
+            // black stone block. inkWarm @ 0.55 reads soft-dark-warm.
             MountainSilhouetteShape(layer: .front)
-                .fill(DesignSystem.Colors.granite.opacity(0.92))
+                .fill(DesignSystem.Colors.inkWarm.opacity(0.55))
                 .opacity(hasAppeared ? 1.0 : 0.0)
                 .animation(.easeOut(duration: 1.2).delay(0.5), value: hasAppeared)
+
+            // Layer 6: bottom fade — last 70pt melt into paperWarm so
+            // the hero glides into the page bg without a hard seam.
+            LinearGradient(
+                colors: [
+                    DesignSystem.Colors.paperWarm.opacity(0),
+                    DesignSystem.Colors.paperWarm.opacity(0.35),
+                    DesignSystem.Colors.paperWarm
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .frame(height: 70)
+            .frame(maxHeight: .infinity, alignment: .bottom)
+            .allowsHitTesting(false)
         }
         .frame(height: 200)
         .frame(maxWidth: .infinity)
@@ -126,42 +142,44 @@ struct MountainSilhouetteShape: Shape {
     enum Layer {
         case back, middle, front
 
-        /// Normalized peak coordinates (x, y in 0..1). Y from top (0)
-        /// to bottom (1) — smaller y = taller peak.
+        /// Normalized peak coordinates (x, y). X is allowed to go
+        /// outside 0..1 so the ridgelines visually continue past the
+        /// frame edges — the parent ZStack's .clipped() handles the
+        /// trim. Y is from top (0) to bottom (1) — smaller y = taller.
         var peaks: [(x: CGFloat, y: CGFloat)] {
             switch self {
             case .back:
                 return [
-                    (0.00, 0.55),
-                    (0.18, 0.32),
-                    (0.35, 0.48),
-                    (0.52, 0.22),
-                    (0.70, 0.45),
-                    (0.85, 0.30),
-                    (1.00, 0.50)
+                    (-0.10, 0.55),
+                    ( 0.10, 0.32),
+                    ( 0.30, 0.48),
+                    ( 0.50, 0.22),
+                    ( 0.70, 0.45),
+                    ( 0.90, 0.30),
+                    ( 1.10, 0.50)
                 ]
             case .middle:
                 return [
-                    (0.00, 0.70),
-                    (0.13, 0.42),
-                    (0.28, 0.58),
-                    (0.42, 0.30),
-                    (0.55, 0.52),
-                    (0.70, 0.35),
-                    (0.86, 0.48),
-                    (1.00, 0.62)
+                    (-0.10, 0.70),
+                    ( 0.08, 0.42),
+                    ( 0.25, 0.58),
+                    ( 0.40, 0.30),
+                    ( 0.55, 0.52),
+                    ( 0.72, 0.35),
+                    ( 0.88, 0.48),
+                    ( 1.10, 0.62)
                 ]
             case .front:
                 return [
-                    (0.00, 0.85),
-                    (0.10, 0.55),
-                    (0.22, 0.72),
-                    (0.35, 0.40),
-                    (0.48, 0.66),
-                    (0.62, 0.32),
-                    (0.78, 0.60),
-                    (0.92, 0.48),
-                    (1.00, 0.75)
+                    (-0.10, 0.85),
+                    ( 0.08, 0.55),
+                    ( 0.22, 0.72),
+                    ( 0.36, 0.40),
+                    ( 0.50, 0.66),
+                    ( 0.65, 0.32),
+                    ( 0.80, 0.60),
+                    ( 0.94, 0.48),
+                    ( 1.10, 0.75)
                 ]
             }
         }
@@ -185,7 +203,9 @@ struct MountainSilhouetteShape: Shape {
         }
         let smoothness = layer.smoothness
 
-        path.move(to: CGPoint(x: 0, y: rect.height))
+        // Start at the bottom directly under the first peak — may be
+        // off the left edge, which is fine because the parent clips.
+        path.move(to: CGPoint(x: pts.first!.x, y: rect.height))
         path.addLine(to: pts[0])
 
         for i in 1..<pts.count {
@@ -200,7 +220,9 @@ struct MountainSilhouetteShape: Shape {
             )
         }
 
-        path.addLine(to: CGPoint(x: rect.width, y: rect.height))
+        // Close at the bottom directly under the last peak — also
+        // possibly past the right edge.
+        path.addLine(to: CGPoint(x: pts.last!.x, y: rect.height))
         path.closeSubpath()
         return path
     }
