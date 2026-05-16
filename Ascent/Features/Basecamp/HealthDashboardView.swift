@@ -122,7 +122,7 @@ struct HealthDashboardView: View {
                 .adaptiveSheetBackground()
         }
         .sheet(isPresented: $showExtendedReadiness) {
-            SummitReadinessExtendedView()
+            SummitReadinessScreen()
                 .environmentObject(appState)
                 .presentationCornerRadius(36)
                 .adaptiveSheetBackground()
