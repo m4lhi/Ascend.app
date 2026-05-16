@@ -1824,24 +1824,95 @@ struct EquipmentLockerView: View {
     let equipment: Equipment
 
     var body: some View {
-        VStack(spacing: DesignSystem.Spacing.lg) {
-            // Body-style layout: head top, jacket+pack middle, pants+extras lower, boots bottom.
-            EquipmentSlot(glyph: AnyView(HeadGlyph()), label: "Head", value: equipment.head)
+        ZStack {
+            // Background: subtle outline silhouette so slots visually
+            // anchor to body parts (head / torso / hips / feet).
+            MountaineerSilhouette()
+                .stroke(
+                    DesignSystem.Colors.inkFaintWarm.opacity(0.30),
+                    style: StrokeStyle(lineWidth: 1.0, lineCap: .round, lineJoin: .round)
+                )
+                .frame(width: 220, height: 300)
 
-            HStack(spacing: DesignSystem.Spacing.xxl) {
+            // Foreground: slot grid positioned on the body landmarks.
+            // Order: Head → Jacket (torso) → Extras left + Pack right
+            // (waist) → Pants (legs) → Boots (feet).
+            VStack(spacing: DesignSystem.Spacing.md) {
+                EquipmentSlot(glyph: AnyView(HeadGlyph()), label: "Head", value: equipment.head)
                 EquipmentSlot(glyph: AnyView(JacketGlyph()), label: "Jacket", value: equipment.jacket)
-                EquipmentSlot(glyph: AnyView(PackGlyph()), label: "Pack", value: equipment.backpack)
-            }
 
-            HStack(spacing: DesignSystem.Spacing.xxl) {
+                HStack(spacing: DesignSystem.Spacing.xxl + DesignSystem.Spacing.sm) {
+                    EquipmentSlot(glyph: AnyView(ExtrasGlyph()), label: "Extras", value: equipment.extras)
+                    EquipmentSlot(glyph: AnyView(PackGlyph()), label: "Pack", value: equipment.backpack)
+                }
+
                 EquipmentSlot(glyph: AnyView(PantsGlyph()), label: "Pants", value: equipment.pants)
-                EquipmentSlot(glyph: AnyView(ExtrasGlyph()), label: "Extras", value: equipment.extras)
+                EquipmentSlot(glyph: AnyView(BootsGlyph()), label: "Boots", value: equipment.boots)
             }
-
-            EquipmentSlot(glyph: AnyView(BootsGlyph()), label: "Boots", value: equipment.boots)
         }
-        .padding(.vertical, DesignSystem.Spacing.lg)
-        .padding(.horizontal, DesignSystem.Spacing.lg)
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, DesignSystem.Spacing.md)
+    }
+}
+
+// MARK: - Mountaineer silhouette
+
+/// Subtle outline of a standing figure rendered behind the
+/// equipment slot grid. Stroke-only, designed to read as a
+/// "ghosted" anchor rather than a foreground illustration.
+struct MountaineerSilhouette: Shape {
+    func path(in rect: CGRect) -> Path {
+        var p = Path()
+        let w = rect.width
+        let h = rect.height
+
+        // Head — small circle at the top
+        let headDiameter = w * 0.18
+        let headCenterX = w * 0.5
+        let headCenterY = h * 0.10
+        p.addEllipse(in: CGRect(
+            x: headCenterX - headDiameter / 2,
+            y: headCenterY - headDiameter / 2,
+            width: headDiameter,
+            height: headDiameter
+        ))
+
+        // Torso — rounded rect under the head
+        let torsoW = w * 0.32
+        let torsoH = h * 0.30
+        let torsoX = w * 0.5 - torsoW / 2
+        let torsoY = headCenterY + headDiameter / 2 + h * 0.03
+        p.addRoundedRect(
+            in: CGRect(x: torsoX, y: torsoY, width: torsoW, height: torsoH),
+            cornerSize: CGSize(width: 14, height: 14)
+        )
+
+        // Arms — two diagonals out and down from the shoulders
+        let shoulderY = torsoY + h * 0.04
+        let armReach = w * 0.16
+        let armDrop = h * 0.18
+        p.move(to: CGPoint(x: torsoX, y: shoulderY))
+        p.addLine(to: CGPoint(x: torsoX - armReach, y: shoulderY + armDrop))
+        p.move(to: CGPoint(x: torsoX + torsoW, y: shoulderY))
+        p.addLine(to: CGPoint(x: torsoX + torsoW + armReach, y: shoulderY + armDrop))
+
+        // Legs — two capsules from hip down
+        let hipY = torsoY + torsoH
+        let legW = w * 0.08
+        let legH = h * 0.36
+        let gap: CGFloat = 4
+        let leftLegX = w * 0.5 - legW - gap
+        let rightLegX = w * 0.5 + gap
+        p.addRoundedRect(
+            in: CGRect(x: leftLegX, y: hipY, width: legW, height: legH),
+            cornerSize: CGSize(width: legW / 2, height: legW / 2)
+        )
+        p.addRoundedRect(
+            in: CGRect(x: rightLegX, y: hipY, width: legW, height: legH),
+            cornerSize: CGSize(width: legW / 2, height: legW / 2)
+        )
+
+        return p
     }
 }
 
