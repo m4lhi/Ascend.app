@@ -96,6 +96,28 @@ extension DesignSystem.Colors {
         light: Color(red: 0.118, green: 0.149, blue: 0.122),
         dark:  Color(red: 0.910, green: 0.918, blue: 0.882)
     )
+
+    /// Meadow — sage-green accent (HRV trend, calendar "great" days,
+    /// "Strong" check-in highlight). Darker / more saturated than the
+    /// sageCard background so it reads as an accent on the card itself.
+    static let meadow = Color.ascentAdaptive(
+        light: Color(red: 0.376, green: 0.561, blue: 0.392),
+        dark:  Color(red: 0.553, green: 0.745, blue: 0.561)
+    )
+
+    /// borderSubtle — ultra-thin warm divider on paperWarm and cards.
+    /// Use for capsule/strokes that should barely register.
+    static let borderSubtle = Color.ascentAdaptive(
+        light: Color.black.opacity(0.10),
+        dark:  Color.white.opacity(0.12)
+    )
+
+    /// alpenglowSoft — translucent warm wash used for tooltip /
+    /// info-bubble backgrounds. Sits on paperWarm or any pastel card.
+    static let alpenglowSoft = Color.ascentAdaptive(
+        light: Color(red: 0.910, green: 0.608, blue: 0.369).opacity(0.16),
+        dark:  Color(red: 0.941, green: 0.675, blue: 0.482).opacity(0.20)
+    )
 }
 
 // MARK: - Typography (Inter, with safe SF-Pro fallback)
