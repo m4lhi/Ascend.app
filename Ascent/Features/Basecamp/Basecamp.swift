@@ -938,97 +938,98 @@ struct BasecampView: View {
     }
 
     private var alpineWeatherWidget: some View {
-        let safetyColor: Color = {
-            guard let w = weather.currentWeather else { return .blue }
-            switch w.safetyLevel {
-            case .good:    return .green
-            case .caution: return .yellow
-            case .warning: return .orange
-            case .danger:  return .red
-            }
-        }()
+        let currentSafety = weather.currentWeather?.safetyLevel ?? .good
 
         return Button {
             HapticManager.shared.light()
             showAlpineWeather = true
         } label: {
-            VStack(alignment: .leading, spacing: 14) {
-                HStack {
-                    HStack(spacing: 8) {
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 11, style: .continuous)
-                                .fill(LinearGradient(colors: [safetyColor.opacity(0.28), safetyColor.opacity(0.10)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                                .frame(width: 36, height: 36)
-                            Image(systemName: "cloud.sun.fill")
-                                .font(.system(size: 16, weight: .semibold))
-                                .symbolRenderingMode(.multicolor)
-                        }
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text("ALPINE SAFETY")
-                                .font(.appMono(size: 9, weight: .bold))
-                                .foregroundColor(DesignSystem.Colors.secondaryText)
-                                .tracking(1.4)
-                            if let w = weather.currentWeather {
-                                Text(w.safetyLevel.label)
-                                    .font(.app(size: 13, weight: .black))
-                                    .foregroundColor(safetyColor)
-                            }
-                        }
-                    }
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+
+                HStack(spacing: DesignSystem.Spacing.xs) {
+                    WeatherGlyph()
+                        .foregroundStyle(DesignSystem.Colors.inkOnIce)
+                        .frame(width: 18, height: 18)
+                    Text("Alpine safety")
+                        .font(DesignSystem.Typography.kickerInter)
+                        .tracking(0.5)
+                        .foregroundStyle(DesignSystem.Colors.inkOnIce)
                     Spacer()
                     HStack(spacing: 4) {
-                        LivePulse()
-                        Text("LIVE")
-                            .font(.appMono(size: 8, weight: .bold))
-                            .foregroundColor(.red)
-                            .tracking(0.8)
+                        Circle()
+                            .fill(DesignSystem.Colors.ember)
+                            .frame(width: 5, height: 5)
+                            .modifier(BasecampLivePulseModifier())
+                        Text("Live")
+                            .font(DesignSystem.Typography.kickerInter)
+                            .foregroundStyle(DesignSystem.Colors.inkOnIce.opacity(0.72))
                     }
                 }
 
-                HStack(spacing: 0) {
-                    WeatherMetric(
-                        icon: "wind",
-                        value: weather.currentWeather.map { "\(Int($0.windSpeed))" } ?? "–",
-                        label: "km/h"
-                    )
-                    WeatherMetric(
-                        icon: "thermometer.low",
-                        value: weather.currentWeather.map { "\(Int($0.temperature))°" } ?? "–",
-                        label: "Temp"
-                    )
-                    WeatherMetric(
-                        icon: "drop.fill",
-                        value: weather.currentWeather.map { "\(Int($0.precipitationChance * 100))%" } ?? "–",
-                        label: "Precip"
-                    )
-                    WeatherMetric(
-                        icon: "eye",
-                        value: weather.currentWeather.map { String(format: "%.0fkm", $0.visibility) } ?? "–",
-                        label: "Vis."
-                    )
+                HStack(spacing: DesignSystem.Spacing.xs) {
+                    Text(currentSafety.sentenceLabel)
+                        .font(DesignSystem.Typography.title3Inter)
+                        .foregroundStyle(DesignSystem.Colors.inkOnIce)
+                    Circle()
+                        .fill(currentSafety.pastelColor)
+                        .frame(width: 8, height: 8)
                 }
-                .padding(.vertical, 12)
-                .background(Color.white.opacity(0.15))
-                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+
+                HStack(spacing: DesignSystem.Spacing.md) {
+                    weatherMetricInline(value: weather.currentWeather.map { "\(Int($0.windSpeed))" } ?? "–",
+                                        unit: "km/h",
+                                        label: "Wind")
+                    weatherMetricInline(value: weather.currentWeather.map { "\(Int($0.temperature))°" } ?? "–",
+                                        unit: "",
+                                        label: "Temp")
+                    weatherMetricInline(value: weather.currentWeather.map { "\(Int($0.precipitationChance * 100))%" } ?? "–",
+                                        unit: "",
+                                        label: "Rain")
+                    weatherMetricInline(value: weather.currentWeather.map { String(format: "%.0f", $0.visibility) } ?? "–",
+                                        unit: "km",
+                                        label: "Vis")
+                }
+                .padding(.vertical, DesignSystem.Spacing.sm)
 
                 HStack(spacing: 6) {
-                    Image(systemName: "map.fill")
-                        .font(.system(size: 10))
-                        .foregroundColor(DesignSystem.Colors.secondaryText)
-                    Text("Open live weather map")
-                        .font(.app(size: 12))
-                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                    Text("Open weather map")
+                        .font(DesignSystem.Typography.kickerInter)
+                        .foregroundStyle(DesignSystem.Colors.inkOnIce.opacity(0.72))
                     Spacer()
                     Image(systemName: "chevron.right")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundColor(.secondary.opacity(0.5))
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(DesignSystem.Colors.inkOnIce.opacity(0.45))
                 }
             }
-            .padding(18)
+            .padding(DesignSystem.Spacing.lg)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .pastelCard(.ice, applyForeground: false)
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.cardSoft, style: .continuous)
+                    .fill(DesignSystem.Colors.iceGlacierCard)
+            )
         }
         .buttonStyle(PressableButtonStyle())
+    }
+
+    @ViewBuilder
+    private func weatherMetricInline(value: String, unit: String, label: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(alignment: .firstTextBaseline, spacing: 1) {
+                Text(value)
+                    .font(DesignSystem.Typography.title3Inter)
+                    .foregroundStyle(DesignSystem.Colors.inkOnIce)
+                    .monospacedDigit()
+                if !unit.isEmpty {
+                    Text(unit)
+                        .font(DesignSystem.Typography.kickerInter)
+                        .foregroundStyle(DesignSystem.Colors.inkOnIce.opacity(0.62))
+                }
+            }
+            Text(label)
+                .font(DesignSystem.Typography.kickerInter)
+                .foregroundStyle(DesignSystem.Colors.inkOnIce.opacity(0.62))
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var readinessColor: Color {
@@ -1784,6 +1785,22 @@ struct WeeklyObjectiveCard: View {
         }
         .padding(16).frame(maxWidth: .infinity)
         .background(DesignSystem.Colors.surface).cornerRadius(16)
+    }
+}
+
+// MARK: - Live-indicator pulse for the weather widget
+
+fileprivate struct BasecampLivePulseModifier: ViewModifier {
+    @State private var pulsing = false
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(pulsing ? 1.0 : 0.4)
+            .animation(
+                .easeInOut(duration: 1.2).repeatForever(autoreverses: true),
+                value: pulsing
+            )
+            .onAppear { pulsing = true }
     }
 }
 

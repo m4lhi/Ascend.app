@@ -136,6 +136,14 @@ extension DesignSystem.Colors {
         dark:  Color(red: 0.357, green: 0.663, blue: 0.753).opacity(0.20)
     )
 
+    /// meadowSoft — translucent sage-green wash. Sister to
+    /// alpenglowSoft / glacierSoft. Used for "good conditions"
+    /// safety badges and other reassuring-state backgrounds.
+    static let meadowSoft = Color.ascentAdaptive(
+        light: Color(red: 0.376, green: 0.561, blue: 0.392).opacity(0.16),
+        dark:  Color(red: 0.553, green: 0.745, blue: 0.561).opacity(0.20)
+    )
+
     /// surfaceWarm — slight tint above paperWarm. For trough/track
     /// elements (scope-selector background, sub-divider rows) that
     /// need to read as one level deeper without going dark.
