@@ -72,6 +72,13 @@ extension DesignSystem.Colors {
         dark:  Color(red: 0.357, green: 0.663, blue: 0.753)
     )
 
+    /// Ember — sparingly used danger / caution accent. Per the design
+    /// system constitution: #C44A3F light / #E47A6A dark.
+    static let ember = Color.ascentAdaptive(
+        light: Color(red: 0.769, green: 0.290, blue: 0.247),
+        dark:  Color(red: 0.894, green: 0.478, blue: 0.416)
+    )
+
     /// Alpenglow — warmer Akzent (Ready / Featured CTA).
     static let alpenglow = Color.ascentAdaptive(
         light: Color(red: 0.910, green: 0.608, blue: 0.369),
