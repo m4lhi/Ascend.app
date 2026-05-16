@@ -197,7 +197,7 @@ struct HealthDashboardView: View {
             }
 
             Spacer().frame(height: DesignSystem.Spacing.sm)
-            ReadinessHero(mood: heroMood)
+            BasecampMountainHero(mood: mountainMood)
             Spacer().frame(height: DesignSystem.Spacing.lg)
 
             Text("Hi \(greetingFirstName),")
@@ -218,9 +218,10 @@ struct HealthDashboardView: View {
         }
     }
 
-    /// Maps the current readiness score to the ReadinessHero mood family
-    /// (drives the glow color). Defaults to .ready when no score yet.
-    private var heroMood: ReadinessHero.Mood {
+    /// Maps the current readiness score to the BasecampMountainHero mood
+    /// family (drives the sun colour). Defaults to .ready when no score
+    /// yet — same bands the legacy ReadinessHero used.
+    private var mountainMood: BasecampMountainHero.Mood {
         guard let score = readinessVM.readiness?.totalScore else { return .ready }
         if score > 70 { return .ready }
         if score > 45 { return .moderate }
