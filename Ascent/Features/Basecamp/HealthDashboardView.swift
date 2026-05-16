@@ -164,7 +164,7 @@ struct HealthDashboardView: View {
             .presentationBackgroundInteraction(.enabled(upThrough: .large))
         }
         .sheet(isPresented: $showAllActivities) {
-            AllActivitiesView()
+            ToursView()
                 .presentationCornerRadius(36)
                 .adaptiveSheetBackground()
                 .presentationBackgroundInteraction(.enabled(upThrough: .large))

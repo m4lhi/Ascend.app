@@ -158,7 +158,7 @@ struct BasecampView: View {
             }
         }
         .sheet(isPresented: $showAllActivities) {
-            AllActivitiesView()
+            ToursView()
                 .presentationCornerRadius(36)
                 .adaptiveSheetBackground()
                 .presentationBackgroundInteraction(.enabled(upThrough: .large))
@@ -1458,58 +1458,110 @@ struct StatColumn: View {
 }
 
 // =========================================
-// MARK: - All Activities
+// MARK: - Tours sheet
 // =========================================
 
-struct AllActivitiesView: View {
+struct ToursView: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var feedVM: FeedViewModel
     @Environment(\.dismiss) var dismiss
 
     var body: some View {
-        NavigationView {
-            ScrollView(showsIndicators: false) {
-                LazyVStack(spacing: 12) {
-                    ForEach(feedVM.recentTours) { tour in
-                        ActivityCardView(tour: tour)
-                            .padding(.horizontal, 16)
-                            .onAppear {
-                                if tour.id == feedVM.recentTours.last?.id {
-                                    feedVM.loadNextFeedPage()
-                                }
+        NavigationStack {
+            ZStack {
+                DesignSystem.Colors.paperWarm.ignoresSafeArea()
+
+                ScrollView(showsIndicators: false) {
+                    if feedVM.recentTours.isEmpty {
+                        EmptyToursState(onStartTour: { dismiss() })
+                            .padding(.top, DesignSystem.Spacing.xxl)
+                    } else {
+                        LazyVStack(spacing: DesignSystem.Spacing.md) {
+                            ForEach(feedVM.recentTours) { tour in
+                                TourCard(tour: tour)
+                                    .padding(.horizontal, DesignSystem.Spacing.lg)
+                                    .onAppear {
+                                        if tour.id == feedVM.recentTours.last?.id {
+                                            feedVM.loadNextFeedPage()
+                                        }
+                                    }
                             }
-                    }
-                    if feedVM.isLoadingMoreFeed {
-                        ProgressView().tint(.gray).padding()
-                    }
-                    if !feedVM.hasMoreFeed && !feedVM.recentTours.isEmpty {
-                        Text("You've seen it all!")
-                            .font(.app(.caption))
-                            .foregroundColor(DesignSystem.Colors.secondaryText)
-                            .padding(.top, 10)
+
+                            if feedVM.isLoadingMoreFeed {
+                                ProgressView()
+                                    .tint(DesignSystem.Colors.inkWarm.opacity(0.62))
+                                    .padding(.vertical, DesignSystem.Spacing.lg)
+                            }
+
+                            if !feedVM.hasMoreFeed && !feedVM.recentTours.isEmpty {
+                                Text("You've reached the start of your journey")
+                                    .font(DesignSystem.Typography.kickerInter)
+                                    .foregroundStyle(DesignSystem.Colors.inkFaintWarm)
+                                    .padding(.vertical, DesignSystem.Spacing.lg)
+                            }
+                        }
+                        .padding(.vertical, DesignSystem.Spacing.md)
                     }
                 }
-                .padding(.top, 10)
-                .padding(.bottom, 40)
             }
-            .scrollContentBackground(.hidden)
-            .background(.clear)
-            .navigationTitle("All Activities")
+            .navigationTitle("Tours")
             .navigationBarTitleDisplayMode(.large)
-            .toolbarBackground(.hidden, for: .navigationBar)
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: { dismiss() }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.app(size: 22))
-                            .foregroundColor(DesignSystem.Colors.secondaryText)
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { dismiss() } label: {
+                        ZStack {
+                            Circle()
+                                .fill(DesignSystem.Colors.surfaceWarm)
+                                .frame(width: 32, height: 32)
+                            Image(systemName: "xmark")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(DesignSystem.Colors.inkWarm.opacity(0.62))
+                        }
                     }
+                    .buttonStyle(.plain)
                 }
             }
         }
-        .background(.clear)
-        .adaptiveSheetBackground()
         .presentationBackgroundInteraction(.enabled(upThrough: .large))
+    }
+}
+
+// MARK: - Empty state
+
+struct EmptyToursState: View {
+    let onStartTour: () -> Void
+
+    var body: some View {
+        VStack(spacing: DesignSystem.Spacing.md) {
+            Image("hero-ready")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 140, height: 165)
+
+            Text("No tours yet")
+                .font(DesignSystem.Typography.title2Inter)
+                .foregroundStyle(DesignSystem.Colors.inkWarm)
+
+            Text("Your first ascent is waiting.\nLog a hike or pick a peak from Discover.")
+                .font(DesignSystem.Typography.bodyInter)
+                .foregroundStyle(DesignSystem.Colors.inkWarm.opacity(0.62))
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, DesignSystem.Spacing.xl)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Button(action: onStartTour) {
+                Text("Start a tour")
+                    .font(DesignSystem.Typography.bodyEmphasisInter)
+                    .foregroundStyle(DesignSystem.Colors.inkOnSand)
+                    .padding(.vertical, DesignSystem.Spacing.sm)
+                    .padding(.horizontal, DesignSystem.Spacing.lg)
+                    .background(Capsule().fill(DesignSystem.Colors.alpenglow))
+            }
+            .buttonStyle(.plain)
+            .padding(.top, DesignSystem.Spacing.sm)
+        }
+        .padding(.vertical, DesignSystem.Spacing.xxl)
+        .frame(maxWidth: .infinity)
     }
 }
 
