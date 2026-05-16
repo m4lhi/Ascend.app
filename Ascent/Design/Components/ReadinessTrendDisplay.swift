@@ -42,17 +42,17 @@ struct ReadinessTrendDisplay: View {
             }
 
             HStack(spacing: DesignSystem.Spacing.sm) {
-                StatPill(
+                TrendStatPill(
                     label: "Highest",
                     value: highestScore.map { "\($0)" } ?? "—",
                     accentColor: DesignSystem.Colors.meadow
                 )
-                StatPill(
+                TrendStatPill(
                     label: "Average",
                     value: averageScore.map { "\($0)" } ?? "—",
                     accentColor: DesignSystem.Colors.glacierDeep
                 )
-                StatPill(
+                TrendStatPill(
                     label: "Streak",
                     value: streakDays > 0 ? "\(streakDays)d" : "—",
                     accentColor: DesignSystem.Colors.alpenglow
@@ -213,7 +213,7 @@ struct TrendSparkline: View {
 
 // MARK: - Stat Pill
 
-struct StatPill: View {
+struct TrendStatPill: View {
     let label: String
     let value: String
     let accentColor: Color
