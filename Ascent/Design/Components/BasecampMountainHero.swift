@@ -2,18 +2,19 @@ import SwiftUI
 
 // =========================================
 // === DATEI: BasecampMountainHero.swift ===
-// === Watercolor-image brand hero ===
+// === Image-asset brand hero (size-agnostic) ===
 // =========================================
 //
-// Replaces the vector silhouette + procedural sun hero from
-// iterations 6/7 with an AI-generated watercolor image asset. The
-// image carries the mountains, sun, and atmospheric haze; this
-// view just frames it, blends the bottom into paperWarm, and adds
-// a barely-there breathing animation.
+// Renders the watercolor / character hero asset for the Basecamp
+// main screen. Size is owned by the caller (.frame(...) on the
+// outside) so the same component works as a 110×130 portrait next
+// to the greeting OR as a full-width landscape banner — whichever
+// the layout calls for.
 //
-// Public API is unchanged: `BasecampMountainHero(mood:)` is still
-// the call site signature, so HealthDashboardView.swift does not
-// need to change.
+// All atmospheric framing (fixed height, bottom-fade gradient,
+// horizon blend) was removed in iteration 11 because the new
+// composition treats the hero as an L-shape companion to the
+// greeting block, not as a full-bleed banner.
 
 struct BasecampMountainHero: View {
     var mood: Mood = .ready
@@ -40,77 +41,40 @@ struct BasecampMountainHero: View {
     }
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-
-            // Layer 1: the watercolor image, pinned to the bottom so
-            // the natural mist/cream wash at the bottom of the asset
-            // stays in view.
-            Color.clear
-                .frame(height: 200)
-                .overlay(
-                    Image(mood.assetName)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(maxHeight: .infinity, alignment: .bottom)
-                        .scaleEffect(breathScale)
-                        .opacity(hasAppeared ? 1.0 : 0.0)
-                        .animation(.easeOut(duration: 1.4), value: hasAppeared),
-                    alignment: .bottom
-                )
-                .clipped()
-
-            // Layer 2: bottom blend — fade the last 70pt into paperWarm
-            // so the seam to the page bg disappears even if the asset's
-            // own bottom wash isn't an exact paperWarm match.
-            LinearGradient(
-                colors: [
-                    DesignSystem.Colors.paperWarm.opacity(0),
-                    DesignSystem.Colors.paperWarm.opacity(0.40),
-                    DesignSystem.Colors.paperWarm
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .frame(height: 70)
-            .frame(maxHeight: .infinity, alignment: .bottom)
-            .allowsHitTesting(false)
-        }
-        .frame(height: 200)
-        .frame(maxWidth: .infinity)
-        .clipped()
-        .onAppear {
-            hasAppeared = true
-
-            // Very subtle breathing — 1.015 reads more as a feeling
-            // than as visible motion.
-            withAnimation(
-                .easeInOut(duration: 6.0).repeatForever(autoreverses: true)
-            ) {
-                breathScale = 1.015
+        Image(mood.assetName)
+            .resizable()
+            .scaledToFit()
+            .scaleEffect(breathScale)
+            .opacity(hasAppeared ? 1.0 : 0.0)
+            .animation(.easeOut(duration: 1.4), value: hasAppeared)
+            .onAppear {
+                hasAppeared = true
+                withAnimation(
+                    .easeInOut(duration: 6.0).repeatForever(autoreverses: true)
+                ) {
+                    breathScale = 1.015
+                }
             }
-        }
     }
 }
 
 #if DEBUG
-#Preview("Ready") {
-    VStack(spacing: 0) {
-        BasecampMountainHero(mood: .ready)
-        Rectangle()
-            .fill(DesignSystem.Colors.paperWarm)
-            .frame(height: 200)
-    }
-    .background(DesignSystem.Colors.paperWarm)
+#Preview("Portrait 110×130") {
+    BasecampMountainHero(mood: .ready)
+        .frame(width: 110, height: 130)
+        .background(DesignSystem.Colors.paperWarm)
 }
 
-#Preview("Ready Dark") {
-    VStack(spacing: 0) {
-        BasecampMountainHero(mood: .ready)
-        Rectangle()
-            .fill(DesignSystem.Colors.paperWarm)
-            .frame(height: 200)
-    }
-    .background(DesignSystem.Colors.paperWarm)
-    .preferredColorScheme(.dark)
+#Preview("Full-width 200") {
+    BasecampMountainHero(mood: .ready)
+        .frame(height: 200)
+        .background(DesignSystem.Colors.paperWarm)
+}
+
+#Preview("Portrait Dark") {
+    BasecampMountainHero(mood: .ready)
+        .frame(width: 110, height: 130)
+        .background(DesignSystem.Colors.paperWarm)
+        .preferredColorScheme(.dark)
 }
 #endif

@@ -187,34 +187,48 @@ struct HealthDashboardView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .top) {
-                Text("\(weekdayLabel), \(dateLabel)")
-                    .font(DesignSystem.Typography.kickerInter)
-                    .tracking(0.5)
-                    .foregroundStyle(DesignSystem.Colors.inkFaintWarm)
+
+            // Top row: profile button on its own, right-aligned.
+            HStack {
                 Spacer()
                 profileButton
             }
 
-            Spacer().frame(height: DesignSystem.Spacing.sm)
-            BasecampMountainHero(mood: mountainMood)
-            Spacer().frame(height: DesignSystem.Spacing.lg)
+            // L-shape: hero portrait left, date + greeting right.
+            HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+                BasecampMountainHero(mood: mountainMood)
+                    .frame(width: 110, height: 130)
 
-            Text("Hi \(greetingFirstName),")
-                .font(DesignSystem.Typography.bodyInter)
-                .foregroundStyle(DesignSystem.Colors.inkWarm.opacity(0.62))
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                    Text("\(weekdayLabel), \(dateLabel)")
+                        .font(DesignSystem.Typography.kickerInter)
+                        .tracking(0.5)
+                        .foregroundStyle(DesignSystem.Colors.inkFaintWarm)
+
+                    Text("Hi \(greetingFirstName),")
+                        .font(DesignSystem.Typography.bodyEmphasisInter)
+                        .foregroundStyle(DesignSystem.Colors.inkWarm.opacity(0.72))
+                }
+                .padding(.top, DesignSystem.Spacing.lg)
+
+                Spacer()
+            }
+            .padding(.top, DesignSystem.Spacing.sm)
+
+            // Editorial title + body, full-width below the L.
             Text(editorialTitle)
                 .font(DesignSystem.Typography.title1Inter)
                 .foregroundStyle(DesignSystem.Colors.inkWarm)
                 .fixedSize(horizontal: false, vertical: true)
                 .lineSpacing(2)
-                .padding(.top, 10)
+                .padding(.top, DesignSystem.Spacing.md)
+
             Text(narrativeBody)
                 .font(DesignSystem.Typography.bodyInter)
                 .foregroundStyle(DesignSystem.Colors.inkWarm.opacity(0.72))
                 .fixedSize(horizontal: false, vertical: true)
                 .lineSpacing(3)
-                .padding(.top, 14)
+                .padding(.top, DesignSystem.Spacing.sm)
         }
     }
 
