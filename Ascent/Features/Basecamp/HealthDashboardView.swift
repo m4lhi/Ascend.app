@@ -186,22 +186,23 @@ struct HealthDashboardView: View {
     // MARK: - Header
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
 
-            // Top row: profile button on its own, right-aligned.
+            // Top row: profile button alone, right-aligned.
             HStack {
                 Spacer()
                 profileButton
             }
 
-            // L-shape: hero portrait left, date + greeting right.
-            HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+            // Header unit: companion-sized character + date + greeting,
+            // bound by a barely-there warm tint so they read as one block.
+            HStack(alignment: .center, spacing: DesignSystem.Spacing.sm) {
                 BasecampMountainHero(mood: mountainMood)
-                    .frame(width: 110, height: 130)
+                    .frame(width: 80, height: 95)
                     .id(mountainMood)
                     .animation(.easeInOut(duration: 0.4), value: mountainMood)
 
-                VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                VStack(alignment: .leading, spacing: 3) {
                     Text("\(weekdayLabel), \(dateLabel)")
                         .font(DesignSystem.Typography.kickerInter)
                         .tracking(0.5)
@@ -211,27 +212,33 @@ struct HealthDashboardView: View {
                         .font(DesignSystem.Typography.bodyEmphasisInter)
                         .foregroundStyle(DesignSystem.Colors.inkWarm.opacity(0.72))
                 }
-                .padding(.top, DesignSystem.Spacing.lg)
 
                 Spacer()
             }
-            .padding(.top, DesignSystem.Spacing.sm)
+            .padding(.horizontal, DesignSystem.Spacing.md)
+            .padding(.vertical, DesignSystem.Spacing.sm)
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.cardSoft, style: .continuous)
+                    .fill(DesignSystem.Colors.alpenglowSoft.opacity(0.35))
+            )
 
-            // Editorial title + body, full-width below the L.
-            Text(editorialTitle)
-                .font(DesignSystem.Typography.title1Inter)
-                .foregroundStyle(DesignSystem.Colors.inkWarm)
-                .fixedSize(horizontal: false, vertical: true)
-                .lineSpacing(2)
-                .padding(.top, DesignSystem.Spacing.md)
+            // Editorial title + body, full-width with their own breathing room.
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                Text(editorialTitle)
+                    .font(DesignSystem.Typography.title1Inter)
+                    .foregroundStyle(DesignSystem.Colors.inkWarm)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .lineSpacing(2)
 
-            Text(narrativeBody)
-                .font(DesignSystem.Typography.bodyInter)
-                .foregroundStyle(DesignSystem.Colors.inkWarm.opacity(0.72))
-                .fixedSize(horizontal: false, vertical: true)
-                .lineSpacing(3)
-                .padding(.top, DesignSystem.Spacing.sm)
+                Text(narrativeBody)
+                    .font(DesignSystem.Typography.bodyInter)
+                    .foregroundStyle(DesignSystem.Colors.inkWarm.opacity(0.72))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .lineSpacing(3)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .padding(.top, DesignSystem.Spacing.sm)
     }
 
     /// Hero mood. Subjective check-in answer wins when present —
