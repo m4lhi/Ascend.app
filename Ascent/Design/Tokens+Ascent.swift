@@ -127,6 +127,22 @@ extension DesignSystem.Colors {
         light: Color(red: 0.165, green: 0.180, blue: 0.157),
         dark:  Color(red: 0.659, green: 0.671, blue: 0.624)
     )
+
+    /// glacierSoft — translucent cool wash. Sister to alpenglowSoft;
+    /// used for glacier-tinted button fills, selected-state pills,
+    /// and #2-rank podium backgrounds.
+    static let glacierSoft = Color.ascentAdaptive(
+        light: Color(red: 0.180, green: 0.486, blue: 0.573).opacity(0.16),
+        dark:  Color(red: 0.357, green: 0.663, blue: 0.753).opacity(0.20)
+    )
+
+    /// surfaceWarm — slight tint above paperWarm. For trough/track
+    /// elements (scope-selector background, sub-divider rows) that
+    /// need to read as one level deeper without going dark.
+    static let surfaceWarm = Color.ascentAdaptive(
+        light: Color(red: 0.880, green: 0.886, blue: 0.851),
+        dark:  Color(red: 0.137, green: 0.149, blue: 0.137)
+    )
 }
 
 // MARK: - Typography (Inter, with safe SF-Pro fallback)
