@@ -14,6 +14,7 @@ struct SummitReadinessScreen: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var readinessVM: ReadinessViewModel
+    @EnvironmentObject var feedVM: FeedViewModel
 
     var body: some View {
         ZStack {
@@ -33,7 +34,7 @@ struct SummitReadinessScreen: View {
                     // Section 2 — What drives your score
                     VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
                         sectionTitle("What drives your score")
-                        Color.clear.frame(height: 220)
+                        bentoBreakdown
                     }
                     .padding(.horizontal, DesignSystem.Spacing.lg)
 
@@ -81,6 +82,198 @@ struct SummitReadinessScreen: View {
         .buttonStyle(.plain)
         .padding(.leading, DesignSystem.Spacing.lg)
         .padding(.top, DesignSystem.Spacing.md)
+    }
+
+    // MARK: - Section 2: Bento breakdown
+
+    private var bentoBreakdown: some View {
+        VStack(spacing: DesignSystem.Spacing.sm) {
+            HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+                recoveryCard
+                trainingLoadCard
+            }
+            acclimatizationCard
+        }
+    }
+
+    private var recoveryCard: some View {
+        let profile = readinessVM.healthProfile
+
+        return VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+            HStack(spacing: 6) {
+                ReadinessGlyph()
+                    .frame(width: 14, height: 14)
+                    .foregroundStyle(DesignSystem.Colors.inkOnSage.opacity(0.78))
+                Text("Recovery")
+                    .font(DesignSystem.Typography.kickerInter)
+                    .tracking(0.5)
+                    .foregroundStyle(DesignSystem.Colors.inkOnSage.opacity(0.62))
+            }
+
+            if let hrv = profile?.heartRateVariability {
+                HStack(alignment: .firstTextBaseline, spacing: 3) {
+                    Text("\(Int(hrv.rounded()))")
+                        .font(.custom("Inter", size: 28).weight(.semibold))
+                        .foregroundStyle(DesignSystem.Colors.inkOnSage)
+                        .monospacedDigit()
+                    Text("ms")
+                        .font(DesignSystem.Typography.footnoteInter)
+                        .foregroundStyle(DesignSystem.Colors.inkOnSage.opacity(0.55))
+                }
+                Text("HRV")
+                    .font(DesignSystem.Typography.footnoteInter)
+                    .foregroundStyle(DesignSystem.Colors.inkOnSage.opacity(0.55))
+            } else {
+                Text("Connect Apple Health")
+                    .font(DesignSystem.Typography.footnoteInter)
+                    .foregroundStyle(DesignSystem.Colors.inkOnSage.opacity(0.55))
+                    .padding(.vertical, 6)
+            }
+
+            // Sub-stats: sleep + RHR
+            VStack(alignment: .leading, spacing: 3) {
+                if let mins = profile?.sleepMinutesLastNight, mins > 0 {
+                    statRow(label: "Sleep", value: formatSleep(mins))
+                }
+                if let rhr = profile?.restingHeartRate {
+                    statRow(label: "Resting HR", value: "\(rhr) bpm")
+                }
+            }
+
+            // TODO: 7-day HRV trend sparkline once history is exposed by HealthKitBridge.
+        }
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .pastelCard(.sage, applyForeground: false)
+    }
+
+    private var trainingLoadCard: some View {
+        let (statusWord, deltaText) = trainingLoadInsights
+        let isOverreach = statusWord == "Overreaching"
+
+        return VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+            HStack(spacing: 6) {
+                ActivityGlyph()
+                    .frame(width: 14, height: 14)
+                    .foregroundStyle(DesignSystem.Colors.inkOnIce.opacity(0.78))
+                Text("Training Load")
+                    .font(DesignSystem.Typography.kickerInter)
+                    .tracking(0.5)
+                    .foregroundStyle(DesignSystem.Colors.inkOnIce.opacity(0.62))
+            }
+
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(statusWord)
+                    .font(.custom("Inter", size: 22).weight(.semibold))
+                    .foregroundStyle(isOverreach ? DesignSystem.Colors.ember : DesignSystem.Colors.inkOnIce)
+
+                if isOverreach {
+                    Circle()
+                        .fill(DesignSystem.Colors.ember)
+                        .frame(width: 6, height: 6)
+                        .offset(y: -8)
+                }
+            }
+
+            Text(deltaText)
+                .font(DesignSystem.Typography.footnoteInter)
+                .foregroundStyle(DesignSystem.Colors.inkOnIce.opacity(0.62))
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .pastelCard(.ice, applyForeground: false)
+    }
+
+    private var acclimatizationCard: some View {
+        let info = acclimatizationInfo
+
+        return HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
+            ElevationGlyph()
+                .frame(width: 22, height: 22)
+                .foregroundStyle(info.recent
+                                 ? DesignSystem.Colors.meadow
+                                 : DesignSystem.Colors.inkOnSand.opacity(0.55))
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Acclimatization")
+                    .font(DesignSystem.Typography.kickerInter)
+                    .tracking(0.5)
+                    .foregroundStyle(DesignSystem.Colors.inkOnSand.opacity(0.62))
+                Text(info.text)
+                    .font(DesignSystem.Typography.bodyEmphasisInter)
+                    .foregroundStyle(DesignSystem.Colors.inkOnSand)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .pastelCard(.sand, applyForeground: false)
+    }
+
+    // MARK: - Section 2 helpers
+
+    private func statRow(label: String, value: String) -> some View {
+        HStack(spacing: 4) {
+            Text(label)
+                .font(DesignSystem.Typography.footnoteInter)
+                .foregroundStyle(DesignSystem.Colors.inkOnSage.opacity(0.55))
+            Spacer(minLength: 0)
+            Text(value)
+                .font(DesignSystem.Typography.footnoteInter.weight(.medium))
+                .foregroundStyle(DesignSystem.Colors.inkOnSage.opacity(0.82))
+                .monospacedDigit()
+        }
+    }
+
+    private func formatSleep(_ minutes: Int) -> String {
+        let h = minutes / 60
+        let m = minutes % 60
+        return m == 0 ? "\(h)h" : "\(h)h \(m)min"
+    }
+
+    /// (statusWord, deltaText) derived from the same ACWR math as
+    /// ReadinessManager so the card aligns with the score it explains.
+    /// Falls back to "Neutral" when chronic load is too thin to compute.
+    private var trainingLoadInsights: (String, String) {
+        let now = Date()
+        let cal = Calendar.current
+        let tours = feedVM.recentTours
+
+        let last7 = tours.filter { (cal.dateComponents([.day], from: $0.date, to: now).day ?? 100) <= 7 }
+        let last28 = tours.filter { (cal.dateComponents([.day], from: $0.date, to: now).day ?? 100) <= 28 }
+
+        let acute = last7.reduce(0) { $0 + Double($1.elevationGainMeters) }
+        let chronic = last28.reduce(0) { $0 + Double($1.elevationGainMeters) } / 4.0
+
+        guard chronic >= 100 else {
+            return ("Building", "Not enough recent activity to gauge load")
+        }
+
+        let ratio = acute / max(chronic, 1)
+        let pct = Int(((ratio - 1.0) * 100).rounded())
+
+        if ratio > 1.3 {
+            return ("Overreaching", "Acute load \(pct >= 0 ? "+\(pct)" : "\(pct)")% over average. Ease back.")
+        } else if ratio < 0.8 {
+            return ("Detraining", "Acute load \(pct)% below average. Volume is fading.")
+        } else {
+            return ("Optimal", "Steady progression (ratio \(String(format: "%.1f", ratio)))")
+        }
+    }
+
+    /// "Last >2000m: N days ago" when there is a recent qualifying tour
+    /// within 30 days, otherwise "No recent altitude exposure".
+    private var acclimatizationInfo: (text: String, recent: Bool) {
+        let tours = feedVM.recentTours.filter { $0.elevationGainMeters > 2000 }
+        guard let mostRecent = tours.max(by: { $0.date < $1.date }) else {
+            return ("No recent altitude exposure", false)
+        }
+        let days = Calendar.current.dateComponents([.day], from: mostRecent.date, to: Date()).day ?? 99
+        if days > 30 {
+            return ("No recent altitude exposure", false)
+        }
+        if days == 0 { return ("Last >2000m: today", true) }
+        if days == 1 { return ("Last >2000m: yesterday", true) }
+        return ("Last >2000m: \(days) days ago", true)
     }
 }
 
