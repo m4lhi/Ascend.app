@@ -54,10 +54,17 @@ struct SummitReadinessScreen: View {
                     }
                     .padding(.horizontal, DesignSystem.Spacing.lg)
 
-                    // Section 4 — Last 90 days
+                    // Section 4 — Last 90 days (pastel calendar)
                     VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-                        sectionTitle("Last 90 days")
-                        Color.clear.frame(height: 180)
+                        HStack(spacing: DesignSystem.Spacing.xs) {
+                            ElevationGlyph()
+                                .frame(width: 16, height: 16)
+                                .foregroundStyle(DesignSystem.Colors.inkWarm.opacity(0.55))
+                            Text("Last 90 days")
+                                .font(DesignSystem.Typography.title3Inter)
+                                .foregroundStyle(DesignSystem.Colors.inkWarm)
+                        }
+                        PastelReadinessCalendarGrid(history: readinessVM.readinessHistory)
                     }
                     .padding(.horizontal, DesignSystem.Spacing.lg)
                 }
@@ -413,6 +420,78 @@ struct SummitReadinessScreen: View {
         readinessVM.extendedReadinessAnsweredAt = Date()
         readinessVM.refresh()
         readinessVM.recordReadinessScore(readinessVM.timeToGoScore)
+    }
+}
+
+// MARK: - PastelReadinessCalendarGrid (90-day score heatmap)
+//
+// Mirrors the layout of the legacy ReadinessCalendarGrid in
+// SummitReadinessExtendedView.swift but with pastel-family fill
+// colors and softer corner radii. Same weekday-aligned ISO grid.
+
+fileprivate struct PastelReadinessCalendarGrid: View {
+    let history: [String: Int]
+
+    private static let dateFmt: DateFormatter = {
+        let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; return f
+    }()
+
+    private var weeks: [[Date?]] {
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: Date())
+        guard let start = cal.date(byAdding: .day, value: -89, to: today) else { return [] }
+        let weekday = cal.component(.weekday, from: start)
+        let isoOffset = ((weekday + 5) % 7)
+        guard let gridStart = cal.date(byAdding: .day, value: -isoOffset, to: start) else { return [] }
+        var result: [[Date?]] = []
+        var cursor = gridStart
+        while cursor <= today {
+            var week: [Date?] = []
+            for _ in 0..<7 {
+                week.append(cursor < start ? nil : (cursor <= today ? cursor : nil))
+                cursor = cal.date(byAdding: .day, value: 1, to: cursor) ?? cursor
+            }
+            result.append(week)
+        }
+        return result
+    }
+
+    var body: some View {
+        VStack(spacing: 5) {
+            HStack(spacing: 4) {
+                ForEach(["M", "T", "W", "T", "F", "S", "S"].indices, id: \.self) { i in
+                    Text(["M", "T", "W", "T", "F", "S", "S"][i])
+                        .font(DesignSystem.Typography.footnoteInter)
+                        .foregroundStyle(DesignSystem.Colors.inkWarm.opacity(0.45))
+                        .frame(maxWidth: .infinity)
+                }
+            }
+            ForEach(weeks.indices, id: \.self) { wi in
+                HStack(spacing: 4) {
+                    ForEach(0..<7, id: \.self) { di in
+                        if let day = weeks[wi][di] {
+                            let score = history[Self.dateFmt.string(from: day)]
+                            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                .fill(dotColor(for: score))
+                                .frame(maxWidth: .infinity)
+                                .aspectRatio(1, contentMode: .fit)
+                        } else {
+                            Color.clear
+                                .frame(maxWidth: .infinity)
+                                .aspectRatio(1, contentMode: .fit)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func dotColor(for score: Int?) -> Color {
+        guard let s = score else { return DesignSystem.Colors.borderSubtle }
+        if s > 80 { return DesignSystem.Colors.meadow }
+        if s > 60 { return DesignSystem.Colors.glacierDeep }
+        if s > 35 { return DesignSystem.Colors.alpenglow }
+        return DesignSystem.Colors.ember
     }
 }
 
