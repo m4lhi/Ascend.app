@@ -1,42 +1,40 @@
 import SwiftUI
+import UIKit
 
 // =========================================
 // === DATEI: BasecampMountainHero.swift ===
 // === Image-asset brand hero (size-agnostic) ===
 // =========================================
 //
-// Renders the watercolor / character hero asset for the Basecamp
-// main screen. Size is owned by the caller (.frame(...) on the
-// outside) so the same component works as a 110×130 portrait next
-// to the greeting OR as a full-width landscape banner — whichever
-// the layout calls for.
+// Renders the character hero asset for the Basecamp main screen.
+// Size is owned by the caller (.frame(...) on the outside).
 //
-// All atmospheric framing (fixed height, bottom-fade gradient,
-// horizon blend) was removed in iteration 11 because the new
-// composition treats the hero as an L-shape companion to the
-// greeting block, not as a full-bleed banner.
+// Two unsynchronized animations: a 3.5s breath scale (1.0 ↔ 1.03)
+// and a 4.2s float offset (0 ↔ -3pt). Different periods on purpose
+// — synced loops read as mechanical bouncing; phase-shifted loops
+// read as alive.
 
 struct BasecampMountainHero: View {
     var mood: Mood = .ready
 
     @State private var hasAppeared = false
     @State private var breathScale: CGFloat = 1.0
+    @State private var floatOffset: CGFloat = 0
 
     enum Mood {
         case ready, moderate, rest, caution
 
-        /// Asset name in Assets.xcassets. Only `hero-ready` exists
-        /// today — other moods fall back to it until variants are
-        /// generated.
+        /// Asset name in Assets.xcassets. Each mood points at its own
+        /// variant; if the variant isn't registered yet, fall back to
+        /// `hero-ready` so we never show an empty Image at runtime.
         var assetName: String {
+            let preferred: String
             switch self {
-            case .ready, .moderate:
-                return "hero-ready"
-            case .rest:
-                return "hero-ready"  // TODO: generate hero-rest variant
-            case .caution:
-                return "hero-ready"  // TODO: generate hero-caution variant
+            case .ready, .moderate: preferred = "hero-ready"
+            case .rest:             preferred = "hero-rest"
+            case .caution:          preferred = "hero-caution"
             }
+            return UIImage(named: preferred) != nil ? preferred : "hero-ready"
         }
     }
 
@@ -45,14 +43,26 @@ struct BasecampMountainHero: View {
             .resizable()
             .scaledToFit()
             .scaleEffect(breathScale)
+            .offset(y: floatOffset)
             .opacity(hasAppeared ? 1.0 : 0.0)
-            .animation(.easeOut(duration: 1.4), value: hasAppeared)
+            .animation(.easeOut(duration: 0.8), value: hasAppeared)
+            .animation(.easeInOut(duration: 0.4), value: mood)
             .onAppear {
                 hasAppeared = true
+
+                // Subtle breath — gentle scale loop.
                 withAnimation(
-                    .easeInOut(duration: 6.0).repeatForever(autoreverses: true)
+                    .easeInOut(duration: 3.5).repeatForever(autoreverses: true)
                 ) {
-                    breathScale = 1.015
+                    breathScale = 1.03
+                }
+
+                // Subtle float — vertical drift. Different period from
+                // breath so the loops don't sync up.
+                withAnimation(
+                    .easeInOut(duration: 4.2).repeatForever(autoreverses: true)
+                ) {
+                    floatOffset = -3
                 }
             }
     }
