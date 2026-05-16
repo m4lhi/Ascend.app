@@ -186,23 +186,19 @@ struct HealthDashboardView: View {
     // MARK: - Header
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
 
-            // Top row: profile button alone, right-aligned.
+            // Profile button alone on its own row, top-right.
             HStack {
                 Spacer()
                 profileButton
             }
 
-            // Header unit: companion-sized character + date + greeting,
-            // bound by a barely-there warm tint so they read as one block.
-            HStack(alignment: .center, spacing: DesignSystem.Spacing.sm) {
-                BasecampMountainHero(mood: mountainMood)
-                    .frame(width: 80, height: 95)
-                    .id(mountainMood)
-                    .animation(.easeInOut(duration: 0.4), value: mountainMood)
+            // TOP ROW: editorial text column left, large character right.
+            HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
 
-                VStack(alignment: .leading, spacing: 3) {
+                // LEFT: date kicker → greeting → editorial title stack.
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
                     Text("\(weekdayLabel), \(dateLabel)")
                         .font(DesignSystem.Typography.kickerInter)
                         .tracking(0.5)
@@ -211,32 +207,30 @@ struct HealthDashboardView: View {
                     Text("Hi \(greetingFirstName),")
                         .font(DesignSystem.Typography.bodyEmphasisInter)
                         .foregroundStyle(DesignSystem.Colors.inkWarm.opacity(0.72))
+
+                    Text(editorialTitle)
+                        .font(DesignSystem.Typography.title1Inter)
+                        .foregroundStyle(DesignSystem.Colors.inkWarm)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .lineSpacing(2)
+                        .padding(.top, DesignSystem.Spacing.xs)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
 
-                Spacer()
+                // RIGHT: character — large, prominent visual anchor.
+                BasecampMountainHero(mood: mountainMood)
+                    .frame(width: 140, height: 165)
+                    .id(mountainMood)
+                    .animation(.easeInOut(duration: 0.4), value: mountainMood)
             }
-            .padding(.horizontal, DesignSystem.Spacing.md)
-            .padding(.vertical, DesignSystem.Spacing.sm)
-            .background(
-                RoundedRectangle(cornerRadius: DesignSystem.Radius.cardSoft, style: .continuous)
-                    .fill(DesignSystem.Colors.alpenglowSoft.opacity(0.35))
-            )
 
-            // Editorial title + body, full-width with their own breathing room.
-            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                Text(editorialTitle)
-                    .font(DesignSystem.Typography.title1Inter)
-                    .foregroundStyle(DesignSystem.Colors.inkWarm)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .lineSpacing(2)
-
-                Text(narrativeBody)
-                    .font(DesignSystem.Typography.bodyInter)
-                    .foregroundStyle(DesignSystem.Colors.inkWarm.opacity(0.72))
-                    .fixedSize(horizontal: false, vertical: true)
-                    .lineSpacing(3)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            // BELOW: narrative body full-width.
+            Text(narrativeBody)
+                .font(DesignSystem.Typography.bodyInter)
+                .foregroundStyle(DesignSystem.Colors.inkWarm.opacity(0.72))
+                .fixedSize(horizontal: false, vertical: true)
+                .lineSpacing(3)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(.top, DesignSystem.Spacing.sm)
     }
