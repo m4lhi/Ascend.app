@@ -564,24 +564,28 @@ struct HealthDashboardView: View {
                     HapticManager.shared.light()
                     showCoachingGateway = true
                 } label: {
-                    VStack(alignment: .leading, spacing: 10) {
+                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
                         HStack {
                             CoachGlyph()
-                                .frame(width: 20, height: 20)
-                                .foregroundStyle(DesignSystem.Colors.inkOnIce)
+                                .frame(width: 18, height: 18)
+                                .foregroundStyle(DesignSystem.Colors.inkOnSage)
+                            Text("AI Coach")
+                                .font(DesignSystem.Typography.kickerInter)
+                                .tracking(0.5)
+                                .foregroundStyle(DesignSystem.Colors.inkOnSage.opacity(0.72))
                             Spacer()
                             Image(systemName: "arrow.up.right")
                                 .font(.system(size: 10, weight: .semibold))
-                                .foregroundStyle(DesignSystem.Colors.inkOnIce.opacity(0.55))
+                                .foregroundStyle(DesignSystem.Colors.inkOnSage.opacity(0.55))
                         }
-                        Text("AI Coach")
-                            .font(.app(size: 15, weight: .black))
-                            .foregroundColor(.white)
+                        Text("Talk it out")
+                            .font(DesignSystem.Typography.title3Inter)
+                            .foregroundStyle(DesignSystem.Colors.inkOnSage)
                         Text("Training · Recovery")
-                            .font(.appMono(size: 9, weight: .medium))
-                            .foregroundColor(DesignSystem.Colors.secondaryText)
+                            .font(DesignSystem.Typography.subheadInter)
+                            .foregroundStyle(DesignSystem.Colors.inkOnSage.opacity(0.62))
                     }
-                    .padding(16)
+                    .padding(DesignSystem.Spacing.md)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                     .pastelCard(.sage, applyForeground: false)
                 }
@@ -628,27 +632,32 @@ struct HealthDashboardView: View {
                     HapticManager.shared.light()
                     showElevationDetail = true
                 } label: {
-                    VStack(alignment: .leading, spacing: 10) {
+                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
                         HStack {
                             ElevationGlyph()
-                                .frame(width: 20, height: 20)
-                                .foregroundStyle(DesignSystem.Colors.inkOnSage)
+                                .frame(width: 18, height: 18)
+                                .foregroundStyle(DesignSystem.Colors.inkOnSand)
+                            Text("Elevation")
+                                .font(DesignSystem.Typography.kickerInter)
+                                .tracking(0.5)
+                                .foregroundStyle(DesignSystem.Colors.inkOnSand.opacity(0.62))
                             Spacer()
                         }
                         HStack(alignment: .firstTextBaseline, spacing: 3) {
                             Text("\(appState.weeklyElevation)")
-                                .font(.appMono(size: 24, weight: .black))
-                                .foregroundColor(.white)
+                                .font(DesignSystem.Typography.title1Inter)
+                                .foregroundStyle(DesignSystem.Colors.inkOnSand)
+                                .monospacedDigit()
                                 .contentTransition(.numericText())
                             Text("m")
-                                .font(.appMono(size: 12, weight: .bold))
-                                .foregroundColor(DesignSystem.Colors.secondaryText)
+                                .font(DesignSystem.Typography.footnoteInter)
+                                .foregroundStyle(DesignSystem.Colors.inkOnSand.opacity(0.62))
                         }
-                        Text("Höhenmeter diese Woche")
-                            .font(.appMono(size: 9, weight: .medium))
-                            .foregroundColor(DesignSystem.Colors.secondaryText)
+                        Text("This week")
+                            .font(DesignSystem.Typography.subheadInter)
+                            .foregroundStyle(DesignSystem.Colors.inkOnSand.opacity(0.72))
                     }
-                    .padding(16)
+                    .padding(DesignSystem.Spacing.md)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                     .pastelCard(.sand, applyForeground: false)
                 }
@@ -689,7 +698,7 @@ struct HealthDashboardView: View {
                                 .foregroundStyle(DesignSystem.Colors.inkOnSand.opacity(0.62))
                         }
                     }
-                    .padding(DesignSystem.Spacing.md)
+                    .padding(DesignSystem.Spacing.lg)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                     .background(
                         RoundedRectangle(cornerRadius: DesignSystem.Radius.cardSoft, style: .continuous)

@@ -811,30 +811,30 @@ struct BasecampView: View {
                 HStack {
                     ActivityGlyph()
                         .frame(width: 18, height: 18)
-                        .foregroundStyle(DesignSystem.Colors.inkOnSand)
+                        .foregroundStyle(DesignSystem.Colors.inkOnIce)
                     Text("Tours")
                         .font(DesignSystem.Typography.kickerInter)
                         .tracking(0.5)
-                        .foregroundStyle(DesignSystem.Colors.inkOnSand.opacity(0.62))
+                        .foregroundStyle(DesignSystem.Colors.inkOnIce.opacity(0.62))
                     Spacer()
                     Image(systemName: "chevron.right")
                         .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(DesignSystem.Colors.inkOnSand.opacity(0.45))
+                        .foregroundStyle(DesignSystem.Colors.inkOnIce.opacity(0.45))
                 }
 
                 Text("\(feedVM.recentTours.filter { $0.isCurrentUser }.count)")
                     .font(DesignSystem.Typography.title1Inter)
-                    .foregroundStyle(DesignSystem.Colors.inkOnSand)
+                    .foregroundStyle(DesignSystem.Colors.inkOnIce)
                     .monospacedDigit()
                     .contentTransition(.numericText())
 
                 Text("Logged")
                     .font(DesignSystem.Typography.subheadInter)
-                    .foregroundStyle(DesignSystem.Colors.inkOnSand.opacity(0.72))
+                    .foregroundStyle(DesignSystem.Colors.inkOnIce.opacity(0.72))
             }
             .padding(DesignSystem.Spacing.md)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .pastelCard(.sand, applyForeground: false)
+            .pastelCard(.ice, applyForeground: false)
         }
         .buttonStyle(PressableButtonStyle())
     }
@@ -914,7 +914,7 @@ struct BasecampView: View {
                     }
                 }
             }
-            .padding(DesignSystem.Spacing.md)
+            .padding(DesignSystem.Spacing.lg)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .background(
                 RoundedRectangle(cornerRadius: DesignSystem.Radius.cardSoft, style: .continuous)
