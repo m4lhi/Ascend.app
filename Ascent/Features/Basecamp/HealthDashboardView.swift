@@ -591,27 +591,32 @@ struct HealthDashboardView: View {
                     HapticManager.shared.light()
                     showAllActivities = true
                 } label: {
-                    VStack(alignment: .leading, spacing: 10) {
+                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
                         HStack {
                             ActivityGlyph()
-                                .frame(width: 20, height: 20)
-                                .foregroundStyle(DesignSystem.Colors.inkOnSand)
+                                .frame(width: 18, height: 18)
+                                .foregroundStyle(DesignSystem.Colors.inkOnIce)
+                            Text("Tours")
+                                .font(DesignSystem.Typography.kickerInter)
+                                .tracking(0.5)
+                                .foregroundStyle(DesignSystem.Colors.inkOnIce.opacity(0.62))
                             Spacer()
                             Image(systemName: "chevron.right")
                                 .font(.system(size: 10, weight: .semibold))
-                                .foregroundStyle(DesignSystem.Colors.inkOnSand.opacity(0.45))
+                                .foregroundStyle(DesignSystem.Colors.inkOnIce.opacity(0.45))
                         }
-                        HStack(alignment: .firstTextBaseline, spacing: 3) {
-                            Text("\(feedVM.recentTours.filter { $0.isCurrentUser }.count)")
-                                .font(.appMono(size: 24, weight: .black))
-                                .foregroundColor(.white)
-                                .contentTransition(.numericText())
-                            Text("Sessions")
-                                .font(.appMono(size: 10, weight: .bold))
-                                .foregroundColor(DesignSystem.Colors.secondaryText)
-                        }
+
+                        Text("\(feedVM.recentTours.filter { $0.isCurrentUser }.count)")
+                            .font(DesignSystem.Typography.title1Inter)
+                            .foregroundStyle(DesignSystem.Colors.inkOnIce)
+                            .monospacedDigit()
+                            .contentTransition(.numericText())
+
+                        Text("Logged")
+                            .font(DesignSystem.Typography.subheadInter)
+                            .foregroundStyle(DesignSystem.Colors.inkOnIce.opacity(0.72))
                     }
-                    .padding(16)
+                    .padding(DesignSystem.Spacing.md)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                     .pastelCard(.ice, applyForeground: false)
                 }

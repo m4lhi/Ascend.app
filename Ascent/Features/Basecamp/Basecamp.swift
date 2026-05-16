@@ -807,40 +807,32 @@ struct BasecampView: View {
             HapticManager.shared.light()
             showAllActivities = true
         } label: {
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
                 HStack {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 11, style: .continuous)
-                            .fill(LinearGradient(colors: [Color.orange.opacity(0.28), Color.orange.opacity(0.10)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                            .frame(width: 36, height: 36)
-                        Image(systemName: "figure.hiking")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(.orange)
-                            .symbolRenderingMode(.hierarchical)
-                    }
-                    Text("ACTIVITY")
-                        .font(.appMono(size: 9, weight: .bold))
-                        .foregroundColor(DesignSystem.Colors.secondaryText)
-                        .tracking(1.4)
+                    ActivityGlyph()
+                        .frame(width: 18, height: 18)
+                        .foregroundStyle(DesignSystem.Colors.inkOnSand)
+                    Text("Tours")
+                        .font(DesignSystem.Typography.kickerInter)
+                        .tracking(0.5)
+                        .foregroundStyle(DesignSystem.Colors.inkOnSand.opacity(0.62))
                     Spacer()
                     Image(systemName: "chevron.right")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundColor(.secondary.opacity(0.5))
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(DesignSystem.Colors.inkOnSand.opacity(0.45))
                 }
-                HStack(alignment: .firstTextBaseline, spacing: 4) {
-                    Text("\(feedVM.recentTours.filter { $0.isCurrentUser }.count)")
-                        .font(.appMono(size: 30, weight: .black))
-                        .foregroundColor(.white)
-                        .contentTransition(.numericText())
-                    Text("Sessions")
-                        .font(.appMono(size: 13, weight: .bold))
-                        .foregroundColor(DesignSystem.Colors.secondaryText)
-                }
-                Text("Total missions")
-                    .font(.app(size: 10))
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
+
+                Text("\(feedVM.recentTours.filter { $0.isCurrentUser }.count)")
+                    .font(DesignSystem.Typography.title1Inter)
+                    .foregroundStyle(DesignSystem.Colors.inkOnSand)
+                    .monospacedDigit()
+                    .contentTransition(.numericText())
+
+                Text("Logged")
+                    .font(DesignSystem.Typography.subheadInter)
+                    .foregroundStyle(DesignSystem.Colors.inkOnSand.opacity(0.72))
             }
-            .padding(18)
+            .padding(DesignSystem.Spacing.md)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .pastelCard(.sand, applyForeground: false)
         }
