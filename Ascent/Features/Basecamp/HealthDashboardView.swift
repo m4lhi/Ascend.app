@@ -186,7 +186,7 @@ struct HealthDashboardView: View {
     // MARK: - Header
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .top) {
                 Text("\(weekdayLabel), \(dateLabel)")
                     .font(DesignSystem.Typography.kickerInter)
@@ -195,6 +195,11 @@ struct HealthDashboardView: View {
                 Spacer()
                 profileButton
             }
+
+            Spacer().frame(height: DesignSystem.Spacing.sm)
+            ReadinessHero(mood: heroMood)
+            Spacer().frame(height: DesignSystem.Spacing.lg)
+
             Text("Hi \(greetingFirstName),")
                 .font(DesignSystem.Typography.bodyInter)
                 .foregroundStyle(DesignSystem.Colors.inkWarm.opacity(0.62))
@@ -203,13 +208,24 @@ struct HealthDashboardView: View {
                 .foregroundStyle(DesignSystem.Colors.inkWarm)
                 .fixedSize(horizontal: false, vertical: true)
                 .lineSpacing(2)
+                .padding(.top, 10)
             Text(narrativeBody)
                 .font(DesignSystem.Typography.bodyInter)
                 .foregroundStyle(DesignSystem.Colors.inkWarm.opacity(0.72))
                 .fixedSize(horizontal: false, vertical: true)
                 .lineSpacing(3)
-                .padding(.top, 4)
+                .padding(.top, 14)
         }
+    }
+
+    /// Maps the current readiness score to the ReadinessHero mood family
+    /// (drives the glow color). Defaults to .ready when no score yet.
+    private var heroMood: ReadinessHero.Mood {
+        guard let score = readinessVM.readiness?.totalScore else { return .ready }
+        if score > 70 { return .ready }
+        if score > 45 { return .moderate }
+        if score >= 25 { return .rest }
+        return .caution
     }
 
     /// First name (or full name if no space) for the Gentler-Streak
