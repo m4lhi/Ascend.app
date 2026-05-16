@@ -23,9 +23,12 @@ struct SummitReadinessScreen: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: DesignSystem.Spacing.xl) {
 
-                    // Section 1 — placeholder for ReadinessScoreDisplay.
-                    Color.clear.frame(height: 280)
-                        .padding(.top, DesignSystem.Spacing.sm)
+                    // Section 1 — large topographic score display.
+                    ReadinessScoreDisplay(
+                        score: readinessVM.readiness?.totalScore ?? 0,
+                        status: readinessVM.readiness?.status ?? "No assessment yet"
+                    )
+                    .padding(.top, DesignSystem.Spacing.sm)
 
                     // Section 2 — What drives your score
                     VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
