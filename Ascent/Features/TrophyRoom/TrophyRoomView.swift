@@ -336,9 +336,9 @@ struct TrophyRoomView: View {
         widgetOrderRaw = order.map { $0.rawValue }.joined(separator: ",")
     }
     
-    private let gold = DesignSystem.Colors.accent
-    private let cardBg = DesignSystem.Colors.surfaceElevated
-    private var bg: some View { DesignSystem.Colors.background }
+    private let gold = DesignSystem.Colors.alpenglow
+    private let cardBg = DesignSystem.Colors.surfaceWarm
+    private var bg: some View { DesignSystem.Colors.paperWarm }
 
 
     private var requiredXP: Int { appState.xpNeededForNextLevel }
@@ -387,9 +387,9 @@ struct TrophyRoomView: View {
             ZStack {
                 bg.ignoresSafeArea()
 
-                // One soft accent halo near top — premium, calm
+                // One soft warm halo near top — premium, calm
                 Circle()
-                    .fill(DesignSystem.Colors.accent.opacity(0.08))
+                    .fill(DesignSystem.Colors.alpenglow.opacity(0.10))
                     .frame(width: 420, height: 420)
                     .blur(radius: 90)
                     .offset(y: -240)
@@ -402,35 +402,48 @@ struct TrophyRoomView: View {
                     // ============================================
                     // MARK: - TOP BAR
                     // ============================================
-                    HStack {
+                    HStack(spacing: DesignSystem.Spacing.sm) {
                         Text("Profile")
-                            .font(.app(size: 28, weight: .bold))
-                            .foregroundColor(.white)
+                            .font(DesignSystem.Typography.title2Inter)
+                            .foregroundStyle(DesignSystem.Colors.inkWarm)
                         Spacer()
-                        
-                        Button(action: { showLayoutEditor = true }) {
-                            Image(systemName: "square.grid.2x2.fill")
-                                .font(.app(size: 18))
-                                .foregroundColor(.gray)
-                        }
-                        .padding(.trailing, 10)
 
-                        Button(action: { showEditProfile = true }) {
-                            Image(systemName: "pencil.circle.fill")
-                                .font(.app(size: 22))
-                                .foregroundColor(gold)
+                        topBarIconButton(action: { showLayoutEditor = true }) {
+                            VStack(spacing: 2) {
+                                HStack(spacing: 2) {
+                                    RoundedRectangle(cornerRadius: 1).fill(DesignSystem.Colors.inkWarm.opacity(0.62)).frame(width: 5, height: 5)
+                                    RoundedRectangle(cornerRadius: 1).fill(DesignSystem.Colors.inkWarm.opacity(0.62)).frame(width: 5, height: 5)
+                                }
+                                HStack(spacing: 2) {
+                                    RoundedRectangle(cornerRadius: 1).fill(DesignSystem.Colors.inkWarm.opacity(0.62)).frame(width: 5, height: 5)
+                                    RoundedRectangle(cornerRadius: 1).fill(DesignSystem.Colors.inkWarm.opacity(0.62)).frame(width: 5, height: 5)
+                                }
+                            }
                         }
-                        .padding(.trailing, 8)
 
-                        Button(action: { showSettings = true }) {
-                            Image(systemName: "gearshape.fill")
-                                .font(.app(size: 20))
-                                .foregroundColor(.gray)
+                        topBarIconButton(action: { showEditProfile = true }) {
+                            Path { p in
+                                p.move(to: CGPoint(x: 4, y: 14))
+                                p.addLine(to: CGPoint(x: 11, y: 7))
+                                p.addLine(to: CGPoint(x: 14, y: 10))
+                                p.addLine(to: CGPoint(x: 7, y: 17))
+                                p.closeSubpath()
+                            }
+                            .fill(DesignSystem.Colors.inkWarm.opacity(0.62))
+                            .frame(width: 18, height: 18)
+                        }
+
+                        topBarIconButton(action: { showSettings = true }) {
+                            ZStack {
+                                Circle().stroke(DesignSystem.Colors.inkWarm.opacity(0.62), lineWidth: 1.5).frame(width: 12, height: 12)
+                                Circle().fill(DesignSystem.Colors.inkWarm.opacity(0.62)).frame(width: 4, height: 4)
+                            }
+                            .frame(width: 18, height: 18)
                         }
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 16)
-                    .padding(.bottom, 20)
+                    .padding(.horizontal, DesignSystem.Spacing.lg)
+                    .padding(.top, DesignSystem.Spacing.md)
+                    .padding(.bottom, DesignSystem.Spacing.md)
                     
                     // ============================================
                     // MARK: - PROFILE HEADER CARD
@@ -481,13 +494,13 @@ struct TrophyRoomView: View {
                             
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(profileVM.userName)
-                                    .font(.app(size: 22, weight: .bold))
-                                    .foregroundColor(.white)
-                                
+                                    .font(DesignSystem.Typography.title2Inter)
+                                    .foregroundStyle(DesignSystem.Colors.inkWarm)
+
                                 HStack(spacing: 8) {
                                     Text("@\(profileVM.userHandle)")
-                                        .font(.app(size: 14))
-                                        .foregroundColor(.gray)
+                                        .font(DesignSystem.Typography.subheadInter)
+                                        .foregroundStyle(DesignSystem.Colors.inkWarm.opacity(0.62))
                                     
                                     if !profileVM.instaHandle.isEmpty {
                                         Button(action: { openInstagram(profileVM.instaHandle) }) {
@@ -579,54 +592,38 @@ struct TrophyRoomView: View {
                             }
                         }
                         
-                        // Stats row
-                        HStack(spacing: 0) {
+                        // Stats row — pastel triple
+                        HStack(spacing: DesignSystem.Spacing.sm) {
                             ProfileStatItem(
                                 value: "\(appState.currentXP)",
                                 label: "XP",
-                                color: gold
+                                color: DesignSystem.Colors.alpenglow,
+                                background: DesignSystem.Colors.alpenglowSoft
                             )
-                            
-                            Rectangle()
-                                .fill(Color.white.opacity(0.06))
-                                .frame(width: 1, height: 32)
-                            
                             ProfileStatItem(
                                 value: "\(totalTours)",
-                                label: "Missions",
-                                color: .cyan
+                                label: "Tours",
+                                color: DesignSystem.Colors.glacierDeep,
+                                background: DesignSystem.Colors.glacierSoft
                             )
-                            
-                            Rectangle()
-                                .fill(Color.white.opacity(0.06))
-                                .frame(width: 1, height: 32)
-                            
                             ProfileStatItem(
                                 value: formatElevation(totalElevation),
                                 label: "Elevation",
-                                color: .green
+                                color: DesignSystem.Colors.meadow,
+                                background: DesignSystem.Colors.meadowSoft
                             )
                         }
-                        .padding(.vertical, 14)
-                        .background(
-                            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                .fill(DesignSystem.Colors.surface)
-                                .environment(\.colorScheme, .light)
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                .stroke(Color.white.opacity(0.5), lineWidth: 0.5)
-                        )
                     }
-                    .padding(20)
-                    .background(DesignSystem.Colors.surface)
-                    .environment(\.colorScheme, .light)
-                    .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 24, style: .continuous)
-                            .stroke(Color.white.opacity(0.5), lineWidth: 0.5)
+                    .padding(DesignSystem.Spacing.lg)
+                    .background(
+                        RoundedRectangle(cornerRadius: DesignSystem.Radius.cardSoft, style: .continuous)
+                            .fill(DesignSystem.Colors.paperWarm)
                     )
-                    .padding(.horizontal, 20)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: DesignSystem.Radius.cardSoft, style: .continuous)
+                            .stroke(DesignSystem.Colors.borderSubtle, lineWidth: 0.5)
+                    )
+                    .padding(.horizontal, DesignSystem.Spacing.lg)
                     .opacity(animateIn ? 1 : 0)
                     .offset(y: animateIn ? 0 : 16)
                     
@@ -692,61 +689,67 @@ struct TrophyRoomView: View {
 
     private var rankWidget: some View {
         Button(action: { showAscendRank = true }) {
-                        HStack(spacing: 15) {
-                            if let profile = appState.ascendProfile {
-                                let tColor = tierColor
-                                let isObsidian = profile.ascend_tier.lowercased() == "obsidian"
-                                
-                                GemView(isActive: true, color: tColor, isObsidian: isObsidian)
-                                    .scaleEffect(0.9)
-                                    .frame(width: 45, height: 45)
-                                
-                                VStack(alignment: .leading, spacing: 6) {
-                                    Text("Alpinist Rank")
-                                        .font(.app(.caption))
-                                        .foregroundColor(.gray)
-                                    
-                                    HStack(alignment: .bottom, spacing: 5) {
-                                        Text("\(profile.ascend_tier) \(String(repeating: "I", count: profile.ascend_subtier))")
-                                            .font(.app(.headline))
-                                            .fontWeight(.bold)
-                                            .foregroundColor(isObsidian ? .black : tColor)
-                                        
-                                        Spacer()
-                                        
-                                        Text("\(Int(profile.ascend_xp)) XP")
-                                            .font(.app(.caption))
-                                            .foregroundColor(.gray)
-                                    }
-                                    
-                                    GeometryReader { geo in
-                                        let progress = max(0, min(Double(appState.currentLevelProgressXP) / Double(max(appState.xpNeededForNextLevel, 1)), 1.0))
-                                        ZStack(alignment: .leading) {
-                                            Capsule().fill(Color.gray.opacity(0.1)).frame(height: 6)
-                                            Capsule().fill(tColor)
-                                                .frame(width: progressAnimated ? geo.size.width * progress : 0, height: 6)
-                                        }
-                                    }.frame(height: 6)
-                                }
-                            } else {
-                                ProgressView().tint(.gray)
-                                Text("Loading Rank...").foregroundColor(.gray).padding(.leading, 10)
-                                Spacer()
-                            }
-                            
-                            Image(systemName: "chevron.right").font(.app(.caption)).foregroundColor(.gray)
-                        }
-                        .padding(20)
-                        .background(DesignSystem.Colors.surface)
-                        .environment(\.colorScheme, .light)
-                        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                                .stroke(Color.white.opacity(0.5), lineWidth: 0.5)
-                        )
+            HStack(spacing: DesignSystem.Spacing.md) {
+                if let profile = appState.ascendProfile {
+                    let tColor = tierColor
+
+                    ZStack {
+                        Circle()
+                            .fill(tColor.opacity(0.18))
+                            .frame(width: 48, height: 48)
+                        RankGlyph()
+                            .foregroundStyle(tColor)
+                            .frame(width: 22, height: 22)
                     }
-                    .buttonStyle(.plain)
-                    .padding(.horizontal, 20)
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Alpinist rank")
+                            .font(DesignSystem.Typography.kickerInter)
+                            .foregroundStyle(DesignSystem.Colors.inkFaintWarm)
+                        Text("\(profile.ascend_tier) \(String(repeating: "I", count: profile.ascend_subtier))")
+                            .font(DesignSystem.Typography.title3Inter)
+                            .foregroundStyle(DesignSystem.Colors.inkWarm)
+                    }
+
+                    Spacer()
+
+                    VStack(alignment: .trailing, spacing: 4) {
+                        Text("\(Int(profile.ascend_xp)) XP")
+                            .font(DesignSystem.Typography.kickerInter)
+                            .foregroundStyle(DesignSystem.Colors.inkWarm.opacity(0.62))
+                            .monospacedDigit()
+                        GeometryReader { geo in
+                            let progress = max(0, min(Double(appState.currentLevelProgressXP) / Double(max(appState.xpNeededForNextLevel, 1)), 1.0))
+                            ZStack(alignment: .leading) {
+                                Capsule().fill(DesignSystem.Colors.surfaceWarm)
+                                Capsule()
+                                    .fill(tColor)
+                                    .frame(width: progressAnimated ? geo.size.width * progress : 0)
+                            }
+                        }
+                        .frame(width: 80, height: 4)
+                    }
+                } else {
+                    ProgressView().tint(DesignSystem.Colors.inkWarm.opacity(0.62))
+                    Text("Loading rank…")
+                        .font(DesignSystem.Typography.subheadInter)
+                        .foregroundStyle(DesignSystem.Colors.inkWarm.opacity(0.62))
+                        .padding(.leading, 10)
+                    Spacer()
+                }
+            }
+            .padding(DesignSystem.Spacing.md)
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.cardSoft, style: .continuous)
+                    .fill(DesignSystem.Colors.paperWarm)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.cardSoft, style: .continuous)
+                    .stroke(DesignSystem.Colors.borderSubtle, lineWidth: 0.5)
+            )
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, DesignSystem.Spacing.lg)
     }
 
     // MARK: - Equipment widget
@@ -856,45 +859,47 @@ struct TrophyRoomView: View {
         }
     }
 
-    // MARK: - Achievements widget
+    // MARK: - Achievements widget (preview links to AchievementsView)
     private var achievementsWidget: some View {
         Button(action: { showAllAchievements = true }) {
-            HStack(alignment: .center, spacing: 15) {
+            HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
                 ZStack {
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(gold.opacity(0.1))
+                    Circle()
+                        .fill(DesignSystem.Colors.alpenglowSoft)
                         .frame(width: 48, height: 48)
-                    Image(systemName: "medal.fill")
-                        .font(.app(size: 20))
-                        .foregroundColor(gold)
+                    MilestoneGlyph()
+                        .foregroundStyle(DesignSystem.Colors.alpenglow)
+                        .frame(width: 22, height: 22)
                 }
 
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 3) {
                     Text("Achievements")
-                        .font(.app(.headline))
-                        .fontWeight(.bold)
-                        .foregroundColor(.white)
-                    Text("\(unlockedCount) / \(achievements.count) Unlocked")
-                        .font(.app(.caption))
-                        .foregroundColor(.gray)
+                        .font(DesignSystem.Typography.title3Inter)
+                        .foregroundStyle(DesignSystem.Colors.inkWarm)
+                    Text("\(unlockedCount) of \(achievements.count) unlocked")
+                        .font(DesignSystem.Typography.subheadInter)
+                        .foregroundStyle(DesignSystem.Colors.inkWarm.opacity(0.62))
+                        .monospacedDigit()
                 }
 
                 Spacer()
 
                 Image(systemName: "chevron.right")
-                    .font(.app(.caption))
-                    .foregroundColor(.gray)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(DesignSystem.Colors.inkFaintWarm)
             }
             .padding(DesignSystem.Spacing.md)
-            .background(DesignSystem.Colors.surface)
-            .clipShape(RoundedRectangle(cornerRadius: DesignSystem.Radius.lg, style: .continuous))
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.cardSoft, style: .continuous)
+                    .fill(DesignSystem.Colors.paperWarm)
+            )
             .overlay(
-                RoundedRectangle(cornerRadius: DesignSystem.Radius.lg, style: .continuous)
-                    .stroke(Color.black.opacity(0.04), lineWidth: 0.5)
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.cardSoft, style: .continuous)
+                    .stroke(DesignSystem.Colors.borderSubtle, lineWidth: 0.5)
             )
         }
         .buttonStyle(.plain)
-        .padding(.horizontal, 20)
+        .padding(.horizontal, DesignSystem.Spacing.lg)
     }
 
     private func openInstagram(_ handle: String) {
@@ -914,6 +919,19 @@ struct TrophyRoomView: View {
         }
         return "\(m)m"
     }
+
+    @ViewBuilder
+    private func topBarIconButton<Content: View>(action: @escaping () -> Void, @ViewBuilder content: () -> Content) -> some View {
+        Button(action: action) {
+            ZStack {
+                Circle()
+                    .fill(DesignSystem.Colors.surfaceWarm)
+                    .frame(width: 36, height: 36)
+                content()
+            }
+        }
+        .buttonStyle(.plain)
+    }
 }
 
 // =========================================
@@ -924,18 +942,24 @@ struct ProfileStatItem: View {
     let value: String
     let label: String
     let color: Color
-    
+    var background: Color = DesignSystem.Colors.surfaceWarm
+
     var body: some View {
-        VStack(spacing: 4) {
+        VStack(alignment: .leading, spacing: 2) {
             Text(value)
-                .font(.app(size: 18, weight: .bold))
-                .foregroundColor(.white)
+                .font(DesignSystem.Typography.title3Inter)
+                .foregroundStyle(DesignSystem.Colors.inkWarm)
+                .monospacedDigit()
             Text(label)
-                .font(.app(size: 10, weight: .semibold))
-                .foregroundColor(color.opacity(0.7))
-                .tracking(0.5)
+                .font(DesignSystem.Typography.kickerInter)
+                .foregroundStyle(color)
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(DesignSystem.Spacing.sm)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .fill(background)
+        )
     }
 }
 
